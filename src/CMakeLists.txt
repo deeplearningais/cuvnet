@@ -1,0 +1,13 @@
+# ---------- Find Boost Headers/Libraries -----------------------
+SET (Boost_FIND_REQUIRED TRUE)
+SET (Boost_FIND_QUIETLY TRUE)
+SET (Boost_USE_MULTITHREADED TRUE)
+SET (Boost_USE_STATIC_LIBS FALSE)
+SET (Boost_ADDITIONAL_VERSIONS "1.39" "1.39.0" "1.40" "1.42" "1.43" "1.44" "1.45" "1.46" "1.47" "1.48" )
+FIND_PACKAGE( Boost 1.37 COMPONENTS date_time unit_test_framework serialization program_options iostreams filesystem REQUIRED )
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
+LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+
+add_subdirectory(test)
