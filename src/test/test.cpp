@@ -75,31 +75,8 @@ TEST(ce_ptr_test, init){
 
 TEST(op_test,misc){
 	typedef boost::shared_ptr<Op> ptr_t;
-	typedef boost::shared_ptr<const Op> cptr_t;
-
-	ptr_t po = boost::make_shared<SquaredLossFunction>(
-			boost::make_shared<PowOp>(2, 
-				boost::make_shared<Input>()));
-	po->arborize();
-
-	std::list<cptr_t> l;
-	po->params(l);
-	EXPECT_EQ(l.size(),1);
-
-	po->derivative(l);
-}
-
-TEST(op_test,make_mlp_op){
-	typedef boost::shared_ptr<Op> ptr_t;
-	typedef boost::shared_ptr<const Op> cptr_t;
-
-	ptr_t mlp = make_mlp_op(10,true,cuv::SF_TANH,boost::shared_ptr<Op>(new Input()));
-	EXPECT_EQ(mlp->shared_from_this().get(),mlp.get());
-
-	toposorter ts;
-	mlp->visit_preorder(ts);
-	EXPECT_TRUE(ts.sorted[3]->isa<Input>());
-	EXPECT_TRUE(ts.sorted[2]->isa<ProdOp>());
-	EXPECT_TRUE(ts.sorted[1]->isa<MatrixPlusVecOp>());
-	EXPECT_TRUE(ts.sorted[0]->isa<TanhOp>());
+    ptr_t id = boost::make_shared<Identity>();
+    Op::param_collector pc;
+    id->visit(pc);
+    EXPECT_EQ(pc.plist.size(),0);
 }

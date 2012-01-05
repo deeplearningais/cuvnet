@@ -15,14 +15,15 @@ namespace cuvnet
         {
             public:
                 typedef boost::shared_ptr<T> ref_ptr;
-                cow_ptr( ){}
-                cow_ptr( const cow_ptr &cpy ) : m_ptr(cpy.m_ptr){}
-                explicit cow_ptr( const ref_ptr &cpy ) : m_ptr(cpy){}
-                explicit cow_ptr(       T*       cpy ) : m_ptr(cpy){}
+                cow_ptr( ):m_need_value(false){}
+                cow_ptr( const cow_ptr &cpy ) : m_ptr(cpy.m_ptr), m_need_value(false){}
+                explicit cow_ptr( const ref_ptr &cpy ) : m_ptr(cpy), m_need_value(false){}
+                explicit cow_ptr(       T*       cpy ) : m_ptr(cpy), m_need_value(false){}
 
-                void release(){
-                    m_ptr.release();
-                }
+                inline void reset( T* cpy )   { m_ptr.reset(cpy); need_value(false); }
+                inline void reset(        )   { m_ptr.reset();    need_value(false); }
+                inline bool need_value() const{ return m_need_value; }
+                inline void need_value(bool b){ m_need_value = b; }
                 void detach(){
                     T* tmp = m_ptr.get();
                     if( ! (tmp==0 || m_ptr.unique()))
@@ -48,19 +49,22 @@ namespace cuvnet
                 const T&      cdata() const { return *m_ptr; }
                 const T& operator* () const { return *m_ptr; }
                 const T* operator->() const { return  m_ptr.operator->(); }
-                explicit operator const T& ()const{ return *m_ptr; }
+                operator const T& ()const{ return *m_ptr; }
+                bool     operator!()const   { return !m_ptr; }
 
                 // non-const versions
+                T&        data()         { detach(); return *m_ptr; }
                 const T& cdata()         {           return *m_ptr; }
                 T& operator* ()          { detach(); return *m_ptr; }
                 T* operator->()          { detach(); return  m_ptr.operator->(); }
-                explicit operator T& ()  { detach(); return *m_ptr; }
+                operator T& ()  { detach(); return *m_ptr; }
 
                 template<class U>
                 friend std::ostream& operator<< (std::ostream &o, const cow_ptr<U>&);
 
             private:
                 ref_ptr m_ptr;
+                bool    m_need_value; // for delayed release
         };
 
         template<class T>
@@ -131,7 +135,7 @@ namespace cuvnet
                 const T&      cdata() const { return *m_ptr->ptr; }
                 const T& operator* () const { return *m_ptr->ptr; }
                 const T* operator->() const { return m_ptr->ptr.operator->(); }
-                explicit operator const T& ()const{ return *m_ptr->ptr; }
+                operator const T& ()const{ return *m_ptr->ptr; }
 
                 // non-const versions (detach if necessary)
                 T&        data(void* p)  { 
