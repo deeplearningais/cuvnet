@@ -7,6 +7,7 @@
 #include <boost/serialization/base_object.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <cuv/basics/tensor.hpp>
 
 namespace cuvnet
 {
@@ -15,19 +16,22 @@ namespace cuvnet
         {
             public:
                 typedef boost::shared_ptr<T> ref_ptr;
-                cow_ptr( ):m_need_value(false){}
-                cow_ptr( const cow_ptr &cpy ) : m_ptr(cpy.m_ptr), m_need_value(false){}
-                explicit cow_ptr( const ref_ptr &cpy ) : m_ptr(cpy), m_need_value(false){}
-                explicit cow_ptr(       T*       cpy ) : m_ptr(cpy), m_need_value(false){}
+                cow_ptr( ){}
+                cow_ptr( const cow_ptr &cpy ) : m_ptr(cpy.m_ptr){}
+                explicit cow_ptr( const ref_ptr &cpy ) : m_ptr(cpy){}
+                explicit cow_ptr(       T*       cpy ) : m_ptr(cpy){}
 
-                inline void reset( T* cpy )   { m_ptr.reset(cpy); need_value(false); }
-                inline void reset(        )   { m_ptr.reset();    need_value(false); }
-                inline bool need_value() const{ return m_need_value; }
-                inline void need_value(bool b){ m_need_value = b; }
+                inline void reset( T* cpy )   { m_ptr.reset(cpy);  }
+                inline void reset(        )   { m_ptr.reset();     }
                 void detach(){
                     T* tmp = m_ptr.get();
                     if( ! (tmp==0 || m_ptr.unique()))
                         m_ptr.reset(new T(*tmp));
+                }
+                void detach_onlyshape(){
+                    T* tmp = m_ptr.get();
+                    if( ! (tmp==0 || m_ptr.unique()))
+                        m_ptr.reset(new T(tmp->shape()));
                 }
                 cow_ptr& operator=(const cow_ptr& o){ m_ptr = o.m_ptr; return *this;}
                 cow_ptr& operator=(const T& t){ 
@@ -53,6 +57,7 @@ namespace cuvnet
                 bool     operator!()const   { return !m_ptr; }
 
                 // non-const versions
+                T&        data_onlyshape()  { detach_onlyshape(); return *m_ptr; }
                 T&        data()         { detach(); return *m_ptr; }
                 const T& cdata()         {           return *m_ptr; }
                 T& operator* ()          { detach(); return *m_ptr; }
@@ -64,7 +69,6 @@ namespace cuvnet
 
             private:
                 ref_ptr m_ptr;
-                bool    m_need_value; // for delayed release
         };
 
         template<class T>
