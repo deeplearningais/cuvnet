@@ -43,7 +43,12 @@ namespace cuvnet
                     if(p.value_set) return true;
                     return false;
                 }
+                /**
+                 * get the value to write at directly, also sets value_set for convenience
+                 *
+                 */
                 cow_ptr<T>& overwrite_or_add_value(){
+                    use(0)->value_set = true;
                     return use(0)->value;
                 }
                 void push(const cow_ptr<T>& v){
@@ -88,7 +93,12 @@ namespace cuvnet
                     if(p.delta_set) return true;
                     return false;
                 }
+                /**
+                 * get the delta to write at directly, also sets delta_set for convenience
+                 *
+                 */
                 cow_ptr<T>& overwrite_or_add_value(){
+                    use(0)->delta_set = true;
                     return use(0)->delta;
                 }
                 void push(const cow_ptr<T>& v){
@@ -115,6 +125,7 @@ namespace cuvnet
             typedef matrix value_type;
             typedef cow_ptr<value_type>                 value_ptr;
             typedef boost::shared_ptr<Op>               op_ptr;
+            typedef boost::weak_ptr<detail::op_param<value_type> >     weak_param_t;
             typedef boost::shared_ptr<detail::op_param<value_type> >        param_t;
             typedef boost::shared_ptr<detail::op_result<value_type> >      result_t;
             protected:
@@ -174,7 +185,7 @@ namespace cuvnet
 			 *
 			 * @param l the list of parameters w.r.t. which this op is to be derived
 			 */
-			inline bool set_calculate_derivative(const std::list<Op*>&l){
+			inline bool set_calculate_derivative(const std::vector<Op*>&l){
                 if(l.end() != std::find(l.begin(),l.end(), this)){
                     assert(m_params.size()==0); // this should be a "scalar"
                     return true;
@@ -204,7 +215,8 @@ namespace cuvnet
              * collect all no-input ops in a list
              */
             struct param_collector_visitor : public op_visitor_adaptor{
-                std::list<Op*>     plist;
+                typedef std::vector<Op*> container_type;
+                container_type     plist;
                 std::map<Op*,bool> visited;
                 inline bool discover(Op* o){
                     if(visited.find(o)!=visited.end())
@@ -221,7 +233,8 @@ namespace cuvnet
              * collect all ops in a list in topological order
              */
             struct toposort_visitor : public op_visitor_adaptor{
-                std::vector<Op*>     plist;
+                typedef std::vector<Op*> container_type;
+                container_type     plist;
                 std::map<Op*,bool> visited;
                 bool               deriv_only;
                 toposort_visitor(bool deriv):deriv_only(deriv){}
@@ -270,13 +283,31 @@ namespace cuvnet
              * determine shapes recursively
              */
             struct determine_shapes_visitor :public op_visitor_adaptor{
+                bool deriv_only;
+                determine_shapes_visitor(bool deriv=false):deriv_only(deriv){}
                 inline void postorder(Op* o)const{
                     o->_determine_shapes();
                     // push from result to result-users
                     BOOST_FOREACH(Op::result_t& r, o->m_results){
                         for(unsigned int i=0;i<r->result_uses.size();i++){
-                            r->use(i)->shape = r->shape;
+                            if(!deriv_only || r->use(i)->need_derivative)
+                                r->use(i)->shape = r->shape;
                         }
+                    }
+                }
+            };
+
+            struct reset_delta_set_flag : public op_visitor_adaptor{
+                inline void preorder(Op*o)const{
+                    BOOST_FOREACH(Op::result_t& r, o->m_results){
+                        r->delta_set = false;
+                    }
+                }
+            };
+            struct reset_value_set_flag : public op_visitor_adaptor{
+                inline void preorder(Op*o)const{
+                    BOOST_FOREACH(Op::param_t& r, o->m_params){
+                        r->value_set = false;
                     }
                 }
             };
@@ -310,6 +341,40 @@ namespace cuvnet
                 v.postorder(this);
             }
 
+            struct swiper{
+                toposort_visitor m_topo;
+                swiper(Op& op, bool deriv, const param_collector_visitor::container_type& paramlist)
+                    :m_topo(deriv){
+                        op.set_calculate_derivative(paramlist);
+                        op.visit(m_topo);
+                        op.visit(Op::determine_shapes_visitor());
+                }
+                void fprop(){
+                    BOOST_FOREACH(Op* o, m_topo.plist){
+                        BOOST_FOREACH(Op::result_t& r, o->m_results){
+                            BOOST_FOREACH(Op::weak_param_t p, r->result_uses){
+                                p.lock()->value_set = false;
+                            }
+                        }
+                    }
+                    BOOST_FOREACH(Op* o, m_topo.plist){
+                        o->fprop();
+                    }
+                }
+                void bprop(){
+                    BOOST_FOREACH(Op* o, m_topo.plist){
+                        BOOST_FOREACH(Op::param_t& p, o->m_params){
+                            BOOST_FOREACH(Op::result_t& r, p->param_uses){
+                                r->delta_set = false;
+                            }
+                        }
+                    }
+                    BOOST_REVERSE_FOREACH(Op* o, m_topo.plist){
+                        o->bprop();
+                    }
+                }
+            };
+
             /**
              * user-supplied function: calculate results of this op
              */
@@ -342,22 +407,17 @@ namespace cuvnet
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
 
-            private:
-                value_ptr m_data;
-
             public:
                 Output(result_t& p0):Op(1,0){ 
                     add_param(0,p0);
                 }
                 void fprop(){
-                    // simply store the inputs
-                    m_data = m_params[0]->value;
-                    m_params[0]->value.reset();
+                    // simply do not reset the m_params[0] to keep the value
                 }
                 void bprop(){}
                 void _determine_shapes(){ }
                 //value_type&       data()      { return m_data; }
-                const value_type& data() const{ return m_data; }
+                const value_type& cdata() const{ return m_params[0]->value.cdata(); }
         };
     class Input
         : public Op{
@@ -376,13 +436,17 @@ namespace cuvnet
                 Input(const T& init):Op(0,1), m_data(new value_type(init)){  }
                 void fprop(){
                     m_results[0]->push(m_data);
+                    // TODO: forget m_data now?
                 }
                 void bprop(){}
                 void _determine_shapes(){
                     m_results[0]->shape = m_data->shape();
                 }
-                value_type&       data()      { return m_data; }
-                const value_type& data() const{ return m_data; }
+                value_ptr&        data_ptr()     { return m_data; }
+                const value_ptr&  data_ptr()const{ return m_data; }
+
+                value_type&       data()      { return m_data.data();  }
+                const value_type& data() const{ return m_data.cdata(); }
         };
 
 
@@ -474,6 +538,7 @@ namespace cuvnet
                 const value_type& inp = p0->value.cdata();
                 value_ptr res(new value_type(inp.shape()));
                 apply_scalar_functor(*res,inp,SF_DPOW, m_exponent);
+                *res *= r0->delta.cdata(); // TODO: write POW_TIMES functor in cuv
                 p0->push(res);
             }
         };
@@ -501,7 +566,8 @@ namespace cuvnet
                 apply_scalar_functor( outp, inp, SF_TANH);
 
                 r0->push(p0->value);      // 'copy' a newly created matrix
-                p0->value.reset(); // forget it
+                if(!p0->need_derivative)
+                    p0->value.reset(); // forget it
             }
             void bprop(){
                 using namespace cuv;
@@ -509,10 +575,14 @@ namespace cuvnet
                 result_t& r0 = m_results[0];
                 assert(p0->need_derivative);
 
-                value_type& delta = r0->delta.data();
+                value_type& delta = r0->delta.data(); // this is the error from above
 
-                apply_scalar_functor(delta,delta,SF_DTANH);
-                r0->push(r0->delta);
+                const value_type& out = p0->value.cdata(); // this is the value we changed in fprop
+                value_type& res       = p0->value.data_onlyshape(); // try to overwrite this
+
+                apply_scalar_functor(res,out,SF_DTANH);
+                res  *=  delta;
+                p0->push(p0->value);
                 r0->delta.reset();
             }
         };
