@@ -188,29 +188,12 @@ namespace cuvnet
                 /**
                  * Default constructor (you shouldn't use this, only implicitly during deserialization!)
                  */
-                Op(){
-                }
-                Op(unsigned int n_params, unsigned int n_results){
-                    set_n_params(n_params);
-                    set_n_results(n_results);
-                }
-                ~Op(){
-                    detach_from_params();
-                    detach_from_results();
-                }
+                Op();
+                Op(unsigned int n_params, unsigned int n_results);
+                ~Op();
 
-                Op& detach_from_params(){
-                    BOOST_FOREACH(Op::param_t& p, m_params){
-                        p->clear();
-                    }
-                    return *this;
-                }
-                Op& detach_from_results(){
-                    BOOST_FOREACH(Op::result_t& r, m_results){
-                        r->clear();
-                    }
-                    return *this;
-                }
+                Op& detach_from_params();
+                Op& detach_from_results();
 
                 /** 
                  * returns a reference to the i-th result
@@ -221,35 +204,16 @@ namespace cuvnet
                  *       I assume that result() will be primarily used to construct
                  *       functions, which is not that often.
                  */
-                result_t&       result(const unsigned int i=0){
-                    if(!m_results[i]->op)
-                        m_results[i]->op = shared_from_this();
-                    return m_results[i];
-                }
+                result_t&       result(const unsigned int i=0);
                 /** 
                  * returns a reference to the i-th parameter
                  */
-                param_t&       param(const unsigned int i=0){
-                    return m_params[i];
-                }
-                void set_n_params(unsigned int n){ 
-                    m_params.resize(n); 
-                    for(int i=0;i<n;i++){
-                        m_params[i].reset(new detail::op_param<value_type>());
-                    }
-                }
-                void set_n_results(unsigned int n){ 
-                    m_results.resize(n); 
-                    for(int i=0;i<n;i++){
-                        m_results[i].reset(new detail::op_result<value_type>());
-                    }
-                }
+                param_t&       param(const unsigned int i=0);
+                void set_n_params(unsigned int n);
+                void set_n_results(unsigned int n);
                 unsigned int get_n_params(){ return m_params.size(); }
                 unsigned int get_n_results(){ return m_results.size(); }
-                void add_param(unsigned int idx, result_t& p){
-                    param(idx)->param_uses.push_back(p);
-                    p->result_uses.push_back(param(idx));
-                }
+                void add_param(unsigned int idx, result_t& p);
 
                 /**
                  * calculate recursively what needs to be calculated to
@@ -259,22 +223,7 @@ namespace cuvnet
                  *
                  * @param l the list of parameters w.r.t. which this op is to be derived
                  */
-                inline bool set_calculate_derivative(const std::vector<Op*>&l){
-                    if(l.end() != std::find(l.begin(),l.end(), this)){
-                        assert(m_params.size()==0); // this should be a "scalar"
-                        return true;
-                    }
-                    bool need_calc_derivative = false;
-                    BOOST_FOREACH(param_t& p, m_params){
-                        bool derive_wrt_p = false;
-                        BOOST_FOREACH(Op::result_t& r, p->param_uses){
-                            derive_wrt_p |= r->get_op()->set_calculate_derivative(l);
-                        }
-                        p->need_derivative = derive_wrt_p;
-                        need_calc_derivative |= derive_wrt_p;
-                    }
-                    return need_calc_derivative;
-                }
+                bool set_calculate_derivative(const std::vector<Op*>&l);
 
                 /**
                  * helper class to create visitors (you can derive from this so
@@ -429,33 +378,11 @@ namespace cuvnet
                     /**
                      * does recursive forward pass on op
                      */
-                    void fprop(){
-                        BOOST_FOREACH(Op* o, m_topo.plist){
-                            BOOST_FOREACH(Op::result_t& r, o->m_results){
-                                BOOST_FOREACH(Op::weak_param_t p, r->result_uses){
-                                    p.lock()->value_set = false;
-                                }
-                            }
-                        }
-                        BOOST_FOREACH(Op* o, m_topo.plist){
-                            o->fprop();
-                        }
-                    }
+                    void fprop();
                     /**
                      * does recursive backward pass on op
                      */
-                    void bprop(){
-                        BOOST_FOREACH(Op* o, m_topo.plist){
-                            BOOST_FOREACH(Op::param_t& p, o->m_params){
-                                BOOST_FOREACH(Op::result_t& r, p->param_uses){
-                                    r->delta_set = false;
-                                }
-                            }
-                        }
-                        BOOST_REVERSE_FOREACH(Op* o, m_topo.plist){
-                            o->bprop();
-                        }
-                    }
+                    void bprop();
                 };
 
                 /**
@@ -473,12 +400,7 @@ namespace cuvnet
                  * The default works for ops with only one input:
                  * the shape of the input is simply passed to each result.
                  */
-                virtual void _determine_shapes(){
-                    assert(m_params.size()==1);
-                    BOOST_FOREACH(result_t& r, m_results){
-                        r->shape = m_params[0]->shape;
-                    }
-                }
+                virtual void _determine_shapes();
                 private:
                 friend class boost::serialization::access;
                 template<class Archive>
@@ -539,11 +461,11 @@ namespace cuvnet
                 void _determine_shapes(){
                     m_results[0]->shape = m_data->shape();
                 }
-                value_ptr&        data_ptr()     { return m_data; }
-                const value_ptr&  data_ptr()const{ return m_data; }
+                inline value_ptr&        data_ptr()     { return m_data; }
+                inline const value_ptr&  data_ptr()const{ return m_data; }
 
-                value_type&       data()      { return m_data.data();  }
-                const value_type& data() const{ return m_data.cdata(); }
+                inline value_type&       data()      { return m_data.data();  }
+                inline const value_type& data() const{ return m_data.cdata(); }
             private:
                 friend class boost::serialization::access;
                 template<class Archive>
