@@ -84,3 +84,35 @@ TEST(op_test,toposort){
     EXPECT_EQ(tv.plist.at(1), id.get());
     EXPECT_EQ(tv.plist.at(2), pow.get());
 }
+
+
+TEST(op_test, destruction){
+	typedef boost::shared_ptr<Op> ptr_t;
+	boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[10][20]);
+	ptr_t id                      = boost::make_shared<Identity>(inp->result());
+	ptr_t pow                     = boost::make_shared<Pow>(2,id->result());
+
+	boost::weak_ptr<Op> inp_cpy(inp);
+	boost::weak_ptr<Op> id_cpy(id);
+	boost::weak_ptr<Op> pow_cpy(pow);
+
+	EXPECT_FALSE(!inp_cpy.lock());
+	EXPECT_FALSE(!id_cpy.lock());
+	EXPECT_FALSE(!pow_cpy.lock());
+
+	inp.reset();
+	id.reset();
+
+	// hierarchy should /still/ exist!
+	EXPECT_FALSE(!inp_cpy.lock());
+	EXPECT_FALSE(!id_cpy.lock());
+	EXPECT_FALSE(!pow_cpy.lock());
+
+	// now we delete the topmost object
+	pow.reset();
+
+	// check whether the whole hierarchy has been destroyed
+	EXPECT_TRUE(!inp_cpy.lock());
+	EXPECT_TRUE(!id_cpy.lock());
+	EXPECT_TRUE(!pow_cpy.lock());
+}
