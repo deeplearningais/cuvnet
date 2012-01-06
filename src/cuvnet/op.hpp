@@ -17,6 +17,19 @@ namespace cuvnet
 
     namespace detail{
 
+        template<class T>
+        struct cmp_weak_and_raw_ptr{
+            cmp_weak_and_raw_ptr(T* r):raw(r){}
+            T* raw;
+            bool operator()(const boost::weak_ptr<const T>& wk)const{ return wk.lock().get()==raw; }
+        };
+        template<class T>
+        struct cmp_shared_and_raw_ptr{
+            cmp_shared_and_raw_ptr(T* r):raw(r){}
+            T* raw;
+            bool operator()(const boost::shared_ptr<const T>& wk)const{ return wk.get()==raw; }
+        };
+
         template<class T> class op_param;
 
         template<class T>
@@ -44,6 +57,19 @@ namespace cuvnet
                     const op_param<T>& p = *use(0);
                     if(p.value_set) return true;
                     return false;
+                }
+                void clear(){
+                    BOOST_FOREACH(boost::weak_ptr<op_param<T> >& pu, result_uses){
+                        pu.lock()->remove(this);
+                    }
+                    result_uses.clear();
+                }
+                void remove(op_param<T>* x){
+                    result_uses.erase(
+                            std::find_if(result_uses.begin(),result_uses.end(),cmp_weak_and_raw_ptr<op_param<T> >(x)),
+                            result_uses.end());
+                    if(result_uses.empty())
+                        op.reset(); // forget op, so that it can be destroyed if needed!
                 }
                 /**
                  * get the value to write at directly, also sets value_set for convenience
@@ -102,6 +128,17 @@ namespace cuvnet
                     if(p.delta_set) return true;
                     return false;
                 }
+                void clear(){
+                    BOOST_FOREACH(boost::shared_ptr<op_result<T> >& pu, param_uses){
+                        pu->remove(this);
+                    }
+                    param_uses.clear();
+                }
+                void remove(op_result<T>* x){
+                    param_uses.erase(
+                            std::find_if(param_uses.begin(),param_uses.end(),cmp_shared_and_raw_ptr<op_result<T> >(x)),
+                            param_uses.end());
+                }
                 /**
                  * get the delta to write at directly, also sets delta_set for convenience
                  *
@@ -156,6 +193,23 @@ namespace cuvnet
                 Op(unsigned int n_params, unsigned int n_results){
                     set_n_params(n_params);
                     set_n_results(n_results);
+                }
+                ~Op(){
+                    detach_from_params();
+                    detach_from_results();
+                }
+
+                Op& detach_from_params(){
+                    BOOST_FOREACH(Op::param_t& p, m_params){
+                        p->clear();
+                    }
+                    return *this;
+                }
+                Op& detach_from_results(){
+                    BOOST_FOREACH(Op::result_t& r, m_results){
+                        r->clear();
+                    }
+                    return *this;
                 }
 
                 /** 
