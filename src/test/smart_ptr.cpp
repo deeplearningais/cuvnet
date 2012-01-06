@@ -55,8 +55,8 @@ TEST(ce_ptr_test, init){
 	EXPECT_TRUE(!i.locked_by(q));
 	EXPECT_TRUE(!j.locked_by(q));
 
-	std::cout<<i << " "<< i.ptr()<<std::endl;
-	std::cout<<j << " "<< j.ptr()<<std::endl;
+	//std::cout<<i << " "<< i.ptr()<<std::endl;
+	//std::cout<<j << " "<< j.ptr()<<std::endl;
 
 	j.lock(q);     // q says he wants to keep the value of j
 
@@ -91,7 +91,7 @@ TEST(ce_ptr_test, init){
 	EXPECT_EQ(*i , 4);
 	EXPECT_EQ(*j , 6);
 
-	std::cout<<i << " "<< i.ptr()<<std::endl;
-	std::cout<<j << " "<< j.ptr()<<std::endl;
+	//std::cout<<i << " "<< i.ptr()<<std::endl;
+	//std::cout<<j << " "<< j.ptr()<<std::endl;
 }
 
