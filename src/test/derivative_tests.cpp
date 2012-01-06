@@ -108,14 +108,14 @@ void derivative_tester(Op& op){
     }
 }
 
-TEST(op_test, derivative_test_pow){
+TEST(derivative_test, derivative_test_pow){
    typedef boost::shared_ptr<Op> ptr_t;
    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
    ptr_t pow                     = boost::make_shared<Pow>(2,inp->result());
    derivative_tester(*pow);
 }
 
-TEST(op_test, derivative_test_tanh){
+TEST(derivative_test, derivative_test_tanh){
 	typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
     ptr_t func                    = boost::make_shared<Tanh>(inp->result());
