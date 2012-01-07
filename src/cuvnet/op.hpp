@@ -78,8 +78,8 @@ namespace cuvnet
                  * show all Ops to a (constant) visitor recursively
                  */
                 template<class Visitor>
-                    bool visit(const Visitor& v){
-                        if(!v.discover(this)) return true;
+                    void visit(const Visitor& v){
+                        if(!v.discover(this)) return;
                         v.preorder(this);
                         BOOST_FOREACH(Op::param_t& p, m_params){
                             BOOST_FOREACH(boost::shared_ptr<detail::op_result<value_type> > r, p->param_uses){
@@ -92,12 +92,12 @@ namespace cuvnet
                  * show all Ops to a  visitor recursively
                  */
                 template<class Visitor>
-                    bool visit(Visitor& v){
-                        if(!v.discover(this)) return true;
+                    void visit(Visitor& v){
+                        if(!v.discover(this)) return;
                         v.preorder(this);
                         BOOST_FOREACH(Op::param_t& p, m_params){
                             BOOST_FOREACH(boost::shared_ptr<detail::op_result<value_type> > r, p->param_uses){
-                                !r->get_op()->visit(v);
+                                r->get_op()->visit(v);
                             }
                         }
                         v.postorder(this);
