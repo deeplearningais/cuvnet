@@ -84,9 +84,11 @@ TEST(op_test,toposort){
     func->visit(tv);
 
     EXPECT_EQ(tv.plist.size(), 5);
-    //EXPECT_EQ(tv.plist.at(0), inp.get());
-    //EXPECT_EQ(tv.plist.at(1), id.get());
-    //EXPECT_EQ(tv.plist.at(2), pow.get());
+    EXPECT_TRUE(tv.plist.at(0) == inp0.get() || tv.plist.at(0) == inp1.get());
+    EXPECT_TRUE(tv.plist.at(1) == inp0.get() || tv.plist.at(1) == inp1.get());
+    EXPECT_TRUE(tv.plist.at(2) == func0.get() || tv.plist.at(2) == func1.get());
+    EXPECT_TRUE(tv.plist.at(3) == func0.get() || tv.plist.at(3) == func1.get());
+    EXPECT_EQ(tv.plist.at(4), func.get());
 }
 
 
