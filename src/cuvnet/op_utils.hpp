@@ -45,9 +45,10 @@ namespace cuvnet
         inline bool discover(Op* o){
             if(visited.find(o)!=visited.end()) return false;
             if(deriv_only){
-
-                if(o->m_params.size()==0) // input
+                if(o->m_params.size()==0){// input
+                    visited[o] = true;
                     return true;
+                }
                 for (int i = 0; i < o->m_params.size(); ++i)
                 {
                     // at least one parameter should have this set
@@ -57,7 +58,7 @@ namespace cuvnet
                     }
                 }
             }
-            return false;
+            return true;
         }
         inline void postorder(Op* o){
             plist.push_back(o);
