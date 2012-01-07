@@ -104,9 +104,10 @@ void derivative_tester(Op& op){
             matrix J_row(cuv::indices[cuv::index_range(in,in+1)][cuv::index_range()], J_);
             J_row = o_plus;
         }
-        matrix J_t(n_inputs, n_outputs);
+        matrix J_t(n_outputs, n_inputs);
+	cuv::transpose(J_t,J_);
         //PM(J_); PM(J);
-        EXPECT_NEAR(cuv::norm2(J_-J), 0.f, 0.01f );
+        EXPECT_NEAR(cuv::norm2(J_t-J), 0.f, 0.01f );
     }
 }
 
@@ -132,3 +133,39 @@ TEST(derivative_test, derivative_test_axpby){
     derivative_tester(*func);
 }
 
+TEST(derivative_test, derivative_test_prod){
+	typedef boost::shared_ptr<Op> ptr_t;
+	{
+		boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[5][3]);
+		boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][8]);
+		ptr_t func		     = boost::make_shared<Prod>(inp0->result(), inp1->result());
+		derivative_tester(*func);
+	}
+	{
+		boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+		boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][8]);
+		ptr_t func		     = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t');
+		derivative_tester(*func);
+	}
+	{
+		boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[5][3]);
+		boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[8][3]);
+		ptr_t func		     = boost::make_shared<Prod>(inp0->result(), inp1->result(),'n','t');
+		derivative_tester(*func);
+	}
+	{
+		boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+		boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[8][3]);
+		ptr_t func		     = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
+		derivative_tester(*func);
+	}
+}
+
+TEST(derivative_test, derivative_test_sq_axpby){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+    ptr_t func                     = boost::make_shared<Axpby>(inp0->result(), inp1->result(), 1.3, -2.5);
+    func                           = boost::make_shared<Pow>(2.f,func->result());
+    derivative_tester(*func);
+}
