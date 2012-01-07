@@ -5,6 +5,7 @@
 #include <glog/logging.h>
 
 #include <cuvnet/op.hpp>
+#include <cuvnet/op_utils.hpp>
 
 using namespace cuvnet;
 using std::printf;
@@ -16,7 +17,7 @@ TEST(op_test,wiring){
     ptr_t id  = boost::make_shared<Identity>(inp->result());
 
     // find input object
-    Op::param_collector_visitor pcv;
+    param_collector_visitor pcv;
     id->visit(pcv);
     EXPECT_EQ(pcv.plist.size(),1);
 
@@ -26,7 +27,7 @@ TEST(op_test,wiring){
     EXPECT_EQ(id->param(0)->need_derivative, true);
 
     // shape propagation
-    id->visit(Op::determine_shapes_visitor());
+    id->visit(determine_shapes_visitor());
     EXPECT_EQ(*pcv.plist.begin(),inp.get());
     EXPECT_EQ(id->result(0)->shape.at(0), 10);
     EXPECT_EQ(id->result(0)->shape.at(1), 20);
@@ -41,12 +42,12 @@ TEST(op_test,fprop_and_bprop){
     boost::dynamic_pointer_cast<Input>(inp)->data() = 2.f;
 
     // tell that we want derivative w.r.t. all params
-    Op::param_collector_visitor pcv;
+    param_collector_visitor pcv;
     pow->visit(pcv);
     EXPECT_EQ(pcv.plist.size(),1);
     pow->set_calculate_derivative(pcv.plist);
     EXPECT_EQ(pow->param(0)->need_derivative, true);
-    pow->visit(Op::determine_shapes_visitor());
+    pow->visit(determine_shapes_visitor());
     EXPECT_EQ(pow->result()->shape[0],10);
     EXPECT_EQ(pow->result()->shape[1],20);
 
@@ -70,13 +71,13 @@ TEST(op_test,toposort){
     boost::shared_ptr<Output> out = boost::make_shared<Output>(pow->result());
 
     // tell that we want derivative w.r.t. all params
-    Op::param_collector_visitor pcv;
+    param_collector_visitor pcv;
     pow->visit(pcv);
     EXPECT_EQ(pcv.plist.size(),1);
     pow->set_calculate_derivative(pcv.plist);
 
     // determine sequence in which to call fwd, bwd pass
-    Op::toposort_visitor tv(true);
+    toposort_visitor tv(true);
     pow->visit(tv);
 
     EXPECT_EQ(tv.plist.size(), 3);

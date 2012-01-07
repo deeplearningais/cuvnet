@@ -21,8 +21,9 @@ namespace cuvnet
                 explicit cow_ptr( const ref_ptr &cpy ) : m_ptr(cpy){}
                 explicit cow_ptr(       T*       cpy ) : m_ptr(cpy){}
 
-                inline void reset( T* cpy )   { m_ptr.reset(cpy);  }
-                inline void reset(        )   { m_ptr.reset();     }
+                inline void reset( T* cpy )     { m_ptr.reset(cpy);      }
+                inline void reset(        )     { m_ptr.reset();         }
+                inline bool unique(       )const{ return m_ptr.unique(); }
                 void detach(){
                     T* tmp = m_ptr.get();
                     if( ! (tmp==0 || m_ptr.unique()))

@@ -5,6 +5,7 @@
 #include <glog/logging.h>
 
 #include <cuvnet/op.hpp>
+#include <cuvnet/op_utils.hpp>
 
 using namespace cuvnet;
 using std::printf;
@@ -49,7 +50,7 @@ void derivative_tester(Op& op){
     boost::shared_ptr<Output> out_op = boost::make_shared<Output>(op.result());
 
     // tell that we want derivative w.r.t. all params
-    Op::param_collector_visitor pcv;
+    param_collector_visitor pcv;
     op.visit(pcv);
 
     // fill all params with random numbers
@@ -58,11 +59,12 @@ void derivative_tester(Op& op){
         EXPECT_TRUE(param!=NULL);
         for (int i = 0; i < param->data().size(); ++i)
         {
-            param->data()[i] = 2.f;//(float)drand48();
+            //param->data()[i] = 2.f;
+            param->data()[i] = (float)drand48();
         }
     }
 
-    Op::swiper swipe(op, true, pcv.plist);
+    swiper swipe(op, true, pcv.plist);
 
     BOOST_FOREACH(Op* raw, pcv.plist){
         Input* param = dynamic_cast<Input*>(raw);
@@ -119,6 +121,14 @@ TEST(derivative_test, derivative_test_tanh){
 	typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
     ptr_t func                    = boost::make_shared<Tanh>(inp->result());
+    derivative_tester(*func);
+}
+
+TEST(derivative_test, derivative_test_axpby){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+    ptr_t func                     = boost::make_shared<Axpby>(inp0->result(), inp1->result(), 1.3, -2.5);
     derivative_tester(*func);
 }
 

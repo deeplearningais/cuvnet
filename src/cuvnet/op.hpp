@@ -8,169 +8,11 @@
 #include <boost/serialization/base_object.hpp>
 #include <cuvnet/common.hpp>
 #include <cuvnet/smart_ptr.hpp>
+#include <cuvnet/detail/op_result.hpp>
+#include <cuvnet/detail/op_param.hpp>
 
 namespace cuvnet
 {
-    typedef char param_name_t;
-    class Op;
-
-
-    namespace detail{
-
-        template<class T>
-        struct cmp_weak_and_raw_ptr{
-            cmp_weak_and_raw_ptr(T* r):raw(r){}
-            T* raw;
-            bool operator()(const boost::weak_ptr<const T>& wk)const{ return wk.lock().get()==raw; }
-        };
-        template<class T>
-        struct cmp_shared_and_raw_ptr{
-            cmp_shared_and_raw_ptr(T* r):raw(r){}
-            T* raw;
-            bool operator()(const boost::shared_ptr<const T>& wk)const{ return wk.get()==raw; }
-        };
-
-        template<class T> class op_param;
-
-        template<class T>
-            struct op_result{
-                boost::shared_ptr<op_param<T> >       use(unsigned int i)     { return boost::shared_ptr<op_param<T> >(result_uses[i]); }
-                boost::shared_ptr<const op_param<T> > use(unsigned int i)const{ return boost::shared_ptr<const op_param<T> >(result_uses[i]); }
-                std::vector<boost::weak_ptr<op_param<T>> >   result_uses;
-                boost::shared_ptr<Op> op;
-                std::vector<unsigned int>      shape;
-                //cow_ptr<T>                     value;
-                cow_ptr<T>                     delta;
-                bool                           delta_set;
-                boost::shared_ptr<Op> get_op(){ return op; }
-                bool want_result()const { return result_uses.size() > 0; }
-                bool can_overwrite_directly()const{
-                    if(result_uses.size()!=1)
-                        return false;
-                    const op_param<T>& p = *use(0);
-                    if(p.value_set) return false;
-                    return true;
-                }
-                bool can_add_directly()const{
-                    if(result_uses.size()!=1)
-                        return false;
-                    const op_param<T>& p = *use(0);
-                    if(p.value_set) return true;
-                    return false;
-                }
-                void clear(){
-                    BOOST_FOREACH(boost::weak_ptr<op_param<T> >& pu, result_uses){
-                        pu.lock()->remove(this);
-                    }
-                    result_uses.clear();
-                }
-                void remove(op_param<T>* x){
-                    result_uses.erase(
-                            std::find_if(result_uses.begin(),result_uses.end(),cmp_weak_and_raw_ptr<op_param<T> >(x)),
-                            result_uses.end());
-                    if(result_uses.empty())
-                        op.reset(); // forget op, so that it can be destroyed if needed!
-                }
-                /**
-                 * get the value to write at directly, also sets value_set for convenience
-                 *
-                 */
-                cow_ptr<T>& overwrite_or_add_value(){
-                    use(0)->value_set = true;
-                    return use(0)->value;
-                }
-                void push(const cow_ptr<T>& v){
-                    //assert(!can_overwrite_directly());
-                    //assert(!can_add_directly());
-                    for (int i = 0; i < result_uses.size(); ++i)
-                    {
-                        op_param<T>& dst    = *use(i);
-                        if(dst.value_set)
-                            *dst.value     += v.cdata();
-                        else{
-                            dst.value       = v;
-                            dst.value_set   = true;
-                        }
-                    }
-                }
-
-                private:
-                friend class boost::serialization::access;
-                template<class Archive>
-                    void serialize(Archive& ar, const unsigned int version){
-                        ar & op & result_uses;
-                    }
-            };
-        template<class T>
-            struct op_param{
-                boost::shared_ptr<op_result<T> >&       use(unsigned int i){ return param_uses[i]; }
-                boost::shared_ptr<const op_result<T> >  use(unsigned int i)const{ return param_uses[i]; }
-                std::vector<boost::shared_ptr<op_result<T> > >     param_uses;
-                std::vector<unsigned int>      shape;
-                bool                           need_derivative;
-                boost::weak_ptr<Op>            op;
-                cow_ptr<T>                     value;
-                bool                           value_set;
-                //cow_ptr<T>                     delta;
-
-                boost::shared_ptr<Op> get_op(){ return boost::shared_ptr<Op>(op); }
-                bool can_overwrite_directly()const{
-                    if(param_uses.size()!=1)
-                        return false;
-                    const op_result<T>& p = *use(0);
-                    if(p.delta_set) return false;
-                    return true;
-                }
-                bool can_add_directly()const{
-                    if(param_uses.size()!=1)
-                        return false;
-                    const op_result<T>& p = *use(0);
-                    if(p.delta_set) return true;
-                    return false;
-                }
-                void clear(){
-                    BOOST_FOREACH(boost::shared_ptr<op_result<T> >& pu, param_uses){
-                        pu->remove(this);
-                    }
-                    param_uses.clear();
-                }
-                void remove(op_result<T>* x){
-                    param_uses.erase(
-                            std::find_if(param_uses.begin(),param_uses.end(),cmp_shared_and_raw_ptr<op_result<T> >(x)),
-                            param_uses.end());
-                }
-                /**
-                 * get the delta to write at directly, also sets delta_set for convenience
-                 *
-                 */
-                cow_ptr<T>& overwrite_or_add_value(){
-                    use(0)->delta_set = true;
-                    return use(0)->delta;
-                }
-                void push(const cow_ptr<T>& v){
-                    //assert(!can_overwrite_directly());
-                    //assert(!can_add_directly());
-                    for (int i = 0; i < param_uses.size(); ++i)
-                    {
-                        op_result<T>& dst    = *use(i); 
-                        if(dst.delta_set)
-                            dst.delta.data() += v.cdata();
-                        else{
-                            dst.delta       = v;
-                            dst.delta_set   = true;
-                        }
-                    }
-                }
-                private:
-                friend class boost::serialization::access;
-                template<class Archive>
-                    void serialize(Archive& ar, const unsigned int version){
-                        ar & op & param_uses;
-                    }
-            };
-    }
-
-
     class Op
         : public boost::enable_shared_from_this<Op>{
             public:
@@ -225,102 +67,12 @@ namespace cuvnet
                  */
                 bool set_calculate_derivative(const std::vector<Op*>&l);
 
-                /**
-                 * helper class to create visitors (you can derive from this so
-                 * that you e.g. only need to implement one method)
-                 */
-                struct op_visitor_adaptor{
-                    inline bool discover(Op* o)const{ return true; }
-                    inline void preorder(Op* o)const{ ; }
-                    inline void postorder(Op* o)const{ ; }
-                };
-                /**
-                 * collect all no-input ops in a list
-                 */
-                struct param_collector_visitor : public op_visitor_adaptor{
-                    typedef std::vector<Op*> container_type;
-                    container_type     plist;
-                    std::map<Op*,bool> visited;
-                    inline bool discover(Op* o){
-                        if(visited.find(o)!=visited.end())
-                            return false;
-                        visited[o]=true;
-                        return true;
-                    }
-                    inline void preorder(Op* o){
-                        if(o->get_n_params()==0)
-                            plist.push_back(o);
-                    }
-                };
-                /**
-                 * collect all ops in a list in topological order
-                 */
-                struct toposort_visitor : public op_visitor_adaptor{
-                    typedef std::vector<Op*> container_type;
-                    container_type     plist;
-                    std::map<Op*,bool> visited;
-                    bool               deriv_only;
-                    toposort_visitor(bool deriv):deriv_only(deriv){}
-                    inline bool discover(Op* o){
-                        if(visited.find(o)!=visited.end()) return false;
-                        if(deriv_only){
-
-                            if(o->m_params.size()==0) // input
-                                return true;
-                            for (int i = 0; i < o->m_params.size(); ++i)
-                            {
-                                // at least one parameter should have this set
-                                if(o->m_params[i]->need_derivative){
-                                    visited[o] = true;
-                                    return true;
-                                }
-                            }
-                        }
-                        return false;
-                    }
-                    inline void postorder(Op* o){
-                        plist.push_back(o);
-                    }
-                };
-
-                /**
-                 * determine shapes recursively
-                 */
-                struct determine_shapes_visitor :public op_visitor_adaptor{
-                    bool deriv_only;
-                    determine_shapes_visitor(bool deriv=false):deriv_only(deriv){}
-                    inline void postorder(Op* o)const{
-                        o->_determine_shapes();
-                        // push from result to result-users
-                        BOOST_FOREACH(Op::result_t& r, o->m_results){
-                            for(unsigned int i=0;i<r->result_uses.size();i++){
-                                if(!deriv_only || r->use(i)->need_derivative)
-                                    r->use(i)->shape = r->shape;
-                            }
-                        }
-                    }
-                };
-
-                /**
-                 * reset the `delta_set' flag before a bprop-pass
-                 */
-                struct reset_delta_set_flag : public op_visitor_adaptor{
-                    inline void preorder(Op*o)const{
-                        BOOST_FOREACH(Op::result_t& r, o->m_results){
-                            r->delta_set = false;
-                        }
-                    }
-                };
-                /**
-                 * reset the `value_set' flag before a fprop-pass
-                 */
-                struct reset_value_set_flag : public op_visitor_adaptor{
-                    inline void preorder(Op*o)const{
-                        BOOST_FOREACH(Op::param_t& r, o->m_params){
-                            r->value_set = false;
-                        }
-                    }
-                };
+                friend struct param_collector_visitor;
+                friend struct toposort_visitor;
+                friend struct determine_shapes_visitor;
+                friend struct reset_value_set_flag;
+                friend struct reset_delta_set_flag;
+                friend struct swiper;
 
                 /**
                  * show all Ops to a (constant) visitor recursively
@@ -351,39 +103,6 @@ namespace cuvnet
                         v.postorder(this);
                     }
 
-                /**
-                 * does a recursive forward/backward pass w.r.t. 
-                 * requested parameters.
-                 *
-                 * To do passes, the structure of the operator is
-                 * sorted topologically once (in the constructor).
-                 * Consecutive calles should therefore be done with
-                 * the same `swiper' object.
-                 */
-                struct swiper{
-                    toposort_visitor m_topo;
-                    /**
-                     * constructor
-                     *
-                     * @param op      the operator to do swipes on
-                     * @param deriv   whether to only do passes w.r.t. the named parameters
-                     * @param paramlist the list of parameters w.r.t. which do swipes
-                     */
-                    swiper(Op& op, bool deriv, const param_collector_visitor::container_type& paramlist)
-                        :m_topo(deriv){
-                            op.set_calculate_derivative(paramlist);
-                            op.visit(m_topo);
-                            op.visit(Op::determine_shapes_visitor());
-                        }
-                    /**
-                     * does recursive forward pass on op
-                     */
-                    void fprop();
-                    /**
-                     * does recursive backward pass on op
-                     */
-                    void bprop();
-                };
 
                 /**
                  * user-supplied function: calculate results of this op
@@ -497,10 +216,7 @@ namespace cuvnet
                     param_t&  p0 = m_params[0];
                     result_t& r0 = m_results[0];
 
-                    if(r0->can_overwrite_directly()){
-                        value_ptr& ptr = r0->overwrite_or_add_value();
-                        ptr            = p0->value;
-                    }else if(r0->can_add_directly()){
+                    if(r0->can_add_directly()){
                         value_ptr& ptr = r0->overwrite_or_add_value();
                         *ptr          += p0->value.cdata();
                     }else{
@@ -514,10 +230,7 @@ namespace cuvnet
                     param_t&  p0 = m_params[0];
                     result_t& r0 = m_results[0];
 
-                    if(p0->can_overwrite_directly()){
-                        value_ptr& ptr = p0->overwrite_or_add_value();
-                        ptr            = r0->delta;
-                    }else if(p0->can_add_directly()){
+                    if(p0->can_add_directly()){
                         value_ptr& ptr = p0->overwrite_or_add_value();
                         *ptr          += r0->delta.cdata();
                     }else{
@@ -636,5 +349,121 @@ namespace cuvnet
                         ar & boost::serialization::base_object<Op>(*this);
                     }
         };
+
+    /**
+     * calculates alpha * X + beta * Y, where
+     * alpha, beta are scalar values and X, Y denote tensors.
+     */
+    class Axpby
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                float m_fact_a, m_fact_b;
+
+            public:
+                Axpby(){} /// for serialization
+                Axpby(result_t& p0, result_t& p1, float fact_a=1.f, float fact_b=1.f)
+                    :Op(2,1)
+                     , m_fact_a(fact_a)
+                     , m_fact_b(fact_b){
+                         add_param(0,p0);
+                         add_param(1,p1);
+                     }
+
+                void fprop(){
+                    using namespace cuv;
+                    param_t&  p0 = m_params[0];
+                    param_t&  p1 = m_params[1];
+                    result_t& r0 = m_results[0];
+
+                    const value_type& inp0 = p0->value.cdata();           // original
+                    const value_type& inp1 = p1->value.cdata();           // original
+                    bool write_to_p0 = p0.unique();
+
+                    if(r0->can_overwrite_directly()){
+                        apply_binary_functor(r0->overwrite_or_add_value().data(), inp0, inp1, BF_AXPBY, m_fact_a, m_fact_b);
+                    }else{
+                        value_type&  outp  = write_to_p0
+                            ? p0->value.data_onlyshape()
+                            : p1->value.data_onlyshape();  
+                        apply_binary_functor(outp, inp0, inp1, BF_AXPBY, m_fact_a, m_fact_b);
+                        r0->push(write_to_p0 ? p0->value : p1->value);
+                    }
+                    p0->value.reset(); // forget it
+                    p1->value.reset(); // forget it
+                }
+                void bprop(){
+                    using namespace cuv;
+                    param_t&  p0 = m_params[0];
+                    param_t&  p1 = m_params[1];
+                    result_t& r0 = m_results[0];
+                    assert(p0->need_derivative || p1->need_derivative);
+
+                    value_ptr delta_orig = r0->delta;
+                    if(p0->need_derivative){
+                        if(p0->can_add_directly()){
+                            // p0 += fact_a * r0.delta
+                            cuv::apply_binary_functor(p0->overwrite_or_add_value().data(),
+                                    r0->delta.cdata(),
+                                    BF_XPBY, m_fact_a);
+                        }else if(p0->can_overwrite_directly()){
+                            // p0  = fact_a * r0.delta
+                            cuv::apply_scalar_functor(p0->overwrite_or_add_value().data(),
+                                    r0->delta.cdata(),
+                                    SF_MULT, m_fact_a);
+                        }else{
+                            if(!p1->need_derivative){
+                                // we can only try to overwrite the current value
+                                // of r0->delta if it is not needed for p1
+                                delta_orig.reset();
+                            }
+                            // try to overwrite r0->delta
+                            const value_type& inp = r0->delta.cdata();
+                            value_type& outp      = r0->delta.data_onlyshape();
+                            cuv::apply_scalar_functor(
+                                    outp, inp, SF_MULT, m_fact_a);
+                            p0->push(r0->delta);
+                        }
+                    }
+                    if(p1->need_derivative){
+                        if(p1->can_add_directly()){
+                            // p1 += fact_b * r1.delta
+                            cuv::apply_binary_functor(p1->overwrite_or_add_value().data(),
+                                    delta_orig.cdata(),
+                                    BF_XPBY, m_fact_b);
+                        }else if(p1->can_overwrite_directly()){
+                            // p1  = fact_b * r1.delta
+                            cuv::apply_scalar_functor(p1->overwrite_or_add_value().data(),
+                                    delta_orig.cdata(),
+                                    SF_MULT, m_fact_b);
+                        }else{
+                            // try to overwrite delta_orig
+                            const value_type& inp = delta_orig.cdata();
+                            value_type& outp      = delta_orig.data_onlyshape();
+                            cuv::apply_scalar_functor(
+                                    outp, inp, SF_MULT, m_fact_b);
+                            p1->push(delta_orig);
+                        }
+                    }
+                    r0->delta.reset();
+                }
+                void _determine_shapes(){
+                    assert(m_params[0]->shape == m_params[1]->shape);
+                    m_results[0]->shape = m_params[0]->shape;
+                }
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_fact_a & m_fact_b;
+                    }
+        };
+
 }
 #endif /* __OP_HPP__ */
