@@ -159,6 +159,14 @@ TEST(derivative_test, derivative_test_prod){
 		ptr_t func		     = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
 		derivative_tester(*func);
 	}
+	{
+		boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+		boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[8][3]);
+		ptr_t func0		       = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
+		ptr_t func1		       = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
+		ptr_t func 		       = boost::make_shared<Axpby>(func0->result(), func1->result(), 1.3,1.5);
+		derivative_tester(*func);
+	}
 }
 
 TEST(derivative_test, derivative_test_sq_axpby){
