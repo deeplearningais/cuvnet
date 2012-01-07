@@ -1,3 +1,4 @@
+// vim:ts=4:sw=4:et:
 #include <cmath>
 #include <stdexcept>
 #include <cstdio>
@@ -64,26 +65,28 @@ TEST(op_test,fprop_and_bprop){
 }
 
 TEST(op_test,toposort){
-	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[10][20]);
-    ptr_t id                      = boost::make_shared<Identity>(inp->result());
-    ptr_t pow                     = boost::make_shared<Pow>(2,id->result());
-    boost::shared_ptr<Output> out = boost::make_shared<Output>(pow->result());
+    typedef boost::shared_ptr<Op> ptr_t;
+
+    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[8][3]);
+    ptr_t func0		       = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
+    ptr_t func1		       = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
+    ptr_t func 		       = boost::make_shared<Axpby>(func0->result(), func1->result(), 1.3,1.5);
 
     // tell that we want derivative w.r.t. all params
     param_collector_visitor pcv;
-    pow->visit(pcv);
-    EXPECT_EQ(pcv.plist.size(),1);
-    pow->set_calculate_derivative(pcv.plist);
+    func->visit(pcv);
+    EXPECT_EQ(pcv.plist.size(),2);
+    func->set_calculate_derivative(pcv.plist);
 
     // determine sequence in which to call fwd, bwd pass
     toposort_visitor tv(true);
-    pow->visit(tv);
+    func->visit(tv);
 
-    EXPECT_EQ(tv.plist.size(), 3);
-    EXPECT_EQ(tv.plist.at(0), inp.get());
-    EXPECT_EQ(tv.plist.at(1), id.get());
-    EXPECT_EQ(tv.plist.at(2), pow.get());
+    EXPECT_EQ(tv.plist.size(), 5);
+    //EXPECT_EQ(tv.plist.at(0), inp.get());
+    //EXPECT_EQ(tv.plist.at(1), id.get());
+    //EXPECT_EQ(tv.plist.at(2), pow.get());
 }
 
 
