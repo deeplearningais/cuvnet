@@ -383,7 +383,7 @@ namespace cuvnet
 
                     const value_type& inp0 = p0.value.cdata();           // original
                     const value_type& inp1 = p1.value.cdata();           // original
-                    bool write_to_p0 = m_params[0].unique();
+                    bool write_to_p0 = p0.value.unique();
 
                     if(r0.can_overwrite_directly()){
                         apply_binary_functor(r0.overwrite_or_add_value().data(), inp0, inp1, BF_AXPBY, m_fact_a, m_fact_b);
