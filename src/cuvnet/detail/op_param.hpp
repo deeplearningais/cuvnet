@@ -1,6 +1,10 @@
 // vim:ts=4:sw=4:et:
 #ifndef __OP_PARAM_HPP__
 #     define __OP_PARAM_HPP__
+#include <vector>
+#include <boost/weak_ptr.hpp>
+#include <boost/smart_ptr.hpp>
+#include <cuvnet/smart_ptr.hpp>
 
 namespace cuvnet
 {
@@ -83,6 +87,7 @@ namespace cuvnet
                             dst.delta       = v;
                             dst.delta_set   = true;
                         }
+                        // TODO: may also push to result.deltas which are not required for derivative
                     }
                 }
                 private:
