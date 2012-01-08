@@ -68,6 +68,7 @@ void derivative_tester(Op& op){
 
     BOOST_FOREACH(Op* raw, pcv.plist){
         Input* param = dynamic_cast<Input*>(raw);
+	EXPECT_TRUE(param!=NULL);
         unsigned int n_inputs  = param->data().size();
         unsigned int n_outputs = prod(op.result()->shape);
         matrix J(n_outputs, n_inputs); J = 0.f;
@@ -176,4 +177,22 @@ TEST(derivative_test, derivative_test_sq_axpby){
     ptr_t func                     = boost::make_shared<Axpby>(inp0->result(), inp1->result(), 1.3, -2.5);
     func                           = boost::make_shared<Pow>(2.f,func->result());
     derivative_tester(*func);
+}
+
+TEST(derivative_test, derivative_test_mat_plus_vec){
+	typedef boost::shared_ptr<Op> ptr_t;
+    {
+	    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+	    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3]);
+	    ptr_t func		           = boost::make_shared<MatPlusVec>(inp0->result(), inp1->result(), false);
+
+	    derivative_tester(*func);
+    }
+    {
+	    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+	    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[5]);
+	    ptr_t func		           = boost::make_shared<MatPlusVec>(inp0->result(), inp1->result(), true);
+
+	    derivative_tester(*func);
+    }
 }
