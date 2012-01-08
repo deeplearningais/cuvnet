@@ -213,30 +213,30 @@ namespace cuvnet
                 void fprop(){
                     // identity
                     using namespace cuv;
-                    param_t&  p0 = m_params[0];
-                    result_t& r0 = m_results[0];
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
 
-                    if(r0->can_add_directly()){
-                        value_ptr& ptr = r0->overwrite_or_add_value();
-                        *ptr          += p0->value.cdata();
+                    if(r0.can_add_directly()){
+                        value_ptr& ptr = r0.overwrite_or_add_value();
+                        *ptr          += p0.value.cdata();
                     }else{
-                        r0->push(p0->value); // 'copy' a newly created matrix
+                        r0.push(p0.value); // 'copy' a newly created matrix
                     }
-                    p0->value.reset();       // don't need that for backprop etc.
+                    p0.value.reset();       // don't need that for backprop etc.
                 }
                 void bprop(){
                     // identity
                     using namespace cuv;
-                    param_t&  p0 = m_params[0];
-                    result_t& r0 = m_results[0];
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
 
-                    if(p0->can_add_directly()){
-                        value_ptr& ptr = p0->overwrite_or_add_value();
-                        *ptr          += r0->delta.cdata();
+                    if(p0.can_add_directly()){
+                        value_ptr& ptr = p0.overwrite_or_add_value();
+                        *ptr          += r0.delta.cdata();
                     }else{
-                        r0->push(p0->value); // 'copy' a newly created matrix
+                        r0.push(p0.value); // 'copy' a newly created matrix
                     }
-                    r0->delta.reset();
+                    r0.delta.reset();
                 }
             private:
                 friend class boost::serialization::access;
@@ -263,31 +263,31 @@ namespace cuvnet
 
                 void fprop(){
                     using namespace cuv;
-                    param_t&  p0 = m_params[0];
-                    result_t& r0 = m_results[0];
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
 
-                    const value_type& inp = p0->value.cdata();
+                    const value_type& inp = p0.value.cdata();
                     value_ptr res(new value_type(inp.shape()));
 
                     apply_scalar_functor( *res,
                             inp, SF_POW, m_exponent);
 
-                    r0->push(res); // 'copy' a newly created matrix
+                    r0.push(res); // 'copy' a newly created matrix
 
-                    if(!p0->need_derivative)
-                        p0->value.reset();       // forget it
+                    if(!p0.need_derivative)
+                        p0.value.reset();       // forget it
                 }
                 void bprop(){
                     using namespace cuv;
-                    param_t&  p0 = m_params[0];
-                    result_t& r0 = m_results[0];
-                    assert(p0->need_derivative);
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    assert(p0.need_derivative);
 
-                    const value_type& inp = p0->value.cdata();
+                    const value_type& inp = p0.value.cdata();
                     value_ptr res(new value_type(inp.shape()));
                     apply_scalar_functor(*res,inp,SF_DPOW, m_exponent);
-                    *res *= r0->delta.cdata(); // TODO: write BF_POW_TIMES functor in cuv
-                    p0->push(res);
+                    *res *= r0.delta.cdata(); // TODO: write BF_POW_TIMES functor in cuv
+                    p0.push(res);
                 }
             private:
                 friend class boost::serialization::access;
@@ -314,33 +314,33 @@ namespace cuvnet
 
                 void fprop(){
                     using namespace cuv;
-                    param_t&  p0 = m_params[0];
-                    result_t& r0 = m_results[0];
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
 
-                    const value_type& inp = p0->value.cdata();           // original
-                    value_type&      outp = p0->value.data_onlyshape();  // if detached, only allocate same size storage
+                    const value_type& inp = p0.value.cdata();           // original
+                    value_type&      outp = p0.value.data_onlyshape();  // if detached, only allocate same size storage
 
                     apply_scalar_functor( outp, inp, SF_TANH);
 
-                    r0->push(p0->value);      // 'copy' a newly created matrix
-                    if(!p0->need_derivative)
-                        p0->value.reset(); // forget it
+                    r0.push(p0.value);      // 'copy' a newly created matrix
+                    if(!p0.need_derivative)
+                        p0.value.reset(); // forget it
                 }
                 void bprop(){
                     using namespace cuv;
-                    param_t&  p0 = m_params[0];
-                    result_t& r0 = m_results[0];
-                    assert(p0->need_derivative);
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    assert(p0.need_derivative);
 
-                    value_type& delta = r0->delta.data(); // this is the error from above
+                    value_type& delta = r0.delta.data(); // this is the error from above
 
-                    const value_type& out = p0->value.cdata(); // this is the value we changed in fprop
-                    value_type& res       = p0->value.data_onlyshape(); // try to overwrite this
+                    const value_type& out = p0.value.cdata(); // this is the value we changed in fprop
+                    value_type& res       = p0.value.data_onlyshape(); // try to overwrite this
 
                     apply_scalar_functor(res,out,SF_DTANH);
                     res  *=  delta;
-                    p0->push(p0->value);
-                    r0->delta.reset();
+                    p0.push(p0.value);
+                    r0.delta.reset();
                 }
             private:
                 friend class boost::serialization::access;
@@ -377,68 +377,68 @@ namespace cuvnet
 
                 void fprop(){
                     using namespace cuv;
-                    param_t&  p0 = m_params[0];
-                    param_t&  p1 = m_params[1];
-                    result_t& r0 = m_results[0];
+                    param_t::element_type&  p0 = *m_params[0];
+                    param_t::element_type&  p1 = *m_params[1];
+                    result_t::element_type& r0 = *m_results[0];
 
-                    const value_type& inp0 = p0->value.cdata();           // original
-                    const value_type& inp1 = p1->value.cdata();           // original
-                    bool write_to_p0 = p0.unique();
+                    const value_type& inp0 = p0.value.cdata();           // original
+                    const value_type& inp1 = p1.value.cdata();           // original
+                    bool write_to_p0 = m_params[0].unique();
 
-                    if(r0->can_overwrite_directly()){
-                        apply_binary_functor(r0->overwrite_or_add_value().data(), inp0, inp1, BF_AXPBY, m_fact_a, m_fact_b);
+                    if(r0.can_overwrite_directly()){
+                        apply_binary_functor(r0.overwrite_or_add_value().data(), inp0, inp1, BF_AXPBY, m_fact_a, m_fact_b);
                     }else{
                         value_type&  outp  = write_to_p0
-                            ? p0->value.data_onlyshape()
-                            : p1->value.data_onlyshape();  
+                            ? p0.value.data_onlyshape()
+                            : p1.value.data_onlyshape();  
                         apply_binary_functor(outp, inp0, inp1, BF_AXPBY, m_fact_a, m_fact_b);
-                        r0->push(write_to_p0 ? p0->value : p1->value);
+                        r0.push(write_to_p0 ? p0.value : p1.value);
                     }
-                    p0->value.reset(); // forget it
-                    p1->value.reset(); // forget it
+                    p0.value.reset(); // forget it
+                    p1.value.reset(); // forget it
                 }
                 void bprop(){
                     using namespace cuv;
-                    param_t&  p0 = m_params[0];
-                    param_t&  p1 = m_params[1];
-                    result_t& r0 = m_results[0];
-                    assert(p0->need_derivative || p1->need_derivative);
+                    param_t::element_type&  p0 = *m_params[0];
+                    param_t::element_type&  p1 = *m_params[1];
+                    result_t::element_type& r0 = *m_results[0];
+                    assert(p0.need_derivative || p1.need_derivative);
 
-                    value_ptr delta_orig = r0->delta;
-                    if(p0->need_derivative){
-                        if(p0->can_add_directly()){
+                    value_ptr delta_orig = r0.delta;
+                    if(p0.need_derivative){
+                        if(p0.can_add_directly()){
                             // p0 += fact_a * r0.delta
-                            cuv::apply_binary_functor(p0->overwrite_or_add_value().data(),
-                                    r0->delta.cdata(),
+                            cuv::apply_binary_functor(p0.overwrite_or_add_value().data(),
+                                    r0.delta.cdata(),
                                     BF_XPBY, m_fact_a);
-                        }else if(p0->can_overwrite_directly()){
+                        }else if(p0.can_overwrite_directly()){
                             // p0  = fact_a * r0.delta
-                            cuv::apply_scalar_functor(p0->overwrite_or_add_value().data(),
-                                    r0->delta.cdata(),
+                            cuv::apply_scalar_functor(p0.overwrite_or_add_value().data(),
+                                    r0.delta.cdata(),
                                     SF_MULT, m_fact_a);
                         }else{
-                            if(!p1->need_derivative){
+                            if(!p1.need_derivative){
                                 // we can only try to overwrite the current value
                                 // of r0->delta if it is not needed for p1
                                 delta_orig.reset();
                             }
                             // try to overwrite r0->delta
-                            const value_type& inp = r0->delta.cdata();
-                            value_type& outp      = r0->delta.data_onlyshape();
+                            const value_type& inp = r0.delta.cdata();
+                            value_type& outp      = r0.delta.data_onlyshape();
                             cuv::apply_scalar_functor(
                                     outp, inp, SF_MULT, m_fact_a);
-                            p0->push(r0->delta);
+                            p0.push(r0.delta);
                         }
                     }
-                    if(p1->need_derivative){
-                        if(p1->can_add_directly()){
+                    if(p1.need_derivative){
+                        if(p1.can_add_directly()){
                             // p1 += fact_b * r1.delta
-                            cuv::apply_binary_functor(p1->overwrite_or_add_value().data(),
+                            cuv::apply_binary_functor(p1.overwrite_or_add_value().data(),
                                     delta_orig.cdata(),
                                     BF_XPBY, m_fact_b);
-                        }else if(p1->can_overwrite_directly()){
+                        }else if(p1.can_overwrite_directly()){
                             // p1  = fact_b * r1.delta
-                            cuv::apply_scalar_functor(p1->overwrite_or_add_value().data(),
+                            cuv::apply_scalar_functor(p1.overwrite_or_add_value().data(),
                                     delta_orig.cdata(),
                                     SF_MULT, m_fact_b);
                         }else{
@@ -447,10 +447,10 @@ namespace cuvnet
                             value_type& outp      = delta_orig.data_onlyshape();
                             cuv::apply_scalar_functor(
                                     outp, inp, SF_MULT, m_fact_b);
-                            p1->push(delta_orig);
+                            p1.push(delta_orig);
                         }
                     }
-                    r0->delta.reset();
+                    r0.delta.reset();
                 }
                 void _determine_shapes(){
                     assert(m_params[0]->shape == m_params[1]->shape);
@@ -489,102 +489,102 @@ namespace cuvnet
 
                 void fprop(){
                     using namespace cuv;
-                    param_t&  p0 = m_params[0];
-                    param_t&  p1 = m_params[1];
-                    result_t& r0 = m_results[0];
-                    if(r0->can_overwrite_directly()){
+                    param_t::element_type&  p0 = *m_params[0];
+                    param_t::element_type&  p1 = *m_params[1];
+                    result_t::element_type& r0 = *m_results[0];
+                    if(r0.can_overwrite_directly()){
                         // r0 = dot(p0,p1)
-                        cuv::prod(r0->overwrite_or_add_value().data(),
-                                p0->value.cdata(),
-                                p1->value.cdata(),
+                        cuv::prod(r0.overwrite_or_add_value().data(),
+                                p0.value.cdata(),
+                                p1.value.cdata(),
                                 m_p0t, m_p1t);
-                    }else if(r0->can_add_directly()){
+                    }else if(r0.can_add_directly()){
                         // r0 += dot(p0,p1)
-                        cuv::prod(r0->overwrite_or_add_value().data(),
-                                p0->value.cdata(),
-                                p1->value.cdata(),
+                        cuv::prod(r0.overwrite_or_add_value().data(),
+                                p0.value.cdata(),
+                                p1.value.cdata(),
                                 m_p0t, m_p1t,
                                 1.f,1.f);
                     }else{
                         // allocate new value *sigh*
-                        value_ptr v(new value_type(r0->shape));
+                        value_ptr v(new value_type(r0.shape));
                         cuv::prod(*v, 
-                                p0->value.cdata(),
-                                p1->value.cdata(),
+                                p0.value.cdata(),
+                                p1.value.cdata(),
                                 m_p0t, m_p1t);
-                        r0->push(v);
+                        r0.push(v);
                     }
-                    if(!p0->need_derivative) p1->value.reset();
-                    if(!p1->need_derivative) p0->value.reset();
+                    if(!p0.need_derivative) p1.value.reset();
+                    if(!p1.need_derivative) p0.value.reset();
                 }
                 void bprop(){
                     using namespace cuv;
-                    param_t&  p0 = m_params[0];
-                    param_t&  p1 = m_params[1];
-                    result_t& r0 = m_results[0];
-                    assert(p0->need_derivative || p1->need_derivative);
-                    if(p0->need_derivative){
-                        const value_type& delta = r0->delta.cdata();
-                        const value_type& p1v   = p1->value.cdata();
+                    param_t::element_type&  p0 = *m_params[0];
+                    param_t::element_type&  p1 = *m_params[1];
+                    result_t::element_type& r0 = *m_results[0];
+                    assert(p0.need_derivative || p1.need_derivative);
+                    if(p0.need_derivative){
+                        const value_type& delta = r0.delta.cdata();
+                        const value_type& p1v   = p1.value.cdata();
                         char p1t    = (m_p0t==m_p1t) ? 't':'n';
                         char deltat = (m_p0t=='t')   ? 't':'n';
-                        if(p0->can_overwrite_directly()){
+                        if(p0.can_overwrite_directly()){
                             if(m_p0t=='n')
-                                cuv::prod(p0->overwrite_or_add_value().data(),
+                                cuv::prod(p0.overwrite_or_add_value().data(),
                                         delta, p1v, deltat, p1t,1.f,0.f);
                             else
-                                cuv::prod(p0->overwrite_or_add_value().data(),
+                                cuv::prod(p0.overwrite_or_add_value().data(),
                                         p1v, delta, p1t, deltat,1.f,0.f);
                         }
-                        else if(p0->can_add_directly()){
+                        else if(p0.can_add_directly()){
                             if(m_p0t=='n')
-                                cuv::prod(p0->overwrite_or_add_value().data(),
+                                cuv::prod(p0.overwrite_or_add_value().data(),
                                         delta, p1v, deltat, p1t,1.f,1.f);
                             else
-                                cuv::prod(p0->overwrite_or_add_value().data(),
+                                cuv::prod(p0.overwrite_or_add_value().data(),
                                         p1v, delta, p1t, deltat,1.f,1.f);
                         }else{
                             // reallocate *sigh*
-                            value_ptr v(new value_type(p0->shape));
+                            value_ptr v(new value_type(p0.shape));
                             if(m_p0t=='n')
                                 cuv::prod(v.data(), delta, p1v,
                                         deltat, p1t,1.f,0.f);
                             else
                                 cuv::prod(v.data(), p1v, delta,
                                         p1t, deltat,1.f,0.f);
-                            p0->push(v);
+                            p0.push(v);
                         }
                     }
-                    if(p1->need_derivative){
-                        const value_type& delta = r0->delta.cdata();
-                        const value_type& p0v   = p0->value.cdata();
+                    if(p1.need_derivative){
+                        const value_type& delta = r0.delta.cdata();
+                        const value_type& p0v   = p0.value.cdata();
                         char p0t    = (m_p0t==m_p1t) ? 't':'n';
                         char deltat = (m_p1t=='t')   ? 't':'n';
-                        if(p1->can_overwrite_directly()){
+                        if(p1.can_overwrite_directly()){
                             if(m_p1t=='n')
-                                cuv::prod(p1->overwrite_or_add_value().data(),
+                                cuv::prod(p1.overwrite_or_add_value().data(),
                                         p0v, delta, p0t, deltat,1.f,0.f);
                             else
-                                cuv::prod(p1->overwrite_or_add_value().data(),
+                                cuv::prod(p1.overwrite_or_add_value().data(),
                                         delta,p0v, deltat, p0t,1.f,0.f);
                         }
-                        else if(p1->can_add_directly()){
+                        else if(p1.can_add_directly()){
                             if(m_p1t=='n')
-                                cuv::prod(p1->overwrite_or_add_value().data(),
+                                cuv::prod(p1.overwrite_or_add_value().data(),
                                         p0v, delta, p0t,deltat,1.f,1.f);
                             else
-                                cuv::prod(p1->overwrite_or_add_value().data(),
+                                cuv::prod(p1.overwrite_or_add_value().data(),
                                         delta,p0v, deltat, p0t,1.f,1.f);
                         }else{
                             // reallocate *sigh*
-                            value_ptr v(new value_type(p1->shape));
+                            value_ptr v(new value_type(p1.shape));
                             if(m_p1t=='n')
                                 cuv::prod(v.data(),
                                         p0v, delta, p0t,deltat,1.f,0.f);
                             else
                                 cuv::prod(v.data(),
                                         delta,p0v, deltat,p0t,1.f,0.f);
-                            p1->push(v);
+                            p1.push(v);
                         }
                     }
                 }
