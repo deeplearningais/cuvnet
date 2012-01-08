@@ -61,7 +61,8 @@ void swiper::bprop(){
 		}
 	}
 	BOOST_REVERSE_FOREACH(Op* o, m_topo.plist){
-		o->bprop();
+		if(o->need_derivative())
+			o->bprop();
 	}
 }
 void cuvnet::write_graphviz(Op& op, std::ostream& os){
