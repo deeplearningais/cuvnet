@@ -7,6 +7,15 @@
 #include <cuvnet/op.hpp>
 #include <cuvnet/op_utils.hpp>
 
+#include <cuvnet/ops/axpby.hpp>
+#include <cuvnet/ops/identity.hpp>
+#include <cuvnet/ops/input.hpp>
+#include <cuvnet/ops/mat_plus_vec.hpp>
+#include <cuvnet/ops/output.hpp>
+#include <cuvnet/ops/pow.hpp>
+#include <cuvnet/ops/prod.hpp>
+#include <cuvnet/ops/tanh.hpp>
+
 using namespace cuvnet;
 using std::printf;
 

@@ -104,6 +104,13 @@ namespace cuvnet
         }
     };
 
+    struct define_graphviz_node_visitor : public op_visitor_adaptor{
+        std::ostream& os;
+        define_graphviz_node_visitor(std::ostream& o):os(o){}
+        void preorder(Op*o);
+        void postorder(Op*o);
+    };
+
     /**
      * does a recursive forward/backward pass w.r.t. 
      * requested parameters.
@@ -137,5 +144,7 @@ namespace cuvnet
          */
         void bprop();
     };
+
+    void write_graphviz(Op& op, std::ostream& os);
 }
 #endif /* __OP_UTILS_HPP__ */

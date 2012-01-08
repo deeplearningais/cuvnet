@@ -1,12 +1,21 @@
 // vim:ts=4:sw=4:et:
 #include <cmath>
 #include <stdexcept>
+#include <fstream>
 #include <cstdio>
 #include <gtest/gtest.h>
 #include <glog/logging.h>
 
 #include <cuvnet/op.hpp>
 #include <cuvnet/op_utils.hpp>
+
+#include <cuvnet/ops/axpby.hpp>
+#include <cuvnet/ops/identity.hpp>
+#include <cuvnet/ops/input.hpp>
+#include <cuvnet/ops/mat_plus_vec.hpp>
+#include <cuvnet/ops/output.hpp>
+#include <cuvnet/ops/pow.hpp>
+#include <cuvnet/ops/prod.hpp>
 
 using namespace cuvnet;
 using std::printf;
@@ -121,4 +130,14 @@ TEST(op_test, destruction){
 	EXPECT_TRUE(!inp_cpy.lock());
 	EXPECT_TRUE(!id_cpy.lock());
 	EXPECT_TRUE(!pow_cpy.lock());
+}
+
+TEST(op_test, write_graphviz){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+    ptr_t func                     = boost::make_shared<Axpby>(inp0->result(), inp1->result(), 1.3, -2.5);
+    func                           = boost::make_shared<Pow>(2.f,func->result());
+    std::ofstream os("test.dot");
+    write_graphviz(*func,os);
 }

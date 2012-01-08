@@ -3,7 +3,6 @@
 #include <cstdio>
 #include <gtest/gtest.h>
 
-#include <cuvnet/op.hpp>
 
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
@@ -12,6 +11,17 @@
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/export.hpp>
 #include <cuv/basics/io.hpp>
+
+#include <cuvnet/op.hpp>
+#include <cuvnet/ops/axpby.hpp>
+#include <cuvnet/ops/identity.hpp>
+#include <cuvnet/ops/input.hpp>
+#include <cuvnet/ops/mat_plus_vec.hpp>
+#include <cuvnet/ops/output.hpp>
+#include <cuvnet/ops/pow.hpp>
+#include <cuvnet/ops/prod.hpp>
+#include <cuvnet/ops/tanh.hpp>
+
 
 using namespace cuvnet;
 using std::printf;
