@@ -106,7 +106,11 @@ namespace cuvnet
 
     struct define_graphviz_node_visitor : public op_visitor_adaptor{
         std::ostream& os;
-        define_graphviz_node_visitor(std::ostream& o):os(o){}
+        std::vector<Op*> m_mark_order;
+        define_graphviz_node_visitor(std::ostream& o, std::vector<Op*>* mo=NULL):os(o){
+            if(mo)
+                m_mark_order = *mo;
+        }
         void preorder(Op*o);
         void postorder(Op*o);
     };
@@ -146,5 +150,6 @@ namespace cuvnet
     };
 
     void write_graphviz(Op& op, std::ostream& os);
+    void write_graphviz(Op& op, std::ostream& os, std::vector<Op*>&);
 }
 #endif /* __OP_UTILS_HPP__ */

@@ -6,8 +6,22 @@ using namespace cuvnet;
 
 void define_graphviz_node_visitor::preorder(Op* o){
 	os << "n" << boost::lexical_cast<std::string>( (size_t)(o) );
+
+	// fill in defaults
+	detail::graphviz_node n;
+	n.shape = "box";
+	n.color = "white";
+	o->_graphviz_node_desc(n);
+
+	if(m_mark_order.size()){
+		std::vector<Op*>::iterator it = std::find(m_mark_order.begin(),m_mark_order.end(),o);
+		if(it!=m_mark_order.end())
+			n.label += " (" + boost::lexical_cast<std::string>(std::distance(m_mark_order.begin(),it))+")";
+	}
+
 	os << " ["
-	   << o->_graphviz_node_desc()
+	   << " label=\""<<n.label<<"\" "
+	   << " shape=\""<<n.shape<<"\" "
 	   << " ];"<<std::endl;
 }
 void define_graphviz_node_visitor::postorder(Op* o){
@@ -53,6 +67,12 @@ void swiper::bprop(){
 void cuvnet::write_graphviz(Op& op, std::ostream& os){
 	os << "digraph { "<<std::endl;
 	define_graphviz_node_visitor dgnv(os);
+	op.visit(dgnv);
+	os << "}"<<std::endl;
+}
+void cuvnet::write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& l){
+	os << "digraph { "<<std::endl;
+	define_graphviz_node_visitor dgnv(os,&l);
 	op.visit(dgnv);
 	os << "}"<<std::endl;
 }

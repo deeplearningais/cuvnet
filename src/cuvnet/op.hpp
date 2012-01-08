@@ -123,13 +123,12 @@ namespace cuvnet
                 virtual void _determine_shapes();
 
                 /**
-                 * @return the graphviz node description string
+                 * modify the graphviz node description string
                  */
-                virtual std::string _graphviz_node_desc()const{
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
                     std::string s = typeid(*this).name();
                     size_t n = s.find("cuvnet");
-                    s = s.substr(n + 6);
-                    return std::string("shape = box, label = \"")+ s + "\" ";
+                    desc.label = s.substr(n + 7);;
                 }
 
                 private:
