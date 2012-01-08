@@ -27,9 +27,10 @@ void define_graphviz_node_visitor::preorder(Op* o){
 void define_graphviz_node_visitor::postorder(Op* o){
 	unsigned int cnt = 0;
 	BOOST_FOREACH(Op::param_t& p, o->m_params){
+		std::string nd = p->need_derivative ? "*" : "";
 		BOOST_FOREACH(Op::result_t& r, p->param_uses){
 			os << "edge [ "
-		           << " headlabel=\""<<boost::lexical_cast<std::string>(cnt) << "\""
+		           << " headlabel=\""<<boost::lexical_cast<std::string>(cnt) << nd<< "\""
 			   <<" ]"<<std::endl;
 			os << "n" << boost::lexical_cast<std::string>( (size_t)(r->get_op().get()) );
 			os << " -> ";
