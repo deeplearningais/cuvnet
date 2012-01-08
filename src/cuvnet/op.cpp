@@ -73,6 +73,7 @@ Op::set_calculate_derivative(const std::vector<Op*>&l){
 		p->need_derivative = derive_wrt_p;
 		need_calc_derivative |= derive_wrt_p;
 	}
+	m_need_derivative = need_calc_derivative;
 	return need_calc_derivative;
 }
 

@@ -10,6 +10,7 @@
 #include <cuvnet/smart_ptr.hpp>
 #include <cuvnet/detail/op_result.hpp>
 #include <cuvnet/detail/op_param.hpp>
+#include <cuvnet/detail/graphviz_node.hpp>
 
 namespace cuvnet
 {
@@ -25,6 +26,7 @@ namespace cuvnet
             protected:
                 std::vector<param_t>  m_params;
                 std::vector<result_t> m_results;
+                bool                  m_need_derivative;
 
             public:
                 /**
@@ -53,9 +55,11 @@ namespace cuvnet
                 param_t&       param(const unsigned int i=0);
                 void set_n_params(unsigned int n);
                 void set_n_results(unsigned int n);
-                unsigned int get_n_params(){ return m_params.size(); }
-                unsigned int get_n_results(){ return m_results.size(); }
+                inline unsigned int get_n_params(){ return m_params.size(); }
+                inline unsigned int get_n_results(){ return m_results.size(); }
                 void add_param(unsigned int idx, result_t& p);
+                inline bool need_derivative()const{return m_need_derivative;}
+                inline void need_derivative(bool b){m_need_derivative = b;}
 
                 /**
                  * calculate recursively what needs to be calculated to
