@@ -33,8 +33,8 @@ void print(const std::string& s, const matrix& M){
     if(M.ndim()==1){
         unsigned int cnt=0;
         for (unsigned int i = 0; i < M.size(); ++i){
-            printf("% 2.2f ", (float)M[i]);
-            if((cnt++*6)>80){printf("\n");cnt=0;}
+            printf("% 2.5f ", (float)M[i]);
+            if((cnt++*9)>100){printf("\n");cnt=0;}
         }
     }
     if(M.ndim()==2){
@@ -42,8 +42,8 @@ void print(const std::string& s, const matrix& M){
             printf("   ");
             unsigned int cnt=0;
             for (unsigned int j = 0; j < M.shape(1); ++j){
-                printf("% 2.2f ", (float)M(i,j));
-                if((cnt++*6)>80){printf("\n");cnt=0;}
+                printf("% 2.5f ", (float)M(i,j));
+                if((cnt++*9)>100){printf("\n");cnt=0;}
             }
             printf("\n");
         }
@@ -58,7 +58,7 @@ void set_delta_to_unit_vec(Op::result_t& r, unsigned int i){
 unsigned int prod(const std::vector<unsigned int>& v){
     return std::accumulate(v.begin(),v.end(),1u, std::multiplies<unsigned int>());
 }
-void derivative_tester(Op& op){
+void derivative_tester(Op& op, float prec=0.003f){
     // assumption: op has only one result
     boost::shared_ptr<Output> out_op = boost::make_shared<Output>(op.result());
 
@@ -73,7 +73,7 @@ void derivative_tester(Op& op){
         for (unsigned int i = 0; i < param->data().size(); ++i)
         {
             //param->data()[i] = 2.f;
-            param->data()[i] = (float)drand48();
+            param->data()[i] = 2.f*(float)drand48()-1.0f;
         }
     }
 
@@ -99,7 +99,7 @@ void derivative_tester(Op& op){
 
         matrix J_(n_inputs,n_outputs); J_ = 0.f;
         for (unsigned int in = 0; in < n_inputs; ++in) {
-            static const float eps = 0.0001f;
+            static const float eps = 0.00001f;
             float v = param->data()[in];
             param->data()[in] = v + eps;
             swipe.fprop();
@@ -119,9 +119,12 @@ void derivative_tester(Op& op){
             J_row = o_plus;
         }
         matrix J_t(n_outputs, n_inputs);
-	cuv::transpose(J_t,J_);
-        //PM(J_); PM(J);
-        EXPECT_NEAR(cuv::norm2(J_t-J), 0.f, 0.01f );
+        cuv::transpose(J_t,J_);
+        float testval = std::sqrt(cuv::norm2(J_t-J))/J.size();
+        if(testval>prec){
+            PM(J_); PM(J);
+        }
+        EXPECT_NEAR(std::sqrt(cuv::norm2(J_t-J))/J.size(), 0.f, prec );
     }
 }
 
@@ -167,6 +170,7 @@ TEST(derivative_test, derivative_test_sum_mat_to_vec){
     }
 }
 /*
+ * // does not make much sense to test this
  *TEST(derivative_test, derivative_test_noiser){
  *        cuv::initialize_mersenne_twister_seeds();
  *        typedef boost::shared_ptr<Op> ptr_t;
@@ -179,7 +183,7 @@ TEST(derivative_test, derivative_test_sum){
 	typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
     ptr_t func                     = boost::make_shared<Sum>(inp0->result());
-    derivative_tester(*func);
+    derivative_tester(*func,0.015);
 }
 
 TEST(derivative_test, derivative_test_prod){
@@ -234,13 +238,13 @@ TEST(derivative_test, derivative_test_mat_plus_vec){
 	    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3]);
 	    ptr_t func		           = boost::make_shared<MatPlusVec>(inp0->result(), inp1->result(), false);
 
-	    derivative_tester(*func);
+	    derivative_tester(*func,0.01f);
     }
     {
 	    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
 	    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[5]);
 	    ptr_t func		           = boost::make_shared<MatPlusVec>(inp0->result(), inp1->result(), true);
 
-	    derivative_tester(*func);
+	    derivative_tester(*func,0.01f);
     }
 }
