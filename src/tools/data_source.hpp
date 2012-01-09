@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include "preprocess.hpp"
 
 /*
  * @file data_source.hpp provides methods to acquire raw 
@@ -13,20 +14,14 @@
 
 namespace cuvnet
 {
-    namespace detail
-    {
-        struct file_descr{
-            std::string        name;
-            size_t             size;
-            std::vector<char*> content;
-        };
-    }
-    class folder_loader{
-        private:
+    struct folder_loader{
+        public:
             std::vector<detail::file_descr> m_files;
+            unsigned int m_idx;
             void scan(const std::string& path, bool recursive);
         public:
             folder_loader(const std::string& path, bool recursive);
+            void get(std::vector<cuv::tensor<float,cuv::host_memory_space> >& res, const unsigned int n, preprocessor* pp);
     };
     
 }

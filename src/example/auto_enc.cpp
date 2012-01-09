@@ -1,5 +1,6 @@
 // vim:ts=4:sw=4:et
 #include <fstream>
+#include <cmath>
 #include <cuvnet/op.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/ops/output.hpp>
