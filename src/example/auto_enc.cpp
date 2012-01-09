@@ -21,8 +21,10 @@ typedef boost::shared_ptr<Op> optr_t;
 struct auto_encoder{
     boost::shared_ptr<Input>  m_input;
     boost::shared_ptr<Input>  m_weights;
-    boost::shared_ptr<Op>     m_func;
     boost::shared_ptr<Output> m_out;
+    boost::shared_ptr<Op>     m_func;
+    matrix&       input() {return m_input->data();}
+    const matrix& output(){return m_out->cdata();}
 
     auto_encoder(unsigned int inp0, unsigned int inp1, unsigned int hl, float std=0.1f)
     :m_input(new Input(cuv::extents[inp0][inp1]))
@@ -44,9 +46,9 @@ struct auto_encoder{
                             1.f,-1.f)));
         m_out = boost::make_shared<Output>(m_func->result());
 
-        float diff = 4.f*std::sqrt(6./(inp1+hl));
+        float diff = 4.f*std::sqrt(6.f/(inp1+hl));
         float mult = 2.f*diff;
-        for(unsigned int i=0;i<hl*inp0;i++){
+        for(unsigned int i=0;i<m_weights->data().size();i++){
             m_weights->data()[i] = (float)(drand48()*mult-diff);
         }
     }
@@ -55,21 +57,18 @@ struct auto_encoder{
 int main(int argc, char **argv)
 {
     cuv::initialize_mersenne_twister_seeds();
-    auto_encoder ae(3,4,5);
+    auto_encoder ae(100,8,8,0.0f);
 
-    for(unsigned int i=0;i<12;i++)
-        ae.m_input->data()[i] = (float)(i%2);
+    // generate data
+    for(unsigned int i=0;i<ae.input().size();i++)
+        ae.input()[i] = 2.f * (float)((int)(drand48()*10)%2)-1.0f;
+
     std::vector<Op*> params(1,ae.m_weights.get());
     swiper swipe(*ae.m_func,true,params);
 
-
     for(unsigned int epoch=0;epoch<1000;epoch++){
         swipe.fprop();
-        {
-            std::ofstream os("ae.dot");
-            write_graphviz(*ae.m_out,os,swipe.m_topo.plist);
-        }
-        std::cout << ae.m_out->cdata()[0]<<std::endl;
+        std::cout << std::sqrt(ae.output()[0]/ae.input().shape(1))<<std::endl;
         swipe.bprop();
 
         ae.m_weights->data() -= 0.001f*ae.m_weights->result()->delta.cdata();
