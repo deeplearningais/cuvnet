@@ -9,8 +9,9 @@ FIND_PACKAGE( Boost 1.37 COMPONENTS date_time unit_test_framework serialization 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -fno-strict-aliasing")
 
-add_subdirectory(test)
 add_subdirectory(cuvnet)
+add_subdirectory(tools)
 add_subdirectory(example)
+add_subdirectory(test)
