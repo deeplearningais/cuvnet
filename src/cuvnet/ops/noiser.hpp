@@ -28,7 +28,7 @@ namespace cuvnet
                     param_t::element_type&  p0 = *m_params[0];
                     result_t::element_type& r0 = *m_results[0];
 
-                    const value_type& inp0 = p0.value.cdata();           // original
+                    //const value_type& inp0 = p0.value.cdata();           // original
 
                     if(r0.can_overwrite_directly()){
                         value_ptr& v  = r0.overwrite_or_add_value();
