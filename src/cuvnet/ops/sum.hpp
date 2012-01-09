@@ -21,6 +21,8 @@ namespace cuvnet
                 Sum(){} /// for serialization
                 Sum(result_t& p0):Op(1,1){
                     add_param(0,p0);
+		    m_results[0]->delta = value_ptr(new value_type(cuv::extents[1]));
+		    m_results[0]->delta.data()[0] = 1.f;
                 }
                 void fprop(){
                     using namespace cuv;
@@ -50,15 +52,15 @@ namespace cuvnet
                         value_ptr& v = p0.overwrite_or_add_value();
                         v = p0.value;
                         p0.value.reset(); // try overwriting p0
-                        *v = 1.f;
+                        *v = r0.delta.cdata()[0];
                     }else if(p0.can_add_directly()){
                         value_ptr& v = p0.overwrite_or_add_value();
-                        *v += 1.f;
+                        *v += (float)r0.delta.cdata()[0];
                         p0.value.reset(); // try overwriting p0
                     }else{
                         value_ptr v = p0.value; // try overwriting p0
                         p0.value.reset();
-                        *v = 1.f;
+                        *v = (float)r0.delta.cdata()[0];
                         p0.push(v);
                     }
                     //r0.delta.reset(); // do not reset delta, it is very small anyway
