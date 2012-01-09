@@ -49,7 +49,7 @@ namespace cuvnet
                     visited[o] = true;
                     return true;
                 }
-                for (int i = 0; i < o->m_params.size(); ++i)
+                for (unsigned int i = 0; i < o->m_params.size(); ++i)
                 {
                     // at least one parameter should have this set
                     if(o->m_params[i]->need_derivative){

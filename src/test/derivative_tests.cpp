@@ -68,7 +68,7 @@ void derivative_tester(Op& op){
     BOOST_FOREACH(Op* raw, pcv.plist){
         Input* param = dynamic_cast<Input*>(raw);
         EXPECT_TRUE(param!=NULL);
-        for (int i = 0; i < param->data().size(); ++i)
+        for (unsigned int i = 0; i < param->data().size(); ++i)
         {
             //param->data()[i] = 2.f;
             param->data()[i] = (float)drand48();

@@ -64,7 +64,7 @@ namespace cuvnet
                 void push(const cow_ptr<T>& v){
                     //assert(!can_overwrite_directly());
                     //assert(!can_add_directly());
-                    for (int i = 0; i < result_uses.size(); ++i)
+                    for (unsigned int i = 0; i < result_uses.size(); ++i)
                     {
                         op_param<T>& dst    = *use(i);
                         if(dst.value_set)
