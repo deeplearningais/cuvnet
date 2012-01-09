@@ -19,6 +19,7 @@
 #include <cuvnet/ops/sum.hpp>
 #include <cuvnet/ops/multiply.hpp>
 #include <cuvnet/ops/sum_mat_to_vec.hpp>
+#include <cuvnet/ops/add_scalar.hpp>
 
 using namespace cuvnet;
 using std::printf;
@@ -139,6 +140,19 @@ TEST(derivative_test, derivative_test_tanh){
 	typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
     ptr_t func                    = boost::make_shared<Tanh>(inp->result());
+    derivative_tester(*func);
+}
+
+TEST(derivative_test, derivative_test_add_scalar){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+    ptr_t func                    = boost::make_shared<AddScalar>(1.f,inp->result());
+    derivative_tester(*func);
+}
+TEST(derivative_test, derivative_test_subtract_from_scalar){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+    ptr_t func                    = boost::make_shared<SubtractFromScalar>(1.f,inp->result());
     derivative_tester(*func);
 }
 
