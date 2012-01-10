@@ -10,6 +10,8 @@ namespace cuvnet
 			std::string label;
 			std::string shape;
 			std::string color;
+			std::string fillcolor;
+			std::string style;
 		};
 	}
 }

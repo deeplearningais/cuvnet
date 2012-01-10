@@ -2,6 +2,7 @@
 #ifndef __OP_UTILS_HPP__
 #     define __OP_UTILS_HPP__
 
+#include <map>
 #include <cuvnet/op.hpp>
 
 namespace cuvnet
@@ -107,12 +108,14 @@ namespace cuvnet
     struct define_graphviz_node_visitor : public op_visitor_adaptor{
         std::ostream& os;
         std::vector<Op*> m_mark_order;
+        std::map<const void*, std::string> m_seen;
         define_graphviz_node_visitor(std::ostream& o, std::vector<Op*>* mo=NULL):os(o){
             if(mo)
                 m_mark_order = *mo;
         }
         void preorder(Op*o);
         void postorder(Op*o);
+        std::string define_data_ptr(const Op::value_ptr& vp);
     };
 
     /**
