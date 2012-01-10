@@ -5,7 +5,6 @@
 using namespace cuvnet;
 
 void define_graphviz_node_visitor::preorder(Op* o){
-	os << "n" << boost::lexical_cast<std::string>( (size_t)(o) );
 
 	// fill in defaults
 	detail::graphviz_node n;
@@ -19,10 +18,29 @@ void define_graphviz_node_visitor::preorder(Op* o){
 			n.label += " (" + boost::lexical_cast<std::string>(std::distance(m_mark_order.begin(),it))+")";
 	}
 
-	os << " ["
+    // define the op-node itself
+    std::string opstr = "n" + boost::lexical_cast<std::string>( (size_t)(o) );
+	os << opstr
+	   << " ["
+	   << " tooltip=\"tooltip "<<n.label<<"\" "
 	   << " label=\""<<n.label<<"\" "
 	   << " shape=\""<<n.shape<<"\" "
 	   << " ];"<<std::endl;
+
+    // define the params of op
+	BOOST_FOREACH(Op::param_t& p, o->m_params){
+        os << opstr << "p"<<p->param_number
+            << " [ fontsize=6, margin=\"0,0\", width=0.01, label=\"" << p->param_number << "\", shape=circle ] ;"<<std::endl;
+        // connect to op
+        os << "edge [dir=none,weight=100] "<<opstr<<"p"<<p->param_number<<" -> "<<opstr<<";"<<std::endl;
+    }
+    // define the results of op
+    BOOST_FOREACH(Op::result_t& r, o->m_results){
+        os << opstr << "r"<<r->result_number
+            << " [ fontsize=6, margin=\"0,0\",width=0.01, label=\"" << r->result_number << "\", shape=circle ] ;"<<std::endl;
+        // connect to op
+        os << "edge [dir=none,weight=100] "<< opstr << " -> " << opstr<<"r"<<r->result_number<<";"<<std::endl;
+    }
 }
 void define_graphviz_node_visitor::postorder(Op* o){
 	unsigned int cnt = 0;
@@ -30,12 +48,21 @@ void define_graphviz_node_visitor::postorder(Op* o){
 		std::string nd = p->need_derivative ? "*" : "";
 		BOOST_FOREACH(Op::result_t& r, p->param_uses){
 			os << "edge [ "
-		           << " headlabel=\""<<boost::lexical_cast<std::string>(cnt) << nd<< "\""
+               << "dir=forward "
+				   //<< " headlabel=\""<<boost::lexical_cast<std::string>(cnt) << nd<< "\""
 			   <<" ]"<<std::endl;
-			os << "n" << boost::lexical_cast<std::string>( (size_t)(r->get_op().get()) );
+
+			os << "n" << boost::lexical_cast<std::string>( (size_t)(r->get_op().get()) )
+               << "r" << r->result_number;
 			os << " -> ";
-			os << "n" << boost::lexical_cast<std::string>( (size_t) o );
+			os << "n" << boost::lexical_cast<std::string>( (size_t) o )
+			   << "p" << p->param_number;
 			os << " ; "<<std::endl;
+            
+			//os << "n" << boost::lexical_cast<std::string>( (size_t)(r->get_op().get()) );
+			//os << " -> ";
+			//os << "n" << boost::lexical_cast<std::string>( (size_t) o );
+			//os << " ; "<<std::endl;
 		}
 		cnt++;
 	}
