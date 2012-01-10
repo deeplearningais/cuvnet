@@ -7,19 +7,7 @@
 #include <cuvnet/op.hpp>
 #include <cuvnet/op_utils.hpp>
 
-#include <cuvnet/ops/axpby.hpp>
-#include <cuvnet/ops/identity.hpp>
-#include <cuvnet/ops/input.hpp>
-#include <cuvnet/ops/mat_plus_vec.hpp>
-#include <cuvnet/ops/output.hpp>
-#include <cuvnet/ops/pow.hpp>
-#include <cuvnet/ops/prod.hpp>
-#include <cuvnet/ops/tanh.hpp>
-#include <cuvnet/ops/noiser.hpp>
-#include <cuvnet/ops/sum.hpp>
-#include <cuvnet/ops/multiply.hpp>
-#include <cuvnet/ops/sum_mat_to_vec.hpp>
-#include <cuvnet/ops/add_scalar.hpp>
+#include <cuvnet/ops.hpp>
 
 using namespace cuvnet;
 using std::printf;
@@ -152,7 +140,8 @@ TEST(derivative_test, derivative_test_add_scalar){
 TEST(derivative_test, derivative_test_subtract_from_scalar){
 	typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
-    ptr_t func                    = boost::make_shared<SubtractFromScalar>(1.f,inp->result());
+    //ptr_t func                    = boost::make_shared<SubtractFromScalar>(1.f,inp->result());
+    ptr_t func                    = 1.f-inp;
     derivative_tester(*func);
 }
 
