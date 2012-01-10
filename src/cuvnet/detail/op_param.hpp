@@ -36,6 +36,7 @@ namespace cuvnet
                 boost::weak_ptr<Op>            op;
                 cow_ptr<T>                     value;
                 bool                           value_set;
+                unsigned int                   param_number;
                 //cow_ptr<T>                     delta;
 
                 boost::shared_ptr<Op> get_op(){ return boost::shared_ptr<Op>(op); }
@@ -94,7 +95,7 @@ namespace cuvnet
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
-                        ar & op & param_uses;
+                        ar & op & param_uses & param_number;
                     }
             };
     }

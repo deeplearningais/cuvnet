@@ -21,6 +21,7 @@ namespace cuvnet
                 //cow_ptr<T>                     value;
                 cow_ptr<T>                     delta;
                 bool                           delta_set;
+                unsigned int                   result_number;
                 boost::shared_ptr<Op> get_op(){ return op; }
                 bool want_result()const { return result_uses.size() > 0; }
                 bool can_overwrite_directly()const{
@@ -80,7 +81,7 @@ namespace cuvnet
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
-                        ar & op & result_uses;
+                        ar & op & result_uses & result_number;
                     }
             };
 

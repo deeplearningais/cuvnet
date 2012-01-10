@@ -44,13 +44,15 @@ Op::set_n_params(unsigned int n){
 	m_params.resize(n); 
 	for(unsigned int i=0;i<n;i++){
 		m_params[i].reset(new detail::op_param<value_type>());
+        m_params[i]->param_number = i;
 	}
 }
 void 
 Op::set_n_results(unsigned int n){ 
     m_results.resize(n); 
     for(unsigned int i=0;i<n;i++){
-	m_results[i].reset(new detail::op_result<value_type>());
+        m_results[i].reset(new detail::op_result<value_type>());
+        m_results[i]->result_number = i;
     }
 }
 void 
