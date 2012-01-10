@@ -49,6 +49,12 @@ namespace cuvnet
                  *       functions, which is not that often.
                  */
                 result_t&       result(const unsigned int i=0);
+
+                /**
+                 * @see result(const unsigned int)
+                 */
+                result_t& operator[](const unsigned int i){ return result(i); }
+
                 /** 
                  * returns a reference to the i-th parameter
                  */
