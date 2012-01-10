@@ -47,7 +47,7 @@ namespace cuvnet
                         cuv::add_rnd_normal(*v,m_std);
                         r0.push(v);
                     }
-
+                    p0.value.reset();
                 }
                 void bprop(){
                     using namespace cuv;

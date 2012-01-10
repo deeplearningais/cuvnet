@@ -47,6 +47,7 @@ namespace cuvnet
                     value_ptr res(new value_type(inp.shape()));
                     apply_scalar_functor(*res,inp,SF_DPOW, m_exponent);
                     *res *= r0.delta.cdata(); // TODO: write BF_POW_TIMES functor in cuv
+                    r0.delta.reset();
                     p0.push(res);
                 }
             private:

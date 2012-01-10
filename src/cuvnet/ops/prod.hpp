@@ -126,6 +126,7 @@ namespace cuvnet
                             p1.push(v);
                         }
                     }
+                    r0.delta.reset();
                 }
                 void _determine_shapes(){
                     param_t&  p0 = m_params[0];
