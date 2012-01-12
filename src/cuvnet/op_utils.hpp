@@ -3,6 +3,7 @@
 #     define __OP_UTILS_HPP__
 
 #include <map>
+#include <fstream>
 #include <cuvnet/op.hpp>
 
 namespace cuvnet
@@ -92,6 +93,13 @@ namespace cuvnet
             BOOST_FOREACH(Op::result_t& r, o->m_results){
                 r->delta_set = false;
             }
+            // TODO: is this necessary? ::
+            BOOST_FOREACH(Op::param_t& r, o->m_params){
+                // we may have written a delta to a followup op which is not
+                // part of the hierarchy!
+                for(unsigned int i=0;i<r->param_uses.size();i++)
+                    r->use(i)->delta_set = false;
+            }
         }
     };
     /**
@@ -101,6 +109,13 @@ namespace cuvnet
         inline void preorder(Op*o)const{
             BOOST_FOREACH(Op::param_t& r, o->m_params){
                 r->value_set = false;
+            }
+            // TODO: is this necessary? ::
+            BOOST_FOREACH(Op::result_t& r, o->m_results){
+                // we may have written a result to a followup op which is not
+                // part of the hierarchy!
+                for(unsigned int i=0;i<r->result_uses.size();i++)
+                    r->use(i)->value_set = false;
             }
         }
     };
