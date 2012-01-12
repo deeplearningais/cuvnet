@@ -85,6 +85,7 @@ namespace cuvnet
                             p0.push(r0.delta);
                         }
                     }
+                    r0.delta.reset();
                     if(p1.need_derivative){
                         if(p1.can_add_directly()){
                             // p1 += fact_b * r1.delta
@@ -105,7 +106,6 @@ namespace cuvnet
                             p1.push(delta_orig);
                         }
                     }
-                    r0.delta.reset();
                 }
                 void _determine_shapes(){
                     assert(m_params[0]->shape == m_params[1]->shape);
