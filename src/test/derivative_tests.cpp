@@ -142,8 +142,21 @@ TEST(derivative_test, derivative_test_sq_axpby){
 	typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
     boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
-    ptr_t func                     = boost::make_shared<Axpby>(inp0->result(), inp1->result(), 1.3, -2.5);
+    ptr_t func                     = boost::make_shared<Axpby>(inp0->result(), inp0->result(), 1.5f, -1.8f);
     func                           = boost::make_shared<Pow>(2.f,func->result());
+    derivative_tester(*func);
+}
+
+TEST(derivative_test, derivative_test_xtx){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+    ptr_t func                     = inp0*inp0;
+    derivative_tester(*func);
+}
+TEST(derivative_test, derivative_test_xt1mx){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+    ptr_t func                     = inp0*(1.f-inp0);
     derivative_tester(*func);
 }
 
