@@ -24,6 +24,9 @@ namespace cuvnet
                     Input(const T& init):Op(0,1), m_data(new value_type(init)){  }
                 template<class T>
                     Input(const T& init, const std::string& name):Op(0,1), m_data(new value_type(init)), m_name(name){  }
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
+                    desc.label = "Input `" + m_name + "'";
+                }
                 void fprop(){
                     m_results[0]->push(m_data);
                     // TODO: forget m_data now?
