@@ -71,9 +71,9 @@ std::cout << "--------------------->"<<std::setprecision(10)<<sum<<std::endl;
 
                     if(p0.can_overwrite_directly()){
                         value_ptr& v = p0.overwrite_or_add_value();
-                        v = p0.value;
-                        p0.value.reset(); // try overwriting p0
-                        *v = r0.delta.cdata()[0];
+                        v  = p0.value;     // only ptr is copied
+                        p0.value.reset();  // try overwriting p0
+                        v.data_onlyshape() = r0.delta.cdata()[0];
                     }else if(p0.can_add_directly()){
                         value_ptr& v = p0.overwrite_or_add_value();
                         *v += (float)r0.delta.cdata()[0];
