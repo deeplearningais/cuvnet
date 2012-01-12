@@ -15,12 +15,15 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
 
             private:
-                value_ptr m_data;
+                value_ptr   m_data;
+                std::string m_name;
 
             public:
                 Input(){} /// for serialization
                 template<class T>
                     Input(const T& init):Op(0,1), m_data(new value_type(init)){  }
+                template<class T>
+                    Input(const T& init, const std::string& name):Op(0,1), m_data(new value_type(init)), m_name(name){  }
                 void fprop(){
                     m_results[0]->push(m_data);
                     // TODO: forget m_data now?
@@ -34,12 +37,15 @@ namespace cuvnet
 
                 inline value_type&       data()      { return m_data.data();  }
                 inline const value_type& data() const{ return m_data.cdata(); }
+
+                inline std::string&       name()      { return m_name; }
+                inline const std::string& name() const{ return m_name; }
             private:
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
-                        ar & m_data;
+                        ar & m_data & m_name;
                     }
         };
 
