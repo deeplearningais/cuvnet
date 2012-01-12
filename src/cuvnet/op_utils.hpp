@@ -117,6 +117,8 @@ namespace cuvnet
         void postorder(Op*o);
         std::string define_data_ptr(const Op::value_ptr& vp);
     };
+    void write_graphviz(Op& op, std::ostream& os);
+    void write_graphviz(Op& op, std::ostream& os, std::vector<Op*>&);
 
     /**
      * does a recursive forward/backward pass w.r.t. 
@@ -141,6 +143,8 @@ namespace cuvnet
                 op.set_calculate_derivative(paramlist);
                 op.visit(m_topo);
                 op.visit(determine_shapes_visitor());
+                std::ofstream os("swiper-initial.dot");
+                write_graphviz(op, os, m_topo.plist );
             }
         /**
          * does recursive forward pass on op
@@ -152,7 +156,5 @@ namespace cuvnet
         void bprop();
     };
 
-    void write_graphviz(Op& op, std::ostream& os);
-    void write_graphviz(Op& op, std::ostream& os, std::vector<Op*>&);
 }
 #endif /* __OP_UTILS_HPP__ */
