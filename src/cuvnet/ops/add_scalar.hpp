@@ -96,7 +96,7 @@ namespace cuvnet
                     using namespace cuv;
                     param_t::element_type&  p0 = *m_params[0];
                     result_t::element_type& r0 = *m_results[0];
-                    // TODO cuv: a = a + b*scalar
+                    // TODO cuv: a = a + b*scalar SAXPY
                     if(r0.can_overwrite_directly()){
                         apply_scalar_functor(r0.overwrite_or_add_value().data(),p0.value.cdata(),SF_RSUB,m_scalar);
                     }
@@ -107,7 +107,7 @@ namespace cuvnet
                         // reallocate *sigh*
                         value_ptr v = p0.value;
                         p0.value.reset(); // try to overwrite p0
-                        apply_scalar_functor(*v,SF_NEGATE);
+                        apply_scalar_functor(*v,SF_NEGATE); // SAXPY!
                         *v += m_scalar;
                         r0.push(v);
                     }
@@ -123,7 +123,7 @@ namespace cuvnet
                         apply_scalar_functor(p0.overwrite_or_add_value().data(),r0.delta.cdata(),SF_NEGATE);
                     }else if(p0.can_add_directly()){
                         apply_scalar_functor(r0.delta.data(),SF_NEGATE);
-                        p0.overwrite_or_add_value().data()+=r0.delta.cdata();
+                        p0.overwrite_or_add_value().data()+=r0.delta.cdata(); // SAXPY!
                     }else{
                         apply_scalar_functor(r0.delta.data(),SF_NEGATE);
                         p0.push(r0.delta);
