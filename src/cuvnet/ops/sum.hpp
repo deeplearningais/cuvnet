@@ -45,12 +45,11 @@ namespace cuvnet
                     result_t::element_type& r0 = *m_results[0];
 
 //#ifndef CUVNET_PRECISE_SUM
-#if 0
+#if 1
                     float sum = cuv::sum(p0.value.cdata());
 #else
                     float sum = kahan_summation(p0.value.cdata()); // this is expensive!!! use only for testing.
 #endif
-std::cout << "--------------------->"<<std::setprecision(10)<<sum<<std::endl;
                     if(r0.can_overwrite_directly()){
                         (*r0.overwrite_or_add_value())[0] = sum;
                     }
