@@ -16,7 +16,7 @@ namespace cuvnet
     namespace derivative_testing
     {
 
-#       define PM(X) print(#X,X);
+#       define PM(X) cuvnet::derivative_testing::print(#X,X);
         void print(const std::string& s, const matrix& M){
             std::cout << "_________________________________________"<<std::endl;
             std::cout << "------------ "<<s<<" (";
@@ -70,7 +70,7 @@ namespace cuvnet
                 for (unsigned int i = 0; i < param->data().size(); ++i)
                 {
                     //param->data()[i] = 2.f;
-                    param->data()[i] = 2.f*(float)drand48()-1.0f;
+                    param->data()[i] = (float)(0.1f + drand48()) * (drand48()<.5?-1.f:1.f); // avoid values around 0
                 }
             }
 
@@ -121,7 +121,8 @@ namespace cuvnet
                 cuv::transpose(J_t,J_);
                 double maxdiff = cuv::maximum((J_t-J)*(J_t-J));    // squared(!) 
                 double prec_  = prec * prec;                       // square precision, too
-                std::cout << "...maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;
+                if(verbose)
+                    std::cout << "...maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;
                 if(maxdiff>prec_){
                     PM(J_t); PM(J);
                 }
