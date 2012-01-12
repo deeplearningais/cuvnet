@@ -66,7 +66,7 @@ int main(int argc, char **argv)
     cuv::initialize_mersenne_twister_seeds();
 
     {   // check auto-encoder derivatives
-        auto_encoder ae(10,20,5,0.0f);
+        auto_encoder ae(2,4,2,0.0f);
         derivative_tester_verbose(*ae.m_enc);
         derivative_tester_verbose(*ae.m_decode);
         derivative_tester_verbose(*ae.m_rec_loss);
