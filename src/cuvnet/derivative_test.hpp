@@ -2,6 +2,7 @@
 #     define __DERIVATIVE_TEST_HPP__
 #include <cuvnet/ops/input.hpp>
 #include <cuvnet/ops/output.hpp>
+#include <cuvnet/ops/sum.hpp>
 
 #ifndef GTEST_INCLUDE_GTEST_GTEST_H_
 #include <cassert>
@@ -54,7 +55,7 @@ namespace cuvnet
         cuvnet::derivative_testing::derivative_tester(X,true); \
         std::cout << "done."<<std::endl;
 
-        void derivative_tester(Op& op, bool verbose=false, float prec=0.003f){
+        void derivative_tester(Op& op, bool verbose=false, double prec=0.003){
             // assumption: op has only one result
             boost::shared_ptr<Output> out_op = boost::make_shared<Output>(op.result());
 
@@ -68,8 +69,8 @@ namespace cuvnet
                 EXPECT_TRUE(param!=NULL);
                 for (unsigned int i = 0; i < param->data().size(); ++i)
                 {
-                    param->data()[i] = 2.f;
-                    //param->data()[i] = 2.f*(float)drand48()-1.0f;
+                    //param->data()[i] = 2.f;
+                    param->data()[i] = 2.f*(float)drand48()-1.0f;
                 }
             }
 
@@ -77,7 +78,8 @@ namespace cuvnet
 
             BOOST_FOREACH(Op* raw, pcv.plist){
                 Input* param = dynamic_cast<Input*>(raw);
-                std::cout << "...testing derivative w.r.t. "<<param->name()<<"..."<<std::endl;
+                if(verbose)
+                    std::cout << "...testing derivative w.r.t. "<<param->name()<<"..."<<std::endl;
                 EXPECT_TRUE(param!=NULL);
                 unsigned int n_inputs  = param->data().size();
                 unsigned int n_outputs = prod(op.result()->shape);
@@ -96,12 +98,12 @@ namespace cuvnet
 
                 matrix J_(n_inputs,n_outputs); J_ = 0.f;
                 for (unsigned int in = 0; in < n_inputs; ++in) {
-                    static const float eps = 0.00001f;
+                    static const double eps = 0.0001;
                     float v = param->data()[in];
-                    param->data()[in] = v + eps;
+                    param->data()[in] = (float)((double)v + eps);
                     swipe.fprop();
                     matrix o_plus     = out_op->cdata(); 
-                    param->data()[in] = v - eps;
+                    param->data()[in] = (float)((double)v - eps);
                     swipe.fprop();
                     matrix o_minus    = out_op->cdata();
                     param->data()[in] = v;
@@ -109,7 +111,7 @@ namespace cuvnet
                     o_plus .reshape(cuv::extents[n_outputs]);
                     o_minus.reshape(cuv::extents[n_outputs]);
                     o_plus -= o_minus;
-                    o_plus /= 2.f*eps;
+                    o_plus /= (float)(2.0*eps);
 
                     // set row in J_ to finite-difference approximation
                     matrix J_row(cuv::indices[cuv::index_range(in,in+1)][cuv::index_range()], J_);
@@ -117,11 +119,13 @@ namespace cuvnet
                 }
                 matrix J_t(n_outputs, n_inputs);
                 cuv::transpose(J_t,J_);
-                float testval = std::sqrt(cuv::norm2(J_t-J))/J.size();
-                if(testval>prec){
-                    PM(J_); PM(J);
+                double maxdiff = cuv::maximum((J_t-J)*(J_t-J));    // squared(!) 
+                double prec_  = prec * prec;                       // square precision, too
+                std::cout << "...maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;
+                if(maxdiff>prec_){
+                    PM(J_t); PM(J);
                 }
-                EXPECT_NEAR(std::sqrt(cuv::norm2(J_t-J))/J.size(), 0.f, prec );
+                EXPECT_NEAR(maxdiff, 0.f, prec_ );
             }
         }
     } /* derivative_testing */

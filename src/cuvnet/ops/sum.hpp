@@ -2,9 +2,24 @@
 #     define __OP_SUM_HPP__
 
 #include <cuvnet/op.hpp>
+#include <iomanip>
+
 
 namespace cuvnet
 {
+    template <class T>
+        double kahan_summation(const T& m) {
+            double result = 0.f;
+
+            double c = 0.f;
+            for(unsigned int i=0;i < m.size(); ++i) {
+                double y = (float)m[i] - c;
+                double t = result + y;
+                c = (t - result) - y;
+                result = t;
+            }
+            return result;
+        }
     /**
      * sums over all entries in p0
      */
@@ -29,7 +44,13 @@ namespace cuvnet
                     param_t::element_type&  p0 = *m_params[0];
                     result_t::element_type& r0 = *m_results[0];
 
+//#ifndef CUVNET_PRECISE_SUM
+#if 0
                     float sum = cuv::sum(p0.value.cdata());
+#else
+                    float sum = kahan_summation(p0.value.cdata()); // this is expensive!!! use only for testing.
+#endif
+std::cout << "--------------------->"<<std::setprecision(10)<<sum<<std::endl;
                     if(r0.can_overwrite_directly()){
                         (*r0.overwrite_or_add_value())[0] = sum;
                     }
