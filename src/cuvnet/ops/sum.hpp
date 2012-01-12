@@ -77,5 +77,81 @@ namespace cuvnet
                     }
         };
 
+    /**
+     * mean over all entries in p0
+     */
+    class Mean
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                float m_div;
+
+            public:
+                Mean(){} /// for serialization
+                Mean(result_t& p0):Op(1,1){
+                    add_param(0,p0);
+                    m_results[0]->delta           = value_ptr(new value_type(cuv::extents[1]));
+                    m_results[0]->delta.data()[0] = 1.f;
+                }
+                void fprop(){
+                    using namespace cuv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+
+                    float mean = cuv::mean(p0.value.cdata());
+                    if(r0.can_overwrite_directly()){
+                        (*r0.overwrite_or_add_value())[0] = mean;
+                    }
+                    else if(r0.can_add_directly()){
+                        (*r0.overwrite_or_add_value())[0] += mean;
+                    }else{
+                        // reallocate *sigh*
+                        value_ptr v(new value_type(r0.shape));
+                        v.data()[0] = mean;
+                        r0.push(v);
+                    }
+                    // don't delete p0, instead overwrite it in bprop
+                }
+                void bprop(){
+                    using namespace cuv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+
+                    if(p0.can_overwrite_directly()){
+                        value_ptr& v = p0.overwrite_or_add_value();
+                        v = p0.value;
+                        p0.value.reset(); // try overwriting p0
+                        *v =  m_div * r0.delta.cdata()[0];
+                    }else if(p0.can_add_directly()){
+                        value_ptr& v = p0.overwrite_or_add_value();
+                        *v += m_div * r0.delta.cdata()[0];
+                        p0.value.reset(); // try overwriting p0
+                    }else{
+                        value_ptr v = p0.value; // try overwriting p0
+                        p0.value.reset();
+                        *v = m_div * r0.delta.cdata()[0];
+                        p0.push(v);
+                    }
+                    //r0.delta.reset(); // do not reset delta, it is very small anyway
+                }
+                void _determine_shapes(){
+                    m_results[0]->shape.resize(1);
+                    m_results[0]->shape[0] = 1;
+                    std::vector<unsigned int>& v = m_params[0]->shape;
+                    m_div = 1.f / std::accumulate(v.begin(),v.end(),1,std::multiplies<unsigned int>());
+                }
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                    }
+        };
+
 }
 #endif /* __OP_SUM_HPP__ */
