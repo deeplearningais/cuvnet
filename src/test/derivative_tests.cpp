@@ -3,6 +3,8 @@
 #include <cstdio>
 #include <gtest/gtest.h>
 
+#define CUVNET_PRECISE_SUM 1
+
 #include <cuvnet/op.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/derivative_test.hpp>
@@ -88,9 +90,9 @@ TEST(derivative_test, derivative_test_sum_mat_to_vec){
  */
 TEST(derivative_test, derivative_test_sum){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[2][2]);
     ptr_t func                     = boost::make_shared<Sum>(inp0->result());
-    derivative_tester(*func,false,0.015);
+    derivative_tester(*func);
 }
 
 TEST(derivative_test, derivative_test_prod){
