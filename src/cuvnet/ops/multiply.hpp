@@ -2,6 +2,7 @@
 #     define __OP_MULTIPLY_HPP__
 
 #include <cuvnet/op.hpp>
+#include <cuvnet/derivative_test.hpp>
 
 namespace cuvnet
 {
@@ -41,8 +42,8 @@ namespace cuvnet
                         apply_binary_functor(result, inp0, inp1, BF_MULT);
                         r0.push(presult);
                     }
-                    if(!p0.need_derivative) p0.value.reset();
-                    if(!p1.need_derivative) p1.value.reset();
+                    if(!p0.need_derivative) p1.value.reset();
+                    if(!p1.need_derivative) p0.value.reset();
                 }
                 void bprop(){
                     // TODO: CUV: implement a = a + b*c
@@ -78,14 +79,14 @@ namespace cuvnet
                             const value_type& inp = r0.delta.cdata();
                             value_type& outp      = r0.delta.data_onlyshape();
                             cuv::apply_binary_functor(
-                                    outp, inp, BF_MULT);
+                                    outp, p1.value.cdata(), inp, BF_MULT);
                             p0.push(r0.delta);
                         }
                     }
                     if(p1.need_derivative){
                         if(p1.can_add_directly()){
                             // p1 += r0.delta * p0.value
-                            value_type v(p0.shape);
+                            value_type v(p1.shape);
                             cuv::apply_binary_functor(v,
                                     delta_orig.cdata(),
                                     p0.value.cdata(), BF_MULT);
@@ -105,6 +106,8 @@ namespace cuvnet
                             p1.push(delta_orig);
                         }
                     }
+                    p0.value.reset();
+                    p1.value.reset();
                     r0.delta.reset();
                 }
                 void _determine_shapes(){
