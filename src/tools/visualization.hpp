@@ -7,8 +7,14 @@
 namespace cuvnet
 {
 
+    /**
+     * enlarge a CxHxW channel in W and H dimension by an integer factor
+     *
+     * @param img the image to enlarge
+     * @param zf  the zoom factor
+     */
     cuv::tensor<float,cuv::host_memory_space>
-        zoom(const cuv::tensor<float,cuv::host_memory_space>& img, int zf=2){
+        zoom(const cuv::tensor<float,cuv::host_memory_space>& img, int zf=4){
             cuv::tensor<float,cuv::host_memory_space> zimg(cuv::extents[img.shape(0)][img.shape(1)*zf][img.shape(2)*zf]);
             for(unsigned int c=0;c<zimg.shape(0);c++){
                 for(unsigned int i=0;i<zimg.shape(1); i++){
@@ -22,8 +28,33 @@ namespace cuvnet
             zimg *= 255 / cuv::maximum(zimg);
             return zimg;
         }
+
+    /**
+     * arrange images stored in rows/columns of a matrix nicely for viewing
+     *
+     * @param w_          the matrix containing the images
+     * @param transpose   if 't', transpose matrix before viewing rows
+     * @param dstMapCount number of columns in the arrangement
+     * @param srcMapCount number of rows in the arrangement
+     * @param fs          width and height of an image
+     * @param channels    number of channels of an image (should have shape channels X fs X fs)
+     *
+     * @return rearranged view
+     *
+     */
+    template<class T>
     cuv::tensor<float,cuv::host_memory_space>
-        arrange_filters(const cuv::tensor<float,cuv::host_memory_space>& w, unsigned int dstMapCount, unsigned int srcMapCount, unsigned int fs, unsigned int channels=1){
+        arrange_filters(const T& w_, char transpose,  unsigned int dstMapCount, unsigned int srcMapCount, unsigned int fs, unsigned int channels=1, bool normalize_separately=false){
+            cuv::tensor<float, cuv::host_memory_space> w = w_;
+
+            if(transpose=='t'){
+                cuv::tensor<float,cuv::host_memory_space> wt(cuv::extents[w.shape(1)][w.shape(0)]);
+                cuv::transpose(wt,w);
+                w = wt;
+            }
+            w -= cuv::minimum(w);
+            w /= cuv::maximum(w);
+
             cuv::tensor<float,cuv::host_memory_space> img(cuv::extents[channels][srcMapCount*(fs+1)][dstMapCount*(fs+1)]);
             img = 0.f;
             for(unsigned int sm=0; sm<srcMapCount; sm++){
@@ -38,8 +69,10 @@ namespace cuvnet
                                 f(c,fy, fx) = w(sm*dstMapCount+dm, c*fs*fs + fy*fs+fx);
                             }
                         }
-                    //f -= cuv::minimum(f);
-                    //f /= cuv::maximum(f);
+                    if(normalize_separately){
+                        f -= cuv::minimum(f);
+                        f /= cuv::maximum(f);
+                    }
                     for(unsigned int c=0;c<channels;c++)
                         for(unsigned int fx=0;fx<fs;fx++){
                             for(unsigned int fy=0;fy<fs;fy++){
