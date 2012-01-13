@@ -35,22 +35,22 @@ struct auto_encoder{
                        corrupt,
                        m_weights)
                    ,m_bias_h,1));
-        m_decode = /*logistic*/( mat_plus_vec(
+        m_decode = logistic( mat_plus_vec(
                    prod(
                        m_enc,
                        m_weights, 'n','t')
                    ,m_bias_y,1));
 
-        m_rec_loss    = mean( pow( axpby(m_input, -1.f, m_decode), 2.f)); // reconstruction loss (squared diff)
-        //m_rec_loss    = mean( -sum(m_input*log(m_decode) + (1.f-m_input)*log(1.f-m_decode), 1)); // reconstruction loss (cross-entropy)
+        //m_rec_loss    = mean( pow( axpby(m_input, -1.f, m_decode), 2.f)); // reconstruction loss (squared diff)
+        m_rec_loss    = mean( -sum(m_input*log(m_decode) + (1.f-m_input)*log(1.f-m_decode), 1)); // reconstruction loss (cross-entropy)
         m_out         = make_shared<Output>(m_rec_loss->result()); // reconstruction error
         m_reconstruct = make_shared<Output>(m_decode->result());   // for visualization of reconstructed images
         //m_corrupt = make_shared<Output>(corrupt->result());
 
-        m_contractive_loss = 
-           sum(sum(pow(m_enc*(1.f-m_enc),2.f),0) * sum(pow(m_weights,2.f),0));
-        m_loss        = axpby(m_rec_loss, 0.01f/(float)inp0, m_contractive_loss);
-        //m_loss        = m_rec_loss;
+        //m_contractive_loss = 
+           //sum(sum(pow(m_enc*(1.f-m_enc),2.f),0) * sum(pow(m_weights,2.f),0));
+        //m_loss        = axpby(m_rec_loss, 0.00000001f/(float)inp0, m_contractive_loss);
+        m_loss        = m_rec_loss;
 
         // initialize weights and biases
         float diff = 4.f*std::sqrt(6.f/(inp1+hl));
@@ -82,9 +82,9 @@ int main(int argc, char **argv)
     unsigned int fa=15,fb=15,bs=20;
 
 
-#define ONLINE 0
+#define ONLINE 1
 #if ONLINE
-    auto_encoder ae(bs,ds.val_data.shape(1),fa*fb,0.00f);
+    auto_encoder ae(bs,ds.train_data.shape(1),fa*fb,0.00f);
 #else
     auto_encoder ae(ds.val_data.shape(0),ds.val_data.shape(1),fa*fb,0.00f);
 #endif
@@ -117,9 +117,9 @@ int main(int argc, char **argv)
 
 #if ONLINE
     for(unsigned int epoch=0;epoch<25;epoch++){
-        for(unsigned int batch=0;batch<ds.val_data.shape(0)/bs; batch++){
-            //ae.input().set_view(cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()], ds.val_data);
-            ae.input() = cuv::tensor<float,cuv::host_memory_space>(cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()], ds.val_data);
+        for(unsigned int batch=0;batch<ds.train_data.shape(0)/bs; batch++){
+            //ae.input().set_view(cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()], ds.train_data);
+            ae.input() = cuv::tensor<float,cuv::host_memory_space>(cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()], ds.train_data);
             assert(ae.input().shape(0)==bs);
             swipe.fprop();
             //cuv::libs::cimg::show(arrange_filters(ae.m_corrupt->cdata(),'n', (int)sqrt(bs),(int)sqrt(bs), ds.image_size,ds.channels), "input");
@@ -128,22 +128,13 @@ int main(int argc, char **argv)
 
             swipe.bprop();
 
-            Op::value_type dW = -ae.m_weights->result()->delta.cdata();
-            Op::value_type dh = -ae.m_bias_h->result()->delta.cdata();
-            Op::value_type dy = -ae.m_bias_y->result()->delta.cdata();
-            //cuv::rprop(ae.m_weights->data(), dW, d_old, lr, 0, 0.0000000f);
-            //cuv::rprop(ae.m_bias_h->data(), dh, d_oldh, lrh, 0, 0.000000f);
-            //cuv::rprop(ae.m_bias_y->data(), dy, d_oldy, lry, 0, 0.000000f);
+            Op::value_type& dW = const_cast<Op::value_type&>(ae.m_weights->result()->delta.cdata());
+            Op::value_type& dh = const_cast<Op::value_type&>(ae.m_bias_h->result()->delta.cdata());
+            Op::value_type& dy = const_cast<Op::value_type&>(ae.m_bias_y->result()->delta.cdata());
 
-            //dW += 0.90f*d_old;
-            //dh += 0.90f*d_oldh;
-            //dy += 0.90f*d_oldy;
-            cuv::learn_step_weight_decay( ae.m_weights->data(), dW, .1f);
-            cuv::learn_step_weight_decay( ae.m_bias_h->data(),  dh, .1f);
-            cuv::learn_step_weight_decay( ae.m_bias_y->data(),  dy, .1f);
-            //d_old  = dW;
-            //d_oldh = dh;
-            //d_oldy = dy;
+            cuv::learn_step_weight_decay( ae.m_weights->data(), dW, -.1f);
+            cuv::learn_step_weight_decay( ae.m_bias_h->data(),  dh, -.1f);
+            cuv::learn_step_weight_decay( ae.m_bias_y->data(),  dy, -.1f);
         }
         std::cout << epoch << " "<<std::sqrt(ae.output()[0])<<" "<<cuv::norm2(ae.m_weights->data())<<" "
             <<cuv::norm2(ae.m_weights->result()->delta.cdata())<<" "
