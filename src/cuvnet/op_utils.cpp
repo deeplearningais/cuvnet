@@ -118,6 +118,12 @@ void swiper::fprop(){
 	}
 }
 void swiper::bprop(){
+    BOOST_FOREACH(Op::result_t& r, m_topo.plist.back()->m_results){
+        if(!r->delta)
+            r->delta.reset(new Op::value_type(r->shape));
+        *r->delta = 1.f;
+    }
+
 	BOOST_FOREACH(Op* o, m_topo.plist){
 		BOOST_FOREACH(Op::param_t& p, o->m_params){
 			BOOST_FOREACH(Op::result_t& r, p->param_uses){

@@ -126,9 +126,6 @@ int main(int argc, char **argv)
             //std::ofstream os("swiper-fprop.dot");
             //write_graphviz(*ae.m_decode,os,swipe.m_topo.plist);
 
-            ae.m_loss->result()->delta.reset(new Op::value_type(ae.m_loss->result()->shape));
-            *ae.m_loss->result()->delta = 1.f;
-
             swipe.bprop();
 
             Op::value_type dW = -ae.m_weights->result()->delta.cdata();
