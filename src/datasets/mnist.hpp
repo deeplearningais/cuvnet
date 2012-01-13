@@ -44,9 +44,9 @@ namespace cuvnet
             }
 
             val_data   = cuv::tensor<float, cuv::host_memory_space>(cuv::indices[cuv::index_range(50000,60000)][cuv::index_range()],train_data);
-            train_data = cuv::tensor<float, cuv::host_memory_space>(cuv::indices[cuv::index_range(0,50000)][cuv::index_range()],train_data);
+            //train_data = cuv::tensor<float, cuv::host_memory_space>(cuv::indices[cuv::index_range(0,50000)][cuv::index_range()],train_data);
             val_labels   = cuv::tensor<int, cuv::host_memory_space>(cuv::indices[cuv::index_range(50000,60000)][cuv::index_range()],train_labels);
-            train_labels = cuv::tensor<int, cuv::host_memory_space>(cuv::indices[cuv::index_range(0,50000)][cuv::index_range()],train_labels);
+            //train_labels = cuv::tensor<int, cuv::host_memory_space>(cuv::indices[cuv::index_range(0,50000)][cuv::index_range()],train_labels);
 
             channels = 1;
             image_size = 28;
