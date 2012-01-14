@@ -168,7 +168,7 @@ namespace cuvnet
         /**
          * does recursive backward pass on op
          */
-        void bprop();
+        void bprop(bool set_last_delta_to_one=true);
     };
 
 }

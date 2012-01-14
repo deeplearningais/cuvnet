@@ -87,7 +87,7 @@ namespace cuvnet
                 for(unsigned int out=0;out<n_outputs;out++){
                     swipe.fprop();
                     set_delta_to_unit_vec(op.result(),out);
-                    swipe.bprop();
+                    swipe.bprop(false);
 
                     // set row in J to the backpropagated value
                     matrix d_in = param->result()->delta.cdata();
