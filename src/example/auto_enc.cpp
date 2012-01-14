@@ -95,15 +95,22 @@ int main(int argc, char **argv)
     // zmuv normalization
     //ds.val_data -= cuv::mean(ds.val_data);
     //ds.val_data /= std::sqrt(cuv::var(ds.val_data));
+    //ds.train_data -= cuv::mean(ds.train_data);
+    //ds.train_data /= std::sqrt(cuv::var(ds.train_data));
 
     // interval normalization -1, 1
     //ds.val_data -= cuv::minimum(ds.val_data);
     //ds.val_data *= 2.f/cuv::maximum(ds.val_data);
     //ds.val_data -= 1.f;
+    //ds.train_data -= cuv::minimum(ds.train_data);
+    //ds.train_data *= 2.f/cuv::maximum(ds.train_data);
+    //ds.train_data -= 1.f;
 
     // interval normalization 0, 1
     ds.val_data -= cuv::minimum(ds.val_data);
     ds.val_data *= 1.f/cuv::maximum(ds.val_data);
+    ds.train_data -= cuv::minimum(ds.train_data);
+    ds.train_data *= 1.f/cuv::maximum(ds.train_data);
     
     std::vector<Op*> params;
     params += ae.m_weights.get(), ae.m_bias_y.get(), ae.m_bias_h.get();
