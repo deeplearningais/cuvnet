@@ -35,14 +35,15 @@ struct auto_encoder{
                        corrupt,
                        m_weights)
                    ,m_bias_h,1));
-        m_decode = logistic( mat_plus_vec(
+        m_decode = mat_plus_vec(
                    prod(
                        m_enc,
                        m_weights, 'n','t')
-                   ,m_bias_y,1));
+                   ,m_bias_y,1);
 
         //m_rec_loss    = mean( pow( axpby(m_input, -1.f, m_decode), 2.f)); // reconstruction loss (squared diff)
-        m_rec_loss    = mean( -sum(m_input*log(m_decode) + (1.f-m_input)*log(1.f-m_decode), 1)); // reconstruction loss (cross-entropy)
+        m_rec_loss    = mean(neg_log_cross_entropy_of_logistic(m_input,m_decode)); // reconstruction loss (cross-entropy)
+        //m_rec_loss    = mean( -sum(m_input*log(m_decode) + (1.f-m_input)*log(1.f-m_decode), 1)); // reconstruction loss (cross-entropy)
         m_out         = make_shared<Output>(m_rec_loss->result()); // reconstruction error
         m_reconstruct = make_shared<Output>(m_decode->result());   // for visualization of reconstructed images
         //m_corrupt = make_shared<Output>(corrupt->result());
