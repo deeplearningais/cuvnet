@@ -144,7 +144,7 @@ int main(int argc, char **argv)
             cuv::learn_step_weight_decay( ae.m_bias_h->data(),  dh, -.1f);
             cuv::learn_step_weight_decay( ae.m_bias_y->data(),  dy, -.1f);
         }
-        std::cout << epoch << " "<<std::sqrt(ae.output()[0])<<" "<<cuv::norm2(ae.m_weights->data())<<" "
+        std::cout << epoch << " "<<ae.output()[0]<<" "<<cuv::norm2(ae.m_weights->data())<<" "
             <<cuv::norm2(ae.m_weights->result()->delta.cdata())<<" "
             <<std::sqrt(cuv::var(ae.m_reconstruct->cdata()))<<" "
             <<cuv::norm2(d_old)<<" "
@@ -159,7 +159,7 @@ int main(int argc, char **argv)
             *ae.m_loss->result()->delta = 1.f;
             swipe.bprop();
 
-            std::cout << epoch << " "<<std::sqrt(ae.output()[0])<<" "<<cuv::norm2(ae.m_weights->data())<<" "
+            std::cout << epoch << " "<<ae.output()[0]<<" "<<cuv::norm2(ae.m_weights->data())<<" "
                 <<cuv::norm2(ae.m_weights->result()->delta.cdata())<<" "
                 <<std::sqrt(cuv::var(ae.m_reconstruct->cdata()))<<" "
                 <<cuv::norm2(d_old)<<" "
