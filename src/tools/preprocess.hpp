@@ -53,7 +53,7 @@ namespace cuvnet
             void fit(const cuv::tensor<float,M>& train){
                 float xmin = cuv::minimum(train); // minimum
                 float xmax = cuv::maximum(train); // range
-                m_fact = (xmin*m_max + xmax*m_min)/(xmax-xmin);
+                m_add  = (xmin*m_max + xmax*m_min)/(xmax-xmin);
                 m_fact = (m_max-m_min)/(xmax-xmin);
             }
             void transform(cuv::tensor<float,M>& data){
