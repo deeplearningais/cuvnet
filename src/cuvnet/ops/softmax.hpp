@@ -36,7 +36,8 @@ namespace cuvnet
                     const value_type& inp1 = p1.value.cdata();           // original
 
                     if(r0.can_overwrite_directly()){
-                        apply_binary_functor(r0.overwrite_or_add_value().data(), inp0, inp1, BF_LOGCE_OF_LOGISTIC);
+                        value_type& result = r0.overwrite_or_add_value().data();
+                        apply_binary_functor(result, inp0, inp1, BF_LOGCE_OF_LOGISTIC);
                     }else{
                         value_ptr presult  = p0.value;
                         value_type& result = presult.data_onlyshape();
