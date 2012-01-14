@@ -58,7 +58,6 @@ namespace cuvnet
                     result_t::element_type& r0 = *m_results[0];
                     assert(p0.need_derivative || p1.need_derivative);
 
-                    value_ptr delta_orig = r0.delta;
                     if(p0.need_derivative){
                         // TODO: calculating the derivative of
                         // NegCrossEntropyOfLogistic w.r.t. param0 is quite
@@ -88,7 +87,7 @@ namespace cuvnet
                         // 0 == diff(-L(x,y),y) - (f(y)-x);
                         
                         // p1.delta = r0.delta * (logistic(Y)-X) 
-                        if(p1.can_add_directly()){
+                        if(p1.can_overwrite_directly()){
                             value_type& res = p1.overwrite_or_add_value().data();
                             apply_scalar_functor(
                                     res,
@@ -96,7 +95,7 @@ namespace cuvnet
                                     SF_SIGM);
                             res -= p0.value.cdata();
                             res *= r0.delta.cdata();
-                        }else if(p1.can_overwrite_directly()){
+                        }else if(p1.can_add_directly()){
                             value_type& res = p1.overwrite_or_add_value().data();
                             const value_type& p1orig = p1.value.cdata();
                             // overwrite p1
