@@ -101,7 +101,7 @@ namespace cuvnet
     {
         private:
             std::vector<Op::value_type> m_learnrates; ///< per-weight learning rates
-            std::vector<cuv::tensor<unsigned char,Op::value_type::memory_space_type> > m_old_dw;     ///< old delta-w signs
+            std::vector<cuv::tensor<signed char,Op::value_type::memory_space_type> > m_old_dw;     ///< old delta-w signs
         public:
             /**
              * constructor
@@ -120,7 +120,7 @@ namespace cuvnet
                 m_learnrates[i] = learnrate;
 
                 m_old_dw[i].resize(((Input*)*it)->data().shape());
-                m_old_dw[i] = (unsigned char)0;
+                m_old_dw[i] = (signed char)0;
             }
         }
         /**
