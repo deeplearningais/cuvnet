@@ -43,7 +43,13 @@ namespace cuvnet
                         apply_binary_functor(result, inp0, inp1, BF_LOGCE_OF_LOGISTIC);
                         r0.push(presult);
                     }
-                    if(!p0.need_derivative) p0.value.reset();
+
+                    if(!p0.need_derivative && !p1.need_derivative) {
+                        p0.value.reset();
+                        p1.value.reset();
+                    }
+                    else if(!p1.need_derivative && p0.need_derivative)
+                        p0.value.reset();
                 }
                 void bprop(){
                     using namespace cuv;
@@ -54,32 +60,57 @@ namespace cuvnet
 
                     value_ptr delta_orig = r0.delta;
                     if(p0.need_derivative){
-                        throw std::runtime_error("cannot derive NegCrossEntropyOfLogistic w.r.t. first parameter!");
-                        //     log(logistic(-Y)) - log(logistic(Y)) (checked in maxima)
-                        // ==  log1p(1-Y)-log1p(Y) 
+                        // TODO: calculating the derivative of
+                        // NegCrossEntropyOfLogistic w.r.t. param0 is quite
+                        // slow, implement separate functor in CUV if needed
+
+                        // f(x)   := 1/(1+exp(-x))
+                        // L(x,z) := x*log(f(z)) + (1-x)*log(1-f(z));
+                        // 0 == diff(-L(x,y),x) - (logaddexp(0,-y)-logaddexp(0,y));
+
+                        // try to overwrite p1
+                        value_ptr v = p1.value;
+                        if(!p1.need_derivative)
+                            p1.value.reset();
+
+                        const value_type& p1orig = v.cdata();
+                        value_type   l1(p1.shape);
+                        value_type&  l2  = v.data_onlyshape();
+                        cuv::apply_scalar_functor(l1,  p1orig, SF_LOGADDEXP, 0.f);
+                        cuv::apply_scalar_functor(l2, -p1orig, SF_LOGADDEXP, 0.f);
+                        l2 -= l1;
+                        l2 *= r0.delta.cdata();
+                        p0.push(v);
                     }
                     if(p1.need_derivative){
-                        // r0.delta = logistic(Y)-X (checked in maxima)
+                        // f(x)   := 1/(1+exp(-x))
+                        // L(x,z) := x*log(f(z)) + (1-x)*log(1-f(z));
+                        // 0 == diff(-L(x,y),y) - (f(y)-x);
+                        
+                        // p1.delta = r0.delta * (logistic(Y)-X) 
                         if(p1.can_add_directly()){
-                            // p1 += r0.delta * p0.value
-                            value_type v(p1.shape);
-                            cuv::apply_binary_functor(v,
-                                    delta_orig.cdata(),
-                                    p0.value.cdata(), BF_MULT);
-                            p1.overwrite_or_add_value().data() += v;
+                            value_type& res = p1.overwrite_or_add_value().data();
+                            apply_scalar_functor(
+                                    res,
+                                    p1.value.cdata(),
+                                    SF_SIGM);
+                            res -= p0.value.cdata();
+                            res *= r0.delta.cdata();
                         }else if(p1.can_overwrite_directly()){
-                            // p1  := r0.delta * p0.value
-                            cuv::apply_binary_functor(p1.overwrite_or_add_value().data(),
-                                    delta_orig.cdata(),
-                                    p0.value.cdata(),
-                                    BF_MULT);
+                            value_type& res = p1.overwrite_or_add_value().data();
+                            const value_type& p1orig = p1.value.cdata();
+                            // overwrite p1
+                            apply_scalar_functor(*p1.value, p1orig, SF_SIGM);
+                            *p1.value -= p0.value.cdata();
+                            *p1.value *= r0.delta.cdata();
+                            res       += *p1.value;
                         }else{
-                            // try to overwrite delta_orig
-                            const value_type& inp = delta_orig.cdata();
-                            value_type& outp      = delta_orig.data_onlyshape();
-                            cuv::apply_binary_functor(
-                                    outp, inp, p0.value.cdata(), BF_MULT);
-                            p1.push(delta_orig);
+                            const value_type& p1orig = p1.value.cdata();
+                            // overwrite p1
+                            apply_scalar_functor(*p1.value, p1orig, SF_SIGM);
+                            *p1.value -= p0.value.cdata();
+                            *p1.value *= r0.delta.cdata();
+                            p1.push(p1.value);
                         }
                     }
                     p0.value.reset();

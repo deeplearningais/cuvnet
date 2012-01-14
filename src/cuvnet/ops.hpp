@@ -15,6 +15,7 @@
 #include <cuvnet/ops/sum_mat_to_vec.hpp>
 #include <cuvnet/ops/add_scalar.hpp>
 #include <cuvnet/ops/log.hpp>
+#include <cuvnet/ops/softmax.hpp>
 
 namespace cuvnet
 {
