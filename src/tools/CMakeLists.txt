@@ -4,5 +4,6 @@ FIND_PACKAGE( tbb REQUIRED )
 add_library(cuvnet_tools
     preprocess.cpp
     data_source.cpp
+    read_amat.cpp
     )
-TARGET_LINK_LIBRARIES( cuvnet_tools ${OpenCV_LIBS} ${TBB_LIBS} )
+TARGET_LINK_LIBRARIES( cuvnet_tools ${OpenCV_LIBS} ${TBB_LIBS} zzip)
