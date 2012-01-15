@@ -14,6 +14,8 @@
 #include <tools/gradient_descent.hpp>
 #include <datasets/cifar.hpp>
 #include <datasets/mnist.hpp>
+#include <datasets/amat_datasets.hpp>
+#include <datasets/splitter.hpp>
 
 using namespace cuvnet;
 using namespace boost::assign;
@@ -35,7 +37,9 @@ struct auto_encoder{
     ,m_bias_h(new Input(cuv::extents[hl],       "bias_h"))
     ,m_bias_y(new Input(cuv::extents[inp1],     "bias_y"))
     {
-        Op::op_ptr corrupt = noise==0.f ? m_input : zero_out(m_input,noise);
+        Op::op_ptr corrupt               = m_input;
+        if( binary && noise>0.f) corrupt =       zero_out(m_input,noise);
+        if(!binary && noise>0.f) corrupt = add_rnd_normal(m_input,noise);
         m_enc    = logistic(mat_plus_vec(
                     prod( corrupt, m_weights)
                     ,m_bias_h,1));
@@ -89,35 +93,40 @@ int main(int argc, char **argv)
         }
     }
 
-    //mnist_dataset ds("/home/local/datasets/MNIST");
+    mnist_dataset ds_all("/home/local/datasets/MNIST");
+    global_min_max_normalize<> normalizer(0,1); // 0,1
+    //cifar_dataset ds;
+    //zero_mean_unit_variance<> normalizer;
+    //amat_dataset ds_all("/home/local/datasets/bengio/mnist.zip","mnist_train.amat", "mnist_test.amat");
     //global_min_max_normalize<> normalizer(0,1); // 0,1
-    cifar_dataset ds;
-    zero_mean_unit_variance<> normalizer;
+    splitter ds_split(ds_all,10);
+    dataset& ds  = ds_split[0];
     
     normalizer.fit_transform(ds.train_data);
     normalizer.transform(ds.val_data);
 
-    unsigned int fa=16,fb=16,bs=20;
-    auto_encoder ae(bs==0?ds.train_data.shape(0):bs,
+    unsigned int fa=16,fb=16,bs=64;
+    auto_encoder ae(bs==0?ds.val_data.shape(0):bs,
             ds.train_data.shape(1), fa*fb, 
-            ds.channels==1, 0.00f, 0.01f);
+            ds.channels==1, 0.00f, 0.050000f); // CIFAR: lambda=0.05, MNIST lambda=1.0
 
     std::vector<Op*> params;
     params += ae.m_weights.get(), ae.m_bias_y.get(), ae.m_bias_h.get();
 
-    Op::value_type alldata = bs==0 ? ds.train_data : ds.train_data;
-    rprop_gradient_descent gd(ae.m_loss,params);
+    Op::value_type alldata = bs==0 ? ds.val_data : ds.train_data;
+    gradient_descent gd(ae.m_loss,params,0.1f,0.00000f);
     gd.after_epoch.connect(boost::bind(&auto_encoder::print_loss, &ae, _1));
     gd.before_batch.connect(boost::bind(load_batch,&ae,&alldata,bs,_2));
     if(bs==0){
         ae.input()= alldata;
-        gd.batch_learning(400);
+        alldata.dealloc();
+        gd.batch_learning(3200);
     }
-    else      gd.minibatch_learning(200, ds.train_data.shape(0)/bs);
+    else      gd.minibatch_learning(400, ds.train_data.shape(0)/bs);
     
     // show the resulting filters
-    unsigned int n_rec = (bs>0) ? sqrt(bs) : 6;
-    cuv::libs::cimg::show(arrange_filters(ae.m_reconstruct->cdata(),'n', n_rec,n_rec, ds.image_size,ds.channels), "input");
+    //unsigned int n_rec = (bs>0) ? sqrt(bs) : 6;
+    //cuv::libs::cimg::show(arrange_filters(ae.m_reconstruct->cdata(),'n', n_rec,n_rec, ds.image_size,ds.channels), "input");
     auto wvis = arrange_filters(ae.m_weights->data(), 't', fa, fb, ds.image_size,ds.channels,false);
     cuv::libs::cimg::save(wvis, "contractive-weights.png");
     wvis      = arrange_filters(ae.m_weights->data(), 't', fa, fb, ds.image_size,ds.channels,true);
