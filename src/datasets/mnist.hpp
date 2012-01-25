@@ -31,8 +31,10 @@ namespace cuvnet
             ftestd.read((char*)testd.ptr(), testd.size());    assert(ftestd.good());
             ftestl.read((char*)testl.ptr(), testl.size());    assert(ftestl.good());
 
-            train_data = traind; // convert
-            test_data  = testd; // convert
+            train_data.resize(traind.shape());
+            test_data.resize(testd.shape());
+            convert(train_data , traind); // convert data type
+            convert(test_data  , testd); // convert data type
 
             train_labels.resize(cuv::extents[60000][10]);
             test_labels.resize(cuv::extents[10000][10]);
@@ -43,10 +45,10 @@ namespace cuvnet
                 test_labels(i, testl[i]) = 1;
             }
 
-            val_data   = cuv::tensor<float, cuv::host_memory_space>(cuv::indices[cuv::index_range(50000,60000)][cuv::index_range()],train_data);
-            //train_data = cuv::tensor<float, cuv::host_memory_space>(cuv::indices[cuv::index_range(0,50000)][cuv::index_range()],train_data);
-            val_labels   = cuv::tensor<int, cuv::host_memory_space>(cuv::indices[cuv::index_range(50000,60000)][cuv::index_range()],train_labels);
-            //train_labels = cuv::tensor<int, cuv::host_memory_space>(cuv::indices[cuv::index_range(0,50000)][cuv::index_range()],train_labels);
+            val_data   = train_data[cuv::indices[cuv::index_range(50000,60000)][cuv::index_range()]];
+            train_data = train_data[cuv::indices[cuv::index_range(0,50000)][cuv::index_range()]];
+            val_labels   = train_labels[cuv::indices[cuv::index_range(50000,60000)][cuv::index_range()]];
+            train_labels = train_labels[cuv::indices[cuv::index_range(0,50000)][cuv::index_range()]];
 
             channels = 1;
             image_size = 28;

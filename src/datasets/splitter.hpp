@@ -25,39 +25,39 @@ namespace cuvnet
                     dataset& dst = datasets.back();
                     dst.channels = ds.channels;
                     dst.image_size = ds.image_size;
-                    dst.val_data = tensor<float,host_memory_space>(indices[index_range(start,end)][index_range()], ds.train_data);
+                    dst.val_data = ds.train_data[indices[index_range(start,end)][index_range()]];
                     dst.train_data.resize(extents[n_left][ds.train_data.shape(1)]);
                     if(dst.train_labels.ndim()==1) dst.train_labels.resize(extents[n_left]);
                     else                           dst.train_labels.resize(extents[n_left][ds.train_labels.shape(1)]);
                     if(start>0){
                         {
-                            tensor<float,host_memory_space> before_src(indices[index_range(0,start)][index_range()], ds.train_data);
-                            tensor<float,host_memory_space> before_dst(indices[index_range(0,start)][index_range()], dst.train_data);
+                            tensor_view<float,host_memory_space> before_src(indices[index_range(0,start)][index_range()], ds.train_data);
+                            tensor_view<float,host_memory_space> before_dst(indices[index_range(0,start)][index_range()], dst.train_data);
                             before_dst = before_src;
                         }
                         if(ds.train_labels.ndim()==1){
-                            tensor<int,host_memory_space> before_src(indices[index_range(0,start)], ds.train_labels);
-                            tensor<int,host_memory_space> before_dst(indices[index_range(0,start)], dst.train_labels);
+                            tensor_view<int,host_memory_space> before_src(indices[index_range(0,start)], ds.train_labels);
+                            tensor_view<int,host_memory_space> before_dst(indices[index_range(0,start)], dst.train_labels);
                             before_dst = before_src;
                         } else{
-                            tensor<int,host_memory_space> before_src(indices[index_range(0,start)][index_range()], ds.train_labels);
-                            tensor<int,host_memory_space> before_dst(indices[index_range(0,start)][index_range()], dst.train_labels);
+                            tensor_view<int,host_memory_space> before_src(indices[index_range(0,start)][index_range()], ds.train_labels);
+                            tensor_view<int,host_memory_space> before_dst(indices[index_range(0,start)][index_range()], dst.train_labels);
                             before_dst = before_src;
                         }
                     }
                     if(end<n_examples){
                         {
-                            tensor<float,host_memory_space> after_src(indices[index_range(end,n_examples)][index_range()], ds.train_data);
-                            tensor<float,host_memory_space> after_dst(indices[index_range(start,n_left)][index_range()], dst.train_data);
+                            tensor_view<float,host_memory_space> after_src(indices[index_range(end,n_examples)][index_range()], ds.train_data);
+                            tensor_view<float,host_memory_space> after_dst(indices[index_range(start,n_left)][index_range()], dst.train_data);
                             after_dst = after_src;
                         }
                         if(ds.train_labels.ndim()==1){
-                            tensor<int,host_memory_space> before_src(indices[index_range(end,n_examples)], ds.train_labels);
-                            tensor<int,host_memory_space> before_dst(indices[index_range(start,n_left)], dst.train_labels);
+                            tensor_view<int,host_memory_space> before_src(indices[index_range(end,n_examples)], ds.train_labels);
+                            tensor_view<int,host_memory_space> before_dst(indices[index_range(start,n_left)], dst.train_labels);
                             before_dst = before_src;
                         } else{
-                            tensor<int,host_memory_space> before_src(indices[index_range(end,n_examples)][index_range()], ds.train_labels);
-                            tensor<int,host_memory_space> before_dst(indices[index_range(start,n_left)][index_range()], dst.train_labels);
+                            tensor_view<int,host_memory_space> before_src(indices[index_range(end,n_examples)][index_range()], ds.train_labels);
+                            tensor_view<int,host_memory_space> before_dst(indices[index_range(start,n_left)][index_range()], dst.train_labels);
                             before_dst = before_src;
                         }
                     }
