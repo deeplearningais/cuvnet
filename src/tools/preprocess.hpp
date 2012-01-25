@@ -55,6 +55,7 @@ namespace cuvnet
                 float xmax = cuv::maximum(train); // range
                 m_add  = (xmin*m_max + xmax*m_min)/(xmax-xmin);
                 m_fact = (m_max-m_min)/(xmax-xmin);
+                cuvAssert(xmax>xmin);
             }
             void transform(cuv::tensor<float,M>& data){
                 data *= m_fact;
