@@ -92,8 +92,7 @@ namespace cuvnet
                     // set row in J to the backpropagated value
                     matrix d_in = param->result()->delta.cdata();
                     d_in.reshape(cuv::extents[n_inputs]);
-                    matrix Jrow(cuv::indices[cuv::index_range(out,out+1)][cuv::index_range()], J);
-                    Jrow = d_in;
+                    J[cuv::indices[cuv::index_range(out,out+1)][cuv::index_range()]] = d_in;
                 }
 
                 matrix J_(n_inputs,n_outputs); J_ = 0.f;
@@ -102,10 +101,10 @@ namespace cuvnet
                     float v = param->data()[in];
                     param->data()[in] = (float)((double)v + eps);
                     swipe.fprop();
-                    matrix o_plus     = out_op->cdata(); 
+                    matrix o_plus     = out_op->cdata().copy(); 
                     param->data()[in] = (float)((double)v - eps);
                     swipe.fprop();
-                    matrix o_minus    = out_op->cdata();
+                    matrix o_minus    = out_op->cdata().copy();
                     param->data()[in] = v;
 
                     o_plus .reshape(cuv::extents[n_outputs]);
@@ -114,8 +113,7 @@ namespace cuvnet
                     o_plus /= (float)(2.0*eps);
 
                     // set row in J_ to finite-difference approximation
-                    matrix J_row(cuv::indices[cuv::index_range(in,in+1)][cuv::index_range()], J_);
-                    J_row = o_plus;
+                    J_[cuv::indices[cuv::index_range(in,in+1)][cuv::index_range()]] = o_plus;
                 }
                 matrix J_t(n_outputs, n_inputs);
                 cuv::transpose(J_t,J_);
