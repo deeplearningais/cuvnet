@@ -11,6 +11,23 @@
 
 namespace cuvnet
 {
+    template<class T>
+        struct cow_ptr_traits{
+            static T* clone(const T& t){ return new T(t); }
+            static void check(const T* t){}
+        };
+    template<class V, class M, class L>
+        struct cow_ptr_traits<cuv::tensor<V,M,L> >{
+            typedef cuv::tensor<V,M,L> T;
+            static T* clone(const T& t){ return new T(t,cuv::linear_memory_tag()); }
+            static void check(const T* t){
+                if(t){
+                    cuvAssert(!cuv::has_nan(*t));
+                    cuvAssert(!cuv::has_inf(*t));
+                }
+            }
+        };
+
     template <class T>
         class cow_ptr
         {
@@ -27,12 +44,13 @@ namespace cuvnet
                 void detach(){
                     T* tmp = m_ptr.get();
                     if( ! (tmp==0 || m_ptr.unique()))
-                        m_ptr.reset(new T(*tmp));
+                        m_ptr.reset(cow_ptr_traits<T>::clone(*tmp));// force copying!
                 }
                 void detach_onlyshape(){
                     T* tmp = m_ptr.get();
-                    if( ! (tmp==0 || m_ptr.unique()))
+                    if( ! (tmp==0 || m_ptr.unique())){
                         m_ptr.reset(new T(tmp->shape()));
+                    }
                 }
                 cow_ptr& operator=(const cow_ptr& o){ m_ptr = o.m_ptr; return *this;}
                 cow_ptr& operator=(const T& t){ 
