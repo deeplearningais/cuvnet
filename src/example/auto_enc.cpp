@@ -77,7 +77,7 @@ void load_batch(
         auto_encoder* ae,
         cuv::tensor<float,cuv::dev_memory_space>* data,
         unsigned int bs, unsigned int batch){
-    ae->input().set_view(cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()], *data);
+    ae->input() = (*data)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
 }
 
 int main(int argc, char **argv)
