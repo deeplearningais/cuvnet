@@ -53,7 +53,7 @@ namespace cuvnet
 
                     if(r0.can_overwrite_directly()){
                         value_ptr& v  = r0.overwrite_or_add_value();
-                        *v            = p0.value.cdata(); 
+                        *v            = p0.value.cdata().copy(); 
                         cuv::add_rnd_normal(*v,m_param);
                     }
                     else if(r0.can_add_directly()){
@@ -86,10 +86,7 @@ namespace cuvnet
                     if(p0.can_add_directly()){
                         p0.overwrite_or_add_value().data() += r0.delta.cdata();
                     }else if(p0.can_overwrite_directly()){
-                        if(p0.overwrite_or_add_value().unique())
-                            p0.overwrite_or_add_value() = r0.delta;
-                        else
-                            p0.overwrite_or_add_value().data_onlyshape() = r0.delta.cdata();
+                        p0.overwrite_or_add_value() = r0.delta;
                     }else{
                         p0.push(r0.delta);
                     }
