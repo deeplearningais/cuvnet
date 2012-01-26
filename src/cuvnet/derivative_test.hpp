@@ -94,6 +94,7 @@ namespace cuvnet
                     d_in.reshape(cuv::extents[n_inputs]);
                     J[cuv::indices[cuv::index_range(out,out+1)][cuv::index_range()]] = d_in;
                 }
+                cuv::tensor<float,cuv::host_memory_space> Jh = J; J.dealloc(); // save device space
 
                 matrix J_(n_inputs,n_outputs); J_ = 0.f;
                 for (unsigned int in = 0; in < n_inputs; ++in) {
@@ -101,7 +102,7 @@ namespace cuvnet
                     float v = param->data()[in];
                     param->data()[in] = (float)((double)v + eps);
                     swipe.fprop();
-                    matrix o_plus     = out_op->cdata().copy(); 
+                    matrix o_plus     = out_op->cdata().copy();
                     param->data()[in] = (float)((double)v - eps);
                     swipe.fprop();
                     matrix o_minus    = out_op->cdata().copy();
@@ -115,9 +116,10 @@ namespace cuvnet
                     // set row in J_ to finite-difference approximation
                     J_[cuv::indices[cuv::index_range(in,in+1)][cuv::index_range()]] = o_plus;
                 }
-                matrix J_t(n_outputs, n_inputs);
-                cuv::transpose(J_t,J_);
-                double maxdiff = cuv::maximum((J_t-J)*(J_t-J));    // squared(!) 
+                cuv::tensor<float,cuv::host_memory_space> J_h = J_; J_.dealloc(); // save device space
+                cuv::tensor<float,cuv::host_memory_space> J_t(n_outputs, n_inputs);
+                cuv::transpose(J_t,J_h); J_h.dealloc();
+                double maxdiff = cuv::maximum((J_t-Jh)*(J_t-Jh));    // squared(!) 
                 double prec_  = prec * prec;                       // square precision, too
                 if(verbose)
                     std::cout << "...maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;
