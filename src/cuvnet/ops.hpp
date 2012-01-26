@@ -16,6 +16,7 @@
 #include <cuvnet/ops/add_scalar.hpp>
 #include <cuvnet/ops/log.hpp>
 #include <cuvnet/ops/softmax.hpp>
+#include <cuvnet/ops/convolve.hpp>
 
 namespace cuvnet
 {
@@ -63,5 +64,7 @@ namespace cuvnet
         Op::op_ptr mean(Op::op_ptr x)                   { return boost::make_shared<Mean>(x->result()); }
     inline
         Op::op_ptr mat_plus_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax) { return boost::make_shared<MatPlusVec>(x->result(),v->result(), ax==0?false:true); }
+    inline
+        Op::op_ptr convolve(Op::op_ptr img, Op::op_ptr flt) { return boost::make_shared<Convolve>(img->result(),flt->result()); }
 }
 #endif /* __OPS_HPP__ */
