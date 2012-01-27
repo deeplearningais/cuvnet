@@ -94,6 +94,9 @@ namespace cuvnet
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_outdim;
+                    }
+        };
 
     /**
      * Ensures that output has certain shape.
