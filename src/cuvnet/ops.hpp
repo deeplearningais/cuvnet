@@ -17,6 +17,7 @@
 #include <cuvnet/ops/log.hpp>
 #include <cuvnet/ops/softmax.hpp>
 #include <cuvnet/ops/convolve.hpp>
+#include <cuvnet/ops/reshape.hpp>
 
 namespace cuvnet
 {
@@ -68,5 +69,7 @@ namespace cuvnet
         Op::op_ptr convolve(Op::op_ptr img, Op::op_ptr flt) { return boost::make_shared<Convolve>(img->result(),flt->result()); }
     inline
         Op::op_ptr reorder_for_conv(Op::op_ptr img) { return boost::make_shared<ReorderForConv>(img->result()); }
+    inline
+        Op::op_ptr flatten(Op::op_ptr img, unsigned int outdim=1) { return boost::make_shared<Flatten>(img->result(),outdim); }
 }
 #endif /* __OPS_HPP__ */

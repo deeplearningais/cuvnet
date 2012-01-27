@@ -241,8 +241,46 @@ TEST(derivative_test, derivative_test_convolve_pooling){
 
     {
 	    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[nImgChan][nImgPix*nImgPix][nImg]);
-	    ptr_t func		               = boost::make_shared<LocalPooling>(inp0->result(), cuv::alex_conv::PT_MAX);
+	    ptr_t func		               = boost::make_shared<LocalPooling>(inp0->result(), cuv::alex_conv::PT_AVG);
 
 	    derivative_tester(*func,false,0.01f);
+    }
+}
+
+TEST(derivative_test, derivative_test_flatten){
+	typedef boost::shared_ptr<Op> ptr_t;
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3]);
+        ptr_t func                       = boost::make_shared<Flatten>(inp0->result());
+
+        func->visit(determine_shapes_visitor());
+        EXPECT_EQ(func->result()->shape.size(), 1);
+        EXPECT_EQ(func->result()->shape.at(0), 8*3*3);
+
+        derivative_tester(*func,false,0.01f);
+    }
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3]);
+        ptr_t func                       = boost::make_shared<Flatten>(inp0->result(), 2);
+
+        func->visit(determine_shapes_visitor());
+        EXPECT_EQ(func->result()->shape.size(), 2);
+        EXPECT_EQ(func->result()->shape.at(0), 8);
+        EXPECT_EQ(func->result()->shape.at(1), 3*3);
+
+        derivative_tester(*func,false,0.01f);
+    }
+
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3][2]);
+        ptr_t func                       = boost::make_shared<Flatten>(inp0->result(), 3);
+
+        func->visit(determine_shapes_visitor());
+        EXPECT_EQ(func->result()->shape.size(), 3);
+        EXPECT_EQ(func->result()->shape.at(0), 8);
+        EXPECT_EQ(func->result()->shape.at(1), 3);
+        EXPECT_EQ(func->result()->shape.at(2), 3*2);
+
+        derivative_tester(*func,false,0.01f);
     }
 }
