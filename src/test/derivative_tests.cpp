@@ -284,3 +284,38 @@ TEST(derivative_test, derivative_test_flatten){
         derivative_tester(*func,false,0.01f);
     }
 }
+TEST(derivative_test, derivative_test_reshape){
+	typedef boost::shared_ptr<Op> ptr_t;
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3]);
+        ptr_t func                     = boost::make_shared<Reshape>(inp0->result(), cuv::extents[3][8][3]);
+
+        func->visit(determine_shapes_visitor());
+        EXPECT_EQ(func->result()->shape.size(), 3);
+        EXPECT_EQ(func->result()->shape.at(0), 3);
+        EXPECT_EQ(func->result()->shape.at(1), 8);
+        EXPECT_EQ(func->result()->shape.at(2), 3);
+
+        derivative_tester(*func,false,0.01f);
+    }
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3]);
+        ptr_t func                       = boost::make_shared<Reshape>(inp0->result(), cuv::extents[8*3][-1]);
+
+        func->visit(determine_shapes_visitor());
+        EXPECT_EQ(func->result()->shape.size(), 2);
+        EXPECT_EQ(func->result()->shape.at(0), 8*3);
+        EXPECT_EQ(func->result()->shape.at(1), 3);
+    }
+
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3][2]);
+        ptr_t func                       = boost::make_shared<Reshape>(inp0->result(), cuv::extents[8][-1][3]);
+
+        func->visit(determine_shapes_visitor());
+        EXPECT_EQ(func->result()->shape.size(), 3);
+        EXPECT_EQ(func->result()->shape.at(0), 8);
+        EXPECT_EQ(func->result()->shape.at(1), 3*2);
+        EXPECT_EQ(func->result()->shape.at(2), 3);
+    }
+}
