@@ -34,11 +34,11 @@ namespace cuvnet
             private:
                 unsigned int m_outdim;
             public:
-                Flatten(result_t& images, unsigned int outdim=1)
+                Flatten(result_t& in, unsigned int outdim=1)
                     :Op(1,1),
                     m_outdim(outdim)
                 {
-                    add_param(0,images);
+                    add_param(0,in);
                 }
                 void fprop(){
                     using namespace cuv;
