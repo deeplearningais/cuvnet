@@ -85,11 +85,11 @@ int main(int argc, char **argv)
     cuv::initialize_mersenne_twister_seeds();
     {   // check auto-encoder derivatives
         auto_encoder ae(2,4,2,false,0.0f,0.2f);
-        derivative_tester_verbose(*ae.m_enc);
-        derivative_tester_verbose(*ae.m_decode);
-        derivative_tester_verbose(*ae.m_rec_loss);
+        derivative_tester_verbose(*ae.m_enc,0);
+        derivative_tester_verbose(*ae.m_decode,0);
+        derivative_tester_verbose(*ae.m_rec_loss,0);
         if(ae.m_contractive_loss.get()){
-            derivative_tester_verbose(*ae.m_contractive_loss);
+            derivative_tester_verbose(*ae.m_contractive_loss,0);
         }
     }
 
