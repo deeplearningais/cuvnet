@@ -42,25 +42,12 @@ namespace cuvnet
         typedef std::vector<Op*> container_type;
         container_type     plist;
         std::map<Op*,bool> visited;
-        bool               deriv_only;
-        toposort_visitor(bool deriv):deriv_only(deriv){}
+        toposort_visitor(){}
         inline bool discover(Op* o){
-            if(visited.find(o)!=visited.end()) return false;
-            if(deriv_only){
-                if(o->m_params.size()==0){// input
-                    visited[o] = true;
-                    return true;
-                }
-                for (unsigned int i = 0; i < o->m_params.size(); ++i)
-                {
-                    // at least one parameter should have this set
-                    if(o->m_params[i]->need_derivative){
-                        visited[o] = true;
-                        return true;
-                    }
-                }
-            }
-            return true;
+            if(visited.find(o)!=visited.end()) 
+                return false;
+            visited[o] = true;
+            return true; // we can never reurn "false" here, since we might need this for the /forward/ pass.
         }
         inline void postorder(Op* o){
             plist.push_back(o);
@@ -71,15 +58,13 @@ namespace cuvnet
      * determine shapes recursively
      */
     struct determine_shapes_visitor :public op_visitor_adaptor{
-        bool deriv_only;
-        determine_shapes_visitor(bool deriv=false):deriv_only(deriv){}
+        determine_shapes_visitor(){}
         inline void postorder(Op* o)const{
             o->_determine_shapes();
             // push from result to result-users
             BOOST_FOREACH(Op::result_t& r, o->m_results){
                 for(unsigned int i=0;i<r->result_uses.size();i++){
-                    if(!deriv_only || r->use(i)->need_derivative)
-                        r->use(i)->shape = r->shape;
+                    r->use(i)->shape = r->shape;
                 }
             }
         }
@@ -165,11 +150,13 @@ namespace cuvnet
          * constructor
          *
          * @param op      the operator to do swipes on
-         * @param deriv   whether to only do passes w.r.t. the named parameters
+         * @param result  the result of the operator to optimize
          * @param paramlist the list of parameters w.r.t. which do swipes
          */
-        swiper(Op& op, bool deriv, const param_collector_visitor::container_type& paramlist)
-            :m_topo(deriv){
+        swiper(Op& op, int result, const param_collector_visitor::container_type& paramlist)
+        {
+                op.visit(reset_needed_flags());
+                op.result(result)->need_result = true;
                 op.set_calculate_derivative(paramlist);
                 op.visit(m_topo);
                 op.visit(determine_shapes_visitor());
