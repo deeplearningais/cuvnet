@@ -17,13 +17,14 @@ namespace cuvnet
             private:
                 value_ptr   m_data;
                 std::string m_name;
+                bool        m_derivable; ///< for testing ops which cannot derive w.r.t. some parameter
 
             public:
                 Input(){} /// for serialization
                 template<class T>
-                    Input(const T& init):Op(0,1), m_data(new value_type(init)){  }
+                    Input(const T& init):Op(0,1), m_data(new value_type(init)),m_derivable(true){  }
                 template<class T>
-                    Input(const T& init, const std::string& name):Op(0,1), m_data(new value_type(init)), m_name(name){  }
+                    Input(const T& init, const std::string& name):Op(0,1), m_data(new value_type(init)), m_name(name),m_derivable(true){  }
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
                     desc.label = "Input `" + m_name + "'";
                 }
@@ -43,6 +44,9 @@ namespace cuvnet
 
                 inline std::string&       name()      { return m_name; }
                 inline const std::string& name() const{ return m_name; }
+
+                inline bool     derivable()const{return m_derivable;}
+                inline void set_derivable(bool b){m_derivable = b;}
             private:
                 friend class boost::serialization::access;
                 template<class Archive>

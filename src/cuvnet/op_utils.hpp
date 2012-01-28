@@ -5,6 +5,7 @@
 #include <map>
 #include <fstream>
 #include <cuvnet/op.hpp>
+#include <cuvnet/ops/input.hpp>
 
 namespace cuvnet
 {
@@ -32,7 +33,10 @@ namespace cuvnet
         }
         inline void preorder(Op* o){
             if(o->get_n_params()==0)
-                plist.push_back(o);
+            {
+                if(((Input*)o)->derivable())
+                    plist.push_back(o);
+            }
         }
     };
     /**
