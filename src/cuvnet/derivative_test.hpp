@@ -54,14 +54,14 @@ namespace cuvnet
         unsigned int prod(const std::vector<unsigned int>& v){
             return std::accumulate(v.begin(),v.end(),1u, std::multiplies<unsigned int>());
         }
-#define derivative_tester_verbose(X) \
+#define derivative_tester_verbose(X, R) \
         std::cout << "Testing derivative of "<<#X<<":"<<std::endl; \
-        cuvnet::derivative_testing::derivative_tester(X,true); \
+        cuvnet::derivative_testing::derivative_tester(X,R,true); \
         std::cout << "done."<<std::endl;
 
-        void derivative_tester(Op& op, bool verbose=false, double prec=0.003){
+        void derivative_tester(Op& op, int result=0, bool verbose=false, double prec=0.003){
             // assumption: op has only one result
-            boost::shared_ptr<Output> out_op = boost::make_shared<Output>(op.result());
+            boost::shared_ptr<Output> out_op = boost::make_shared<Output>(op.result(result));
 
             // tell that we want derivative w.r.t. all params
             param_collector_visitor pcv;
@@ -74,11 +74,11 @@ namespace cuvnet
                 for (unsigned int i = 0; i < param->data().size(); ++i)
                 {
                     //param->data()[i] = 2.f;
-                    param->data()[i] = (float)(0.1f + drand48()) * (drand48()<.5?-1.f:1.f); // avoid values around 0
+                    param->data()[i] = (float)(0.1f + 0.9f*drand48()) * (drand48()<.5?-1.f:1.f); // avoid values around 0
                 }
             }
 
-            swiper swipe(op, true, pcv.plist);
+            swiper swipe(op, result, pcv.plist);
 
             BOOST_FOREACH(Op* raw, pcv.plist){
                 Input* param = dynamic_cast<Input*>(raw);
@@ -86,11 +86,11 @@ namespace cuvnet
                     std::cout << "...testing derivative w.r.t. "<<param->name()<<"..."<<std::endl;
                 EXPECT_TRUE(param!=NULL);
                 unsigned int n_inputs  = param->data().size();
-                unsigned int n_outputs = prod(op.result()->shape);
+                unsigned int n_outputs = prod(op.result(result)->shape);
                 matrix J(n_outputs, n_inputs); J = 0.f;
                 for(unsigned int out=0;out<n_outputs;out++){
                     swipe.fprop();
-                    set_delta_to_unit_vec(op.result(),out);
+                    set_delta_to_unit_vec(op,result,out);
                     swipe.bprop(false);
 
                     // set row in J to the backpropagated value
