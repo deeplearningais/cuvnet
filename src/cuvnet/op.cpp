@@ -70,6 +70,7 @@ Op::set_calculate_derivative(const std::vector<Op*>&l){
 	BOOST_FOREACH(param_t& p, m_params){
 		bool derive_wrt_p = false;
 		BOOST_FOREACH(Op::result_t& r, p->param_uses){
+            r->need_result = true;
 			derive_wrt_p |= r->get_op()->set_calculate_derivative(l);
 		}
 		p->need_derivative = derive_wrt_p;

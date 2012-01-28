@@ -18,6 +18,7 @@ namespace cuvnet
                 std::vector<boost::weak_ptr<op_param<T>> >   result_uses;
                 boost::shared_ptr<Op> op;
                 std::vector<unsigned int>      shape;
+                bool                           need_result;
                 //cow_ptr<T>                     value;
                 cow_ptr<T>                     delta;
                 bool                           delta_set;

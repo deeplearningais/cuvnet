@@ -119,6 +119,17 @@ namespace cuvnet
             }
         }
     };
+    /**
+     * set need_derivative and need_result to false
+     */
+    struct reset_needed_flags : public op_visitor_adaptor{
+        inline void preorder(Op*o)const{
+            for(unsigned int i=0;i<o->get_n_params();i++)
+                o->param(i)->need_derivative = false;
+            for(unsigned int i=0;i<o->get_n_results();i++)
+                o->result(i)->need_result = false;
+        }
+    };
 
     struct define_graphviz_node_visitor : public op_visitor_adaptor{
         std::ostream& os;
