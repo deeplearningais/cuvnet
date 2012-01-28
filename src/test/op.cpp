@@ -89,7 +89,7 @@ TEST(op_test,toposort){
     func->set_calculate_derivative(pcv.plist);
 
     // determine sequence in which to call fwd, bwd pass
-    toposort_visitor tv(true);
+    toposort_visitor tv;
     func->visit(tv);
 
     EXPECT_EQ(tv.plist.size(), 5);
