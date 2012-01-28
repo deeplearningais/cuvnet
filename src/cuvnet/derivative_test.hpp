@@ -42,10 +42,14 @@ namespace cuvnet
             }
         }
 
-        void set_delta_to_unit_vec(Op::result_t& r, unsigned int i){
-            r->delta.reset(new matrix(r->shape));
-            r->delta.data()    = 0.f;
-            r->delta.data()[i] = 1.f;
+        void set_delta_to_unit_vec(Op& o, unsigned int result, unsigned int i){
+            for(unsigned int ridx=0;ridx<o.get_n_results();ridx++){
+                Op::result_t& r = o.result(ridx);
+                r->delta.reset(new matrix(r->shape));
+                r->delta.data()    = 0.f;
+                if(ridx==result)
+                    r->delta.data()[i] = 1.f;
+            }
         }
         unsigned int prod(const std::vector<unsigned int>& v){
             return std::accumulate(v.begin(),v.end(),1u, std::multiplies<unsigned int>());
