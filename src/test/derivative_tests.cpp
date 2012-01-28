@@ -167,6 +167,53 @@ TEST(derivative_test, derivative_test_xt1mx){
     derivative_tester(*func);
 }
 
+TEST(derivative_test, derivative_test_softmax){
+	typedef boost::shared_ptr<Op> ptr_t;
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+        ptr_t func                     = boost::make_shared<Softmax>(inp0->result(), 0);
+        derivative_tester(*func);
+    }
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+        ptr_t func                     = boost::make_shared<Softmax>(inp0->result(), 1);
+        derivative_tester(*func);
+    }
+}
+
+TEST(derivative_test, derivative_test_mll){
+	typedef boost::shared_ptr<Op> ptr_t;
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+        boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+        inp1->set_derivable(false);
+        ptr_t func                     = boost::make_shared<MultinomialLogisticLoss>(inp0->result(), inp1->result(), 0);
+        derivative_tester(*func);
+    }
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+        boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+        inp1->set_derivable(false);
+        ptr_t func                     = boost::make_shared<MultinomialLogisticLoss>(inp0->result(), inp1->result(), 1);
+        derivative_tester(*func);
+    }
+    ///// SoftMax result of MultinomialLogisticLoss
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+        boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+        inp1->set_derivable(false);
+        ptr_t func                     = boost::make_shared<MultinomialLogisticLoss>(inp0->result(), inp1->result(), 0);
+        derivative_tester(*func,1);
+    }
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+        boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+        inp1->set_derivable(false);
+        ptr_t func                     = boost::make_shared<MultinomialLogisticLoss>(inp0->result(), inp1->result(), 1);
+        derivative_tester(*func,1);
+    }
+}
+
 TEST(derivative_test, derivative_test_mat_plus_vec){
 	typedef boost::shared_ptr<Op> ptr_t;
     {

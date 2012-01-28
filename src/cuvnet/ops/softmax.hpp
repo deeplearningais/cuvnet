@@ -2,6 +2,7 @@
 #     define __OP_SOFTMAX_HPP__
 
 #include <cuvnet/op.hpp>
+#include <cuv/libs/opt/opt.hpp>
 
 namespace cuvnet
 {
@@ -128,5 +129,238 @@ namespace cuvnet
                         ar & boost::serialization::base_object<Op>(*this);
                     }
         };
+    /**
+     * Softmax activation function
+     *
+     * \f[
+     * f(x_i) = \frac{\exp(-x_i)}{\sum_j \exp(-x_j)}
+     * \f]
+     *
+     * where the sum over j is either over the rows or the columns of a
+     * matrix, depending on the second parameter.
+     */
+    class Softmax
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                unsigned int m_axis;
+                value_ptr m_result;
+            public:
+                Softmax(){} /// for serialization
+                Softmax(result_t& p0, unsigned int axis)
+                    :Op(1,1)
+                    ,m_axis(1-axis)
+                {
+                    add_param(0,p0);
+                }
+                void fprop(){
+                    using namespace cuv;
+                    using namespace cuv::libs::opt;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+
+                    if(r0.can_overwrite_directly()){
+                        value_type& v = *r0.overwrite_or_add_value();
+                        v = 0.f; // required by cuv
+                        softmax(v,p0.value.cdata(), m_axis);
+                        m_result = r0.overwrite_or_add_value(); // save copy!
+                        
+                    // we cannot do this, we need a copy of the outputs!
+                    //}
+                    //else if(r0.can_add_directly()){
+                        //value_type& v = *r0.overwrite_or_add_value();
+                        //softmax(*v,p0.value.cdata(), m_axis);
+
+                    }else{
+                        // try overwriting inputs
+                        const value_type& src = p0.value.cdata();
+                        value_type& dst = p0.value.data_onlyshape();
+                        softmax(dst,src,m_axis);
+                        m_result = p0.value;
+                        r0.push(p0.value);
+                    }
+                    p0.value.reset();
+                }
+                void bprop(){
+                    using namespace cuv;
+                    using namespace cuv::libs::opt;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    assert(p0.need_derivative);
+                    if(p0.can_overwrite_directly()){
+                        value_type& v = *p0.overwrite_or_add_value();
+                        v = 0.f;
+                        softmax_derivative(v,m_result.cdata(),r0.delta.cdata(), m_axis);
+                    }else if(p0.can_add_directly()){
+                        value_type& v = *p0.overwrite_or_add_value();
+                        softmax_derivative(v,m_result.cdata(),r0.delta.cdata(), m_axis);
+                    }else{
+                        // try to overwrite dst
+                        const value_type& delta = r0.delta.cdata();
+                        value_type& dst         = r0.delta.data_onlyshape();
+                        softmax_derivative(dst,m_result.cdata(),delta, m_axis);
+                        p0.push(r0.delta);
+                    }
+                    r0.delta.reset();
+                    m_result.reset();
+                }
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_axis;
+                    }
+    };
+
+    /**
+     * Multinomial logistic loss
+     *
+     * For some dataset \f$D=(X,Y)\f$
+     * \f[
+     * l(\theta, D) = 
+     *  -\sum_{i=1}^{|X|}\left[
+     *      \sum_k y_{ik}x_{ik} - \log\sum_k\exp(x_{ik})
+     *     \right]
+     * \f]
+     *
+     * where \f$x\f$ is a function of \f$\theta\f$.
+     *
+     * the second result of this op is the softmaxed input.
+     *
+     */
+    class MultinomialLogisticLoss
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                unsigned int m_axis;
+                value_type m_minus_logaddexp;
+                bool         m_softmaxed;
+            public:
+                MultinomialLogisticLoss(){} /// for serialization
+                MultinomialLogisticLoss(result_t& p0, result_t& p1, unsigned int axis)
+                    :Op(2,2)
+                    ,m_axis(axis)
+                {
+                    assert(m_axis==0 || m_axis==1);
+                    add_param(0,p0);
+                    add_param(1,p1);
+                }
+                void fprop(){
+                    using namespace cuv;
+                    using namespace cuv::libs::opt;
+                    param_t::element_type&  p0 = *m_params[0];
+                    param_t::element_type&  p1 = *m_params[1];
+                    result_t::element_type& r0 = *m_results[0];
+                    result_t::element_type& r1 = *this->result(1);
+                    assert(r0.need_result || r1.need_result);
+
+                    m_minus_logaddexp.resize(extents[p0.shape[1-m_axis]]);
+                    value_ptr ptr(new value_type(p0.shape[1-m_axis]));
+                    value_type& v = *ptr;
+                    if(m_axis==0){
+                        reduce_to_row(m_minus_logaddexp,p0.value.cdata(),RF_LOGADDEXP,-1.f);
+                        reduce_to_row(v, p0.value.cdata()*p1.value.cdata(), RF_ADD);
+                        apply_binary_functor(v,m_minus_logaddexp,BF_AXPBY, -1.f,-1.f);
+                    }else if(m_axis==1){
+                        reduce_to_col(m_minus_logaddexp,p0.value.cdata(),RF_LOGADDEXP,-1.f);
+                        reduce_to_col(v, p0.value.cdata()*p1.value.cdata(), RF_ADD);
+                        apply_binary_functor(v,m_minus_logaddexp,BF_AXPBY, -1.f,-1.f);
+                    }
+                    r0.push(ptr);
+
+                    if(r1.need_result){
+                        // calculate softmax of inputs if anybody wants them
+                        if(m_axis==0) matrix_plus_row(*p0.value,m_minus_logaddexp);
+                        else          matrix_plus_col(*p0.value,m_minus_logaddexp);
+                        apply_scalar_functor(*p0.value, SF_EXP);
+                        r1.push(p0.value);
+                        m_softmaxed = true;
+                    }else
+                        m_softmaxed = false;
+
+                    if(!p0.need_derivative) {
+                        p0.value.reset();
+                        p1.value.reset();
+                    }
+                }
+                void bprop(){
+                    using namespace cuv;
+                    using namespace cuv::libs::opt;
+                    param_t::element_type&  p0 = *m_params[0];
+                    param_t::element_type&  p1 = *m_params[1];
+                    result_t::element_type& r0 = *m_results[0];
+                    result_t::element_type& r1 = *m_results[1];
+                    assert( p0.need_derivative);
+                    assert(!p1.need_derivative); // cannot do that currently. Why should we? :)
+
+                    if(!m_softmaxed){
+                        // we have not calculated softmax in fprop
+                        if(m_axis==0) matrix_plus_row(*p0.value,m_minus_logaddexp);
+                        else          matrix_plus_col(*p0.value,m_minus_logaddexp);
+                        apply_scalar_functor(*p0.value, SF_EXP);
+                    }
+
+                    if(r1.need_result){
+                        value_type prod = p0.value.cdata() * r1.delta.cdata();
+                        value_type red(p0.shape[1-m_axis]);
+                        if(m_axis==0) reduce_to_row(red,prod,RF_ADD,-1.f);
+                        else          reduce_to_col(red,prod,RF_ADD,-1.f);
+                        if(m_axis==0) matrix_plus_row(*r1.delta,red);
+                        else          matrix_plus_col(*r1.delta,red);
+                        *r1.delta *= *p0.value;
+                    }
+
+                    if(r0.need_result){
+                        // now bprop the the above minus p1 times delta.
+                        *p0.value -= p1.value.cdata();
+                        if(m_axis==0)
+                            matrix_times_row(*p0.value, r0.delta.cdata());
+                        else
+                            matrix_times_col(*p0.value, r0.delta.cdata());
+                    }
+
+                    if(r1.need_result && r0.need_result){
+                        *p0.value += *r1.delta;
+                    }else if(r1.need_result){
+                        *p0.value   = *r1.delta;
+                    }else if(r0.need_result){
+                        // :-)
+                    }
+
+                    p0.push(p0.value);
+                    p0.value.reset();
+                    r0.delta.reset();
+                }
+            void _determine_shapes(){
+                assert(m_params[0]->shape == m_params[1]->shape);
+                std::vector<unsigned int> src = m_params[0]->shape;
+                m_results[0]->shape.resize(src.size()-1);
+
+                unsigned int k = 0;
+                for(unsigned int i=0;i<src.size();i++){
+                    if( i!=m_axis )
+                        m_results[0]->shape[k++] = src[i];
+                }
+                m_results[1]->shape = m_params[0]->shape;
+            }
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_axis;
+                    }
+    };
 }
 #endif /* __OP_SOFTMAX_HPP__ */
