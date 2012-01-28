@@ -5,6 +5,7 @@
 #include<cuvnet/op.hpp>
 #include<cuvnet/op_utils.hpp>
 #include<cuv/tensor_ops/tensor_ops.hpp>
+#include<cuv/tensor_ops/rprop.hpp>
 
 namespace cuvnet
 {
