@@ -10,9 +10,10 @@ std::string define_graphviz_node_visitor::define_data_ptr(const Op::value_ptr& p
         return "";
     if(m_seen.find(&p.cdata())!=m_seen.end())
         return m_seen[&p.cdata()];
-    m_seen[&p.cdata()] = "v"+boost::lexical_cast<std::string>((size_t)&p.cdata());
+    m_seen[&p.cdata()] = "v"+boost::lexical_cast<std::string>(&p.cdata());
     os << m_seen[&p.cdata()] << " [ label=\"(";
-    std::copy(p.cdata().shape().begin(),p.cdata().shape().end(),std::ostream_iterator<unsigned int>(os,","));
+    std::vector<unsigned int> shape = p.cdata().shape();
+    std::copy(shape.begin(),shape.end(),std::ostream_iterator<unsigned int>(os,","));
     os  << ")\" ] ; "<<std::endl;
     return m_seen[&p.cdata()];
 }
@@ -25,6 +26,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
 	n.fillcolor = "gray92";
 	n.style = "filled";
 	o->_graphviz_node_desc(n);
+    n.label += boost::lexical_cast<std::string>(o);
 
 	if(m_mark_order.size()){
 		std::vector<Op*>::iterator it = std::find(m_mark_order.begin(),m_mark_order.end(),o);
@@ -33,7 +35,8 @@ void define_graphviz_node_visitor::preorder(Op* o){
 	}
 
     // define the op-node itself
-    std::string opstr = "n" + boost::lexical_cast<std::string>( (size_t)(o) );
+    std::string opstr = "n" + boost::lexical_cast<std::string>( o );
+    m_seen[o] = opstr;
 	os << opstr
 	   << " ["
 	   << " tooltip=\"tooltip "<<n.label<<"\","
@@ -48,8 +51,8 @@ void define_graphviz_node_visitor::preorder(Op* o){
 	BOOST_FOREACH(Op::param_t& p, o->m_params){
         std::string pstr = opstr + "p" + boost::lexical_cast<std::string>(p->param_number);
         if(m_seen.find(p.get())==m_seen.end()){
-            std::string nd = p->need_derivative ? "green" : "white";
             m_seen[p.get()] = pstr;
+            std::string nd = p->need_derivative ? "green" : "white";
             os << pstr
                 << " [ style=filled, fillcolor="<<nd<<", fontsize=6, margin=\"0,0\", width=0.01, label=\"" << p->param_number << "\", shape=circle ] ;"<<std::endl;
             // connect to op
@@ -66,8 +69,9 @@ void define_graphviz_node_visitor::preorder(Op* o){
         std::string rstr = opstr + "r" + boost::lexical_cast<std::string>(r->result_number);
         if(m_seen.find(r.get())==m_seen.end()){
             m_seen[r.get()] = rstr;
+            std::string nd = r->need_result ? "gold1" : "white";
             os << opstr << "r"<<r->result_number
-                << " [ style=filled, fillcolor=gold1, fontsize=6, margin=\"0,0\",width=0.01, label=\"" << r->result_number << "\", shape=circle ] ;"<<std::endl;
+                << " [ style=filled, fillcolor="<<nd<<", fontsize=6, margin=\"0,0\",width=0.01, label=\"" << r->result_number << "\", shape=circle ] ;"<<std::endl;
             // connect to op
             os << "edge [style=solid,dir=none,weight=100] "<< opstr << " -> " << rstr <<";"<<std::endl;
 
@@ -86,13 +90,14 @@ void define_graphviz_node_visitor::postorder(Op* o){
                << "dir=forward,"
                << "style=solid,"
                << "weight=0.1"
-				   //<< " headlabel=\""<<boost::lexical_cast<std::string>(cnt) << nd<< "\""
+				   //<< " headlabel=\""<<boost::lexical_cast<std::string>(cnt) << "\""
 			   <<" ]"<<std::endl;
 
-			os << "n" << boost::lexical_cast<std::string>( (size_t)(r->get_op().get()) )
+            // draw a line from the result of an op to the param this result is used in
+			os << "n" << boost::lexical_cast<std::string>( r->get_op().get() )
                << "r" << r->result_number;
 			os << " -> ";
-			os << "n" << boost::lexical_cast<std::string>( (size_t) o )
+			os << "n" << boost::lexical_cast<std::string>(  o )
 			   << "p" << p->param_number;
 			os << " ; "<<std::endl;
             

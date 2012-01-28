@@ -139,6 +139,10 @@ namespace cuvnet
             if(mo)
                 m_mark_order = *mo;
         }
+        inline bool discover(Op* o){
+            if(m_seen.find(o)!=m_seen.end()) return false;
+            return true;
+        }
         void preorder(Op*o);
         void postorder(Op*o);
         std::string define_data_ptr(const Op::value_ptr& vp);
