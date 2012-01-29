@@ -100,7 +100,7 @@ int main(int argc, char **argv)
     //amat_dataset ds_all("/home/local/datasets/bengio/mnist.zip","mnist_train.amat", "mnist_test.amat");
     //global_min_max_normalize<> normalizer(0,1); // 0,1
     splitter ds_split(ds_all,10);
-    dataset& ds  = ds_split[0];
+    dataset ds  = ds_split[0];
     
     normalizer.fit_transform(ds.train_data);
     normalizer.transform(ds.val_data);
