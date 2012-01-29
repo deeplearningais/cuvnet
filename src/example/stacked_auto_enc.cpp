@@ -38,9 +38,11 @@ struct auto_encoder{
     const matrix& output(){return m_out->cdata();}
 
     float m_loss_sum;
-    void acc_loss(){ m_loss_sum += output()[0]; }
-    void reset_loss(){m_loss_sum = 0.f;}
-    void print_loss(unsigned int epoch){ std::cout << epoch<<" " << m_loss_sum<<std::endl;}
+    unsigned int m_loss_sum_cnt;
+    void acc_loss(){ m_loss_sum += output()[0]; m_loss_sum_cnt ++; }
+    void reset_loss(){m_loss_sum = m_loss_sum_cnt = 0;}
+    void print_loss(unsigned int epoch){ std::cout << "AE: "<< epoch<<" " << m_loss_sum/m_loss_sum_cnt<<std::endl;}
+    float perf(){ return m_loss_sum/m_loss_sum_cnt; }
 
     /**
      * this constructor gets the \e encoded output of another autoencoder as
@@ -151,13 +153,12 @@ struct pretrained_mlp{
     op_ptr    m_output; ///< classification result
     output_ptr m_out_sink;
     output_ptr m_loss_sink;
-
-    Op::value_type& target(){ return m_targets->data(); }
     float m_loss_sum, m_class_err;
     unsigned int m_loss_sum_cnt, m_class_err_cnt;
-    void acc_loss(){ 
-        m_loss_sum += m_loss_sink->cdata()[0]; 
-    }
+
+    // a bunch of convenience functions
+    Op::value_type& target(){ return m_targets->data(); }
+    void acc_loss()     { m_loss_sum += m_loss_sink->cdata()[0]; }
     void acc_class_err(){ 
         cuv::tensor<int,Op::value_type::memory_space_type> a1 ( m_out_sink->cdata().shape(0) );
         cuv::tensor<int,Op::value_type::memory_space_type> a2 ( m_targets->data().shape(0) );
@@ -166,8 +167,15 @@ struct pretrained_mlp{
         m_class_err     += m_out_sink->cdata().shape(0) - cuv::count(a1-a2,0);
         m_class_err_cnt += m_out_sink->cdata().shape(0);
     }
+    float perf(){ return m_class_err/m_class_err_cnt; }
     void reset_loss(){m_loss_sum = m_class_err = m_class_err_cnt = m_loss_sum_cnt = 0; }
-    void print_loss(unsigned int epoch){ std::cout << epoch<<" " << m_loss_sum/m_loss_sum_cnt << ", "<<m_class_err/cnt<<std::endl;}
+    void print_loss(unsigned int epoch){ 
+        std::cout <<"MLP: "<< epoch;
+        if(m_loss_sum_cnt && m_class_err)
+            std::cout << " loss: "<<m_loss_sum/m_loss_sum_cnt << ", ";
+        if(m_class_err)
+            std::cout << " cerr: "<<m_class_err/m_class_err_cnt<<std::endl;
+    }
 
     pretrained_mlp(op_ptr inputs, unsigned int outputs, bool softmax)
         :m_input(inputs)
@@ -202,18 +210,29 @@ struct pretrained_mlp{
  * contains fit and predict functions for a pretrained MLP
  */
 struct pretrained_mlp_trainer{
-    std::auto_ptr<pretrained_mlp*> m_mlp; ///< the mlp to be trained
-    std::auto_ptr<auto_enc_stack*> m_aes; ///< the stacked ae to be pre-trained
+    boost::shared_ptr<pretrained_mlp> m_mlp; ///< the mlp to be trained
+    boost::shared_ptr<auto_enc_stack> m_aes; ///< the stacked ae to be pre-trained
 
     Op::value_type m_current_data;  ///< should contain the dataset we're working on
     Op::value_type m_current_labels; ///< should contain the labels of the dataset we're working on
+    Op::value_type m_current_vdata;  ///< should contain the validation dataset we're working on
+    Op::value_type m_current_vlabels; ///< should contain the validation labels of the dataset we're working on
+    unsigned int m_bs;
+    bool m_in_validation_mode; 
 
     /** 
      * constructor
      * @param mlp the mlp where params should be learned
      */
-    pretrained_mlp_trainer(pretrained_mlp* mlp, auto_enc_stack* aes)
-        :m_mlp(mlp), m_aes(aes){}
+    pretrained_mlp_trainer(auto_enc_stack* aes, pretrained_mlp* mlp)
+        :m_mlp(mlp), m_aes(aes), m_bs(64), m_in_validation_mode(false){}
+    void before_validation_epoch(){ m_in_validation_mode = true; }
+    void after_validation_epoch(){ m_in_validation_mode = false; }
+
+    /**
+     * default constructor for convenience
+     */
+    pretrained_mlp_trainer(){}
 
     /**
      * load a batch in an autoencoder
@@ -223,8 +242,9 @@ struct pretrained_mlp_trainer{
      * @param batch the number of the requested batch
      */
     void load_batch_ae( 
-            auto_encoder* ae, unsigned int bs, unsigned int batch){
-        ae->input() = m_current_data[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
+            auto_encoder* ae, unsigned int batch){
+        Op::value_type& data = m_in_validation_mode ? m_current_vdata : m_current_data;
+        ae->input() = data[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
     }
 
     /**
@@ -237,10 +257,11 @@ struct pretrained_mlp_trainer{
      * @param batch the number of the requested batch
      */
     void load_batch_mlp(
-            auto_encoder* ae, pretrained_mlp* mlp,
-            unsigned int bs, unsigned int batch){
-        ae ->input()  = m_current_data  [cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
-        mlp->target() = m_current_labels[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
+            auto_encoder* ae, pretrained_mlp* mlp, unsigned int batch){
+        Op::value_type& data = m_in_validation_mode ? m_current_vdata : m_current_data;
+        Op::value_type& labl = m_in_validation_mode ? m_current_vlabels : m_current_labels;
+        ae->input()   = data[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
+        mlp->target() = labl[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
     }
 
     /**
@@ -248,12 +269,14 @@ struct pretrained_mlp_trainer{
      */
     float predict(){
         // "learning" with learnrate 0 and no weight updates
+        std::vector<Op*> params;
         gradient_descent gd(m_mlp->m_out_sink,0,params,0.0f,0.0f);
-        gd.before_epoch.connect(boost::bind(&pretrained_mlp::reset_loss, m_mlp));
-        gd.after_epoch.connect(boost::bind(&pretrained_mlp::print_loss, m_mlp, _1));
-        gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_mlp,this,&m_aes->get(0),m_mlp,bs,_2));
-        gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_class_err,m_mlp));
-        gd.minibatch_learning(1, m_current_data.shape(0)/bs,0,0); // 1 epoch
+        gd.before_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
+        gd.after_epoch.connect(boost::bind(&pretrained_mlp::print_loss, m_mlp.get(),_1));
+        gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_mlp,this,&m_aes->get(0),m_mlp.get(),_2));
+        gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_class_err,m_mlp.get()));
+        gd.current_batch_num.connect(boost::bind(&pretrained_mlp_trainer::current_batch_num,this));
+        gd.minibatch_learning(1,0,0); // 1 epoch
         return m_mlp->m_class_err/m_mlp->m_class_err_cnt;
     }
 
@@ -264,38 +287,124 @@ struct pretrained_mlp_trainer{
         ////////////////////////////////////////////////////////////
         //             un-supervised pre-training
         ////////////////////////////////////////////////////////////
-        for(int l=0;l<n_layers;l++){
+        for(unsigned int l=0;l<m_aes->m_aes.size();l++){
             std::vector<Op*> params;
             params += m_aes->get(l).m_weights.get(), m_aes->get(l).m_bias_y.get(), m_aes->get(l).m_bias_h.get();
 
             gradient_descent gd(m_aes->get(l).m_loss,0,params,0.1f,0.00000f);
             gd.before_epoch.connect(boost::bind(&auto_encoder::reset_loss, &m_aes->get(l)));
             gd.after_epoch.connect(boost::bind(&auto_encoder::print_loss, &m_aes->get(l), _1));
-            gd.before_batch.connect(boost::bind(auto_enc_stack_trainer::load_batch_ae,this,&m_aes->get(0),bs,_2));
+            gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_ae,this,&m_aes->get(0),_2));
             gd.after_batch.connect(boost::bind(&auto_encoder::acc_loss,&m_aes->get(l)));
-            gd.minibatch_learning(200, ds.train_data.shape(0)/bs);
+            gd.current_batch_num.connect(boost::bind(&pretrained_mlp_trainer::current_batch_num,this));
+            
+            //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails){
+            gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.01f, 2);
+            gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::before_validation_epoch,this));
+            gd.after_validation_epoch.connect( boost::bind(&pretrained_mlp_trainer::after_validation_epoch,this));
+
+            gd.minibatch_learning(10000);
         }
         ////////////////////////////////////////////////////////////
         //                 supervised training
         ////////////////////////////////////////////////////////////
         std::vector<Op*> params;
-        for(int l=0;l<n_layers;l++) // derive w.r.t. /all/ parameters
+        for(unsigned int l=0;l<m_aes->m_aes.size();l++) // derive w.r.t. /all/ parameters
             params += m_aes->get(l).m_weights.get(), m_aes->get(l).m_bias_y.get(), m_aes->get(l).m_bias_h.get();
-        params += mlp.m_weights.get(), mlp.m_bias.get();
+        params += m_mlp->m_weights.get(), m_mlp->m_bias.get();
 
-        gradient_descent gd(mlp.m_loss,0,params,0.1f,0.00000f);
-        gd.before_epoch.connect(boost::bind(&pretrained_mlp::reset_loss, m_mlp));
-        gd.after_epoch.connect(boost::bind(&pretrained_mlp::print_loss, m_mlp, _1));
-        gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_mlp,this,&m_aes->get(0),m_mlp,bs,_2));
-        gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_loss,m_mlp));
-        gd.minibatch_learning(300, ds.train_data.shape(0)/bs);
+        gradient_descent gd(m_mlp->m_loss,0,params,0.1f,0.00000f);
+        gd.before_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
+        gd.after_epoch.connect(boost::bind(&pretrained_mlp::print_loss,m_mlp.get(), _1));
+        gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_mlp,this,&m_aes->get(0),m_mlp.get(),_2));
+        gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_loss,m_mlp.get()));
+        gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_class_err,m_mlp.get()));
+        gd.current_batch_num.connect(boost::bind(&pretrained_mlp_trainer::current_batch_num,this));
+
+        //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails){
+        gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, 0.01f, 2);
+        gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::before_validation_epoch,this));
+        gd.after_validation_epoch.connect( boost::bind(&pretrained_mlp_trainer::after_validation_epoch,this));
+
+        gd.minibatch_learning(10000);
+    }
+    unsigned int current_batch_num(){ 
+        return  m_in_validation_mode ? 
+        m_current_vdata.shape(0)/m_bs :
+        m_current_data.shape(0)/m_bs; 
     }
 };
 
 
+void prepare_ds(pretrained_mlp_trainer* pmt, splitter* splits, unsigned int split, crossvalidation<pretrained_mlp_trainer>::cv_mode cm){
+    std::cout << "switching to split "<<split<<", cm:"<<cm<<std::endl;
+    cuv::tensor<float,cuv::host_memory_space> data, vdata;
+    cuv::tensor<int,  cuv::host_memory_space> labels, vlabels;
+    dataset ds = (*splits)[split];
+    switch(cm){
+        case crossvalidation<pretrained_mlp_trainer>::CM_TRAIN:
+            data   = ds.train_data;
+            labels = ds.train_labels;
+            vdata   = ds.val_data;      // for early stopping!
+            vlabels = ds.val_labels;    // for early stopping!
+            break;
+        case crossvalidation<pretrained_mlp_trainer>::CM_VALID:
+            data   = ds.val_data;
+            labels = ds.val_labels;
+            break;
+        case crossvalidation<pretrained_mlp_trainer>::CM_TEST:
+            data   = ds.test_data;
+            labels = ds.test_labels;
+            break;
+    };
+
+    // convert labels to float
+    cuv::tensor<float,cuv::host_memory_space> flabels(labels.shape());
+    cuv::convert(flabels,  labels);
+    pmt->m_current_data    = data;
+    pmt->m_current_labels  = flabels;
+    if(vlabels.ndim()){
+        cuv::tensor<float,cuv::host_memory_space> fvlabels(vlabels.shape());
+        cuv::convert(fvlabels, vlabels);
+        pmt->m_current_vdata   = vdata;
+        pmt->m_current_vlabels = fvlabels;
+    }
+}
+
+class pmlp_cv
+: public crossvalidation<pretrained_mlp_trainer>
+{
+    private:
+        dataset& m_ds;
+        splitter m_splits;
+    public:
+        pmlp_cv(dataset& ds, unsigned int splits)
+        : crossvalidation<pretrained_mlp_trainer>(splits)
+        , m_ds(ds)
+        , m_splits(ds, splits){
+            this->switch_dataset.connect(boost::bind(prepare_ds,_1,&m_splits,_2,_3));
+        }
+        void generate_and_test_models(){
+            unsigned int fa=16,fb=16,bs=64;
+            static const int n_layers      = 2;
+            static const int layer_size[]  = {fa*fb, fa*fb};
+            auto_enc_stack* aes = new auto_enc_stack(
+                    bs,
+                    m_ds.train_data.shape(1), 
+                    n_layers, layer_size, 
+                    m_ds.channels==1, 0.00f, 1.000000f);
+            pretrained_mlp* mlp = new pretrained_mlp(
+                    aes->get(n_layers-1).m_enc, 10, true);
+            pretrained_mlp_trainer pmlpt(aes, mlp);  // takes ownership of aes and mlp
+            m_io_service.post(boost::bind(&crossvalidation<pretrained_mlp_trainer>::evaluate, this, boost::ref(pmlpt)));
+            evaluate(pmlpt);
+        }
+};
+
 int main(int argc, char **argv)
 {
     cuv::initialize_mersenne_twister_seeds();
+    std::cout << "main: on device "<<cuv::getCurrentDevice()<<std::endl;
 
     mnist_dataset ds_all("/home/local/datasets/MNIST");
     global_min_max_normalize<> normalizer(0,1); // 0,1
@@ -304,67 +413,15 @@ int main(int argc, char **argv)
     //amat_dataset ds_all("/home/local/datasets/bengio/mnist.zip","mnist_train.amat", "mnist_test.amat");
     //global_min_max_normalize<> normalizer(0,1); // 0,1
     splitter ds_split(ds_all,3);
-    dataset& ds  = ds_split[0];
+    dataset ds  = ds_split[0];
     
     normalizer.fit_transform(ds.train_data);
     normalizer.transform(ds.val_data);
 
-    unsigned int fa=16,fb=16,bs=64;
-
-    static const int n_layers      = 2;
-    static const int layer_size[]  = {fa*fb, fa*fb};
-
-    ////////////////////////////////////////////////////////////
-    //             un-supervised pre-training
-    ////////////////////////////////////////////////////////////
-    auto_enc_stack aes(bs,
-            ds.train_data.shape(1), 
-            n_layers, layer_size, 
-            ds.channels==1, 0.00f, 1.000000f); // CIFAR: lambda=0.05, MNIST lambda=1.0
-    for(int l=0;l<n_layers;l++){
-        std::vector<Op*> params;
-        params += aes.get(l).m_weights.get(), aes.get(l).m_bias_y.get(), aes.get(l).m_bias_h.get();
-
-        Op::value_type alldata = ds.train_data;
-        gradient_descent gd(aes.get(l).m_loss,0,params,0.1f,0.00000f);
-        gd.before_epoch.connect(boost::bind(&auto_encoder::reset_loss, &aes.get(l)));
-        gd.after_epoch.connect(boost::bind(&auto_encoder::print_loss, &aes.get(l), _1));
-        gd.before_batch.connect(boost::bind(load_batch_ae,&aes.get(0),&alldata,bs,_2));
-        gd.after_batch.connect(boost::bind(&auto_encoder::acc_loss,&aes.get(l)));
-        gd.minibatch_learning(200, ds.train_data.shape(0)/bs);
-    }
-
-    ////////////////////////////////////////////////////////////
-    //                 supervised training
-    ////////////////////////////////////////////////////////////
-    pretrained_mlp mlp(aes.get(n_layers-1).m_enc, 10, true);
-
-    // derive w.r.t. /all/ parameters
-    std::vector<Op*> params;
-    for(int l=0;l<n_layers;l++)
-        params += aes.get(l).m_weights.get(), aes.get(l).m_bias_y.get(), aes.get(l).m_bias_h.get();
-    params += mlp.m_weights.get(), mlp.m_bias.get();
-
-    // convert labels to float
-    Op::value_type alldata   = ds.train_data;
-    cuv::tensor<float,cuv::host_memory_space> alllabels_h(ds.train_labels.shape());
-    cuv::convert(alllabels_h, ds.train_labels);
-    Op::value_type alllabels = alllabels_h;
-
-    gradient_descent gd(mlp.m_loss,0,params,0.1f,0.00000f);
-    gd.before_epoch.connect(boost::bind(&pretrained_mlp::reset_loss, &mlp));
-    gd.after_epoch.connect(boost::bind(&pretrained_mlp::print_loss, &mlp, _1));
-    gd.before_batch.connect(boost::bind(load_batch_mlp,&aes.get(0),&mlp,&alldata,&alllabels,bs,_2));
-    gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_loss,&mlp));
-    gd.minibatch_learning(300, ds.train_data.shape(0)/bs);
+    pmlp_cv trainer(ds, 3);
+    float best_result = trainer.run();
+    std::cout << "best result: "<<best_result<<std::endl;
     
-    // show the resulting filters
-    //unsigned int n_rec = (bs>0) ? sqrt(bs) : 6;
-    //cuv::libs::cimg::show(arrange_filters(ae.m_reconstruct->cdata(),'n', n_rec,n_rec, ds.image_size,ds.channels), "input");
-    auto wvis = arrange_filters(aes.get(0).m_weights->data(), 't', fa, fb, ds.image_size,ds.channels,false);
-    cuv::libs::cimg::save(wvis, "contractive-weights.png");
-    wvis      = arrange_filters(aes.get(0).m_weights->data(), 't', fa, fb, ds.image_size,ds.channels,true);
-    cuv::libs::cimg::save(wvis, "contractive-weights-sepn.png");
     return 0;
 }
 

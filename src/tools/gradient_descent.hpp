@@ -2,6 +2,8 @@
 #     define __GRADIENT_DESCENT_HPP__
 
 #include<boost/signals.hpp>
+#include<boost/bind.hpp>
+#include<boost/limits.hpp>
 #include<cuvnet/op.hpp>
 #include<cuvnet/op_utils.hpp>
 #include<cuv/tensor_ops/tensor_ops.hpp>
@@ -10,6 +12,7 @@
 namespace cuvnet
 {
 
+    class no_improvement_stop : public std::exception {};
     /**
      * does vanilla gradient descent: a loop over epochs and a weight update with a
      * learning rate/weight decay afterwards
@@ -23,7 +26,7 @@ namespace cuvnet
             float            m_learnrate; ///< learnrate for weight updates
             float            m_weightdecay; ///< weight decay for weight updates
         public:
-            /// triggered before an epoch starts
+            /// triggered before an epoch starts. Should return number of batches!
             boost::signal<void(unsigned int)> before_epoch;
             /// triggered after an epoch finished
             boost::signal<void(unsigned int)> after_epoch;
@@ -31,6 +34,15 @@ namespace cuvnet
             boost::signal<void(unsigned int,unsigned int)> before_batch;
             /// triggered after executing a batch
             boost::signal<void(unsigned int,unsigned int)> after_batch;
+
+            /// triggered when starting a validation epoch. Should return number of batches in validation set
+            boost::signal<void(void)> before_validation_epoch;
+            /// triggered after finishing a validation epoch
+            boost::signal<void(void)> after_validation_epoch;
+
+            /// should return current number of batches
+            boost::signal<unsigned int(void)> current_batch_num;
+
 
             /**
              * constructor
@@ -42,12 +54,45 @@ namespace cuvnet
              * @param weightdecay the weight decay for weight updates
              */
             gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.1f, float weightdecay=0.0f)
-                :m_swipe(*op, result, params), m_params(params), m_learnrate(learnrate), m_weightdecay(weightdecay){ }
+                :m_swipe(*op, result, params), m_params(params), m_learnrate(learnrate), m_weightdecay(weightdecay)
+                ,m_best_perf(std::numeric_limits<float>::infinity()), m_failed_improvement_rounds(0)
+            { }
 
             /**
              * (virtual) destructor
              */
             virtual ~gradient_descent(){}
+
+            boost::function<float(void)> m_performance;
+            float                        m_best_perf;
+            unsigned int                 m_failed_improvement_rounds;
+            void early_stop_test(unsigned int every, float thresh, unsigned int maxfails, unsigned int current_epoch){
+                if(current_epoch%every!=0)
+                    return;
+                validation_epoch();
+                float perf = m_performance();
+                std::cout << "   validation: "<< perf<<std::endl;
+                if(perf <= m_best_perf-thresh){ // improve by at least thresh
+                    m_best_perf = perf;
+                    m_failed_improvement_rounds = 0;
+                }else{
+                    m_failed_improvement_rounds++;
+                }
+                if(m_failed_improvement_rounds>maxfails){
+                    throw no_improvement_stop();
+                }
+            }
+            /**
+             * set up early stopping
+             *
+             * @param performance a function which determines how good we are after an epoch
+             * @param performance
+             */
+            template<class T>
+            void setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails){
+                m_performance = performance;
+                after_epoch.connect(boost::bind(&gradient_descent::early_stop_test,this,every_nth_epoch, thresh, maxfails, _1));
+            }
 
             /**
              * this function should update all weights using backpropagated deltas
@@ -56,6 +101,19 @@ namespace cuvnet
                 for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++){
                     cuv::learn_step_weight_decay( ((Input*)*it)->data(), (*it)->result()->delta.cdata(), -m_learnrate, m_weightdecay);
                 }
+            }
+            /**
+             * runs a validation epoch
+             */
+            void validation_epoch(){
+                before_validation_epoch();
+                unsigned int n_batches = current_batch_num();
+                for (unsigned int  batch = 0; batch < n_batches; ++batch) {
+                    before_batch(0, batch);
+                    m_swipe.fprop(); // fprop /only/
+                    after_batch(0, batch);
+                }
+                after_validation_epoch();
             }
             /**
              * Does minibatch training.
@@ -68,25 +126,32 @@ namespace cuvnet
              * @param update_every        after how many batches to update weights (set to 0 for `once per epoch'). Defaults to 1.
              * @param randomize           whether to randomize batches (default: true)
              */
-            void minibatch_learning(const unsigned int n_epochs, const unsigned int n_batches_per_epoch, unsigned int update_every=1, bool randomize=true){
-                if(update_every==0)
-                    update_every = n_batches_per_epoch;
-                std::vector<unsigned int> batchids(n_batches_per_epoch);
-                for(unsigned int i=0;i<batchids;i++)batchids[i]=i;
-                for (unsigned int epoch = 0; epoch < n_epochs; ++epoch) {
-                    before_epoch(epoch);
-                    if(randomize)
-                        std::random_shuffle(batchids.begin(),batchids.end());
-                    for (unsigned int  batch = 0; batch < n_batches_per_epoch; ++batch) {
-                        before_batch(epoch, batch);
-                        m_swipe.fprop();
-                        m_swipe.bprop();
-                        if((batch+1)%update_every == 0)
-                            // TODO: accumulation does not work, currently delta is always overwritten!
-                            update_weights(); 
-                        after_batch(epoch, batchids[batch]);
+            void minibatch_learning(const unsigned int n_epochs, unsigned int update_every=1, bool randomize=true){
+                try{
+                    std::vector<unsigned int> batchids;
+                    for (unsigned int epoch = 0; epoch < n_epochs; ++epoch) {
+                        unsigned int n_batches =  current_batch_num();
+                        if(update_every==0)
+                            update_every = n_batches;
+                        if(n_batches!=batchids.size())
+                            for(unsigned int i=0;i<n_batches;i++)
+                                batchids.push_back(i);
+                        if(randomize)
+                            std::random_shuffle(batchids.begin(),batchids.end());
+                        before_epoch(epoch);
+                        for (unsigned int  batch = 0; batch < n_batches; ++batch) {
+                            before_batch(epoch, batchids[batch]);
+                            m_swipe.fprop();
+                            m_swipe.bprop();
+                            if((batch+1)%update_every == 0)
+                                // TODO: accumulation does not work, currently delta is always overwritten!
+                                update_weights(); 
+                            after_batch(epoch, batchids[batch]);
+                        }
+                        after_epoch(epoch);
                     }
-                    after_epoch(epoch);
+                }catch(no_improvement_stop){
+                    ; // done.
                 }
             }
             /**
