@@ -36,12 +36,18 @@ namespace cuvnet
              * constructor
              * 
              * @param op     the function to be minimized
+             * @param result which result of op to minimize
              * @param params the parameters w.r.t. which we should optimize
              * @param learnrate the learnrate for weight updates
              * @param weightdecay the weight decay for weight updates
              */
-            gradient_descent(Op::op_ptr op, const paramvec_t& params, float learnrate=0.1f, float weightdecay=0.0f)
-                :m_swipe(*op, true, params), m_params(params), m_learnrate(learnrate), m_weightdecay(weightdecay){ }
+            gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.1f, float weightdecay=0.0f)
+                :m_swipe(*op, result, params), m_params(params), m_learnrate(learnrate), m_weightdecay(weightdecay){ }
+
+            /**
+             * (virtual) destructor
+             */
+            virtual ~gradient_descent(){}
 
             /**
              * this function should update all weights using backpropagated deltas
@@ -59,16 +65,26 @@ namespace cuvnet
              *
              * @param n_epochs            how many epochs to run
              * @param n_batches_per_epoch how many batches there are in one epoch
+             * @param update_every        after how many batches to update weights (set to 0 for `once per epoch'). Defaults to 1.
+             * @param randomize           whether to randomize batches (default: true)
              */
-            void minibatch_learning(const unsigned int n_epochs, const unsigned int n_batches_per_epoch){
+            void minibatch_learning(const unsigned int n_epochs, const unsigned int n_batches_per_epoch, unsigned int update_every=1, bool randomize=true){
+                if(update_every==0)
+                    update_every = n_batches_per_epoch;
+                std::vector<unsigned int> batchids(n_batches_per_epoch);
+                for(unsigned int i=0;i<batchids;i++)batchids[i]=i;
                 for (unsigned int epoch = 0; epoch < n_epochs; ++epoch) {
                     before_epoch(epoch);
+                    if(randomize)
+                        std::random_shuffle(batchids.begin(),batchids.end());
                     for (unsigned int  batch = 0; batch < n_batches_per_epoch; ++batch) {
                         before_batch(epoch, batch);
                         m_swipe.fprop();
                         m_swipe.bprop();
-                        update_weights();
-                        after_batch(epoch, batch);
+                        if((batch+1)%update_every == 0)
+                            // TODO: accumulation does not work, currently delta is always overwritten!
+                            update_weights(); 
+                        after_batch(epoch, batchids[batch]);
                     }
                     after_epoch(epoch);
                 }
@@ -108,12 +124,13 @@ namespace cuvnet
              * constructor
              *
              * @param op the function we want to minimize
+             * @param result which result of op to minimize
              * @param params the parameters w.r.t. which we want to optimize op
              * @param learnrate the initial learningrate
              * @param weightdecay weight decay for weight updates
              */
-        rprop_gradient_descent(Op::op_ptr op, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f)
-            :gradient_descent(op, params, learnrate, weightdecay), m_learnrates(params.size()), m_old_dw(params.size())
+        rprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f)
+            :gradient_descent(op, result, params, learnrate, weightdecay), m_learnrates(params.size()), m_old_dw(params.size())
         { 
             unsigned int i=0;
             for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
