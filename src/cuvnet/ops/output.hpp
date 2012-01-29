@@ -16,14 +16,14 @@ namespace cuvnet
 
             public:
                 Output(){} /// for serialization
-                Output(result_t& p0):Op(1,0){ 
+                Output(result_t& p0):Op(1,1){ 
                     add_param(0,p0);
                 }
                 void fprop(){
                     // simply do not reset the m_params[0] to keep the value
                 }
                 void bprop(){}
-                void _determine_shapes(){ }
+                //void _determine_shapes(){ }
                 //value_type&       data()      { return m_data; }
                 const value_type& cdata() const{ return m_params[0]->value.cdata(); }
             private:
