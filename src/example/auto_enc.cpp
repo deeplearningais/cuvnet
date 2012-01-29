@@ -108,13 +108,13 @@ int main(int argc, char **argv)
     unsigned int fa=16,fb=16,bs=64;
     auto_encoder ae(bs==0?ds.val_data.shape(0):bs,
             ds.train_data.shape(1), fa*fb, 
-            ds.channels==1, 0.00f, 0.050000f); // CIFAR: lambda=0.05, MNIST lambda=1.0
+            ds.channels==1, 0.00f, 1.000000f); // CIFAR: lambda=0.05, MNIST lambda=1.0
 
     std::vector<Op*> params;
     params += ae.m_weights.get(), ae.m_bias_y.get(), ae.m_bias_h.get();
 
     Op::value_type alldata = bs==0 ? ds.val_data : ds.train_data;
-    gradient_descent gd(ae.m_loss,params,0.1f,0.00000f);
+    gradient_descent gd(ae.m_loss,0,params,0.1f,0.00000f);
     gd.after_epoch.connect(boost::bind(&auto_encoder::print_loss, &ae, _1));
     gd.before_batch.connect(boost::bind(load_batch,&ae,&alldata,bs,_2));
     if(bs==0){
