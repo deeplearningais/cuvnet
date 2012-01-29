@@ -38,6 +38,8 @@ namespace cuvnet
 
             train_labels.resize(cuv::extents[60000][10]);
             test_labels.resize(cuv::extents[10000][10]);
+            train_labels = 0.f;
+            test_labels = 0.f;
             for (unsigned int i = 0; i < trainl.size(); ++i){
                 train_labels(i, trainl[i]) = 1;
             }
