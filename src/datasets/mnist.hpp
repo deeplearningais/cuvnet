@@ -47,10 +47,8 @@ namespace cuvnet
                 test_labels(i, testl[i]) = 1;
             }
 
-            val_data   = train_data[cuv::indices[cuv::index_range(50000,60000)][cuv::index_range()]];
-            train_data = train_data[cuv::indices[cuv::index_range(0,50000)][cuv::index_range()]];
-            val_labels   = train_labels[cuv::indices[cuv::index_range(50000,60000)][cuv::index_range()]];
-            train_labels = train_labels[cuv::indices[cuv::index_range(0,50000)][cuv::index_range()]];
+            train_data = train_data[cuv::indices[cuv::index_range(0,5000)][cuv::index_range()]];
+            train_labels = train_labels[cuv::indices[cuv::index_range(0,5000)][cuv::index_range()]];
 
             channels = 1;
             image_size = 28;
