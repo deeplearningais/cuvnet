@@ -16,6 +16,7 @@ namespace cuvnet
             private:
                 bool m_row_vec;
             public:
+                SumMatToVec() :   Op(1,1){} // for serialization
                 SumMatToVec(result_t& mat, bool row)
                     :   Op(1,1)
                       , m_row_vec(row)

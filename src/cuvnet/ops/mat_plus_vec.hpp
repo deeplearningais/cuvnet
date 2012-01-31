@@ -16,6 +16,7 @@ namespace cuvnet
             private:
                 bool m_row_vec;
             public:
+                MatPlusVec():Op(2,1){} // for serialization
                 MatPlusVec(result_t& mat, result_t& vec, bool row)
                     :   Op(2,1)
                       , m_row_vec(row)

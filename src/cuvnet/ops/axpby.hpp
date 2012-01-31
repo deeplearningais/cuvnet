@@ -21,7 +21,7 @@ namespace cuvnet
                 float m_fact_a, m_fact_b;
 
             public:
-                Axpby(){} /// for serialization
+                Axpby():Op(2,1){} /// for serialization
                 Axpby(result_t& p0, result_t& p1, float fact_a=1.f, float fact_b=1.f)
                     :Op(2,1)
                      , m_fact_a(fact_a)

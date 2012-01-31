@@ -79,6 +79,7 @@ namespace cuvnet
             private:
                 float m_scalar;
             public:
+                SubtractFromScalar() :   Op(1,1){}
                 SubtractFromScalar(result_t& mat, float f)
                     :   Op(1,1)
                         , m_scalar(f)

@@ -32,6 +32,7 @@ namespace cuvnet
                 unsigned int m_nGroups;
                 unsigned int m_partial_sum;
             public:
+                Convolve() :Op(2,1){} // for serialization
                 Convolve(result_t& images, result_t& filters)
                     :Op(2,1)
                     ,m_nGroups(1)
@@ -169,6 +170,7 @@ namespace cuvnet
                 unsigned int m_subsx, m_stridex;
                 value_ptr m_result;
             public:
+                LocalPooling() :Op(1,1){} // for serialization
                 LocalPooling(result_t& images, cuv::alex_conv::pool_type pt)
                     :Op(1,1),
                     m_pooltype(pt),
@@ -294,6 +296,7 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
             private:
             public:
+                ReorderForConv() :Op(1,1){} // for serialization
                 ReorderForConv(result_t& images)
                     :Op(1,1)
                 {
