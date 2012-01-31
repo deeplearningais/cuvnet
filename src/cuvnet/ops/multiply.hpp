@@ -2,7 +2,6 @@
 #     define __OP_MULTIPLY_HPP__
 
 #include <cuvnet/op.hpp>
-#include <cuvnet/derivative_test.hpp>
 
 namespace cuvnet
 {
