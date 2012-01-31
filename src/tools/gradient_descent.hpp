@@ -99,6 +99,7 @@ namespace cuvnet
              */
             virtual void update_weights(){
                 for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++){
+                    cuvAssert(&((*it)->result()->delta.cdata()));
                     cuv::learn_step_weight_decay( ((Input*)*it)->data(), (*it)->result()->delta.cdata(), -m_learnrate, m_weightdecay);
                 }
             }
