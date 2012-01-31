@@ -21,11 +21,12 @@ namespace cuvnet
             }
             dataset operator[](unsigned int idx){ 
                 using namespace cuv;
+                cuvAssert(idx<m_n_splits);
                 unsigned int n_examples = m_ds.train_data.shape(0);
-                unsigned int step = ceil(n_examples/(float)m_n_splits);
-                unsigned int start = step*idx;
-                unsigned int end   = std::min(n_examples,start+step);
-                unsigned int n_left = n_examples - (end-start);
+                unsigned int step       = ceil(n_examples/(float)m_n_splits);
+                unsigned int start      = step*idx;
+                unsigned int end        = std::min(n_examples,start+step);
+                unsigned int n_left     = n_examples - (end-start);
                 dataset dst;
                 dst.channels   = m_ds.channels;
                 dst.image_size = m_ds.image_size;
@@ -59,13 +60,13 @@ namespace cuvnet
                         after_dst = after_src;
                     }
                     if(m_ds.train_labels.ndim()==1){
-                        tensor_view<int,host_memory_space> before_src(indices[index_range(end,n_examples)], m_ds.train_labels);
-                        tensor_view<int,host_memory_space> before_dst(indices[index_range(start,n_left)], dst.train_labels);
-                        before_dst = before_src;
+                        tensor_view<int,host_memory_space> after_src(indices[index_range(end,n_examples)], m_ds.train_labels);
+                        tensor_view<int,host_memory_space> after_dst(indices[index_range(start,n_left)], dst.train_labels);
+                        after_dst = after_src;
                     } else{
-                        tensor_view<int,host_memory_space> before_src(indices[index_range(end,n_examples)][index_range()], m_ds.train_labels);
-                        tensor_view<int,host_memory_space> before_dst(indices[index_range(start,n_left)][index_range()], dst.train_labels);
-                        before_dst = before_src;
+                        tensor_view<int,host_memory_space> after_src(indices[index_range(end,n_examples)][index_range()], m_ds.train_labels);
+                        tensor_view<int,host_memory_space> after_dst(indices[index_range(start,n_left)][index_range()], dst.train_labels);
+                        after_dst = after_src;
                     }
                 }
                 return dst;
