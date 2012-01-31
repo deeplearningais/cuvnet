@@ -34,7 +34,7 @@ namespace cuvnet
                  */
                 Op();
                 Op(unsigned int n_params, unsigned int n_results);
-                ~Op();
+                virtual ~Op();
 
                 Op& detach_from_params();
                 Op& detach_from_results();
