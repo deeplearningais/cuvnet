@@ -12,28 +12,11 @@
 #include <boost/serialization/export.hpp>
 #include <cuv/basics/io.hpp>
 
-#include <cuvnet/op.hpp>
-#include <cuvnet/ops/axpby.hpp>
-#include <cuvnet/ops/identity.hpp>
-#include <cuvnet/ops/input.hpp>
-#include <cuvnet/ops/mat_plus_vec.hpp>
-#include <cuvnet/ops/output.hpp>
-#include <cuvnet/ops/pow.hpp>
-#include <cuvnet/ops/prod.hpp>
-#include <cuvnet/ops/tanh.hpp>
-
+#include <cuvnet/ops.hpp>
+#include <cuvnet/op_io.hpp>
 
 using namespace cuvnet;
 using std::printf;
-
-BOOST_CLASS_EXPORT_GUID(Op,       "Op");
-BOOST_CLASS_EXPORT_GUID(Input,    "Input");
-BOOST_CLASS_EXPORT_GUID(Output,   "Output");
-BOOST_CLASS_EXPORT_GUID(Identity, "Identity");
-BOOST_CLASS_EXPORT_GUID(Pow,      "Pow");
-BOOST_CLASS_EXPORT_GUID(Tanh,     "Tanh");
-
-
 
 TEST(op_test,io){
 	typedef boost::shared_ptr<Op> ptr_t;
@@ -52,6 +35,26 @@ TEST(op_test,io){
 	bar::binary_iarchive ia(f);
 	ptr_t id;
 	ia >> id;
+	EXPECT_FALSE(!id);
+	EXPECT_FALSE(!boost::dynamic_pointer_cast<Identity>(id));
+	EXPECT_EQ(id->param()->param_uses.size(),1);
+	ptr_t inp = id->param()->use(0)->get_op();
+	EXPECT_FALSE(!boost::dynamic_pointer_cast<Input>(inp));
+}
+
+TEST(op_test,strio){
+	typedef boost::shared_ptr<Op> ptr_t;
+	namespace bar= boost::archive;
+
+    std::string s;
+	{
+		ptr_t inp = boost::make_shared<Input>(cuv::extents[10][20]);
+		ptr_t id  = boost::make_shared<Identity>(inp->result());
+
+        s = op2str(id);
+	}
+
+    ptr_t id = str2op(s);
 	EXPECT_FALSE(!id);
 	EXPECT_FALSE(!boost::dynamic_pointer_cast<Identity>(id));
 	EXPECT_EQ(id->param()->param_uses.size(),1);
