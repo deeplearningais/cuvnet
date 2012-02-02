@@ -299,7 +299,7 @@ struct pretrained_mlp_trainer{
      * @param mlp the mlp where params should be learned
      */
     pretrained_mlp_trainer(auto_enc_stack* aes, pretrained_mlp* mlp, bool pretrain)
-        :m_mlp(mlp), m_aes(aes), m_bs(64), m_in_validation_mode(false), m_pretraining(pretrain){}
+        :m_mlp(mlp), m_aes(aes), m_bs(32), m_in_validation_mode(false), m_pretraining(pretrain){}
     void before_validation_epoch(){ m_in_validation_mode = true; }
     void after_validation_epoch(){ m_in_validation_mode = false; }
 
@@ -493,7 +493,7 @@ class pmlp_cv
             this->switch_dataset.connect(boost::bind(prepare_ds,_1,&m_splits,_2,_3));
         }
         void generate_and_test_models(){
-            unsigned int bs=64;
+            unsigned int bs=32;
 #if 0
                 float lambda = .1;
                 unsigned int n_layers = 2;
@@ -513,7 +513,7 @@ class pmlp_cv
                 float lambda = drand48();
                 unsigned int n_layers = 1+4*drand48();
                 bool pretrain = drand48()>0.2f;
-                int fn = 4 + drand48()*10;
+                int fn = 18 + drand48()*16;
                 int layer_size[]  = {fn*fn, fn*fn, fn*fn, fn*fn};
                 auto_enc_stack* aes = new auto_enc_stack( bs,
                         m_ds.train_data.shape(1), 
