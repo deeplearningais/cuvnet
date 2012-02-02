@@ -160,13 +160,13 @@ struct auto_enc_stack{
         m_aes.push_back(auto_encoder(bs  ,inp1,layer_sizes[0], binary,noise,lambda));
         // TODO: do not use noise in 1st layer when training 2nd layer
         std::ostringstream ss;
-        ss<<"AES: bs="<<bs<<" inp1="<<inp1<<" layers={"<<layer_sizes[0];
+        ss<<"{\"AES\": { \"bs\":"<<bs<<", \"inp1\":"<<inp1<<", \"n_layers\":"<<n_layers<<", \"layers\": [" <<layer_sizes[0];
         for(int i=1;i<n_layers;i++){
             op_ptr out = m_aes.back().m_enc;
             m_aes.push_back(auto_encoder(i,out,layer_sizes[i],true,noise,lambda));
-            ss<<" "<<layer_sizes[i];
+            ss<<", "<<layer_sizes[i];
         }
-        ss<<"} binary="<<binary<<" noise="<<noise<<" lambda="<<lambda;
+        ss<<"], \"binary\":"<<binary<<", \"noise\":"<<noise<<", \"lambda\":"<<lambda<<" }}";
         m_params = ss.str();
     }
     std::string m_params;
@@ -245,7 +245,7 @@ struct pretrained_mlp{
         m_output = mat_plus_vec( prod( m_input, m_weights) ,m_bias,1);
 
         std::ostringstream ss;
-        ss << "MLP : bs="<<bs<<" inp1="<<inp1<<" softmax="<<softmax;
+        ss << "{ \"MLP\" : { \"bs\" : "<<bs<<",  \"inp1\":"<<inp1<<", \"softmax\":"<<softmax <<" }}";
 
         // create a sink for outputs so we can determine classification error
         m_out_sink = output(m_output); 
@@ -271,11 +271,11 @@ struct pretrained_mlp{
     }
 };
 std::ostream& operator<<(std::ostream& o, const auto_enc_stack& aes){
-    o << aes.m_params<<"; ";
+    o << aes.m_params;
     return o;
 }
 std::ostream& operator<<(std::ostream& o, const pretrained_mlp& mlp){
-    o << mlp.m_params<<"; ";
+    o << mlp.m_params;
     return o;
 }
 
@@ -419,7 +419,7 @@ struct pretrained_mlp_trainer{
     }
     std::string desc(){
         std::ostringstream ss;
-        ss << *m_aes << *m_mlp <<" Trainer: pretrain="<<m_pretraining;
+        ss << *m_aes <<", "<< *m_mlp <<", {\"trainer\": { \"pretrain\":"<<m_pretraining << "}}";
         return ss.str();
     }
     void reset_params(){
