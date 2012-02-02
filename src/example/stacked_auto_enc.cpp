@@ -530,11 +530,12 @@ class pmlp_cv
 
 int main(int argc, char **argv)
 {
+    srand48(time(NULL));
     cuvAssert(argc==4);
     cudaSetDevice(boost::lexical_cast<int>(argv[1]));
     unsigned int ndev = boost::lexical_cast<int>(argv[2]);
     unsigned int startdev = boost::lexical_cast<int>(argv[3]);
-    cuv::initialize_mersenne_twister_seeds();
+    cuv::initialize_mersenne_twister_seeds(time(NULL));
     std::cout << "main: on device "<<cuv::getCurrentDevice()<<std::endl;
 
     mnist_dataset ds_all("/home/local/datasets/MNIST");

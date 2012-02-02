@@ -24,7 +24,7 @@ namespace cuvnet
             cuvSafeCall(cudaThreadExit());
             std::cout << "switching to device "<<m_dev<<std::endl;
             cuv::initCUDA(m_dev);
-            cuv::initialize_mersenne_twister_seeds();
+            cuv::initialize_mersenne_twister_seeds(time(NULL)+m_dev);
             m_io_service.run(); 
         }
     };
