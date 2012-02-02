@@ -334,8 +334,8 @@ struct pretrained_mlp_trainer{
             auto_encoder* ae, pretrained_mlp* mlp, unsigned int batch){
         Op::value_type& data = m_in_validation_mode ? m_current_vdata : m_current_data;
         Op::value_type& labl = m_in_validation_mode ? m_current_vlabels : m_current_labels;
-        ae->input()   = data[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]].copy();
-        mlp->target() = labl[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]].copy();
+        ae->input()   = data[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
+        mlp->target() = labl[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
     }
 
     /**
@@ -376,7 +376,7 @@ struct pretrained_mlp_trainer{
             if(m_current_vdata.ptr()){
                 // we can only use early stopping when validation data is given
                 //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
-                gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.0001f, 2);
+                gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.1f, 2);
                 gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::before_validation_epoch,this));
                 gd.after_validation_epoch.connect( boost::bind(&pretrained_mlp_trainer::after_validation_epoch,this));
                 gd.minibatch_learning(10000);
@@ -448,18 +448,18 @@ void prepare_ds(pretrained_mlp_trainer* pmt, splitter* splits, unsigned int spli
             labels = splits->get_ds().train_labels;
             break;
         case crossvalidation<pretrained_mlp_trainer>::CM_TRAIN:
-            data   = ds.train_data.copy();
-            labels = ds.train_labels.copy();
-            vdata   = ds.val_data.copy();      // for early stopping!
-            vlabels = ds.val_labels.copy();    // for early stopping!
+            data   = ds.train_data;
+            labels = ds.train_labels;
+            vdata   = ds.val_data;      // for early stopping!
+            vlabels = ds.val_labels;    // for early stopping!
             break;
         case crossvalidation<pretrained_mlp_trainer>::CM_VALID:
-            data   = ds.val_data.copy();
-            labels = ds.val_labels.copy();
+            data   = ds.val_data;
+            labels = ds.val_labels;
             break;
         case crossvalidation<pretrained_mlp_trainer>::CM_TEST:
-            data   = ds.test_data.copy();
-            labels = ds.test_labels.copy();
+            data   = ds.test_data;
+            labels = ds.test_labels;
             break;
     };
 
