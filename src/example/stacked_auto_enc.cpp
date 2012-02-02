@@ -403,7 +403,7 @@ struct pretrained_mlp_trainer{
 
         if(m_current_vdata.ptr()){
             //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
-            gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, 0.0001f, 2);
+            gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, 0.001f, 2);
             gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::before_validation_epoch,this));
             gd.after_validation_epoch.connect( boost::bind(&pretrained_mlp_trainer::after_validation_epoch,this));
             gd.minibatch_learning(10000);
