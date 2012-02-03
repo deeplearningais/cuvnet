@@ -293,13 +293,15 @@ struct pretrained_mlp_trainer{
     unsigned int m_bs;
     bool m_in_validation_mode; 
     bool m_pretraining; ///< whether we want pretraining
+    float m_lr_ae; ///< learning rate of AE
+    float m_lr_mlp; ///< learning rate of MLP
 
     /** 
      * constructor
      * @param mlp the mlp where params should be learned
      */
-    pretrained_mlp_trainer(auto_enc_stack* aes, pretrained_mlp* mlp, bool pretrain)
-        :m_mlp(mlp), m_aes(aes), m_bs(32), m_in_validation_mode(false), m_pretraining(pretrain){}
+    pretrained_mlp_trainer(auto_enc_stack* aes, pretrained_mlp* mlp, bool pretrain, float lr_ae, float lr_mlp)
+        :m_mlp(mlp), m_aes(aes), m_bs(32), m_in_validation_mode(false), m_pretraining(pretrain), m_lr_ae(lr_ae), m_lr_mlp(lr_mlp){}
     void before_validation_epoch(){ m_in_validation_mode = true; }
     void after_validation_epoch(){ m_in_validation_mode = false; }
 
@@ -366,7 +368,7 @@ struct pretrained_mlp_trainer{
             std::vector<Op*> params;
             params += m_aes->get(l).m_weights.get(), m_aes->get(l).m_bias_y.get(), m_aes->get(l).m_bias_h.get();
 
-            gradient_descent gd(m_aes->get(l).m_loss,0,params,0.1f,0.00000f);
+            gradient_descent gd(m_aes->get(l).m_loss,0,params,m_lr_ae,0.00000f);
             gd.before_epoch.connect(boost::bind(&auto_encoder::reset_loss, &m_aes->get(l)));
             gd.after_epoch.connect(boost::bind(&auto_encoder::print_loss, &m_aes->get(l), _1));
             gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_ae,this,&m_aes->get(0),_2));
@@ -393,7 +395,7 @@ struct pretrained_mlp_trainer{
             params += m_aes->get(l).m_weights.get(), m_aes->get(l).m_bias_h.get(); 
         params += m_mlp->m_weights.get(), m_mlp->m_bias.get();
 
-        gradient_descent gd(m_mlp->m_loss,0,params,0.1f,0.00000f);
+        gradient_descent gd(m_mlp->m_loss,0,params,m_lr_mlp,0.00000f);
         gd.before_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
         gd.after_epoch.connect(boost::bind(&pretrained_mlp::print_loss,m_mlp.get(), _1));
         gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_mlp,this,&m_aes->get(0),m_mlp.get(),_2));
@@ -419,7 +421,7 @@ struct pretrained_mlp_trainer{
     }
     std::string desc(){
         std::ostringstream ss;
-        ss << *m_aes <<", "<< *m_mlp <<", {\"trainer\": { \"pretrain\":"<<m_pretraining << "}}";
+        ss << *m_aes <<", "<< *m_mlp <<", {\"trainer\":{\"pretrain\":"<<m_pretraining << ",\"lr_ae\":"<<m_lr_ae<<",\"lr_mlp\":"<<m_lr_mlp<<"}}";
         return ss.str();
     }
     void reset_params(){
@@ -431,7 +433,7 @@ struct pretrained_mlp_trainer{
     friend class boost::serialization::access;
     template<class Archive>
     void serialize(Archive& ar, const unsigned int version){
-        ar &  m_mlp & m_aes & m_bs & m_in_validation_mode & m_pretraining;
+        ar &  m_mlp & m_aes & m_bs & m_in_validation_mode & m_pretraining & m_lr_ae & m_lr_mlp;
     }
 
 };
@@ -511,17 +513,19 @@ class pmlp_cv
 #else
             for(unsigned int i=0;i<1000;i++){
                 float lambda = drand48();
-                unsigned int n_layers = 1+4*drand48();
+                unsigned int n_layers = 1+3*drand48();
                 bool pretrain = drand48()>0.2f;
-                int fn = 18 + drand48()*16;
+                int fn = 28 + drand48()*8;
                 int layer_size[]  = {fn*fn, fn*fn, fn*fn, fn*fn};
+                float lr_mlp = 0.01f + drand48()*0.2f;
+                float lr_ae  = 0.01f + drand48()*0.2f;
                 auto_enc_stack* aes = new auto_enc_stack( bs,
                         m_ds.train_data.shape(1), 
                         n_layers, layer_size, 
                         m_ds.channels==1, 0.00f, lambda);
                 pretrained_mlp* mlp = new pretrained_mlp(
                         aes->get(n_layers-1).m_enc, 10, true);
-                pretrained_mlp_trainer pmlpt(aes, mlp,pretrain);  // takes ownership of aes and mlp
+                pretrained_mlp_trainer pmlpt(aes, mlp,pretrain, lr_ae, lr_mlp);  // takes ownership of aes and mlp
                 dispatch(pmlpt);
             }
 #endif
