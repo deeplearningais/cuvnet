@@ -1,38 +1,45 @@
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/serialization/string.hpp>
+#include <boost/serialization/shared_ptr.hpp>
+#include <boost/serialization/weak_ptr.hpp>
+#include <boost/serialization/vector.hpp>
+#include <boost/serialization/export.hpp>
+
 #include "op_io.hpp"
 #include <cuvnet/ops.hpp>
-#include <boost/serialization/export.hpp>
 
 
 using namespace cuvnet;
 using std::printf;
 
 
-//BOOST_CLASS_EXPORT_KEY(Op);
-//BOOST_CLASS_EXPORT_KEY(::cuvnet::detail::op_param<Op::value_type> );
-//BOOST_CLASS_EXPORT_KEY(::cuvnet::detail::op_result<Op::value_type> );
-//BOOST_CLASS_EXPORT_KEY(Input);
-//BOOST_CLASS_EXPORT_KEY(Output);
-//BOOST_CLASS_EXPORT_KEY(Identity);
-//BOOST_CLASS_EXPORT_KEY(Axpby);
-//BOOST_CLASS_EXPORT_KEY(Multiply);
-//BOOST_CLASS_EXPORT_KEY(SubtractFromScalar);
-//BOOST_CLASS_EXPORT_KEY(Log);
-//BOOST_CLASS_EXPORT_KEY(Pow);
-//BOOST_CLASS_EXPORT_KEY(Prod);
-//BOOST_CLASS_EXPORT_KEY(Tanh);
-//BOOST_CLASS_EXPORT_KEY(Logistic);
-//BOOST_CLASS_EXPORT_KEY(NegCrossEntropyOfLogistic);
-//BOOST_CLASS_EXPORT_KEY(Noiser);
-//BOOST_CLASS_EXPORT_KEY(Sum);
-//BOOST_CLASS_EXPORT_KEY(SumMatToVec);
-//BOOST_CLASS_EXPORT_KEY(Mean);
-//BOOST_CLASS_EXPORT_KEY(MatPlusVec);
-//BOOST_CLASS_EXPORT_KEY(Convolve);
-//BOOST_CLASS_EXPORT_KEY(ReorderForConv);
-//BOOST_CLASS_EXPORT_KEY(Flatten);
-//BOOST_CLASS_EXPORT_KEY(Reshape);
-//BOOST_CLASS_EXPORT_KEY(Softmax);
-//BOOST_CLASS_EXPORT_KEY(MultinomialLogisticLoss);
+BOOST_CLASS_EXPORT(Op);
+BOOST_CLASS_EXPORT(::cuvnet::detail::op_param<Op::value_type> );
+BOOST_CLASS_EXPORT(::cuvnet::detail::op_result<Op::value_type> );
+BOOST_CLASS_EXPORT(Input);
+BOOST_CLASS_EXPORT(Output);
+BOOST_CLASS_EXPORT(Identity);
+BOOST_CLASS_EXPORT(Axpby);
+BOOST_CLASS_EXPORT(Multiply);
+BOOST_CLASS_EXPORT(SubtractFromScalar);
+BOOST_CLASS_EXPORT(Log);
+BOOST_CLASS_EXPORT(Pow);
+BOOST_CLASS_EXPORT(Prod);
+BOOST_CLASS_EXPORT(Tanh);
+BOOST_CLASS_EXPORT(Logistic);
+BOOST_CLASS_EXPORT(NegCrossEntropyOfLogistic);
+BOOST_CLASS_EXPORT(Noiser);
+BOOST_CLASS_EXPORT(Sum);
+BOOST_CLASS_EXPORT(SumMatToVec);
+BOOST_CLASS_EXPORT(Mean);
+BOOST_CLASS_EXPORT(MatPlusVec);
+BOOST_CLASS_EXPORT(Convolve);
+BOOST_CLASS_EXPORT(ReorderForConv);
+BOOST_CLASS_EXPORT(Flatten);
+BOOST_CLASS_EXPORT(Reshape);
+BOOST_CLASS_EXPORT(Softmax);
+BOOST_CLASS_EXPORT(MultinomialLogisticLoss);
 
 
 
