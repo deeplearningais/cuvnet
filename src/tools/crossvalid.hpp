@@ -1,10 +1,17 @@
 #ifndef __CROSSVALID_HPP__
 #     define __CROSSVALID_HPP__
 #include <boost/asio.hpp>
-#include <boost/asio/signal_set.hpp>
+//#include <boost/asio/signal_set.hpp>
 #include <boost/thread.hpp>
 #include <boost/limits.hpp>
 #include <boost/bind.hpp>
+
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/serialization/shared_ptr.hpp>
+#include <boost/serialization/weak_ptr.hpp>
+#include <boost/serialization/vector.hpp>
+
 #include <cuv/tools/device_tools.hpp>
 #include <cuv/tools/cuv_general.hpp>
 #include "gradient_descent.hpp"
