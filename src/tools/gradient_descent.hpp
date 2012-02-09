@@ -36,9 +36,9 @@ namespace cuvnet
             boost::signal<void(unsigned int,unsigned int)> after_batch;
 
             /// triggered when starting a validation epoch. Should return number of batches in validation set
-            boost::signal<void(void)> before_validation_epoch;
+            boost::signal<void(unsigned int)> before_validation_epoch;
             /// triggered after finishing a validation epoch
-            boost::signal<void(void)> after_validation_epoch;
+            boost::signal<void(unsigned int)> after_validation_epoch;
 
             /// should return current number of batches
             boost::signal<unsigned int(void)> current_batch_num;
@@ -69,7 +69,7 @@ namespace cuvnet
             void early_stop_test(unsigned int every, float thresh, unsigned int maxfails, unsigned int current_epoch){
                 if(current_epoch%every!=0)
                     return;
-                validation_epoch();
+                validation_epoch(current_epoch);
                 float perf = m_performance();
                 std::cout << "   validation: "<< perf<<std::endl;
                 if(perf <= m_best_perf-thresh){ // improve by at least thresh
@@ -106,15 +106,15 @@ namespace cuvnet
             /**
              * runs a validation epoch
              */
-            void validation_epoch(){
-                before_validation_epoch();
+            void validation_epoch(unsigned int current_epoch){
+                before_validation_epoch(current_epoch);
                 unsigned int n_batches = current_batch_num();
                 for (unsigned int  batch = 0; batch < n_batches; ++batch) {
-                    before_batch(0, batch);
+                    before_batch(current_epoch, batch);
                     m_swipe.fprop(); // fprop /only/
-                    after_batch(0, batch);
+                    after_batch(current_epoch, batch);
                 }
-                after_validation_epoch();
+                after_validation_epoch(current_epoch);
             }
             /**
              * Does minibatch training.
