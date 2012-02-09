@@ -1,5 +1,6 @@
 #ifndef __SPLITTER_HPP__
 #     define __SPLITTER_HPP__
+#include <cmath>
 #include <vector>
 #include "dataset.hpp"
 
@@ -8,22 +9,28 @@ namespace cuvnet
     class splitter 
     {
         private:
-            dataset& m_ds;
+            dataset m_ds;
             unsigned int m_n_splits;
         public:
-            const dataset& get_ds(){ return m_ds; }
+            const dataset& get_ds()const{ return m_ds; }
             unsigned int size()const{return m_n_splits;}
-            splitter(dataset& ds, unsigned int n_splits)
+            splitter() : m_n_splits(0) {}
+            splitter(dataset ds, unsigned int n_splits)
                 :m_ds(ds)
                 ,m_n_splits(n_splits)
             {
                 std::cout << "Splitting training_data into "<<n_splits<<" parts."<<std::endl;
             }
+            void init(dataset ds, unsigned int n_splits){
+                m_ds = ds;
+                m_n_splits = n_splits;
+            }
+			unsigned int n_splits()const{return m_n_splits; }
             dataset operator[](unsigned int idx){ 
                 using namespace cuv;
                 cuvAssert(idx<m_n_splits);
                 unsigned int n_examples = m_ds.train_data.shape(0);
-                unsigned int step       = ceil(n_examples/(float)m_n_splits);
+                unsigned int step       = std::ceil(n_examples/(float)m_n_splits);
                 unsigned int start      = step*idx;
                 unsigned int end        = std::min(n_examples,start+step);
                 unsigned int n_left     = n_examples - (end-start);
