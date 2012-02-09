@@ -73,6 +73,8 @@ namespace cuvnet
         Op::op_ptr reorder_for_conv(Op::op_ptr img) { return boost::make_shared<ReorderForConv>(img->result()); }
     inline
         Op::op_ptr flatten(Op::op_ptr img, unsigned int outdim=1) { return boost::make_shared<Flatten>(img->result(),outdim); }
+    inline
+        Op::op_ptr local_pool(Op::op_ptr img, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(),pt); }
 
     template<std::size_t D>
     inline
