@@ -1,6 +1,7 @@
 #ifndef __CUVNET_MNIST_HPP__
 #     define __CUVNET_MNIST_HPP__
 #include <fstream>
+#include <iostream>
 #include "dataset.hpp"
 
 namespace cuvnet
@@ -8,10 +9,10 @@ namespace cuvnet
     struct mnist_dataset : public dataset{
         mnist_dataset(const std::string& path){
             std::cout << "Reading MNIST dataset..."<<std::flush;
-            std::ifstream ftraind(path + "/train-images.idx3-ubyte",std::ios::in | std::ios::binary); // image data
-            std::ifstream ftrainl(path + "/train-labels.idx1-ubyte",std::ios::in | std::ios::binary); // label data
-            std::ifstream ftestd (path + "/t10k-images.idx3-ubyte",std::ios::in | std::ios::binary); // image data
-            std::ifstream ftestl (path + "/t10k-labels.idx1-ubyte",std::ios::in | std::ios::binary); // label data
+            std::ifstream ftraind((path + "/train-images.idx3-ubyte").c_str(),std::ios::in | std::ios::binary); // image data
+            std::ifstream ftrainl((path + "/train-labels.idx1-ubyte").c_str(),std::ios::in | std::ios::binary); // label data
+            std::ifstream ftestd ((path + "/t10k-images.idx3-ubyte").c_str(),std::ios::in | std::ios::binary); // image data
+            std::ifstream ftestl ((path + "/t10k-labels.idx1-ubyte").c_str(),std::ios::in | std::ios::binary); // label data
             assert(ftraind.is_open());
             assert(ftrainl.is_open());
             assert(ftestd.is_open());
