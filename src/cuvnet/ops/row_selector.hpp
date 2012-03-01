@@ -5,6 +5,12 @@
 
 namespace cuvnet
 {
+    /**
+     * select a row out of a matrix
+     *
+     * rows may be chosen randomly during fprop, if not supplied.
+     * if multiple inputs are given, the same row is chosen for all of them.
+     */
     class RowSelector
         : public Op{
             public:
@@ -15,15 +21,16 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
 
             private:
-                int m_row; ///< the row to be selected
+                int  m_row; ///< the row to be selected
                 bool m_random; ///< whether to choose row randomly in fprop
+                bool m_copy; ///< if true, does not use view on inputs (might save some memory at cost of speed if input matrix is huge and not needed by other ops)
 
             public:
                 RowSelector(){} /// for serialization
-                RowSelector(result_t& p0, int row=-1):Op(1,1),m_row(row),m_random(m_row<0){ 
+                RowSelector(result_t& p0, int row=-1, bool copy=false):Op(1,1),m_row(row),m_random(m_row<0),m_copy(copy){ 
                     add_param(0,p0);
                 }
-                RowSelector(result_t& p0, result_t& p1, int row=-1):Op(2,2),m_row(row),m_random(m_row<0){ 
+                RowSelector(result_t& p0, result_t& p1, int row=-1, bool copy=false):Op(2,2),m_row(row),m_random(m_row<0),m_copy(copy){ 
                     add_param(0,p0);
                     add_param(1,p1);
                 }
@@ -40,14 +47,23 @@ namespace cuvnet
                             p.value.reset();
                             continue;
                         }
-                        value_ptr v( new tensor_view<float,matrix::memory_space_type>(indices[m_row][index_range()],*p.value) );
+                        value_ptr v;
+                        if(m_copy)
+                            v.reset( new value_type((*p.value)[indices[m_row][index_range()]].copy()));
+                        else
+                            v.reset( new tensor_view<float,matrix::memory_space_type>(indices[m_row][index_range()],*p.value) );
                         r.push(v);
+
+                        if(!m_copy){
+                            // do not forget inputs/outputs, since we propagated a /view/
+                            // - we need to make sure that noone overwrites the inputs
+                            //   by writing to the view --> pretend we need our inputs
+                            // - we need to make sure that noone overwrites the outputs
+                            //   by reusing the inputs --> pretend we need our outputs
+                        }else{
+                            p.value.reset();
+                        }
                     }
-                    // do not forget inputs/outputs, since we propagated a /view/
-                    // - we need to make sure that noone overwrites the inputs
-                    //   by writing to the view --> pretend we need our inputs
-                    // - we need to make sure that noone overwrites the outputs
-                    //   by reusing the inputs --> pretend we need our outputs
                 }
                 void bprop(){
                     using namespace cuv;
@@ -121,7 +137,7 @@ namespace cuvnet
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
-                        ar & m_row & m_random;
+                        ar & m_row & m_random & m_copy;
                     }
         };
 
