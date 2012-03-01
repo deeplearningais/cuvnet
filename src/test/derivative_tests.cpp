@@ -16,6 +16,22 @@ using std::printf;
 using namespace cuvnet::derivative_testing;
 
 
+TEST(derivative_test, derivative_test_pipe){
+   typedef boost::shared_ptr<Op> ptr_t;
+   boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+   ptr_t func                    = boost::make_shared<Pipe>(inp->result());
+   derivative_tester(*func);
+}
+TEST(derivative_test, derivative_test_row_select){
+   typedef boost::shared_ptr<Op> ptr_t;
+   boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+   boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+
+   ptr_t func                    = row_select(inp0,inp1,1);
+
+   derivative_tester(*result(func,0));
+   derivative_tester(*result(func,1));
+}
 TEST(derivative_test, derivative_test_pow){
    typedef boost::shared_ptr<Op> ptr_t;
    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);

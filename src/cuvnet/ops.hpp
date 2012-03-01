@@ -18,6 +18,7 @@
 #include <cuvnet/ops/softmax.hpp>
 #include <cuvnet/ops/convolve.hpp>
 #include <cuvnet/ops/reshape.hpp>
+#include <cuvnet/ops/row_selector.hpp>
 
 namespace cuvnet
 {
@@ -84,5 +85,11 @@ namespace cuvnet
         Op::op_ptr softmax(Op::op_ptr img, unsigned int dim=0){ return boost::make_shared<Softmax>(img->result(), dim); }
     inline
         Op::op_ptr multinomial_logistic_loss(Op::op_ptr x, Op::op_ptr target, unsigned int dim=0){ return boost::make_shared<MultinomialLogisticLoss>(x->result(), target->result(), dim); }
+    inline
+        Op::op_ptr row_select(Op::op_ptr p0, int row=-1){ return boost::make_shared<RowSelector>(p0->result(), row); }
+    inline
+        Op::op_ptr row_select(Op::op_ptr p0, Op::op_ptr p1, int row=-1){ return boost::make_shared<RowSelector>(p0->result(), p1->result(), row); }
+    inline 
+        Op::op_ptr result(Op::op_ptr p0, unsigned int result=0){ return boost::make_shared<Pipe>(p0->result(result)); }
 }
 #endif /* __OPS_HPP__ */
