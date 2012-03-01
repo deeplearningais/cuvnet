@@ -1,7 +1,7 @@
 FIND_PACKAGE( OpenCV REQUIRED )
 FIND_PACKAGE( tbb REQUIRED )
 
-add_library(cuvnet_tools
+add_library(cuvnet_tools STATIC
     preprocess.cpp
     data_source.cpp
     logging.cpp
