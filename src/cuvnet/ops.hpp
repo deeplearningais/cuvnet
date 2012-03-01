@@ -69,6 +69,8 @@ namespace cuvnet
     inline
         Op::op_ptr mat_plus_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax) { return boost::make_shared<MatPlusVec>(x->result(),v->result(), ax==0?false:true); }
     inline
+        Op::op_ptr mat_times_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax) { return boost::make_shared<MatTimesVec>(x->result(),v->result(), ax==0?false:true); }
+    inline
         Op::op_ptr convolve(Op::op_ptr img, Op::op_ptr flt) { return boost::make_shared<Convolve>(img->result(),flt->result()); }
     inline
         Op::op_ptr reorder_for_conv(Op::op_ptr img) { return boost::make_shared<ReorderForConv>(img->result()); }

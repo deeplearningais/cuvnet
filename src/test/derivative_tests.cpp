@@ -247,6 +247,23 @@ TEST(derivative_test, derivative_test_mat_plus_vec){
 	    derivative_tester(*func);
     }
 }
+TEST(derivative_test, derivative_test_mat_times_vec){
+	typedef boost::shared_ptr<Op> ptr_t;
+    {
+	    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+	    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3]);
+	    ptr_t func		           = boost::make_shared<MatTimesVec>(inp0->result(), inp1->result(), false);
+
+	    derivative_tester(*func);
+    }
+    {
+	    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+	    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[5]);
+	    ptr_t func		           = boost::make_shared<MatTimesVec>(inp0->result(), inp1->result(), true);
+
+	    derivative_tester(*func);
+    }
+}
 TEST(derivative_test, derivative_test_convolve){
 	typedef boost::shared_ptr<Op> ptr_t;
 
