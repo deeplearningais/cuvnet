@@ -2,7 +2,7 @@
 #include <stdexcept>
 #include <cstdio>
 #include <gtest/gtest.h>
-#include <glog/logging.h>
+//#include <glog/logging.h>
 
 #include <cuvnet/op.hpp>
 
