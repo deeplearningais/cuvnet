@@ -209,7 +209,7 @@ class auto_encoder_2l : public auto_encoder{
         op_ptr       m_input;
         input_ptr    m_weights1,m_weights2;
         input_ptr    m_bias_h1a, m_bias_h1b, m_bias_h2, m_bias_y;
-        sink_ptr     m_loss_sink, m_reg_sink, m_rec_sink;
+        sink_ptr     m_loss_sink, m_reg_sink, m_rec_sink, m_J_sink;
         op_ptr       m_decode, m_enc;
         op_ptr       m_loss, m_rec_loss, m_contractive_loss;
 
@@ -243,26 +243,30 @@ class auto_encoder_2l : public auto_encoder{
             s_total_loss((float)m_loss_sink->cdata()[0]);
             s_rec_loss((float)m_rec_sink->cdata()[0]);
             s_reg_loss((float)m_reg_sink->cdata()[0]);
-            //normalize_columns(m_weights1->data(), m_expected_size[0]);
+            // TODO: only normalize columns when NOT in validation mode! (why, they should not differ that much in that case...)
+            normalize_columns(m_weights1->data(), m_expected_size[0]);
             //normalize_columns(m_weights2->data(), m_expected_size[1]); // hmm... we have to leave /some/ freedom in the network???
         }
         void normalize_columns(matrix& w, float& expected_size){
             matrix r(w.shape(1));
             cuv::reduce_to_row(r, w, cuv::RF_ADD_SQUARED);
-            r += 0.001f;
             cuv::apply_scalar_functor(r, cuv::SF_SQRT);
             float f = cuv::mean(r);
             if(expected_size < 0)
                 expected_size = f;
             else
-                expected_size -= 0.99f * (expected_size - f);
+                expected_size += 0.99f * (f - expected_size);
             r /= std::max(0.0001f, expected_size);
+            cuv::apply_scalar_functor(r, cuv::SF_MAX, 0.00001f); // avoid div by 0
             cuv::matrix_divide_row(w, r);
         }
         virtual
         void print_loss(unsigned int epoch) {
             auto_encoder::print_loss(epoch);
             std::cout << "Expected Size: "<<m_expected_size[0] << ", "<<m_expected_size[1]<<std::endl;
+            // TODO: determine number of saturated units in output/hidden layer
+            // TODO: determine Jacobian properties (spectrum)
+            // TODO: determine Jacobian of models learned in two separate steps
         }
 
         /**
@@ -337,7 +341,7 @@ class auto_encoder_2l : public auto_encoder{
 
             m_expected_size[0] = -1;
             m_expected_size[1] = -1;
-            //normalize_columns(m_weights1->data(), m_expected_size[0]);
+            normalize_columns(m_weights1->data(), m_expected_size[0]);
             //normalize_columns(m_weights2->data(), m_expected_size[1]);
 
             m_bias_h1a->data()   = 0.f;
@@ -378,7 +382,10 @@ class auto_encoder_2l : public auto_encoder{
             op_ptr h2_ = h2r*(1.f-h2r);
 
             if(lambda>0.f) { // contractive AE
-                m_contractive_loss = sum( sum(pow(prod(mat_times_vec(m_weights1,h2_,1), m_weights2),2.f),0)*pow(h1_,2.f));
+                //m_contractive_loss = sum( sum(pow(prod(mat_times_vec(m_weights1,h2_,1), m_weights2),2.f),0)*pow(h1_,2.f));
+                op_ptr J      = mat_times_vec(prod(mat_times_vec(m_weights1,h2_,1), m_weights2),h1_,1);
+                m_J_sink      = sink(J);
+                m_contractive_loss = sum( pow(J, 2.f) );
                 m_loss        = axpby(m_rec_loss, lambda, m_contractive_loss);
                 m_rec_sink    = sink(m_rec_loss);
                 m_reg_sink    = sink(m_contractive_loss);
@@ -772,7 +779,7 @@ void generate_and_test_models(boost::asio::deadline_timer* dt, boost::asio::io_s
         mongo::BSONObjBuilder bob;
         bob << "dataset" << "mnist";
         bob << "bs"      << 32;
-        bob << "nsplits" << 2;
+        bob << "nsplits" << 5;
 
         //bob << "pretrain" << (drand48()>0.2f);
         bob << "pretrain" << true;
@@ -791,11 +798,11 @@ void generate_and_test_models(boost::asio::deadline_timer* dt, boost::asio::io_s
         {
             stack << BSON(
                     //"lambda"<<drand48() <<
-                    "lambda"<<0.1 <<
+                    "lambda"<<1.0 <<
                     "lr"<<aes_lr<<
                     "noise"<<0.0<<
                     //"size"<<int(pow(28+drand48()*8,2))<<
-                    "size"<<1024<<
+                    "size"<<256<<
                     //"twolayer" << ((i<n_layers-1) && drand48()>0.2f) // cannot be last layer
                     "twolayer" << (i<n_layers-1) // cannot be last layer
                     );
