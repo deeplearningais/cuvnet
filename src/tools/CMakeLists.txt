@@ -9,4 +9,4 @@ add_library(cuvnet_tools STATIC
     crossvalid.cpp
     read_amat.cpp
     )
-TARGET_LINK_LIBRARIES( cuvnet_tools ${OpenCV_LIBS} ${TBB_LIBS} mdbq zzip)
+TARGET_LINK_LIBRARIES( cuvnet_tools ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} mdbq zzip)
