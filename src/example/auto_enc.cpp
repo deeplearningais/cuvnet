@@ -4,6 +4,7 @@
 #include <cmath>
 #include <boost/assign.hpp>
 #include <boost/bind.hpp>
+#include <boost/lambda/lambda.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/derivative_test.hpp>
 #include <cuvnet/ops.hpp>
@@ -14,12 +15,14 @@
 #include <tools/gradient_descent.hpp>
 #include <datasets/cifar.hpp>
 #include <datasets/mnist.hpp>
+#include <datasets/natural.hpp>
 #include <datasets/amat_datasets.hpp>
 #include <datasets/splitter.hpp>
 
 using namespace cuvnet;
 using namespace boost::assign;
 using boost::make_shared;
+namespace ll = boost::lambda;
 
 struct auto_encoder{
     boost::shared_ptr<Input>  m_input, m_weights,m_bias_h,m_bias_y;
@@ -93,19 +96,32 @@ int main(int argc, char **argv)
         }
     }
 
-    mnist_dataset ds_all("/home/local/datasets/MNIST");
-    global_min_max_normalize<> normalizer(0,1); // 0,1
+    //mnist_dataset ds_all("/home/local/datasets/MNIST");
+    natural_dataset ds_all("/home/local/datasets/natural_images");
+    pca_whitening normalizer(124);
+    //global_min_max_normalize<> normalizer(0,1); // 0,1
     //cifar_dataset ds;
     //zero_mean_unit_variance<> normalizer;
     //amat_dataset ds_all("/home/local/datasets/bengio/mnist.zip","mnist_train.amat", "mnist_test.amat");
     //global_min_max_normalize<> normalizer(0,1); // 0,1
     splitter ds_split(ds_all,10);
     dataset ds  = ds_split[0];
+
+    unsigned int fa=16,fb=16,bs=64;
+    {
+      auto wvis = arrange_filters(ds.train_data, 'n', fa, fb, ds.image_size,ds.channels,false);
+      cuv::libs::cimg::save(wvis,"ds_orig.png");
+    }
+
     
     normalizer.fit_transform(ds.train_data);
     normalizer.transform(ds.val_data);
+    {
+      normalizer.reverse_transform(ds.train_data);
+      auto wvis = arrange_filters(ds.train_data, 'n', fa, fb, ds.image_size,ds.channels,false);
+      cuv::libs::cimg::save(wvis,"ds_after.png");
+    }
 
-    unsigned int fa=16,fb=16,bs=64;
     auto_encoder ae(bs==0?ds.val_data.shape(0):bs,
             ds.train_data.shape(1), fa*fb, 
             ds.channels==1, 0.00f, 1.000000f); // CIFAR: lambda=0.05, MNIST lambda=1.0
@@ -117,6 +133,7 @@ int main(int argc, char **argv)
     gradient_descent gd(ae.m_loss,0,params,0.1f,0.00000f);
     gd.after_epoch.connect(boost::bind(&auto_encoder::print_loss, &ae, _1));
     gd.before_batch.connect(boost::bind(load_batch,&ae,&alldata,bs,_2));
+    gd.current_batch_num.connect(ds.train_data.shape(1)/ll::constant(bs));
     if(bs==0){
         ae.input()= alldata;
         alldata.dealloc();
