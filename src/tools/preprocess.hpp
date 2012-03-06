@@ -16,28 +16,45 @@ namespace cuvnet
         };
     }
 
+
     template<class M=cuv::host_memory_space>
     class zero_mean_unit_variance{
         public:
             cuv::tensor<float, M> m_mean;
             cuv::tensor<float, M> m_std;
+            bool m_unitvar;
         public:
+            zero_mean_unit_variance(bool unitvar=true):m_unitvar(unitvar){}
             void fit(const cuv::tensor<float,M>& train){
                 using namespace cuv;
                 m_mean.resize(extents[train.shape(1)]);
-                m_std .resize(extents[train.shape(1)]);
+                if(m_unitvar)
+                    m_std .resize(extents[train.shape(1)]);
                 reduce_to_row(m_mean,train,RF_ADD);
-                reduce_to_row(m_std, train,RF_ADD_SQUARED);
-                m_std  /= (float)train.shape(0);
+                if(m_unitvar){
+                    reduce_to_row(m_std, train,RF_ADD_SQUARED);
+                    m_std  /= (float)train.shape(0);
+                }
                 m_mean /= (float)train.shape(0);
-                m_std -= ::operator*(m_mean,m_mean);
-                apply_scalar_functor(m_std, SF_SQRT);
+                if(m_unitvar){
+                    m_std -= ::operator*(m_mean,m_mean);
+                    apply_scalar_functor(m_std, SF_SQRT);
+                }
                 apply_scalar_functor(m_mean, SF_NEGATE);
             }
             void transform(cuv::tensor<float,M>& data){
                 cuv::matrix_plus_row(data,m_mean); // mean is negated already
-                cuv::matrix_divide_row(data,m_std);
+                if(m_unitvar)
+                    cuv::matrix_divide_row(data,m_std);
             }
+            void reverse_transform(cuv::tensor<float,M>& data){
+	      using namespace cuv; // for operator-
+	      tensor<float,M> tmp(m_mean.shape());
+	      apply_scalar_functor(tmp,m_mean,SF_NEGATE);
+	      if(m_unitvar)
+		matrix_times_row(data,m_std);
+	      matrix_plus_row(data, tmp);
+	    }
             void fit_transform(cuv::tensor<float,M>& data){
                 fit(data); transform(data);
             }
