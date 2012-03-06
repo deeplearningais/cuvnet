@@ -1,6 +1,6 @@
 cmake_minimum_required( VERSION 2.6 FATAL_ERROR )
 
-PROJECT(cuvnet CXX C)
+PROJECT(cuvnet CXX C Fortran)
 SET(CMAKE_MODULE_PATH  ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/CMakeModules )
 SET(PROJECT_NAME_STR cuvnet)
 
