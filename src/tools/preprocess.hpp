@@ -98,13 +98,13 @@ namespace cuvnet
                     cuv::matrix_divide_row(data,m_std);
             }
             void reverse_transform(cuv::tensor<float,M>& data){
-	      using namespace cuv; // for operator-
-	      tensor<float,M> tmp(m_mean.shape());
-	      apply_scalar_functor(tmp,m_mean,SF_NEGATE);
-	      if(m_unitvar)
-		matrix_times_row(data,m_std);
-	      matrix_plus_row(data, tmp);
-	    }
+                using namespace cuv; // for operator-
+                tensor<float,M> tmp(m_mean.shape());
+                apply_scalar_functor(tmp,m_mean,SF_NEGATE);
+                if(m_unitvar)
+                    matrix_times_row(data,m_std);
+                matrix_plus_row(data, tmp);
+            }
             void fit_transform(cuv::tensor<float,M>& data){
                 fit(data); transform(data);
             }
