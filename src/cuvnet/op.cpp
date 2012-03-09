@@ -82,6 +82,7 @@ Op::set_calculate_derivative(const std::vector<Op*>&l){
 
 void Op::_determine_shapes(){
 	assert(m_params.size()==1);
+    assert(m_params[0]->shape.size()>0);
 	BOOST_FOREACH(result_t& r, m_results){
 		r->shape = m_params[0]->shape;
 	}
