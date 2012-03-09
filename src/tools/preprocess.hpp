@@ -88,6 +88,7 @@ namespace cuvnet
                 if(m_unitvar){
                     m_std -= ::operator*(m_mean,m_mean);
                     apply_scalar_functor(m_std, SF_SQRT);
+                    m_std += 0.01f; // regularized
                 }
                 apply_scalar_functor(m_mean, SF_NEGATE);
             }
