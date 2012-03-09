@@ -126,7 +126,12 @@ namespace cuvnet
             }
             void transform(cuv::tensor<float,M>& data){
                 data *= m_fact;
+                data -= m_add;
+            }
+            void reverse_transform(cuv::tensor<float,M>& data){
+                using namespace cuv; // for operator-
                 data += m_add;
+                data /= m_fact;
             }
             void fit_transform(cuv::tensor<float,M>& data){
                 fit(data); transform(data);
