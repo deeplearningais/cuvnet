@@ -36,6 +36,7 @@ namespace cuvnet
             test_labels  = 0.f;
 
             channels = 1;
+            binary   = false;
             image_size = 16;
             std::cout << "done."<<std::endl;
         }

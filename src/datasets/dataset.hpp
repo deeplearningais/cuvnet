@@ -33,6 +33,7 @@ namespace cuvnet
 
             int channels;
             int image_size;
+            bool binary;
     };
 
 

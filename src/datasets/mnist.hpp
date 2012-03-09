@@ -51,6 +51,7 @@ namespace cuvnet
             //train_data = train_data[cuv::indices[cuv::index_range(0,5000)][cuv::index_range()]];
             //train_labels = train_labels[cuv::indices[cuv::index_range(0,5000)][cuv::index_range()]];
 
+            binary = true;
             channels = 1;
             image_size = 28;
             std::cout << "done."<<std::endl;

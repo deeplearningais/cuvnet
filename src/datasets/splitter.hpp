@@ -35,6 +35,7 @@ namespace cuvnet
                 unsigned int end        = std::min(n_examples,start+step);
                 unsigned int n_left     = n_examples - (end-start);
                 dataset dst;
+                dst.binary     = m_ds.binary;
                 dst.channels   = m_ds.channels;
                 dst.image_size = m_ds.image_size;
                 dst.val_data     = m_ds.train_data  [indices[index_range(start,end)][index_range()]];

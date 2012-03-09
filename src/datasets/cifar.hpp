@@ -53,6 +53,7 @@ namespace cuvnet
                 }
             }
             channels = 3;
+            binary   = false;
             image_size = 32;
             std::cout << "done."<<std::endl;
         }
