@@ -141,8 +141,9 @@ namespace cuvnet
     class pca_whitening{
         private:
             int m_n_components;
-            zero_mean_unit_variance<cuv::host_memory_space> m_zm;
-            cuv::tensor<float,cuv::host_memory_space> m_rot;
+            zero_mean_unit_variance <cuv::host_memory_space> m_zm;
+            cuv::tensor<float,cuv::host_memory_space> m_rot_trans;
+            cuv::tensor<float,cuv::host_memory_space> m_rot_revrs;
 
             // shorthands
             typedef float real;
@@ -157,11 +158,27 @@ namespace cuvnet
             typedef boost::numeric::ublas::range                            range;
 
             bool m_whiten, m_zca;
+            boost::numeric::ublas::diagonal_matrix<real> m_diag;
+            float m_epsilon;
 
         public:
             
 
-            pca_whitening(int n_components=-1, bool whiten=true, bool zca=false):m_n_components(n_components),m_zm(false),m_whiten(whiten),m_zca(zca){}
+            /**
+             * constructor.
+             *
+             * @param n_components   how many components to use for (zca: intermediate, else: resulting) representation
+             * @param whiten         if true, divide by root of eigenvalue after rotation
+             * @param zca            if true, rotate back into original space
+             * @param epsilon        regularizer for whitening, about 0.01 or 0.1 if data is in range [0,1]
+             */
+            pca_whitening(int n_components=-1, bool whiten=true, bool zca=false, float epsilon=0.01)
+                :m_n_components(n_components)
+                 ,m_zm(false)
+                 ,m_whiten(whiten)
+                 ,m_zca(zca)
+                 ,m_epsilon(epsilon)
+                {}
             void fit(const cuv::tensor<float,cuv::host_memory_space>& train_){
                 namespace lapack = boost::numeric::bindings::lapack;
                 namespace ublas  = boost::numeric::ublas;
@@ -179,64 +196,82 @@ namespace cuvnet
                 cov /= (float)train.shape(0);
 
                 // create UBLAS adaptors 
-                m_rot.resize(cuv::extents[train.shape(1)][m_n_components]);
-                adaptor_matrix base_data(train.shape(0),train.shape(1),ArrayAdaptor(train.size(),const_cast<real*>(train.ptr())));
-                adaptor_matrix ucov      (train.shape(1),train.shape(1),ArrayAdaptor(cov.size(),const_cast<real*>(cov.ptr())));
-                adaptor_matrix rot      (train.shape(1),m_n_components,ArrayAdaptor(m_rot.size(),const_cast<real*>(m_rot.ptr())));
+                unsigned int d2 = m_zca ? train.shape(1) : m_n_components;
+                m_rot_trans.resize(cuv::extents[train.shape(1)][d2]);
+                m_rot_revrs.resize(cuv::extents[d2][train.shape(1)]);
+                adaptor_matrix ucov       (train.shape(1),train.shape(1),ArrayAdaptor(cov.size(),const_cast<real*>(cov.ptr())));
+                adaptor_matrix rot_trans  (train.shape(1),d2,ArrayAdaptor(m_rot_trans.size(),const_cast<real*>(m_rot_trans.ptr())));
+                adaptor_matrix rot_revrs  (d2,train.shape(1),ArrayAdaptor(m_rot_revrs.size(),const_cast<real*>(m_rot_revrs.ptr())));
 
                 vector S(train.shape(1));
                 ubmatrix Eigv(ucov);
                 vector lambda(train.shape(1));
                 lapack::syev( 'V', 'L', Eigv, lambda, lapack::optimal_workspace() );
                 std::vector<unsigned int> idx = argsort(lambda.begin(), lambda.end(), std::greater<float>());
-                sort(lambda.begin(), lambda.end(), std::greater<float>());
 
-                // calculate the cut-off Eigv and diagMatrix matrix 
-                ublas::diagonal_matrix<real> diagMatrix(m_n_components);
-                static const float epsilon = 0.00001f;
+                // calculate the cut-off Eigv and m_diag matrix 
+                m_diag = ublas::diagonal_matrix<real> (m_n_components);
                 if(m_whiten)
-                    for(int i=0;i<m_n_components; i++){
-                        real r = lambda(i) + epsilon;
-                        diagMatrix(i,i) = 1.0/sqrt(r);
-                    }
+                    for(int i=0;i<m_n_components; i++)
+                        m_diag(i,i) = 1.0/sqrt(lambda(idx[i])+m_epsilon);
                 else
-                    for(int i=0;i<m_n_components; i++){
-                        diagMatrix(i,i) = 1.f;
-                    }
-                for(int i=0;i<m_n_components;i++) {
-                    boost::numeric::ublas::matrix_column<adaptor_matrix>(rot,i) = column(Eigv,idx[i]);
-                }
+                    for(int i=0;i<m_n_components; i++)
+                        m_diag(i,i) = 1.f;
 
-                if(m_zca){
+                ubmatrix rot(train.shape(1), m_n_components);
+                for(int i=0;i<m_n_components;i++) 
+                    column(rot,i) = column(Eigv,idx[i]);
+
+                std::cout <<"w:"<<m_whiten<<" z:"<<m_zca<<" n:"<<m_n_components<<" s:"<<train_.shape(1)<<std::endl;
+                if(!m_whiten && m_zca && (unsigned int)m_n_components == train_.shape(1)){
+                    // don't do anything!
+                    ublas::noalias(rot_trans) = ublas::identity_matrix<float>(m_n_components);
+                    ublas::noalias(rot_revrs) = ublas::identity_matrix<float>(m_n_components);
+                }
+                else if(m_zca){
                     // ZCA whitening:
-                    // Rot = rot * diagMatrix * rot'
-                    ubmatrix tmp = ublas::prod(rot, diagMatrix);
-                    rot = ublas::prod(tmp, ublas::trans(rot) );
+                    // Rot = rot * m_diag * rot'
+                    ubmatrix tmp = ublas::prod(rot, m_diag);
+                    ublas::noalias(rot_trans) = ublas::prod(tmp, ublas::trans(rot) );
+
+                    // invert
+                    for (int i = 0; i < m_n_components; ++i)
+                        m_diag(i,i) = 1.0/m_diag(i,i);
+                    tmp = ublas::prod(rot,m_diag);
+                    ublas::noalias(rot_revrs) = ublas::prod(tmp,ublas::trans(rot));
                 }
                 else{
                     // PCA whitening:
-                    // Rot = rot * diagMatrix
-                    rot = ublas::prod(rot, diagMatrix);
+                    // Rot = rot * m_diag
+                    ublas::noalias(rot_trans) = ublas::prod(rot, m_diag);
+
+                    // invert
+                    for (int i = 0; i < m_n_components; ++i)
+                        m_diag(i,i) = 1.0/m_diag(i,i);
+                    ublas::noalias(rot_revrs) = ublas::prod(m_diag,ublas::trans(rot));
                 }
             }
             void transform(cuv::tensor<float,cuv::host_memory_space>& data){
                 m_zm.transform(data);
-                cuv::tensor<float,cuv::host_memory_space> res(cuv::extents[data.shape(0)][m_n_components]);
-                cuv::prod( res, data, m_rot );
+                cuv::tensor<float,cuv::host_memory_space> res(cuv::extents[data.shape(0)][m_rot_trans.shape(1)]);
+                cuv::prod( res, data, m_rot_trans );
                 data = res;
             }
             void fit_transform(cuv::tensor<float,cuv::host_memory_space>& data){
                 fit(data); transform(data);
             }
-            void reverse_transform(cuv::tensor<float,cuv::host_memory_space>& res){
-                cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[res.shape(0)][m_rot.shape(0)]);
-                cuv::prod( data, res, m_rot, 'n','t' );
-                m_zm.reverse_transform(data);
+            void reverse_transform(cuv::tensor<float,cuv::host_memory_space>& res, bool nomean=false){
+                cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[res.shape(0)][m_rot_revrs.shape(1)]);
+                cuv::prod( data, res, m_rot_revrs);
+                if(!nomean)
+                    m_zm.reverse_transform(data);
                 res = data;
             }
 
             inline
-                const cuv::tensor<float,cuv::host_memory_space>& rot(){return m_rot;};
+                const cuv::tensor<float,cuv::host_memory_space>& rot(){return m_rot_trans;};
+            inline
+                const cuv::tensor<float,cuv::host_memory_space>& rrot(){return m_rot_revrs;};
     };
 
     class preprocessor{
