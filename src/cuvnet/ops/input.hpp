@@ -34,6 +34,7 @@ namespace cuvnet
                 }
                 void bprop(){}
                 void _determine_shapes(){
+                    assert(m_data->size()>0);
                     m_results[0]->shape = m_data->shape();
                 }
                 inline value_ptr&        data_ptr()     { return m_data; }
