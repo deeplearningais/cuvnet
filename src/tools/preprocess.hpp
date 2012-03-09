@@ -29,6 +29,42 @@ namespace cuvnet
         };
     }
 
+    template<class M=cuv::host_memory_space>
+    class zero_sample_mean{
+        public:
+        public:
+            void fit(const cuv::tensor<float,M>& train){
+            }
+            void transform(cuv::tensor<float,M>& data){
+                cuv::tensor<float,M> c(cuv::extents[data.shape(0)]);
+                cuv::reduce_to_col(c,data,cuv::RF_ADD,0.f,-1.f); 
+                c/=(float)data.shape(1);
+                cuv::matrix_plus_col(data,c);
+            }
+            void reverse_transform(cuv::tensor<float,M>& data){
+                throw std::runtime_error("zero_sample_mean cannot be inverted");
+            }
+            void fit_transform(cuv::tensor<float,M>& data){
+                fit(data); transform(data);
+            }
+    };
+
+    template<class M=cuv::host_memory_space>
+    class log_transformer{
+        public:
+        public:
+            void fit(const cuv::tensor<float,M>& train){
+            }
+            void transform(cuv::tensor<float,M>& data){
+                cuv::apply_scalar_functor(data,cuv::SF_LOG); 
+            }
+            void reverse_transform(cuv::tensor<float,M>& data){
+                cuv::apply_scalar_functor(data,cuv::SF_EXP); 
+            }
+            void fit_transform(cuv::tensor<float,M>& data){
+                fit(data); transform(data);
+            }
+    };
 
     template<class M=cuv::host_memory_space>
     class zero_mean_unit_variance{
