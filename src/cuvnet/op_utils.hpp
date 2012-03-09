@@ -163,9 +163,9 @@ namespace cuvnet
                 op.result(result)->need_result = true;
                 op.set_calculate_derivative(paramlist);
                 op.visit(m_topo);
-                op.visit(determine_shapes_visitor());
                 std::ofstream os("swiper-initial.dot");
                 write_graphviz(op, os, m_topo.plist );
+                op.visit(determine_shapes_visitor());
             }
         /**
          * does recursive forward pass on op
