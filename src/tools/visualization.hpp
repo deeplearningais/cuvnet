@@ -45,7 +45,7 @@ namespace cuvnet
     template<class T>
     cuv::tensor<float,cuv::host_memory_space>
         arrange_filters(const T& w_, char transpose,  unsigned int dstMapCount, unsigned int srcMapCount, unsigned int fs, unsigned int channels=1, bool normalize_separately=false){
-            cuv::tensor<float, cuv::host_memory_space> w = w_;
+            cuv::tensor<float, cuv::host_memory_space> w = w_.copy();
 
             if(transpose=='t'){
                 cuv::tensor<float,cuv::host_memory_space> wt(cuv::extents[w.shape(1)][w.shape(0)]);
