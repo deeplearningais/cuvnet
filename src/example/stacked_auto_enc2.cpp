@@ -49,6 +49,7 @@ class auto_encoder {
         acc_t s_rec_loss; ///< reconstruction
         acc_t s_reg_loss; ///< regularization
         acc_t s_total_loss;
+        acc_t s_epochs;   ///< how many epochs this was trained for
 
         unsigned int m_epochs; ///< number of epochs this was trained for TODO: reset this together with reset_params and/or count how many times it was reset to get the average!
     public:
@@ -60,7 +61,7 @@ class auto_encoder {
         virtual void reset_weights()=0;
 
         virtual void acc_loss()=0;
-        unsigned int    epochs()  { return m_epochs; }
+        unsigned int    avg_epochs()  { return acc::mean(s_epochs); }
         void reset_loss() {
             s_rec_loss = acc_t();
             s_reg_loss = acc_t();
@@ -159,6 +160,9 @@ class auto_encoder_1l : public auto_encoder{
             m_weights->data() -=   diff;
             m_bias_h->data()   = 0.f;
             m_bias_y->data()   = 0.f;
+
+            if(m_epochs != 0)
+                s_epochs(m_epochs);
             m_epochs           = 0;
         }
 
@@ -216,7 +220,6 @@ class auto_encoder_2l : public auto_encoder{
         input_ptr       bias_h2()  { return m_bias_h2; }
         input_ptr       bias_y()  { return m_bias_y; }
         op_ptr          loss()    { return m_loss; }
-        unsigned int    epochs()  { return m_epochs; }
 
         std::vector<Op*>   supervised_params(){ 
             std::vector<Op*> tmp; 
@@ -342,6 +345,8 @@ class auto_encoder_2l : public auto_encoder{
             m_bias_h1b->data()   = 0.f;
             m_bias_h2 ->data()   = 0.f;
             m_bias_y->data()   = 0.f;
+            if(m_epochs != 0)
+                s_epochs(m_epochs);
             m_epochs           = 0;
         }
 
@@ -468,12 +473,13 @@ struct pretrained_mlp {
         op_ptr    m_output; ///< classification result
         sink_ptr m_out_sink;
         sink_ptr m_loss_sink;
+        acc_t    s_epochs;
         unsigned int m_epochs;///< number of epochs this was trained for
         float m_loss_sum, m_class_err;
         unsigned int m_loss_sum_cnt, m_class_err_cnt;
     public:
 
-        unsigned int    epochs()  { return m_epochs; }
+        unsigned int    avg_epochs()  { return acc::mean(s_epochs); }
         input_ptr      weights()  { return m_weights; }
         input_ptr      bias   ()  { return m_bias; }
 
@@ -556,6 +562,8 @@ struct pretrained_mlp {
             m_weights->data() -=   diff;
             m_bias->data()   = 0.f;
             m_bias->data()   = 0.f;
+            if(m_epochs != 0)
+                s_epochs(m_epochs);
             m_epochs         = 0;
         }
 };
@@ -675,8 +683,8 @@ class pretrained_mlp_trainer
                         gd.after_validation_epoch.connect(0, boost::bind(&auto_encoder::print_loss, &m_aes->get(l), _1));
                         gd.minibatch_learning(10000);
                     } else {
-                        std::cout << "TRAINALL phase: aes"<<l<<" epochs="<<m_aes->get(l).epochs()<<std::endl;
-                        gd.minibatch_learning(m_aes->get(l).epochs()); // TRAINALL phase. Use as many as in previous runs
+                        std::cout << "TRAINALL phase: aes"<<l<<" avg_epochs="<<m_aes->get(l).avg_epochs()<<std::endl;
+                        gd.minibatch_learning(m_aes->get(l).avg_epochs()); // TRAINALL phase. Use as many as in previous runs
                     }
                     log_params("after_pretrain", params);
                 }
