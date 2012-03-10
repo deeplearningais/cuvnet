@@ -21,13 +21,7 @@
 #include <tools/visualization.hpp>
 #include <tools/preprocess.hpp>
 #include <tools/gradient_descent.hpp>
-#include <datasets/cifar.hpp>
-#include <datasets/mnist.hpp>
-#include <datasets/amat_datasets.hpp>
-#include <datasets/splitter.hpp>
-#include <datasets/randomizer.hpp>
 #include <mongo/bson/bson.h>
-
 
 #include <cuvnet/op_io.hpp>
 #include <tools/crossvalid.hpp>
