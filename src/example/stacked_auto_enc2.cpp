@@ -580,6 +580,7 @@ class pretrained_mlp_trainer
         std::vector<float> m_aes_lr; /// learning rates of stacked AE
         float              m_mlp_lr; /// learning rates of stacked MLP
         bool               m_pretraining; /// whether pretraining is requested
+        bool               m_finetune; /// whether finetuning is requested
 
         typedef SimpleDatasetLearner<matrix::memory_space_type> sdl_t;
         friend class boost::serialization::access;
@@ -618,6 +619,7 @@ class pretrained_mlp_trainer
                 new pretrained_mlp(m_aes->output(),10, true)); // TODO: fixed number of 10 classes!!???
             m_mlp_lr = o["mlp_lr"].Double();
             m_pretraining = o["pretrain"].Bool();
+            m_finetune    = o["finetune"].Bool();
         }
 
 
@@ -693,38 +695,40 @@ class pretrained_mlp_trainer
             ////////////////////////////////////////////////////////////
             //                 supervised training
             ////////////////////////////////////////////////////////////
-            std::vector<Op*> params;
-            for(unsigned int l=0; l<m_aes->size(); l++) // derive w.r.t. /all/ parameters except output bias of AEs
-            {
-                std::vector<Op*> tmp = m_aes->get(l).supervised_params();
-                std::copy(tmp.begin(), tmp.end(), std::back_inserter(params));
-            }
+            if(m_finetune){
+                std::vector<Op*> params;
+                for(unsigned int l=0; l<m_aes->size(); l++) // derive w.r.t. /all/ parameters except output bias of AEs
+                {
+                    std::vector<Op*> tmp = m_aes->get(l).supervised_params();
+                    std::copy(tmp.begin(), tmp.end(), std::back_inserter(params));
+                }
                 //params += m_aes->get(l).weights().get(), m_aes->get(l).bias_h().get();
-            params += m_mlp->weights().get(), m_mlp->bias().get();
+                params += m_mlp->weights().get(), m_mlp->bias().get();
 
-            gradient_descent gd(m_mlp->loss(),0,params,m_mlp_lr,0.00000f);
-            gd.before_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
-            gd.after_epoch.connect(boost::bind(&pretrained_mlp::print_loss,m_mlp.get(), _1));
-            gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_supervised,this,_2));
-            gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_loss,m_mlp.get()));
-            gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_class_err,m_mlp.get()));
-            gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
+                gradient_descent gd(m_mlp->loss(),0,params,m_mlp_lr,0.00000f);
+                gd.before_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
+                gd.after_epoch.connect(boost::bind(&pretrained_mlp::print_loss,m_mlp.get(), _1));
+                gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_supervised,this,_2));
+                gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_loss,m_mlp.get()));
+                gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_class_err,m_mlp.get()));
+                gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
 
-            if(m_sdl.can_earlystop()) {
-                //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
-                gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, 0.00001f, 2);
-                gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
-                gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
-                gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
-                gd.after_validation_epoch.connect(1, boost::bind(&sdl_t::after_validation_epoch,&m_sdl));
-                gd.after_validation_epoch.connect(0,boost::bind(&pretrained_mlp::print_loss, m_mlp.get(), _1));
-                gd.after_validation_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
-                gd.minibatch_learning(10000);
-            } else {
-                std::cout << "TRAINALL phase: mlp epochs="<<m_mlp->epochs()<<std::endl;
-                gd.minibatch_learning(m_mlp->epochs()); // TRAINALL phase. use as many iterations as in previous runs
+                if(m_sdl.can_earlystop()) {
+                    //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
+                    gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, 0.00001f, 2);
+                    gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
+                    gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
+                    gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
+                    gd.after_validation_epoch.connect(1, boost::bind(&sdl_t::after_validation_epoch,&m_sdl));
+                    gd.after_validation_epoch.connect(0,boost::bind(&pretrained_mlp::print_loss, m_mlp.get(), _1));
+                    gd.after_validation_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
+                    gd.minibatch_learning(10000);
+                } else {
+                    std::cout << "TRAINALL phase: mlp avg_epochs="<<m_mlp->avg_epochs()<<std::endl;
+                    gd.minibatch_learning(m_mlp->avg_epochs()); // TRAINALL phase. use as many iterations as in previous runs
+                }
+                log_params("after_train", params);
             }
-            log_params("after_train", params);
         }
         void validation_epoch(bool b){
             g_worker->log(BSON("who"<<"trainer"<<"topic"<<"validation"<<"validation_mode"<<b));
@@ -786,6 +790,7 @@ void generate_and_test_models(boost::asio::deadline_timer* dt, boost::asio::io_s
 
         //bob << "pretrain" << (drand48()>0.2f);
         bob << "pretrain" << true;
+        bob << "finetune" << false;
 
         float mlp_lr  = 0.1;
         float aes_lr  = 0.02;
