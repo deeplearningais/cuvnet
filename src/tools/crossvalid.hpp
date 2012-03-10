@@ -68,8 +68,10 @@ namespace cuvnet
 				void operator()();
 
 				inline float perf()const{return m_perf;}
+				inline float test_perf()const{return m_test_perf;}
 			private:
 				float m_perf;
+				float m_test_perf;
 				boost::shared_ptr<crossvalidatable> m_ptr;
 		};
 
