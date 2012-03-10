@@ -9,9 +9,11 @@
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/io.hpp>
 #include <boost/numeric/ublas/lu.hpp>
+#include <boost/format.hpp>
 #include <algorithm>
 #include <ctime>
 #include <cstdio>
+#include <fstream>
 
 #define V(X) #X<<":"<<(X)<<", "
 using namespace boost::numeric::ublas;
@@ -33,8 +35,8 @@ void swap_cols (const PM &pm, MV &mv) {
 template<class V>
 V vec_conc(const V& a, const V& b){
     V c(a.size()+b.size());
-    vector_range(c, range(0,a.size())) = a;
-    vector_range(c, range(a.size(),c.size())) = b;
+    vector_range<V>(c, range(0,a.size())) = a;
+    vector_range<V>(c, range(a.size(),c.size())) = b;
     return c;
 }
 
@@ -238,9 +240,10 @@ main(int argc, char **argv)
     printmat("wor",wor);
 
     // create dataset
-    unsigned int dataset_size = 60000;
+    const unsigned int dataset_size = 60000;
+    matrix<float> dataset(dataset_size, n_variables*2); // code + data
     matrix<float> cov = outer_prod(check2,check);
-    for (int datum = 0; datum < 60000; ++datum)
+    for (int datum = 0; datum < dataset_size; ++datum)
     {
         std::generate(variables.begin(),variables.end(),drand48);
         std::transform(variables.begin(),variables.end(),variables.begin(),binarize);
@@ -255,11 +258,20 @@ main(int argc, char **argv)
         std::transform(check2.begin(), check2.end(), check2.begin(),threshold_or);
         cov += outer_prod(check2,check);
 
-        std::cout << "check2 1: "<<check2<<", "<<sum(check2)<<std::endl;
-        std::cout << "check1 1: "<<check <<", "<<sum(check)<<std::endl;
+        //std::cout << "check2 1: "<<check2<<", "<<sum(check2)<<std::endl;
+        //std::cout << "check1 1: "<<check <<", "<<sum(check)<<std::endl;
+        //std::cout << std::endl;
+        assert(norm_2(check2-check) < 0.001);
+        row(dataset,datum) = vec_conc(check, variables);
 
-        std::cout << std::endl;
     }
+
+    {   // dump dataset
+        std::string filename = boost::str(boost::format("/home/local/datasets/LDPC/ds_%dx%d_float32.bin")%dataset.size1()%dataset.size2());
+        std::ofstream of(filename.c_str());
+        of.write((char*)(&dataset(0,0)), sizeof(float)*dataset.size1()*dataset.size2());
+    }
+    
     float mm = -1;
     for(unsigned int i=0;i<cov.size1();i++)
         for(unsigned int j=0;j<cov.size2();j++)
