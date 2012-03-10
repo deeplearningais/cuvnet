@@ -2,6 +2,8 @@
 #include <cuv/convert/convert.hpp>
 #include <datasets/mnist.hpp>
 #include <datasets/cifar.hpp>
+#include <datasets/ldpc.hpp>
+#include <datasets/natural.hpp>
 #include <datasets/randomizer.hpp>
 #include <tools/preprocess.hpp>
 #include <cuvnet/op.hpp>
@@ -59,6 +61,21 @@ namespace cuvnet
         if(0);
         else if (ds == "mnist"){
             dataset dsall = mnist_dataset("/home/local/datasets/MNIST");
+            dsall         = randomizer().transform(dsall);
+            global_min_max_normalize<> normalizer(0,1);
+            normalizer.fit_transform(dsall.train_data);
+            normalizer.transform(dsall.test_data);
+            m_splits.init(dsall, nsplits);
+        }else if (ds == "ldpc"){
+            dataset dsall = ldpc_dataset("/home/local/datasets/LDPC");
+            dsall         = randomizer().transform(dsall);
+            // no transformation except randomization needed
+            m_splits.init(dsall, nsplits);
+        }else if (ds == "natural"){
+            dataset dsall = natural_dataset("/home/local/datasets/natural_images");
+            // TODO: this one has complicated pre-processing, needs normalizer
+            // to be accessible for filter visualization
+            cuvAssert(false);
             dsall         = randomizer().transform(dsall);
             global_min_max_normalize<> normalizer(0,1);
             normalizer.fit_transform(dsall.train_data);
