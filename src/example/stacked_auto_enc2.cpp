@@ -381,10 +381,11 @@ class auto_encoder_2l : public auto_encoder{
             op_ptr h2_ = h2r*(1.f-h2r);
 
             if(lambda>0.f) { // contractive AE
-                //m_contractive_loss = sum( sum(pow(prod(mat_times_vec(m_weights1,h2_,1), m_weights2),2.f),0)*pow(h1_,2.f));
-                op_ptr J      = mat_times_vec(prod(mat_times_vec(m_weights1,h2_,1), m_weights2),h1_,1);
-                m_J_sink      = sink(J);
-                m_contractive_loss = sum( pow(J, 2.f) );
+                m_contractive_loss = sum( sum(pow(prod(mat_times_vec(m_weights1,h1_,1), m_weights2),2.f),0)*pow(h2_,2.f));
+                //op_ptr J      = mat_times_vec(prod(mat_times_vec(m_weights1,h2_,1), m_weights2),h1_,0);
+                //m_J_sink      = sink(J);
+                //m_contractive_loss = sum( pow(J, 2.f) );
+                m_J_sink      = sink(m_contractive_loss); // TODO: calculate J!!!
                 m_loss        = axpby(m_rec_loss, lambda, m_contractive_loss);
                 m_rec_sink    = sink(m_rec_loss);
                 m_reg_sink    = sink(m_contractive_loss);
