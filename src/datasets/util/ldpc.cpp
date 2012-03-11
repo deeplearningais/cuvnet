@@ -240,13 +240,27 @@ main(int argc, char **argv)
     printmat("wor",wor);
 
     // create dataset
-    const unsigned int dataset_size = 60000;
+    const unsigned int dataset_size = 32768;
     matrix<float> dataset(dataset_size, n_variables*2); // code + data
     matrix<float> cov = outer_prod(check2,check);
+    vector<unsigned int> allvar(pow(2,n_variables));
+    for(unsigned int i=0;i<allvar.size();i++)
+        allvar[i] = i;
+    random_shuffle(allvar.begin(),allvar.end());
+    if(allvar.size()<dataset_size){
+        std::cerr <<"too large datset size!"<<std::endl;
+        exit(1);
+    }
+
     for (int datum = 0; datum < dataset_size; ++datum)
     {
-        std::generate(variables.begin(),variables.end(),drand48);
-        std::transform(variables.begin(),variables.end(),variables.begin(),binarize);
+        unsigned int val = allvar[datum];
+        for(unsigned int k=0;k<n_variables;k++){
+            variables[k] = (val & (0x1 << k)) ? 1 : 0;
+        }
+        //std::cout << variables<<std::endl;
+        //std::generate(variables.begin(),variables.end(),drand48);
+        //std::transform(variables.begin(),variables.end(),variables.begin(),binarize);
         enc = prod((H) , variables);
         std::transform(enc.begin(),enc.end(),check.begin(),is_even);
 
