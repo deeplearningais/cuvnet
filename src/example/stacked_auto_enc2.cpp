@@ -51,24 +51,40 @@ class auto_encoder {
         acc_t s_total_loss;
         acc_t s_epochs;   ///< how many epochs this was trained for
 
+        bool m_binary; ///< if true, use logistic loss
+
         unsigned int m_epochs; ///< number of epochs this was trained for TODO: reset this together with reset_params and/or count how many times it was reset to get the average!
     public:
         virtual std::vector<Op*>   supervised_params()=0;
         virtual std::vector<Op*> unsupervised_params()=0;
         virtual matrix& input()=0;
+        virtual op_ptr& input_op()=0;
         virtual op_ptr output()=0;
+        virtual op_ptr decode(op_ptr&)=0;
         virtual op_ptr loss()=0;
         virtual void reset_weights()=0;
+        auto_encoder(bool binary):m_binary(binary),m_epochs(0){}
+
+        op_ptr reconstruction_loss(op_ptr& input, op_ptr& decode){
+            if(!m_binary)  // squared loss
+                return mean( pow( axpby(input, -1.f, decode), 2.f));
+            else         // cross-entropy
+                return mean( sum(neg_log_cross_entropy_of_logistic(input,decode),1));
+        }
 
         virtual void acc_loss()=0;
-        unsigned int    avg_epochs()  { return acc::mean(s_epochs); }
+        unsigned int    avg_epochs()  { 
+            if(acc::count(s_epochs)==0) 
+                throw std::runtime_error("cannot calculate average epochs!");
+            return acc::mean(s_epochs); 
+        }
         void reset_loss() {
             s_rec_loss = acc_t();
             s_reg_loss = acc_t();
             s_total_loss = acc_t();
         }
         virtual
-        void print_loss(unsigned int epoch) {
+        void log_loss(unsigned int epoch) {
             m_epochs = std::max(epoch, m_epochs);
             g_worker->log(BSON("who"<<"AE"<<"epoch"<<epoch<<"perf"<<acc::mean(s_total_loss)<<"reg"<<acc::mean(s_reg_loss)<<"rec"<<acc::mean(s_rec_loss)));
             g_worker->checkpoint();
@@ -76,7 +92,6 @@ class auto_encoder {
         float perf() {
             return acc::mean(s_total_loss);
         }
-
 };
 
 /**
@@ -90,10 +105,17 @@ class auto_encoder_1l : public auto_encoder{
         op_ptr       m_decode, m_enc;
         op_ptr       m_loss, m_rec_loss, m_contractive_loss;
     public:
+        op_ptr&         input_op(){ return m_input; }
         input_ptr       weights() { return m_weights; }
         input_ptr       bias_h()  { return m_bias_h; }
         input_ptr       bias_y()  { return m_bias_y; }
         op_ptr          loss()    { return m_loss; }
+        op_ptr          decoded() { return m_decode; }
+        op_ptr          decode(op_ptr& encoded){
+            return mat_plus_vec(
+                    prod( encoded, m_weights, 'n','t')
+                    ,m_bias_y,1);
+        }
 
         std::vector<Op*>   supervised_params(){ std::vector<Op*> tmp; tmp += m_weights.get(), m_bias_h.get(); return tmp; };
         std::vector<Op*> unsupervised_params(){ std::vector<Op*> tmp; tmp += m_weights.get(), m_bias_h.get(), m_bias_y.get(); return tmp; };
@@ -119,14 +141,14 @@ class auto_encoder_1l : public auto_encoder{
          * @param lambda if lambda>0, it represents the "contractive" weight of the autoencoder
          */
         auto_encoder_1l(unsigned int layer, op_ptr& inputs, unsigned int hl, bool binary, float noise=0.0f, float lambda=0.0f)
-            :m_input(inputs)
+            :auto_encoder(binary),
+            m_input(inputs)
              ,m_bias_h(new Input(cuv::extents[hl],       "ae_bias_h"+ boost::lexical_cast<std::string>(layer))) {
                  m_input->visit(determine_shapes_visitor()); // ensure that we have shape information
                  unsigned int bs   = inputs->result()->shape[0];
                  unsigned int inp1 = inputs->result()->shape[1];
                  m_weights.reset(new Input(cuv::extents[inp1][hl],"ae_weights" + boost::lexical_cast<std::string>(layer)));
                  m_bias_y.reset(new Input(cuv::extents[inp1],     "ae_bias_y"  + boost::lexical_cast<std::string>(layer)));
-                 m_epochs=0;
                  init(bs  ,inp1,hl,binary,noise,lambda);
              }
 
@@ -139,7 +161,8 @@ class auto_encoder_1l : public auto_encoder{
          * @param lambda if lambda>0, it represents the "contractive" weight of the autoencoder
          */
         auto_encoder_1l(unsigned int bs  , unsigned int inp1, unsigned int hl, bool binary, float noise=0.0f, float lambda=0.0f)
-            :m_input(new Input(cuv::extents[bs  ][inp1],"ae_input"))
+            :auto_encoder(binary),
+            m_input(new Input(cuv::extents[bs  ][inp1],"ae_input"))
              ,m_weights(new Input(cuv::extents[inp1][hl],"ae_weights"))
              ,m_bias_h(new Input(cuv::extents[hl],       "ae_bias_h"))
              ,m_bias_y(new Input(cuv::extents[inp1],     "ae_bias_y")) {
@@ -178,14 +201,9 @@ class auto_encoder_1l : public auto_encoder{
             m_enc    = logistic(mat_plus_vec(
                         prod( corrupt, m_weights)
                         ,m_bias_h,1));
-            m_decode = mat_plus_vec(
-                    prod( m_enc, m_weights, 'n','t')
-                    ,m_bias_y,1);
+            m_decode = decode(m_enc);
 
-            if(!binary)  // squared loss
-                m_rec_loss = mean( pow( axpby(m_input, -1.f, m_decode), 2.f));
-            else         // cross-entropy
-                m_rec_loss = mean( sum(neg_log_cross_entropy_of_logistic(m_input,m_decode),1));
+            m_rec_loss = reconstruction_loss(m_input,m_decode);
 
             if(lambda>0.f) { // contractive AE
                 m_contractive_loss =
@@ -213,6 +231,7 @@ class auto_encoder_2l : public auto_encoder{
 
         float        m_expected_size[2];
     public:
+        op_ptr&         input_op(){ return m_input; }
         input_ptr       weights1() { return m_weights1; }
         input_ptr       weights2() { return m_weights2; }
         input_ptr       bias_h1a()  { return m_bias_h1a; }
@@ -220,6 +239,7 @@ class auto_encoder_2l : public auto_encoder{
         input_ptr       bias_h2()  { return m_bias_h2; }
         input_ptr       bias_y()  { return m_bias_y; }
         op_ptr          loss()    { return m_loss; }
+        op_ptr          decoded() { return m_decode; }
 
         std::vector<Op*>   supervised_params(){ 
             std::vector<Op*> tmp; 
@@ -230,6 +250,12 @@ class auto_encoder_2l : public auto_encoder{
             tmp += m_weights1.get(), m_weights2.get(), m_bias_h1a.get(), m_bias_h1b.get(), m_bias_h2.get(), m_bias_y.get(); 
             return tmp; };
 
+        op_ptr decode(op_ptr& encoded){
+            op_ptr h1b = logistic(mat_plus_vec( prod( encoded, m_weights2, 'n','t') ,m_bias_h1b,1));
+            op_ptr y   = mat_plus_vec( prod( h1b, m_weights1, 'n', 't'), m_bias_y, 1);
+            return y;
+        }
+
         matrix&       input() {
             return boost::dynamic_pointer_cast<Input>(m_input)->data();
         }
@@ -238,8 +264,10 @@ class auto_encoder_2l : public auto_encoder{
         }
         void acc_loss() {
             s_total_loss((float)m_loss_sink->cdata()[0]);
-            s_rec_loss((float)m_rec_sink->cdata()[0]);
-            s_reg_loss((float)m_reg_sink->cdata()[0]);
+            if(m_rec_sink)
+                s_rec_loss((float)m_rec_sink->cdata()[0]);
+            if(m_reg_sink)
+                s_reg_loss((float)m_reg_sink->cdata()[0]);
             // TODO: only normalize columns when NOT in validation mode! (why, they should not differ that much in that case...)
             //normalize_columns(m_weights1->data(), m_expected_size[0]);
             //normalize_columns(m_weights2->data(), m_expected_size[1]); // hmm... we have to leave /some/ freedom in the network???
@@ -258,9 +286,9 @@ class auto_encoder_2l : public auto_encoder{
             cuv::matrix_divide_row(w, r);
         }
         virtual
-        void print_loss(unsigned int epoch) {
-            auto_encoder::print_loss(epoch);
-            std::cout << "Expected Size: "<<m_expected_size[0] << ", "<<m_expected_size[1]<<std::endl;
+        void log_loss(unsigned int epoch) {
+            auto_encoder::log_loss(epoch);
+            //std::cout << "Expected Size: "<<m_expected_size[0] << ", "<<m_expected_size[1]<<std::endl;
             // TODO: determine number of saturated units in output/hidden layer
             // TODO: determine Jacobian properties (spectrum)
             // TODO: determine Jacobian of models learned in two separate steps
@@ -278,7 +306,8 @@ class auto_encoder_2l : public auto_encoder{
          * @param lambda if lambda>0, it represents the "contractive" weight of the autoencoder
          */
         auto_encoder_2l(unsigned int layer, op_ptr& inputs, unsigned int hl1, unsigned int hl2, bool binary, float noise=0.0f, float lambda=0.0f)
-            :m_input(inputs)
+            :auto_encoder(binary),
+            m_input(inputs)
              ,m_bias_h1a(new Input(cuv::extents[hl1],       "ae_bias_h1a"+ boost::lexical_cast<std::string>(layer))) 
              ,m_bias_h1b(new Input(cuv::extents[hl1],       "ae_bias_h1a"+ boost::lexical_cast<std::string>(layer))) 
              ,m_bias_h2 (new Input(cuv::extents[hl2],       "ae_bias_h2" + boost::lexical_cast<std::string>(layer))) 
@@ -289,7 +318,6 @@ class auto_encoder_2l : public auto_encoder{
                  m_weights1.reset(new Input(cuv::extents[inp1][hl1],"ae_weights1" + boost::lexical_cast<std::string>(layer)));
                  m_weights2.reset(new Input(cuv::extents[hl1][hl2], "ae_weights2" + boost::lexical_cast<std::string>(layer)));
                  m_bias_y.reset(new Input(cuv::extents[inp1],     "ae_bias_y"  + boost::lexical_cast<std::string>(layer)));
-                 m_epochs=0;
                  init(bs  ,inp1,hl1,hl2,binary,noise,lambda);
              }
 
@@ -302,7 +330,8 @@ class auto_encoder_2l : public auto_encoder{
          * @param lambda if lambda>0, it represents the "contractive" weight of the autoencoder
          */
         auto_encoder_2l(unsigned int bs  , unsigned int inp1, unsigned int hl1, unsigned int hl2, bool binary, float noise=0.0f, float lambda=0.0f)
-            :m_input(new Input(cuv::extents[bs  ][inp1],"ae_input"))
+            :auto_encoder(binary),
+            m_input(new Input(cuv::extents[bs  ][inp1],"ae_input"))
              ,m_weights1(new Input(cuv::extents[inp1][hl1],"ae_weights"))
              ,m_weights2(new Input(cuv::extents[hl1][hl2],"ae_weights"))
              ,m_bias_h1a(new Input(cuv::extents[hl1],       "ae_bias_h1a"))
@@ -347,6 +376,7 @@ class auto_encoder_2l : public auto_encoder{
             m_bias_y->data()   = 0.f;
             if(m_epochs != 0)
                 s_epochs(m_epochs);
+            std::cout <<"epoch stats:"<<acc::count(s_epochs)<<", "<<acc::mean(s_epochs)<<std::endl;
             m_epochs           = 0;
         }
 
@@ -360,18 +390,11 @@ class auto_encoder_2l : public auto_encoder{
             if( binary && noise>0.f) corrupt =       zero_out(m_input,noise);
             if(!binary && noise>0.f) corrupt = add_rnd_normal(m_input,noise);
 
-            op_ptr h1 = logistic( mat_plus_vec( prod( corrupt, m_weights1) ,m_bias_h1a,1));
-            op_ptr h2 = logistic( mat_plus_vec( prod( h1     , m_weights2) ,m_bias_h2 ,1));
-            m_enc     = h2;
-
-            op_ptr h1b = logistic(mat_plus_vec( prod( m_enc, m_weights2, 'n','t') ,m_bias_h1b,1));
-            op_ptr y   = mat_plus_vec( prod( h1b, m_weights1, 'n', 't'), m_bias_y, 1);
-            m_decode   =  y;
-
-            if(!binary)  // squared loss
-                m_rec_loss = mean( pow( axpby(m_input, -1.f, m_decode), 2.f));
-            else         // cross-entropy
-                m_rec_loss = mean( sum(neg_log_cross_entropy_of_logistic(m_input,m_decode),1));
+            op_ptr h1  = logistic( mat_plus_vec( prod( corrupt, m_weights1) ,m_bias_h1a,1));
+            op_ptr h2  = logistic( mat_plus_vec( prod( h1     , m_weights2) ,m_bias_h2 ,1));
+            m_enc      = h2;
+            m_decode   = decode(m_enc);
+            m_rec_loss = reconstruction_loss(m_input,m_decode);
 
             op_ptr rs = row_select(h1,h2); // select same (random) row in h1 and h2
             op_ptr h1r = result(rs,0);
@@ -402,6 +425,11 @@ class auto_encoder_2l : public auto_encoder{
 struct auto_enc_stack {
     private:
         std::vector<auto_encoder*> m_aes; ///< all auto encoders
+        op_ptr m_combined_loss; ///< for finetuning reconstruction of the complete autoencoder
+        sink_ptr     m_loss_sink; ///< sink for combined loss
+        acc_t  s_combined_loss; ///< statistics for combined loss
+        acc_t  s_epochs;
+        unsigned int m_epochs; ///< number of epochs trained
     public:
         /**
          * construct an auto-encoder stack
@@ -458,8 +486,40 @@ struct auto_enc_stack {
             for(unsigned int i=0; i<m_aes.size(); i++) {
                 m_aes[i]->reset_weights();
             }
+            if(m_epochs != 0)
+                s_epochs(m_epochs);
+            m_epochs         = 0;
         }
-
+        op_ptr combined_rec_loss(){
+            if(!m_combined_loss){
+                op_ptr output = m_aes.back()->output();
+                for(int i=m_aes.size()-1; i>=0; i--) {
+                    output = m_aes[i]->decode(output);
+                }
+                m_combined_loss = m_aes[0]->reconstruction_loss(m_aes[0]->input_op(), output);
+                m_loss_sink       = sink(m_combined_loss);
+            }
+            return m_combined_loss;
+        }
+        void log_loss(unsigned int epoch) {
+            m_epochs = std::max(epoch, m_epochs);
+            g_worker->log(BSON("who"<<"AES"<<"epoch"<<epoch<<"perf"<<acc::mean(s_combined_loss)));
+            g_worker->checkpoint();
+        }
+        void acc_loss() {
+            s_combined_loss((float)m_loss_sink->cdata()[0]);
+        }
+        float perf() {
+            return acc::mean(s_combined_loss);
+        }
+        void reset_loss() {
+            s_combined_loss = acc_t();
+        }
+        unsigned int    avg_epochs()  { 
+            if(acc::count(s_epochs)==0) 
+                throw std::runtime_error("cannot calculate average epochs!");
+            return acc::mean(s_epochs); 
+        }
 };
 
 /**
@@ -505,7 +565,7 @@ struct pretrained_mlp {
         void reset_loss() {
             m_loss_sum = m_class_err = m_class_err_cnt = m_loss_sum_cnt = 0;
         }
-        void print_loss(unsigned int epoch) {
+        void log_loss(unsigned int epoch) {
             m_epochs = std::max(epoch, m_epochs);
             mongo::BSONObjBuilder bob;
             bob<<"who"<<"mlp"<<"epoch"<<epoch;
@@ -581,6 +641,7 @@ class pretrained_mlp_trainer
         float              m_mlp_lr; /// learning rates of stacked MLP
         bool               m_pretraining; /// whether pretraining is requested
         bool               m_finetune; /// whether finetuning is requested
+        bool               m_unsupervised_finetune; /// whether finetuning is requested
 
         typedef SimpleDatasetLearner<matrix::memory_space_type> sdl_t;
         friend class boost::serialization::access;
@@ -593,6 +654,8 @@ class pretrained_mlp_trainer
         {
             // construct all members
 
+            std::cout <<"---------------------------------"<<std::endl;
+            std::cout <<"Working on: "<<o<<std::endl;
             m_sdl.constructFromBSON(o);
 
             unsigned int bs = m_sdl.batchsize();
@@ -619,7 +682,8 @@ class pretrained_mlp_trainer
                 new pretrained_mlp(m_aes->output(),10, true)); // TODO: fixed number of 10 classes!!???
             m_mlp_lr = o["mlp_lr"].Double();
             m_pretraining = o["pretrain"].Bool();
-            m_finetune    = o["finetune"].Bool();
+            m_finetune    = o["sfinetune"].Bool();
+            m_unsupervised_finetune    = o["ufinetune"].Bool();
         }
 
 
@@ -631,7 +695,7 @@ class pretrained_mlp_trainer
             std::vector<Op*> params;
             gradient_descent gd(m_mlp->output(),0,params,0.0f,0.0f);
             gd.before_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
-            gd.after_epoch.connect(boost::bind(&pretrained_mlp::print_loss, m_mlp.get(),_1));
+            gd.after_epoch.connect(boost::bind(&pretrained_mlp::log_loss, m_mlp.get(),_1));
             gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_supervised,this,_2));
             gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_class_err,m_mlp.get()));
             gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
@@ -664,12 +728,13 @@ class pretrained_mlp_trainer
             ////////////////////////////////////////////////////////////
             if(m_pretraining) {
                 for(unsigned int l=0; l<m_aes->size(); l++) {
+                    std::cout <<".pretraining layer "<<l<<std::endl;
                     g_worker->log(BSON("who"<<"trainer"<<"topic"<<"layer_change"<<"layer"<<l));
                     std::vector<Op*> params = m_aes->get(l).unsupervised_params();
 
                     gradient_descent gd(m_aes->get(l).loss(),0,params,m_aes_lr[l],0.00000f);
                     gd.before_epoch.connect(boost::bind(&auto_encoder::reset_loss, &m_aes->get(l)));
-                    gd.after_epoch.connect(boost::bind(&auto_encoder::print_loss, &m_aes->get(l), _1));
+                    gd.after_epoch.connect(boost::bind(&auto_encoder::log_loss, &m_aes->get(l), _1));
                     gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_unsupervised,this,_2));
                     gd.after_batch.connect(boost::bind(&auto_encoder::acc_loss,&m_aes->get(l)));
                     gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
@@ -677,13 +742,13 @@ class pretrained_mlp_trainer
                     if(m_sdl.can_earlystop()) {
                         // we can only use early stopping when validation data is given
                         //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
-                        gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.1f, 2);
+                        gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.01f, 2);
                         gd.before_validation_epoch.connect(boost::bind(&auto_encoder::reset_loss, &m_aes->get(l)));
                         gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
                         gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
                         gd.after_validation_epoch.connect(1, boost::bind(&sdl_t::after_validation_epoch, &m_sdl));
                         gd.after_validation_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
-                        gd.after_validation_epoch.connect(0, boost::bind(&auto_encoder::print_loss, &m_aes->get(l), _1));
+                        gd.after_validation_epoch.connect(0, boost::bind(&auto_encoder::log_loss, &m_aes->get(l), _1));
                         gd.minibatch_learning(10000);
                     } else {
                         std::cout << "TRAINALL phase: aes"<<l<<" avg_epochs="<<m_aes->get(l).avg_epochs()<<std::endl;
@@ -693,7 +758,46 @@ class pretrained_mlp_trainer
                 }
             }
             ////////////////////////////////////////////////////////////
-            //                 supervised training
+            //               unsupervised finetuning
+            ////////////////////////////////////////////////////////////
+            if(m_unsupervised_finetune){
+                std::cout <<".unsupervised finetuning"<<std::endl;
+                std::vector<Op*> params;
+                for(unsigned int l=0; l<m_aes->size(); l++) // derive w.r.t. /all/ parameters except output bias of AEs
+                {
+                    std::vector<Op*> tmp = m_aes->get(l).unsupervised_params();
+                    std::copy(tmp.begin(), tmp.end(), std::back_inserter(params));
+                }
+
+                auto_encoder* outmost = &m_aes->get(0);
+                float learnrate = std::accumulate(m_aes_lr.begin(),m_aes_lr.end(),0.f)/m_aes_lr.size();
+                gradient_descent gd(m_aes->combined_rec_loss(),0,params, learnrate,0.00000f);
+                gd.before_epoch.connect(boost::bind(&auto_enc_stack::reset_loss, m_aes.get()));
+                gd.after_epoch.connect(boost::bind(&auto_enc_stack::log_loss, m_aes.get(), _1));
+                gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_unsupervised,this,_2));
+                gd.after_batch.connect(boost::bind(&auto_enc_stack::acc_loss,m_aes.get()));
+                gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
+
+                if(m_sdl.can_earlystop()) {
+                    // we can only use early stopping when validation data is given
+                    //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
+                    gd.setup_early_stopping(boost::bind(&auto_enc_stack::perf,m_aes.get()), 5, 0.01f, 2);
+                    gd.before_validation_epoch.connect(boost::bind(&auto_enc_stack::reset_loss, m_aes.get()));
+                    gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
+                    gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
+                    gd.after_validation_epoch.connect(1, boost::bind(&sdl_t::after_validation_epoch, &m_sdl));
+                    gd.after_validation_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
+                    gd.after_validation_epoch.connect(0, boost::bind(&auto_enc_stack::log_loss, m_aes.get(), _1));
+                    gd.minibatch_learning(10000);
+                } else {
+                    std::cout << "TRAINALL phase: aes unsupervised finetuning; avg_epochs="<<outmost->avg_epochs()<<std::endl;
+                    gd.minibatch_learning(outmost->avg_epochs()); // TRAINALL phase. Use as many as in previous runs
+                }
+
+                log_params("after_unsup_finetune", params);
+            }
+            ////////////////////////////////////////////////////////////
+            //                 supervised finetuning
             ////////////////////////////////////////////////////////////
             if(m_finetune){
                 std::vector<Op*> params;
@@ -707,7 +811,7 @@ class pretrained_mlp_trainer
 
                 gradient_descent gd(m_mlp->loss(),0,params,m_mlp_lr,0.00000f);
                 gd.before_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
-                gd.after_epoch.connect(boost::bind(&pretrained_mlp::print_loss,m_mlp.get(), _1));
+                gd.after_epoch.connect(boost::bind(&pretrained_mlp::log_loss,m_mlp.get(), _1));
                 gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_supervised,this,_2));
                 gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_loss,m_mlp.get()));
                 gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_class_err,m_mlp.get()));
@@ -720,14 +824,14 @@ class pretrained_mlp_trainer
                     gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
                     gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
                     gd.after_validation_epoch.connect(1, boost::bind(&sdl_t::after_validation_epoch,&m_sdl));
-                    gd.after_validation_epoch.connect(0,boost::bind(&pretrained_mlp::print_loss, m_mlp.get(), _1));
+                    gd.after_validation_epoch.connect(0,boost::bind(&pretrained_mlp::log_loss, m_mlp.get(), _1));
                     gd.after_validation_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
                     gd.minibatch_learning(10000);
                 } else {
                     std::cout << "TRAINALL phase: mlp avg_epochs="<<m_mlp->avg_epochs()<<std::endl;
                     gd.minibatch_learning(m_mlp->avg_epochs()); // TRAINALL phase. use as many iterations as in previous runs
                 }
-                log_params("after_train", params);
+                log_params("after_sup_finetune", params);
             }
         }
         void validation_epoch(bool b){
@@ -863,7 +967,8 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
 
         for (unsigned int i = 0; i < n_layers; ++i)
         {
-            lambda[i] = uniform(0.0001, 2.0);
+            //lambda[i] = uniform(0.0001, 2.0);
+            lambda[i] = 0.f;
             aes_lr[i] = aes_lr0;
             noise[i]  = 0.0;
             size[i]   = 
@@ -881,7 +986,8 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
 
             //bob << "pretrain" << (drand48()>0.2f);
             bob << "pretrain" << true;
-            bob << "finetune" << false;
+            bob << "ufinetune" << true;
+            bob << "sfinetune" << false;
 
             mongo::BSONArrayBuilder stack;
             for (unsigned int i = 0; i < n_layers; ++i)
@@ -892,7 +998,7 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
                         "noise"    << noise[i]    <<
                         "size"     << size[i]     <<
                         // exactly same settings, but w/ and w/o twolayer
-                        "twolayer" << ((idx0==0) ? true : false)
+                        "twolayer" << ((idx0==0) ? false : true)
                         );
             }
             bob << "stack"<<stack.arr();
