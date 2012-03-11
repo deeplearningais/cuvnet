@@ -49,11 +49,12 @@ namespace cuvnet
 			std::cout << "processing "<<m_ptr->n_splits()<<" splits"<<std::endl;
 			for (unsigned int s = 0; s < m_ptr->n_splits(); ++s)
 			{
-				m_ptr->reset_params();
+                std::cout << "processing split "<<s<<std::endl;
 				m_ptr->switch_dataset(s,CM_TRAIN);
 				m_ptr->fit();
 				m_ptr->switch_dataset(s,CM_VALID);
 				m_perf += m_ptr->predict();
+				m_ptr->reset_params();
 			}
 			m_perf /= m_ptr->n_splits();
 
