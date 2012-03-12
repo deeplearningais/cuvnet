@@ -60,6 +60,7 @@ namespace cuvnet
 
             m_ptr->switch_dataset(0,CM_TRAINALL);
             m_ptr->fit();
+            m_ptr->switch_dataset(0,CM_TEST);
             m_test_perf = m_ptr->predict();
 		}
 
