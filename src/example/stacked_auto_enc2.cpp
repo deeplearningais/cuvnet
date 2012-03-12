@@ -772,7 +772,7 @@ class pretrained_mlp_trainer
                     if(m_sdl.can_earlystop()) {
                         // we can only use early stopping when validation data is given
                         //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
-                        gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.00f, 2);
+                        gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.000001f, 2);
                         gd.before_validation_epoch.connect(boost::bind(&auto_encoder::reset_loss, &m_aes->get(l)));
                         gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
                         gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
@@ -848,7 +848,7 @@ class pretrained_mlp_trainer
 
                 if(m_sdl.can_earlystop()) {
                     //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
-                    gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, 0.00000001f, 2);
+                    gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, 0.000001f, 2);
                     gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
                     gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
                     gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
