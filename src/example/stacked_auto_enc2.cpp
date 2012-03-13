@@ -948,7 +948,8 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             aes_lr[i] = aes_lr0;
             noise[i]  = 0.0;
             size[i]   = 
-                64;
+                (i==0 ? 512 : 256 );
+                //512;
                 //int(pow(28+drand48()*8,2));
                 //((i==0) ? 5*30 : 15);// hidden0: 4*message plus message, hidden1: only message
             twolayer[i] = (i<n_layers-1);
@@ -1081,7 +1082,7 @@ int main(int argc, char **argv)
 
     boost::asio::io_service io;
     if(std::string("hub") == argv[1]){
-        cv::crossvalidation_queue q("131.220.7.92","test.twolayer_ae_mnist");
+        cv::crossvalidation_queue q("131.220.7.92","test.twolayer_ae_mnist2");
         //q.m_hub.clear_all();
         boost::asio::deadline_timer dt(io, boost::posix_time::seconds(1));
         dt.async_wait(boost::bind(generate_and_test_models_random, &dt, &io, &q));
@@ -1093,7 +1094,7 @@ int main(int argc, char **argv)
         cuvAssert(argc==3);
         cuv::initCUDA(boost::lexical_cast<int>(argv[2]));
         cuv::initialize_mersenne_twister_seeds(time(NULL));
-        cv::crossvalidation_worker w("131.220.7.92","test.twolayer_ae_mnist");
+        cv::crossvalidation_worker w("131.220.7.92","test.twolayer_ae_mnist2");
         w.reg(io,1);
         io.run();
     }
