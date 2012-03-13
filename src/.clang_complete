@@ -1,0 +1,1 @@
+-x c++ -U__GXX_EXPERIMENTAL_CXX0X__ -std=gnu++0x -fgnu-runtime  -I . -I /usr/local/cuda/include -I ~/pool/include/boost-numeric-bindings
