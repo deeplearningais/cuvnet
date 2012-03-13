@@ -9,6 +9,9 @@
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/serialization/export.hpp>
 
+#include <boost/uuid/uuid_io.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/mean.hpp>
@@ -101,7 +104,7 @@ class auto_encoder_1l : public auto_encoder{
     private:
         op_ptr       m_input;
         input_ptr    m_weights,m_bias_h,m_bias_y;
-        sink_ptr   m_loss_sink;
+        sink_ptr   m_reg_sink, m_rec_sink,m_loss_sink;
         op_ptr       m_decode, m_enc;
         op_ptr       m_loss, m_rec_loss, m_contractive_loss;
     public:
@@ -128,6 +131,10 @@ class auto_encoder_1l : public auto_encoder{
         }
         void acc_loss() {
             s_total_loss((float)m_loss_sink->cdata()[0]);
+            if(m_rec_sink)
+                s_rec_loss((float)m_rec_sink->cdata()[0]);
+            if(m_reg_sink)
+                s_reg_loss((float)m_reg_sink->cdata()[0]);
         }
         /**
          * this constructor gets the \e encoded output of another autoencoder as
@@ -210,8 +217,12 @@ class auto_encoder_1l : public auto_encoder{
                     sum(sum(pow(m_enc*(1.f-m_enc),2.f),0)
                             * sum(pow(m_weights,2.f),0));
                 m_loss        = axpby(m_rec_loss, lambda/(float)bs  , m_contractive_loss);
-            } else
-                m_loss        = m_rec_loss; // no change
+                m_reg_sink    = sink(m_contractive_loss);
+                m_rec_sink    = sink(m_rec_loss);
+            } else{
+                m_loss        =      m_rec_loss; // no change
+                m_rec_sink    = sink(m_rec_loss);
+            }
             m_loss_sink       = sink(m_loss);
             reset_weights();
         }
@@ -309,7 +320,7 @@ class auto_encoder_2l : public auto_encoder{
             :auto_encoder(binary),
             m_input(inputs)
              ,m_bias_h1a(new Input(cuv::extents[hl1],       "ae_bias_h1a"+ boost::lexical_cast<std::string>(layer))) 
-             ,m_bias_h1b(new Input(cuv::extents[hl1],       "ae_bias_h1a"+ boost::lexical_cast<std::string>(layer))) 
+             ,m_bias_h1b(new Input(cuv::extents[hl1],       "ae_bias_h1b"+ boost::lexical_cast<std::string>(layer))) 
              ,m_bias_h2 (new Input(cuv::extents[hl2],       "ae_bias_h2" + boost::lexical_cast<std::string>(layer))) 
         {
                  m_input->visit(determine_shapes_visitor()); // ensure that we have shape information
@@ -317,7 +328,7 @@ class auto_encoder_2l : public auto_encoder{
                  unsigned int inp1 = inputs->result()->shape[1];
                  m_weights1.reset(new Input(cuv::extents[inp1][hl1],"ae_weights1" + boost::lexical_cast<std::string>(layer)));
                  m_weights2.reset(new Input(cuv::extents[hl1][hl2], "ae_weights2" + boost::lexical_cast<std::string>(layer)));
-                 m_bias_y.reset(new Input(cuv::extents[inp1],     "ae_bias_y"  + boost::lexical_cast<std::string>(layer)));
+                 m_bias_y.reset(new Input(cuv::extents[inp1],       "ae_bias_y"   + boost::lexical_cast<std::string>(layer)));
                  init(bs  ,inp1,hl1,hl2,binary,noise,lambda);
              }
 
@@ -332,11 +343,11 @@ class auto_encoder_2l : public auto_encoder{
         auto_encoder_2l(unsigned int bs  , unsigned int inp1, unsigned int hl1, unsigned int hl2, bool binary, float noise=0.0f, float lambda=0.0f)
             :auto_encoder(binary),
             m_input(new Input(cuv::extents[bs  ][inp1],"ae_input"))
-             ,m_weights1(new Input(cuv::extents[inp1][hl1],"ae_weights"))
-             ,m_weights2(new Input(cuv::extents[hl1][hl2],"ae_weights"))
+             ,m_weights1(new Input(cuv::extents[inp1][hl1],"ae_weights1"))
+             ,m_weights2(new Input(cuv::extents[hl1][hl2],"ae_weights2"))
              ,m_bias_h1a(new Input(cuv::extents[hl1],       "ae_bias_h1a"))
              ,m_bias_h1b(new Input(cuv::extents[hl1],       "ae_bias_h1b"))
-             ,m_bias_h2 (new Input(cuv::extents[hl2],       "ae_bias_h1b"))
+             ,m_bias_h2 (new Input(cuv::extents[hl2],       "ae_bias_h2"))
              ,m_bias_y(new Input(cuv::extents[inp1],     "ae_bias_y")) {
                  init(bs  ,inp1,hl1,hl2,binary,noise,lambda);
              }
@@ -943,9 +954,11 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             twolayer[i] = (i<n_layers-1);
         }
 
+        std::string uuid = boost::lexical_cast<std::string>(boost::uuids::uuid(boost::uuids::random_generator()()));
         for (int idx0 = 0; idx0 < 2; ++idx0)
         {
             mongo::BSONObjBuilder bob;
+            bob << "uuid" << uuid;
             bob << "dataset" << "mnist";
             bob << "bs"      << 64;
             bob << "nsplits" << 3;
