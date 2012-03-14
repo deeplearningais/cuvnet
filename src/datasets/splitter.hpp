@@ -38,13 +38,18 @@ namespace cuvnet
                 dst.binary     = m_ds.binary;
                 dst.channels   = m_ds.channels;
                 dst.image_size = m_ds.image_size;
-                dst.val_data     = m_ds.train_data  [indices[index_range(start,end)][index_range()]];
-                dst.val_labels   = m_ds.train_labels[indices[index_range(start,end)][index_range()]];
                 dst.train_data.resize(extents[n_left][m_ds.train_data.shape(1)]);
+                dst.val_data   = m_ds.train_data  [indices[index_range(start,end)][index_range()]];
                 dst.test_data  = m_ds.test_data;
                 dst.test_labels= m_ds.test_labels;
-                if(dst.train_labels.ndim()==1) dst.train_labels.resize(extents[n_left]);
-                else                           dst.train_labels.resize(extents[n_left][m_ds.train_labels.shape(1)]);
+                if(m_ds.train_labels.ndim()==1) {
+                    dst.train_labels.resize(extents[n_left]);
+                    dst.val_labels   = m_ds.train_labels[indices[index_range(start,end)]];
+                }
+                else                           {
+                    dst.train_labels.resize(extents[n_left][m_ds.train_labels.shape(1)]);
+                    dst.val_labels   = m_ds.train_labels[indices[index_range(start,end)][index_range()]];
+                }
                 if(start>0){
                     {
                         tensor_view<float,host_memory_space> before_src(indices[index_range(0,start)][index_range()], m_ds.train_data);
