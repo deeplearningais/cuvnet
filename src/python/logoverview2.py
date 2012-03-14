@@ -87,31 +87,27 @@ class experiment:
         self.payload = params["payload"]
         self.conf    = params["payload"]["conf"]
         self.result  = params["result"]
-        self.want_weights = False
+        self.want_weights = True
         self.parse_log(params["log"])
-        self.amend_results()
 
     def calculate_jacobian(self):
         if not self.want_weights:
             return
+        D = mnist.get_test_data()[0]
         if not self.conf["stack"][0]["twolayer"]:
-            for k in  sorted(self.weights.keys()):
-                print k
             W1 = self.weights["ae_weights-after_pretrain"]
             b1 = self.weights["ae_bias_h-after_pretrain"]
             W2 = self.weights["ae_weights1-after_pretrain"]
             b2 = self.weights["ae_bias_h1-after_pretrain"]
-            J = jacobian_2l(W1,b1,W2,b2,mnist.get_test_data()[0])
-            print np.sqrt(np.sum(J**2))
+            J = jacobian_2l(W1,b1,W2,b2,D)
         else:
-            for k in  sorted(self.weights.keys()):
-                print k
             W1 = self.weights["ae_weights1-after_pretrain"]
             b1 = self.weights["ae_bias_h1a-after_pretrain"]
             W2 = self.weights["ae_weights2-after_pretrain"]
             b2 = self.weights["ae_bias_h2-after_pretrain"]
-            J = jacobian_2l(W1,b1,W2,b2,mnist.get_test_data()[0])
-            print np.sqrt(np.sum(J**2))
+            J = jacobian_2l(W1,b1,W2,b2,D)
+        self.spec = J["s"]
+        self.spec_std = J["s_std"]
     def amend_results(self):
         self.result["norm_J"] = self.calculate_jacobian()
     def parse_log(self,log):
@@ -174,16 +170,21 @@ def avglambda(x):
         return x.conf["stack"][0]["lambda"]
     return np.mean([ y["lambda"] for y in x.conf["stack"] ])
 
-performance = lambda x: x.AE.average_last("reg-validation")
-performance = lambda x: x.result["test_perf"]
+performance = lambda x: x.AE.average_last("total-validation")
+performance = lambda x: x.result["perf"]
 
 connection = Connection('131.220.7.92')
 db = connection.test
-gfs = gridfs.GridFS(db, "twolayer_ae_mnist_fs")
-col = db.twolayer_ae_mnist.jobs
+#gfs = gridfs.GridFS(db, "twolayer_ae_mnist2_fs")
+#col = db.twolayer_ae_mnist2.jobs
+gfs = gridfs.GridFS(db, "dev_fs")
+col = db.dev.jobs
 
 experiments = []
 for x in col.find({"state":2}):
+    #if x["payload"]["conf"]["bs"]!=16:
+        #continue
+
     x = experiment(x)
     print x.exptype()
     try:
@@ -202,7 +203,7 @@ fig = plt.figure()
 types = np.unique(x.exptype() for x in experiments).tolist()
 cmap = {}
 for i, t in enumerate(types):cmap[t] = ["b","g","r","c","m","y","k"][i]
-cmap = plt.cm.gist_ncar
+cmap = plt.cm.jet
 
 
 ax = fig.add_subplot(221)
@@ -239,6 +240,20 @@ for t in types:
     ax.set_title("MLP learnrate")
 #ax.set_ylim(0,0.2)
 ax.legend()
+
+fig = plt.figure()
+ax = fig.add_subplot(111)
+for t in types:
+    L = filter(lambda x:x.exptype()==t, experiments)
+    best = sorted(L,key=performance)[0]
+    c = cmap(types.index(t)/float(len(types)))
+    best.amend_results()
+    if hasattr(best,"spec"):
+        ax.plot(best.spec, "-", color=c, label="%s (%1.4f)"%(t,performance(best)))
+        ax.legend()
+    #for l in L:
+        #if hasattr(l,"spec"):
+            #ax.plot(l.spec, "-", color=c)
 
 
 #fig.savefig("cmp.png")

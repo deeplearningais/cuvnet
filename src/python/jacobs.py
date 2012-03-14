@@ -1,8 +1,9 @@
 import numpy as np
+import matplotlib.pyplot as plt
 #from progressbar import ProgressBar
 
 def g(x):
-    return 1/(1-np.exp(-x))
+    return 1/(1+np.exp(-x))
 def g_(x):
     return x*(1-x)
 def jacobian_1l(W, b, data):
@@ -12,22 +13,32 @@ def jacobian_1l(W, b, data):
     return J
 
 def jacobian_2l(W1,b1, W2,b2, data):
+    idx = np.arange(data.shape[0])
+    np.random.shuffle(idx)
+    idx = idx[:10]
+    data = data[idx,:]
+
     h1 = g(np.dot(data,W1)+b1)
     h2 = g(np.dot(h1,W2)+b2)
     h1_ = g_(h1)
     h2_ = g_(h2)
-    bs = 100
-    J = None
-    assert (data.shape[0] % bs)==0
-    for b in xrange(data.shape[0]/bs):
-        print "."
-        h1_b = h1_[b*bs:(1+b)*bs,:]
-        h2_b = h2_[b*bs:(1+b)*bs,:]
-        J_ = h2_b[:,None,:] * np.dot(W1[None,:,:]*h1_b[:,None,:],W2)
-        J_ = J_.mean(0)
-        if J == None: J  = J_
-        else:        J += J_
-    return J/(data.shape[0]/bs)
+
+    J_ = h2_[:,None,:] * np.dot(W1[None,:,:] * h1_[:,None,:], W2)
+    S = []
+    for i in xrange(data.shape[0]):
+        _,s,_ = np.linalg.svd(J_[i,:,:])
+        S.append(s)
+    S = np.vstack(S)[:,:700]
+    s  = S.mean(0)
+    sp = S.std(0)
+    #fig = plt.figure()
+    #ax = fig.add_subplot(111)
+    #ax.plot(s,"b")
+    #ax.plot(s+sp,"b-.")
+    #ax.plot(s-sp,"b-.")
+    #ax.set_title("Jacobian spectrum")
+    #plt.show()
+    return {"s":s, "s_std":sp}
 
 def test_1l():
     import mnist
