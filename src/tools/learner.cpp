@@ -5,6 +5,7 @@
 #include <datasets/ldpc.hpp>
 #include <datasets/natural.hpp>
 #include <datasets/randomizer.hpp>
+#include <datasets/amat_datasets.hpp>
 #include <tools/preprocess.hpp>
 #include <cuvnet/op.hpp>
 #include "learner.hpp"
@@ -61,6 +62,14 @@ namespace cuvnet
         if(0);
         else if (ds == "mnist"){
             dataset dsall = mnist_dataset("/home/local/datasets/MNIST");
+            dsall         = randomizer().transform(dsall);
+            global_min_max_normalize<> normalizer(0,1);
+            normalizer.fit_transform(dsall.train_data);
+            normalizer.transform(dsall.test_data);
+            m_splits.init(dsall, nsplits);
+        }else if (ds == "mnist_rot"){
+            dataset dsall = amat_dataset("/home/local/datasets/bengio/mnist_rotation_new.zip", "mnist_all_rotation_normalized_float_train_valid.amat","mnist_all_rotation_normalized_float_test.amat");
+            dsall.binary = true; // Note: not all amat_datasets are binary!
             dsall         = randomizer().transform(dsall);
             global_min_max_normalize<> normalizer(0,1);
             normalizer.fit_transform(dsall.train_data);
