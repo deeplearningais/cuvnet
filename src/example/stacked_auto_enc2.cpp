@@ -942,9 +942,9 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         {
             mongo::BSONObjBuilder bob;
             bob << "uuid" << uuid;
-            bob << "dataset" << "mnist";
-            bob << "bs"      << 64;
-            bob << "nsplits" << 3;
+            bob << "dataset" << "mnist_rot";
+            bob << "bs"      << 16;
+            bob << "nsplits" << 1;
             bob << "mlp_lr"  << mlp_lr;
 
             bob << "pretrain" << true;
@@ -1014,15 +1014,15 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
         for (int idx0 = 0; idx0 < 3; ++idx0)
         {
             mongo::BSONObjBuilder bob;
-            bob << "dataset" << "ldpc";
+            bob << "dataset" << "mnist_rot";
             bob << "bs"      << 32;
-            bob << "nsplits" << 3;
+            bob << "nsplits" << 1;
             bob << "mlp_lr"  << mlp_lr;
 
             //bob << "pretrain" << (drand48()>0.2f);
             bob << "pretrain" << true;
-            bob << "ufinetune" << true;
-            bob << "sfinetune" << false;
+            bob << "ufinetune" << false;
+            bob << "sfinetune" << true;
 
             if(idx0 == 2){
                 n_layers = 1;
@@ -1064,7 +1064,7 @@ int main(int argc, char **argv)
 
     boost::asio::io_service io;
     if(std::string("hub") == argv[1]){
-        cv::crossvalidation_queue q("131.220.7.92","test.twolayer_ae_mnist2");
+        cv::crossvalidation_queue q("131.220.7.92","test.twolayer_ae_mnist3");
         //q.m_hub.clear_all();
         boost::asio::deadline_timer dt(io, boost::posix_time::seconds(1));
         dt.async_wait(boost::bind(generate_and_test_models_random, &dt, &io, &q));
@@ -1076,7 +1076,7 @@ int main(int argc, char **argv)
         cuvAssert(argc==3);
         cuv::initCUDA(boost::lexical_cast<int>(argv[2]));
         cuv::initialize_mersenne_twister_seeds(time(NULL));
-        cv::crossvalidation_worker w("131.220.7.92","test.twolayer_ae_mnist2");
+        cv::crossvalidation_worker w("131.220.7.92","test.twolayer_ae_mnist3");
         w.reg(io,1);
         io.run();
     }
