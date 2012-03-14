@@ -25,6 +25,8 @@ namespace cuvnet
             paramvec_t       m_params;   ///< all parameters w.r.t. which we optimize
             float            m_learnrate; ///< learnrate for weight updates
             float            m_weightdecay; ///< weight decay for weight updates
+            unsigned int     m_rounds;    ///< number of rounds until optimum on validation set was attained
+            std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >    m_best_perf_params; ///< copies of parameters for current best performance
         public:
             /// triggered before an epoch starts. Should return number of batches!
             boost::signal<void(unsigned int)> before_epoch;
@@ -42,6 +44,8 @@ namespace cuvnet
 
             /// should return current number of batches
             boost::signal<unsigned int(void)> current_batch_num;
+
+            unsigned int rounds()const{ return m_rounds; }
 
 
             /**
@@ -72,6 +76,14 @@ namespace cuvnet
                 validation_epoch(current_epoch);
                 float perf = m_performance();
                 std::cout << "   validation: "<< perf<<std::endl;
+                if(perf < m_best_perf){
+                    // save the (now best) parameters
+                    for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
+                        Input* p = dynamic_cast<Input*>(*it);
+                        cuvAssert(p);
+                        m_best_perf_params[*it] = p->data();
+                    }
+                }
                 if(perf <= m_best_perf-thresh){ // improve by at least thresh
                     m_best_perf = perf;
                     m_failed_improvement_rounds = 0;
@@ -79,8 +91,22 @@ namespace cuvnet
                     m_failed_improvement_rounds++;
                 }
                 if(m_failed_improvement_rounds>maxfails){
+                    // load the best parameters again
+                    for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
+                        Input* p = dynamic_cast<Input*>(*it);
+                        cuvAssert(p);
+                        std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >::iterator mit = m_best_perf_params.find(*it);
+                        if(mit != m_best_perf_params.end())
+                             p->data() = m_best_perf_params[*it];
+                    }
+
+                    // save the number of rounds until minimum was attained
+                    // TODO: crossvalidator should know about this and use it
+                    //       to determine the number of rounds in the TRAINALL phase!
+                    m_rounds = current_epoch - m_failed_improvement_rounds*every;
                     throw no_improvement_stop();
                 }
+                m_rounds = current_epoch;
             }
             /**
              * set up early stopping

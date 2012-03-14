@@ -52,12 +52,11 @@ class auto_encoder {
         acc_t s_rec_loss; ///< reconstruction
         acc_t s_reg_loss; ///< regularization
         acc_t s_total_loss;
-        acc_t s_epochs;   ///< how many epochs this was trained for
 
         bool m_binary; ///< if true, use logistic loss
 
-        unsigned int m_epochs; ///< number of epochs this was trained for TODO: reset this together with reset_params and/or count how many times it was reset to get the average!
     public:
+        acc_t s_epochs;   ///< how many epochs this was trained for
         virtual std::vector<Op*>   supervised_params()=0;
         virtual std::vector<Op*> unsupervised_params()=0;
         virtual matrix& input()=0;
@@ -66,7 +65,7 @@ class auto_encoder {
         virtual op_ptr decode(op_ptr&)=0;
         virtual op_ptr loss()=0;
         virtual void reset_weights()=0;
-        auto_encoder(bool binary):m_binary(binary),m_epochs(0){}
+        auto_encoder(bool binary):m_binary(binary){}
 
         op_ptr reconstruction_loss(op_ptr& input, op_ptr& decode){
             if(!m_binary)  // squared loss
@@ -88,7 +87,6 @@ class auto_encoder {
         }
         virtual
         void log_loss(unsigned int epoch) {
-            m_epochs = std::max(epoch, m_epochs);
             g_worker->log(BSON("who"<<"AE"<<"epoch"<<epoch<<"perf"<<acc::mean(s_total_loss)<<"reg"<<acc::mean(s_reg_loss)<<"rec"<<acc::mean(s_rec_loss)));
             g_worker->checkpoint();
         }
@@ -190,10 +188,6 @@ class auto_encoder_1l : public auto_encoder{
             m_weights->data() -=   diff;
             m_bias_h->data()   = 0.f;
             m_bias_y->data()   = 0.f;
-
-            if(m_epochs != 0)
-                s_epochs(m_epochs);
-            m_epochs           = 0;
         }
 
     private:
@@ -385,9 +379,6 @@ class auto_encoder_2l : public auto_encoder{
             m_bias_h1b->data()   = 0.f;
             m_bias_h2 ->data()   = 0.f;
             m_bias_y->data()   = 0.f;
-            if(m_epochs != 0)
-                s_epochs(m_epochs);
-            m_epochs           = 0;
         }
 
     private:
@@ -440,9 +431,8 @@ struct auto_enc_stack {
         sink_ptr     m_loss_sink, m_out_sink; ///< sink for combined loss
         acc_t  s_combined_loss; ///< statistics for combined loss
         acc_t  s_class_err; ///< classification error
-        acc_t  s_epochs;
-        unsigned int m_epochs; ///< number of epochs trained
     public:
+        acc_t  s_epochs;
         /**
          * construct an auto-encoder stack
          *
@@ -455,7 +445,6 @@ struct auto_enc_stack {
          * @param lambda if lambda>0, it represents the "contractive" weight of the autoencoder
          */
         auto_enc_stack(unsigned int bs, unsigned int inp1, int n_layers, const int* layer_sizes, bool binary, float* noise, float* lambdas, std::vector<bool> twolayer) 
-        : m_epochs(0)
         {
             int i = 0;
             if(twolayer[i]) {
@@ -500,9 +489,6 @@ struct auto_enc_stack {
             for(unsigned int i=0; i<m_aes.size(); i++) {
                 m_aes[i]->reset_weights();
             }
-            if(m_epochs != 0)
-                s_epochs(m_epochs);
-            m_epochs         = 0;
         }
         op_ptr combined_rec_loss(){
             if(!m_combined_loss){
@@ -517,7 +503,6 @@ struct auto_enc_stack {
             return m_combined_loss;
         }
         void log_loss(unsigned int epoch) {
-            m_epochs = std::max(epoch, m_epochs);
             g_worker->log(BSON("who"<<"AES"<<"epoch"<<epoch<<"perf"<<acc::mean(s_combined_loss)));
             g_worker->checkpoint();
         }
@@ -560,11 +545,10 @@ struct pretrained_mlp {
         op_ptr    m_output; ///< classification result
         sink_ptr m_out_sink;
         sink_ptr m_loss_sink;
-        acc_t    s_epochs;
-        unsigned int m_epochs;///< number of epochs this was trained for
         float m_loss_sum, m_class_err;
         unsigned int m_loss_sum_cnt, m_class_err_cnt;
     public:
+        acc_t    s_epochs;
 
         unsigned int    avg_epochs()  { return acc::mean(s_epochs); }
         input_ptr      weights()  { return m_weights; }
@@ -592,7 +576,6 @@ struct pretrained_mlp {
             m_loss_sum = m_class_err = m_class_err_cnt = m_loss_sum_cnt = 0;
         }
         void log_loss(unsigned int epoch) {
-            m_epochs = std::max(epoch, m_epochs);
             mongo::BSONObjBuilder bob;
             bob<<"who"<<"mlp"<<"epoch"<<epoch;
             if(m_loss_sum_cnt && m_class_err_cnt){
@@ -635,7 +618,6 @@ struct pretrained_mlp {
                 else        // mean squared error
                     m_loss = mean(pow(axpby(-1.f,m_targets,m_output),2.f));
                 m_loss_sink = sink(m_loss);
-                m_epochs=0;
 
                 reset_weights();
             }
@@ -649,9 +631,6 @@ struct pretrained_mlp {
             m_weights->data() -=   diff;
             m_bias->data()   = 0.f;
             m_bias->data()   = 0.f;
-            if(m_epochs != 0)
-                s_epochs(m_epochs);
-            m_epochs         = 0;
         }
 };
 
@@ -791,6 +770,7 @@ class pretrained_mlp_trainer
                         gd.after_validation_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
                         gd.after_validation_epoch.connect(0, boost::bind(&auto_encoder::log_loss, &m_aes->get(l), _1));
                         gd.minibatch_learning(10000);
+                        m_aes->get(l).s_epochs(gd.rounds()); // remember number of iterations until optimum
                     } else {
                         std::cout << "TRAINALL phase: aes"<<l<<" avg_epochs="<<m_aes->get(l).avg_epochs()<<std::endl;
                         gd.minibatch_learning(m_aes->get(l).avg_epochs()); // TRAINALL phase. Use as many as in previous runs
@@ -829,6 +809,7 @@ class pretrained_mlp_trainer
                     gd.after_validation_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
                     gd.after_validation_epoch.connect(0, boost::bind(&auto_enc_stack::log_loss, m_aes.get(), _1));
                     gd.minibatch_learning(10000);
+                    m_aes->s_epochs(gd.rounds()); // remember number of iterations until optimum
                 } else {
                     std::cout << "TRAINALL phase: aes unsupervised finetuning; avg_epochs="<<m_aes->avg_epochs()<<std::endl;
                     gd.minibatch_learning(m_aes->avg_epochs()); // TRAINALL phase. Use as many as in previous runs
@@ -867,6 +848,7 @@ class pretrained_mlp_trainer
                     gd.after_validation_epoch.connect(0,boost::bind(&pretrained_mlp::log_loss, m_mlp.get(), _1));
                     gd.after_validation_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
                     gd.minibatch_learning(10000);
+                    m_mlp->s_epochs(gd.rounds()); // remember number of iterations until optimum
                 } else {
                     std::cout << "TRAINALL phase: mlp avg_epochs="<<m_mlp->avg_epochs()<<std::endl;
                     gd.minibatch_learning(m_mlp->avg_epochs()); // TRAINALL phase. use as many iterations as in previous runs
