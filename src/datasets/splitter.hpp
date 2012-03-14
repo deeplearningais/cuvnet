@@ -9,30 +9,41 @@ namespace cuvnet
     class splitter 
     {
         private:
-            dataset m_ds;
-            unsigned int m_n_splits;
+            dataset m_ds;     ///< the original dataset which is to be split
+            unsigned int m_n_splits; ///< the number of splits
+            float m_val_frac; ///< fraction of samples in the validation set
         public:
             const dataset& get_ds()const{ return m_ds; }
             unsigned int size()const{return m_n_splits;}
             splitter() : m_n_splits(0) {}
-            splitter(dataset ds, unsigned int n_splits)
+            splitter(dataset ds, unsigned int n_splits, float val_frac=0.16666666666666)
                 :m_ds(ds)
                 ,m_n_splits(n_splits)
+                ,m_val_frac(val_frac)
             {
                 std::cout << "Splitting training_data into "<<n_splits<<" parts."<<std::endl;
             }
-            void init(dataset ds, unsigned int n_splits){
+            void init(dataset ds, unsigned int n_splits, float val_frac=0.166666666666){
                 m_ds = ds;
                 m_n_splits = n_splits;
+                m_val_frac = val_frac;
             }
 			unsigned int n_splits()const{return m_n_splits; }
             dataset operator[](unsigned int idx){ 
                 using namespace cuv;
                 cuvAssert(idx<m_n_splits);
                 unsigned int n_examples = m_ds.train_data.shape(0);
-                unsigned int step       = std::ceil(n_examples/(float)m_n_splits);
-                unsigned int start      = step*idx;
-                unsigned int end        = std::min(n_examples,start+step);
+                unsigned int start,end;
+                if(m_n_splits==1){
+                    // just split in training and validation using m_val_frac
+                    // the last m_val_frac*n_examples items are used for validation.
+                    start = n_examples * (1.f-m_val_frac);
+                    end   = n_examples;
+                }else{
+                    unsigned int step       = std::ceil(n_examples/(float)m_n_splits);
+                    start  = step*idx;
+                    end    = std::min(n_examples,start+step);
+                }
                 unsigned int n_left     = n_examples - (end-start);
                 dataset dst;
                 dst.binary     = m_ds.binary;
