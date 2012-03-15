@@ -204,7 +204,7 @@ def avglambda(x):
 performance = lambda x: x.AE.average_last("total-validation")
 test_performance = lambda x: x.result["test_perf"]
 val_performance = lambda x: x.result["perf"]
-performance = test_performance
+performance = val_performance
 
 connection = Connection('131.220.7.92')
 db = connection.test
@@ -242,7 +242,7 @@ cmap = lambda x:cmapv[x]
 #cmap = lambda x: plt.cm.jet(types.index(x)/float(len(types)))
 
 from scipy.stats.mstats import mquantiles
-Q = mquantiles(map(performance,experiments), prob=(0,.95))
+Q = mquantiles(map(test_performance,experiments), prob=(0,.95))
 y0 = Q[0]
 y1 = Q[1]
 
@@ -251,8 +251,11 @@ for t in types:
     L = filter(lambda x:x.exptype()==t, experiments)
     X = map(lambda x: avglambda(x), L)
     Y = map(performance, L)
+    idxbest = np.argmin(Y)
+    best    = L[idxbest]
     ax.set_title("lambda")
     ax.scatter(X,Y,label=t,c=cmap(t))
+    ax.scatter([X[idxbest]], [test_performance(best)], c=cmap(t), s=100)
 ax.set_ylim(y0,y1)
 
 ax = fig.add_subplot(222)
@@ -284,9 +287,9 @@ for t in types:
 ax.set_ylim(y0,y1)
 ax.legend()
 
+fig.savefig("perf.pdf")
 plt.show()
 import sys; sys.exit(0)
-fig.savefig("perf.pdf")
 
 fig = plt.figure()
 ax0 = fig.add_subplot(121)
