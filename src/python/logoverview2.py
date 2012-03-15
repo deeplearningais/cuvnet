@@ -5,6 +5,7 @@ from pymongo import Connection
 import gridfs
 from mnist import MNIST_data
 from jacobs import jacobian_2l
+from progressbar import ProgressBar
 
 mnist = MNIST_data("/home/local/datasets/MNIST")
 
@@ -93,6 +94,7 @@ class experiment:
     def calculate_jacobian(self):
         if not self.want_weights:
             return
+        print "calculating spectra for ", self.exptype()
         D = mnist.get_test_data()[0]
         if not self.conf["stack"][0]["twolayer"]:
             W1 = self.weights["ae_weights-after_pretrain"]
@@ -108,8 +110,35 @@ class experiment:
             J = jacobian_2l(W1,b1,W2,b2,D)
         self.spec = J["s"]
         self.spec_std = J["s_std"]
+
+    def calculate_contraction_ratios(self):
+        print "calculating contraction ratios for ", self.exptype()
+        self.cratios = []
+        if not self.conf["stack"][0]["twolayer"]:
+            W1 = self.weights["ae_weights-after_pretrain"]
+            b1 = self.weights["ae_bias_h-after_pretrain"]
+            W2 = self.weights["ae_weights1-after_pretrain"]
+            b2 = self.weights["ae_bias_h1-after_pretrain"]
+        else:
+            W1 = self.weights["ae_weights1-after_pretrain"]
+            b1 = self.weights["ae_bias_h1a-after_pretrain"]
+            W2 = self.weights["ae_weights2-after_pretrain"]
+            b2 = self.weights["ae_bias_h2-after_pretrain"]
+        D = mnist.get_test_data()[0]
+        v0 = jacobian_2l(W1,b1,W2,b2,D)['v']
+        self.cratios_x = np.arange(1,40,1.0)
+        pbar = ProgressBar(maxval=len(self.cratios_x))
+        for r in self.cratios_x:
+            rnd = np.random.normal(size=D.shape)
+            rnd *= r / np.sqrt(np.sum(rnd**2,1))[:,None] # norm to one in each row
+            v = jacobian_2l(W1,b1,W2,b2,D+rnd)['v']
+            self.cratios.append((v0-v)/r)
+            pbar.update(r)
+        pbar.finish()
+
     def amend_results(self):
         self.result["norm_J"] = self.calculate_jacobian()
+        self.calculate_contraction_ratios()
     def parse_log(self,log):
         valmode         = "training"
         ds              = ""
@@ -158,12 +187,14 @@ class experiment:
     def exptype(self):
         if len(self.conf["stack"])==1:
             return "single layer"
+        if (self.conf["pretrain"])==False:
+            return "only finetuning"
         if self.conf["stack"][0]["twolayer"]:
             if self.conf["stack"][0]["lambda"]==0:
-                return "plain two layer"
-            return "regularized two layer"
+                return "unregularized 2-layer AE"
+            return "regularized 2-layer AE"
         else:
-            return "greedy"
+            return "2 greedy 1-layer AE"
 
 def avglambda(x):
     if x.conf["stack"][0]["twolayer"]:
@@ -171,19 +202,23 @@ def avglambda(x):
     return np.mean([ y["lambda"] for y in x.conf["stack"] ])
 
 performance = lambda x: x.AE.average_last("total-validation")
-performance = lambda x: x.result["perf"]
+test_performance = lambda x: x.result["test_perf"]
+val_performance = lambda x: x.result["perf"]
+performance = test_performance
 
 connection = Connection('131.220.7.92')
 db = connection.test
-#gfs = gridfs.GridFS(db, "twolayer_ae_mnist2_fs")
-#col = db.twolayer_ae_mnist2.jobs
-gfs = gridfs.GridFS(db, "dev_fs")
-col = db.dev.jobs
+gfs = gridfs.GridFS(db, "twolayer_ae_mnist3_fs")
+col = db.twolayer_ae_mnist3.jobs
+#gfs = gridfs.GridFS(db, "dev_fs")
+#col = db.dev.jobs
 
 experiments = []
 for x in col.find({"state":2}):
-    #if x["payload"]["conf"]["bs"]!=16:
-        #continue
+    if x["payload"]["conf"]["bs"]!=16:
+        continue
+    if x["payload"]["conf"]["stack"][0]["size"]!=1000:
+        continue
 
     x = experiment(x)
     print x.exptype()
@@ -201,10 +236,15 @@ assert len(experiments)>0
 
 fig = plt.figure()
 types = np.unique(x.exptype() for x in experiments).tolist()
-cmap = {}
-for i, t in enumerate(types):cmap[t] = ["b","g","r","c","m","y","k"][i]
-cmap = plt.cm.jet
+cmapv = {}
+for i, t in enumerate(types):cmapv[t] = ["b","c","r","g","m","y","k"][i]
+cmap = lambda x:cmapv[x]
+#cmap = lambda x: plt.cm.jet(types.index(x)/float(len(types)))
 
+from scipy.stats.mstats import mquantiles
+Q = mquantiles(map(performance,experiments), prob=(0,.95))
+y0 = Q[0]
+y1 = Q[1]
 
 ax = fig.add_subplot(221)
 for t in types:
@@ -212,7 +252,8 @@ for t in types:
     X = map(lambda x: avglambda(x), L)
     Y = map(performance, L)
     ax.set_title("lambda")
-    ax.scatter(X,Y,label=t,c=cmap(types.index(t)/float(len(types))))
+    ax.scatter(X,Y,label=t,c=cmap(t))
+ax.set_ylim(y0,y1)
 
 ax = fig.add_subplot(222)
 for t in types:
@@ -220,40 +261,52 @@ for t in types:
     X = map(lambda x: x.conf["stack"][0]["lr"], L)
     Y = map(performance, L)
     ax.set_title("autoencoder learnrate")
-    ax.scatter(X,Y,label=t,c=cmap(types.index(t)/float(len(types))))
+    ax.scatter(X,Y,label=t,c=cmap(t))
+ax.set_ylim(y0,y1)
 
 ax = fig.add_subplot(223)
 for t in types:
     L = filter(lambda x:x.exptype()==t, experiments)
-    X = map(lambda x: x.conf["stack"][0]["twolayer"], L)
+    X = map(lambda x: types.index(x.exptype()), L)
     Y = map(performance, L)
-    ax.set_title("twolayer-AE")
-    ax.scatter(X,Y,label=t,c=cmap(types.index(t)/float(len(types))))
-ax.set_xlim(-.5,1.5)
+    ax.set_title("Exptype")
+    ax.scatter(X,Y,label=t,c=cmap(t))
+ax.set_ylim(y0,y1)
+ax.set_xlim(-.5,4.5)
 
 ax = fig.add_subplot(224)
 for t in types:
     L = filter(lambda x:x.exptype()==t, experiments)
     X = map(lambda x: x.conf["mlp_lr"], L)
     Y = map(performance, L)
-    ax.scatter(X,Y,label=t,c=cmap(types.index(t)/float(len(types))))
+    ax.scatter(X,Y,label=t,c=cmap(t))
     ax.set_title("MLP learnrate")
-#ax.set_ylim(0,0.2)
+ax.set_ylim(y0,y1)
 ax.legend()
 
+plt.show()
+import sys; sys.exit(0)
+fig.savefig("perf.pdf")
+
 fig = plt.figure()
-ax = fig.add_subplot(111)
+ax0 = fig.add_subplot(121)
+ax1 = fig.add_subplot(122)
 for t in types:
     L = filter(lambda x:x.exptype()==t, experiments)
     best = sorted(L,key=performance)[0]
-    c = cmap(types.index(t)/float(len(types)))
     best.amend_results()
     if hasattr(best,"spec"):
-        ax.plot(best.spec, "-", color=c, label="%s (%1.4f)"%(t,performance(best)))
-        ax.legend()
+        ax0.plot(best.spec, "-", color=cmap(t), label="%s (%1.4f)"%(t,performance(best)))
+        ax0.legend()
+        ax1.plot(best.cratios_x,best.cratios, "-", color=cmap(t), label="%s (%1.4f)"%(t,performance(best)))
+        ax1.legend()
     #for l in L:
         #if hasattr(l,"spec"):
             #ax.plot(l.spec, "-", color=c)
+ax0.set_title("Jacobian Spectrum")
+ax1.set_title("Contraction Ratio")
+fig.savefig("J.pdf")
+
 
 
 #fig.savefig("cmp.png")
