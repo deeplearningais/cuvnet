@@ -16,14 +16,14 @@ namespace cuvnet
             const dataset& get_ds()const{ return m_ds; }
             unsigned int size()const{return m_n_splits;}
             splitter() : m_n_splits(0) {}
-            splitter(dataset ds, unsigned int n_splits, float val_frac=0.16666666666666)
+            splitter(dataset ds, unsigned int n_splits, float val_frac=0.2)
                 :m_ds(ds)
                 ,m_n_splits(n_splits)
                 ,m_val_frac(val_frac)
             {
                 std::cout << "Splitting training_data into "<<n_splits<<" parts."<<std::endl;
             }
-            void init(dataset ds, unsigned int n_splits, float val_frac=0.166666666666){
+            void init(dataset ds, unsigned int n_splits, float val_frac=0.2){
                 m_ds = ds;
                 m_n_splits = n_splits;
                 m_val_frac = val_frac;

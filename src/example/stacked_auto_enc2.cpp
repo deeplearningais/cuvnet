@@ -930,7 +930,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             aes_lr[i] = aes_lr0;
             noise[i]  = 0.0;
             size[i]   = 
-                (i==0 ? 512 : 256 );
+                (i==0 ? 1000 : 1000 );
                 //512;
                 //int(pow(28+drand48()*8,2));
                 //((i==0) ? 5*30 : 15);// hidden0: 4*message plus message, hidden1: only message
@@ -938,7 +938,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         }
 
         std::string uuid = boost::lexical_cast<std::string>(boost::uuids::uuid(boost::uuids::random_generator()()));
-        for (int idx0 = 0; idx0 < 2; ++idx0)
+        for (int idx0 = 0; idx0 < 3; ++idx0)
         {
             mongo::BSONObjBuilder bob;
             bob << "uuid" << uuid;
@@ -947,7 +947,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             bob << "nsplits" << 1;
             bob << "mlp_lr"  << mlp_lr;
 
-            bob << "pretrain" << true;
+            bob << "pretrain" << (idx0==2 ? false : true); // in 3rd case, do not do any pretraining
             bob << "ufinetune" << false;
             bob << "sfinetune" << true;
 
@@ -1003,7 +1003,7 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
             aes_lr[i] = aes_lr0;
             noise[i]  = 0.0;
             size[i]   = 
-                ((i==0) ? 5*30 : 15);// hidden0: 4*message plus message, hidden1: only message
+                ((i==0) ? 5*36 : 30);// hidden0: 4*message plus message, hidden1: only message
             twolayer[i] = (i<n_layers-1);
         }
 
@@ -1014,13 +1014,13 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
         for (int idx0 = 0; idx0 < 3; ++idx0)
         {
             mongo::BSONObjBuilder bob;
-            bob << "dataset" << "mnist_rot";
+            bob << "dataset" << "ldpc";
             bob << "bs"      << 32;
             bob << "nsplits" << 1;
             bob << "mlp_lr"  << mlp_lr;
 
-            //bob << "pretrain" << (drand48()>0.2f);
-            bob << "pretrain" << true;
+            bob << "pretrain" << (drand48()>0.1f);
+            //bob << "pretrain" << true;
             bob << "ufinetune" << false;
             bob << "sfinetune" << true;
 
@@ -1064,10 +1064,10 @@ int main(int argc, char **argv)
 
     boost::asio::io_service io;
     if(std::string("hub") == argv[1]){
-        cv::crossvalidation_queue q("131.220.7.92","test.twolayer_ae_mnist3");
+        cv::crossvalidation_queue q("131.220.7.92","test.twolayer_ae_ldpc");
         //q.m_hub.clear_all();
         boost::asio::deadline_timer dt(io, boost::posix_time::seconds(1));
-        dt.async_wait(boost::bind(generate_and_test_models_random, &dt, &io, &q));
+        dt.async_wait(boost::bind(generate_and_test_models_ldpc, &dt, &io, &q));
 
         q.m_hub.reg(io,1); // checks for timeouts
         io.run();
@@ -1076,7 +1076,7 @@ int main(int argc, char **argv)
         cuvAssert(argc==3);
         cuv::initCUDA(boost::lexical_cast<int>(argv[2]));
         cuv::initialize_mersenne_twister_seeds(time(NULL));
-        cv::crossvalidation_worker w("131.220.7.92","test.twolayer_ae_mnist3");
+        cv::crossvalidation_worker w("131.220.7.92","test.twolayer_ae_ldpc");
         w.reg(io,1);
         io.run();
     }

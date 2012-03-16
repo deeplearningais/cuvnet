@@ -149,7 +149,7 @@ float threshold_or(float f){
 int
 main(int argc, char **argv)
 {
-    unsigned int n_variables   = N_DENSITY*5;
+    unsigned int n_variables   = N_DENSITY*6;
     unsigned int n_constraints = n_variables;
     srand48(time(NULL));
     srand(time(NULL));
@@ -240,7 +240,8 @@ main(int argc, char **argv)
     printmat("wor",wor);
 
     // create dataset
-    const unsigned int dataset_size = 32768;
+    //const unsigned int dataset_size = 32768;
+    const unsigned int dataset_size = 60000;
     matrix<float> dataset(dataset_size, n_variables*2); // code + data
     matrix<float> cov = outer_prod(check2,check);
     vector<unsigned int> allvar(pow(2,n_variables));
