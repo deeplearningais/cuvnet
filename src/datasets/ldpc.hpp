@@ -14,6 +14,7 @@ namespace cuvnet
             std::cout << "Reading LDPC dataset..."<<std::flush;
             std::string ptrain = (path + "/ds_32768x30_float32.bin");
             //std::string ptrain = (path + "/ds_60000x36_float32.bin");
+            unsigned int n_test = 10000;
             assert(fs::exists(ptrain));
             std::ifstream ftraind(ptrain.c_str(),std::ios::in | std::ios::binary); // image data
             assert(ftraind.is_open());
@@ -21,11 +22,11 @@ namespace cuvnet
             cuv::tensor<float,cuv::host_memory_space> traind(cuv::extents[32768][15*2]);
             ftraind.read((char*)traind.ptr(), sizeof(float)*traind.size()); assert(ftraind.good());
 
-            train_data = traind[indices[index_range(0,32768-3600)][index_range()]];
-            test_data  = traind[indices[index_range(32768-3600,32768)][index_range()]];
+            train_data = traind[indices[index_range(0,32768-n_test)][index_range()]];
+            test_data  = traind[indices[index_range(32768-n_test,32768)][index_range()]];
 
-            train_labels.resize(cuv::extents[32768-3600][10]);
-            test_labels.resize( cuv::extents[3600][10]);
+            train_labels.resize(cuv::extents[32768-n_test][10]);
+            test_labels.resize( cuv::extents[n_test][10]);
             train_labels = 0.f;
             test_labels  = 0.f;
 
