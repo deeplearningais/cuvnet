@@ -208,17 +208,17 @@ performance = val_performance
 
 connection = Connection('131.220.7.92')
 db = connection.test
-gfs = gridfs.GridFS(db, "twolayer_ae_mnist3_fs")
-col = db.twolayer_ae_mnist3.jobs
+gfs = gridfs.GridFS(db, "twolayer_ae_ldpc_fs")
+col = db.twolayer_ae_ldpc.jobs
 #gfs = gridfs.GridFS(db, "dev_fs")
 #col = db.dev.jobs
 
 experiments = []
 for x in col.find({"state":2}):
-    if x["payload"]["conf"]["bs"]!=16:
-        continue
-    if x["payload"]["conf"]["stack"][0]["size"]!=1000:
-        continue
+    #if x["payload"]["conf"]["bs"]!=16:
+    #    continue
+    #if x["payload"]["conf"]["stack"][0]["size"]!=1000:
+    #    continue
 
     x = experiment(x)
     print x.exptype()
@@ -295,6 +295,7 @@ fig = plt.figure()
 ax0 = fig.add_subplot(121)
 ax1 = fig.add_subplot(122)
 for t in types:
+    if t=="only finetuning": continue
     L = filter(lambda x:x.exptype()==t, experiments)
     best = sorted(L,key=performance)[0]
     best.amend_results()
