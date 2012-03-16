@@ -821,6 +821,7 @@ class pretrained_mlp_trainer
             //                 supervised finetuning
             ////////////////////////////////////////////////////////////
             if(m_finetune){
+                std::cout <<".supervised finetuning"<<std::endl;
                 std::vector<Op*> params;
                 for(unsigned int l=0; l<m_aes->size(); l++) // derive w.r.t. /all/ parameters except output bias of AEs
                 {
@@ -1003,7 +1004,7 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
             aes_lr[i] = aes_lr0;
             noise[i]  = 0.0;
             size[i]   = 
-                ((i==0) ? 5*36 : 30);// hidden0: 4*message plus message, hidden1: only message
+                ((i==0) ? 5*15 : 15);// hidden0: 4*message plus message, hidden1: only message
             twolayer[i] = (i<n_layers-1);
         }
 
@@ -1021,8 +1022,8 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
 
             bob << "pretrain" << (drand48()>0.1f);
             //bob << "pretrain" << true;
-            bob << "ufinetune" << false;
-            bob << "sfinetune" << true;
+            bob << "ufinetune" << true;
+            bob << "sfinetune" << false;
 
             if(idx0 == 2){
                 n_layers = 1;

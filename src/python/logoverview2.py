@@ -186,15 +186,22 @@ class experiment:
         pass
     def exptype(self):
         if len(self.conf["stack"])==1:
-            return "single layer"
+            if self.conf["pretrain"] == False:
+                return "1 layer encoder, no pretraining"
+            else:
+                return "1 layer encoder, with pretraining"
         if (self.conf["pretrain"])==False:
-            return "only finetuning"
+            return "2 layer encoder, no pretraining"
         if self.conf["stack"][0]["twolayer"]:
             if self.conf["stack"][0]["lambda"]==0:
-                return "unregularized 2-layer AE"
-            return "regularized 2-layer AE"
+                return "2 layer encoder, pretraining unregularized"
+            else:
+                return "2 layer encoder, pretraining contractive"
         else:
-            return "2 greedy 1-layer AE"
+            if self.conf["stack"][0]["lambda"]==0:
+                return "2 layer encoder, greedy pretraining unregularized"
+            else:
+                return "2 layer encoder, greedy pretraining contractive"
 
 def avglambda(x):
     if x.conf["stack"][0]["twolayer"]:
@@ -204,7 +211,7 @@ def avglambda(x):
 performance = lambda x: x.AE.average_last("total-validation")
 test_performance = lambda x: x.result["test_perf"]
 val_performance = lambda x: x.result["perf"]
-performance = val_performance
+performance = test_performance
 
 connection = Connection('131.220.7.92')
 db = connection.test
@@ -242,7 +249,7 @@ cmap = lambda x:cmapv[x]
 #cmap = lambda x: plt.cm.jet(types.index(x)/float(len(types)))
 
 from scipy.stats.mstats import mquantiles
-Q = mquantiles(map(test_performance,experiments), prob=(0,.95))
+Q = mquantiles(map(test_performance,experiments), prob=(0,1.0))
 y0 = Q[0]
 y1 = Q[1]
 
@@ -254,8 +261,8 @@ for t in types:
     idxbest = np.argmin(Y)
     best    = L[idxbest]
     ax.set_title("lambda")
-    ax.scatter(X,Y,label=t,c=cmap(t))
     ax.scatter([X[idxbest]], [test_performance(best)], c=cmap(t), s=100)
+    ax.scatter(X,Y,label=t,c=cmap(t))
 ax.set_ylim(y0,y1)
 
 ax = fig.add_subplot(222)
