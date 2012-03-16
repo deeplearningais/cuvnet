@@ -514,9 +514,11 @@ struct auto_enc_stack {
             cuv::apply_binary_functor(out,m_out_sink->cdata(),in,cuv::BF_SUBTRACT);
             cuv::apply_scalar_functor(out,cuv::SF_ABS);
 
-            cuv::tensor<unsigned char, matrix::memory_space_type> correct(out.shape());
-            cuv::apply_scalar_functor(correct,out,cuv::SF_LT,0.5f);
-            s_class_err( 1.f - (float) cuv::count(correct,(unsigned char)0)/(float)out.size() ); // average classification acc in batch
+            cuv::apply_scalar_functor(out,out,cuv::SF_LT,0.5f); // out <- abs(true-predicted)<0.5
+
+            cuv::tensor<float, matrix::memory_space_type> col(out.shape(0)); // sum for each batch element
+            cuv::reduce_to_col(col,out);
+            s_class_err( 1.f - (float) cuv::count(col,0.f)/(float)out.shape(0) ); // average classification acc in batch
         }
         float perf() {
             // classification loss(!)
