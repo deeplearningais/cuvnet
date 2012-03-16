@@ -101,8 +101,6 @@ namespace cuvnet
                     }
 
                     // save the number of rounds until minimum was attained
-                    // TODO: crossvalidator should know about this and use it
-                    //       to determine the number of rounds in the TRAINALL phase!
                     m_rounds = current_epoch - m_failed_improvement_rounds*every;
                     throw no_improvement_stop();
                 }
