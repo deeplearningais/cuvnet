@@ -933,7 +933,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             aes_lr[i] = aes_lr0;
             noise[i]  = 0.0;
             size[i]   = 
-                (i==0 ? 1000 : 1000 );
+                (i==0 ? 1000 : 500 );
                 //512;
                 //int(pow(28+drand48()*8,2));
                 //((i==0) ? 5*30 : 15);// hidden0: 4*message plus message, hidden1: only message
@@ -950,9 +950,14 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             bob << "nsplits" << 1;
             bob << "mlp_lr"  << mlp_lr;
 
-            bob << "pretrain" << (idx0==2 ? false : true); // in 3rd case, do not do any pretraining
+            bob << "pretrain" << (drand48()>0.1f);
             bob << "ufinetune" << false;
             bob << "sfinetune" << true;
+
+            if(idx0 == 2){
+                n_layers = 1;
+                size[0] = size[1]; // skip 1st layer
+            }
 
             mongo::BSONArrayBuilder stack;
             for (unsigned int i = 0; i < n_layers; ++i)
@@ -1067,10 +1072,10 @@ int main(int argc, char **argv)
 
     boost::asio::io_service io;
     if(std::string("hub") == argv[1]){
-        cv::crossvalidation_queue q("131.220.7.92","test.twolayer_ae_ldpc");
+        cv::crossvalidation_queue q("131.220.7.92","test.twolayer_ae_mnist_rot");
         //q.m_hub.clear_all();
         boost::asio::deadline_timer dt(io, boost::posix_time::seconds(1));
-        dt.async_wait(boost::bind(generate_and_test_models_ldpc, &dt, &io, &q));
+        dt.async_wait(boost::bind(generate_and_test_models_random, &dt, &io, &q));
 
         q.m_hub.reg(io,1); // checks for timeouts
         io.run();
@@ -1079,7 +1084,7 @@ int main(int argc, char **argv)
         cuvAssert(argc==3);
         cuv::initCUDA(boost::lexical_cast<int>(argv[2]));
         cuv::initialize_mersenne_twister_seeds(time(NULL));
-        cv::crossvalidation_worker w("131.220.7.92","test.twolayer_ae_ldpc");
+        cv::crossvalidation_worker w("131.220.7.92","test.twolayer_ae_mnist_rot");
         w.reg(io,1);
         io.run();
     }
