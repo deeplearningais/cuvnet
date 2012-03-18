@@ -12,11 +12,11 @@ namespace cuvnet
         cifar_dataset(){
             std::cout << "Reading CIFAR10 dataset..."<<std::flush;
             const unsigned int size = 3*32*32;
-            train_data = cuv::tensor<float,cuv::host_memory_space>(cuv::extents[40000][size]);
-            val_data   = cuv::tensor<float,cuv::host_memory_space>(cuv::extents[10000][size]);
+            train_data = cuv::tensor<float,cuv::host_memory_space>(cuv::extents[50000][size]);
+            //val_data   = cuv::tensor<float,cuv::host_memory_space>(cuv::extents[10000][size]);
             test_data  = cuv::tensor<float,cuv::host_memory_space>(cuv::extents[10000][size]);
-            train_labels = cuv::tensor<int,cuv::host_memory_space>(cuv::extents[40000]);
-            val_labels   = cuv::tensor<int,cuv::host_memory_space>(cuv::extents[10000]);
+            train_labels = cuv::tensor<int,cuv::host_memory_space>(cuv::extents[50000]);
+            //val_labels   = cuv::tensor<int,cuv::host_memory_space>(cuv::extents[10000]);
             test_labels  = cuv::tensor<int,cuv::host_memory_space>(cuv::extents[10000]);
 
             const char* datadir = "/home/local/datasets/CIFAR10/data_batch_%d.bin";
