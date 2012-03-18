@@ -23,35 +23,52 @@ namespace cuvnet
             char filename[255];
             unsigned char img[size];
 
+            cuv::tensor<unsigned char,cuv::host_memory_space> trainl(50000);
+            cuv::tensor<unsigned char,cuv::host_memory_space> testl(10000);
+
             float* dest = train_data.ptr();
-            for(unsigned int i=0;i<4;i++){
+            for(unsigned int i=0;i<5;i++){
                 sprintf(filename, datadir, i+1);
                 std::ifstream ifs(filename, std::ios::in | std::ios::binary);
                 for(unsigned int j=0;j<10000;j++){
-                    train_labels[i*10000+j] = (int) ifs.get();
+                    trainl[i*10000+j] = (int) ifs.get();
                     ifs.read((char*)img, size);
                     dest = std::copy(img,img+size, dest);
                 }
             }
-            {
-                dest = val_data.ptr();
-                sprintf(filename, datadir, 5);
-                std::ifstream ifs(filename, std::ios::binary);
-                for(unsigned int j=0;j<10000;j++){
-                    val_labels[j] = (int) ifs.get();
-                    ifs.read((char*)img, size);
-                    dest = std::copy(img,img+size,dest);
-                }
-            }
+            /*
+             *{
+             *    dest = val_data.ptr();
+             *    sprintf(filename, datadir, 5);
+             *    std::ifstream ifs(filename, std::ios::binary);
+             *    for(unsigned int j=0;j<10000;j++){
+             *        val_labels[j] = (int) ifs.get();
+             *        ifs.read((char*)img, size);
+             *        dest = std::copy(img,img+size,dest);
+             *    }
+             *}
+             */
             {
                 dest = test_data.ptr();
                 std::ifstream ifs("/home/local/datasets/CIFAR10/test_batch.bin", std::ios::binary);
                 for(unsigned int j=0;j<10000;j++){
-                    test_labels[j] = (int) ifs.get();
+                    testl[j] = (int) ifs.get();
                     ifs.read((char*)img, size);
                     dest = std::copy(img,img+size,dest);
                 }
             }
+
+            train_labels.resize(cuv::extents[60000][10]);
+            test_labels.resize(cuv::extents[10000][10]);
+            train_labels = 0.f;
+            test_labels = 0.f;
+            for (unsigned int i = 0; i < trainl.size(); ++i){
+                train_labels(i, trainl[i]) = 1;
+            }
+            for (unsigned int i = 0; i < testl.size(); ++i){
+                test_labels(i, testl[i]) = 1;
+            }
+
             channels = 3;
             binary   = false;
             image_size = 32;
