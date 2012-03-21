@@ -88,7 +88,7 @@ namespace cuvnet
             {
                 zero_sample_mean<> zsm;
                 zsm.fit_transform(dsall.train_data)
-                zsm.transform(dsall.test_data)
+                zsm.transform(dsall.test_data);
             }
             {
                 zero_mean_unit_variance<> zmuv;
