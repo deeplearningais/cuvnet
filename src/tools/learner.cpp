@@ -87,7 +87,7 @@ namespace cuvnet
             dsall         = randomizer().transform(dsall);
             {
                 zero_sample_mean<> zsm;
-                zsm.fit_transform(dsall.train_data)
+                zsm.fit_transform(dsall.train_data);
                 zsm.transform(dsall.test_data);
             }
             {
