@@ -1002,7 +1002,7 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
         std::vector<int  > size(n_layers);
         std::vector<bool > twolayer(n_layers);
 
-        float lambda0 = uniform(0.0001, 1.0);
+        float lambda0 = log_uniform(0.000001, 2.0);
         if(drand48() < 0.1)
             lambda0 = 0.f;
         for (unsigned int i = 0; i < n_layers; ++i)
@@ -1011,7 +1011,7 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
             aes_lr[i] = aes_lr0;
             noise[i]  = 0.0;
             size[i]   = 
-                ((i==0) ? 5*15 : 15);// hidden0: 4*message plus message, hidden1: only message
+                ((i==0) ? 1000 : 500);// hidden0: 4*message plus message, hidden1: only message
             twolayer[i] = (i<n_layers-1);
         }
 
@@ -1022,8 +1022,8 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
         for (int idx0 = 0; idx0 < 3; ++idx0)
         {
             mongo::BSONObjBuilder bob;
-            bob << "dataset" << "ldpc";
-            bob << "bs"      << 32;
+            bob << "dataset" << "natural";
+            bob << "bs"      << 16;
             bob << "nsplits" << 1;
             bob << "mlp_lr"  << mlp_lr;
 
@@ -1072,10 +1072,10 @@ int main(int argc, char **argv)
 
     boost::asio::io_service io;
     if(std::string("hub") == argv[1]){
-        cv::crossvalidation_queue q("131.220.7.92","test.twolayer_ae_cifar");
-        q.m_hub.clear_all();
+        cv::crossvalidation_queue q("131.220.7.92","test.twolayer_ae_natural");
+        //q.m_hub.clear_all();
         boost::asio::deadline_timer dt(io, boost::posix_time::seconds(1));
-        dt.async_wait(boost::bind(generate_and_test_models_random, &dt, &io, &q));
+        dt.async_wait(boost::bind(generate_and_test_models_ldpc, &dt, &io, &q));
 
         q.m_hub.reg(io,1); // checks for timeouts
         io.run();
@@ -1084,7 +1084,7 @@ int main(int argc, char **argv)
         cuvAssert(argc==3);
         cuv::initCUDA(boost::lexical_cast<int>(argv[2]));
         cuv::initialize_mersenne_twister_seeds(time(NULL));
-        cv::crossvalidation_worker w("131.220.7.92","test.twolayer_ae_cifar");
+        cv::crossvalidation_worker w("131.220.7.92","test.twolayer_ae_natural");
         w.reg(io,1);
         io.run();
     }

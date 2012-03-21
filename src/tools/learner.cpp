@@ -84,11 +84,20 @@ namespace cuvnet
             dataset dsall = natural_dataset("/home/local/datasets/natural_images");
             // TODO: this one has complicated pre-processing, needs normalizer
             // to be accessible for filter visualization
-            cuvAssert(false);
             dsall         = randomizer().transform(dsall);
-            global_min_max_normalize<> normalizer(0,1);
-            normalizer.fit_transform(dsall.train_data);
-            normalizer.transform(dsall.test_data);
+            {
+                zero_sample_mean<> zsm;
+                zsm.fit_transform(dsall.train_data)
+                zsm.transform(dsall.test_data)
+            }
+            {
+                zero_mean_unit_variance<> zmuv;
+                zmuv.fit_transform(dsall.train_data);
+                zmuv.transform(dsall.test_data);
+            }
+            //global_min_max_normalize<> normalizer(0,1);
+            //normalizer.fit_transform(dsall.train_data);
+            //normalizer.transform(dsall.test_data);
             m_splits.init(dsall, nsplits);
         }else if(ds == "cifar"){
             dataset dsall = cifar_dataset();
