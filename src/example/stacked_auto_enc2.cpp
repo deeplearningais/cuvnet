@@ -1071,7 +1071,13 @@ int main(int argc, char **argv)
     boost::asio::io_service io;
     if(std::string("hub") == argv[1]){
         cv::crossvalidation_queue q("131.220.7.92","test.twolayer_ae_natural");
-        //q.m_hub.clear_all();
+        std::cout << "Clear database? type `yes'" << std::endl;
+        std::string s;
+        std::cin >> s;
+        if(s=="yes"){
+            std::cout << "clearing....." << std::endl;
+            q.m_hub.clear_all();
+        }
         boost::asio::deadline_timer dt(io, boost::posix_time::seconds(1));
         dt.async_wait(boost::bind(generate_and_test_models_ldpc, &dt, &io, &q));
 
