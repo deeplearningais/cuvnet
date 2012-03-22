@@ -158,12 +158,12 @@ void swiper::bprop(bool set_last_delta_to_one){
 void cuvnet::write_graphviz(Op& op, std::ostream& os){
 	os << "digraph { "<<std::endl;
 	define_graphviz_node_visitor dgnv(os);
-	op.visit(dgnv);
+	op.visit(dgnv,true);
 	os << "}"<<std::endl;
 }
 void cuvnet::write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& l){
 	os << "digraph { "<<std::endl;
 	define_graphviz_node_visitor dgnv(os,&l);
-	op.visit(dgnv);
+	op.visit(dgnv,true);
 	os << "}"<<std::endl;
 }
