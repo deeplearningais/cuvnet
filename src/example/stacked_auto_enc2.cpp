@@ -66,6 +66,7 @@ class auto_encoder {
         virtual op_ptr loss()=0;
         virtual void reset_weights()=0;
         auto_encoder(bool binary):m_binary(binary){}
+        bool binary()const{return m_binary;}
 
         op_ptr reconstruction_loss(op_ptr& input, op_ptr& decode){
             if(!m_binary)  // squared loss
@@ -77,7 +78,7 @@ class auto_encoder {
         virtual void acc_loss()=0;
         unsigned int    avg_epochs()  { 
             if(acc::count(s_epochs)==0) 
-                throw std::runtime_error("cannot calculate average epochs!");
+                return 0;
             return acc::mean(s_epochs); 
         }
         void reset_loss() {
@@ -507,20 +508,25 @@ struct auto_enc_stack {
         void acc_loss() {
             s_combined_loss((float)m_loss_sink->cdata()[0]);
 
-            matrix out(m_out_sink->cdata().shape());
-            matrix& in = boost::dynamic_pointer_cast<Input>(m_aes[0]->input_op())->data();
-            cuv::apply_binary_functor(out,m_out_sink->cdata(),in,cuv::BF_SUBTRACT);
-            cuv::apply_scalar_functor(out,cuv::SF_ABS);
+            if(m_aes[0]->binary()){
+                matrix out(m_out_sink->cdata().shape());
+                matrix& in = boost::dynamic_pointer_cast<Input>(m_aes[0]->input_op())->data();
+                cuv::apply_binary_functor(out,m_out_sink->cdata(),in,cuv::BF_SUBTRACT);
+                cuv::apply_scalar_functor(out,cuv::SF_ABS);
 
-            cuv::apply_scalar_functor(out,out,cuv::SF_LT,0.5f); // out <- abs(true-predicted)<0.5
+                cuv::apply_scalar_functor(out,out,cuv::SF_LT,0.5f); // out <- abs(true-predicted)<0.5
 
-            cuv::tensor<float, matrix::memory_space_type> col(out.shape(0)); // sum for each batch element
-            cuv::reduce_to_col(col,out);
-            s_class_err( 1.f - (float) cuv::count(col,0.f)/(float)out.shape(0) ); // average classification acc in batch
+                cuv::tensor<float, matrix::memory_space_type> col(out.shape(0)); // sum for each batch element
+                cuv::reduce_to_col(col,out);
+                s_class_err( 1.f - (float) cuv::count(col,0.f)/(float)out.shape(0) ); // average classification acc in batch
+            }
         }
         float perf() {
-            // classification loss(!)
-            return acc::mean(s_class_err);
+            if(m_aes[0]->binary()){
+                // classification loss(!)
+                return acc::mean(s_class_err);
+            }
+            return acc::mean(s_combined_loss);
         }
         void reset_loss() {
             s_combined_loss = acc_t();
@@ -528,7 +534,7 @@ struct auto_enc_stack {
         }
         unsigned int    avg_epochs()  { 
             if(acc::count(s_epochs)==0) 
-                throw std::runtime_error("cannot calculate average epochs!");
+                return 0;
             return acc::mean(s_epochs); 
         }
 };
@@ -550,7 +556,11 @@ struct pretrained_mlp {
     public:
         acc_t    s_epochs;
 
-        unsigned int    avg_epochs()  { return acc::mean(s_epochs); }
+        unsigned int    avg_epochs()  { 
+            if(acc::count(s_epochs)==0)
+                return 0;
+            return acc::mean(s_epochs); 
+        }
         input_ptr      weights()  { return m_weights; }
         input_ptr      bias   ()  { return m_bias; }
 
