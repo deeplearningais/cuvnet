@@ -51,7 +51,7 @@ namespace cuvnet
                 }
                 void remove(op_param<T>* x){
                     result_uses.erase(
-                            std::find_if(result_uses.begin(),result_uses.end(),cmp_weak_and_raw_ptr<op_param<T> >(x)),
+                            std::remove_if(result_uses.begin(),result_uses.end(),cmp_weak_and_raw_ptr<op_param<T> >(x)),
                             result_uses.end());
                     if(result_uses.empty())
                         op.reset(); // forget op, so that it can be destroyed if needed!

@@ -66,7 +66,7 @@ namespace cuvnet
                 }
                 void remove(op_result<T>* x){
                     param_uses.erase(
-                            std::find_if(param_uses.begin(),param_uses.end(),cmp_shared_and_raw_ptr<op_result<T> >(x)),
+                            std::remove_if(param_uses.begin(),param_uses.end(),cmp_shared_and_raw_ptr<op_result<T> >(x)),
                             param_uses.end());
                 }
                 /**
