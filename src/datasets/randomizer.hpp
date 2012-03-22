@@ -17,6 +17,7 @@ namespace cuvnet
 
                 dst.channels   = ds.channels;
                 dst.image_size = ds.image_size;
+                dst.binary     = ds.binary;
 
                 dst.train_data   = tensor<float,host_memory_space>(ds.train_data.shape());
                 dst.train_labels = tensor<int  ,host_memory_space>(ds.train_labels.shape());
