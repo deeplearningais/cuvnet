@@ -1021,7 +1021,7 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
             aes_lr[i] = aes_lr0;
             noise[i]  = 0.0;
             size[i]   = 
-                ((i==0) ? 1000 : 500);// hidden0: 4*message plus message, hidden1: only message
+                ((i==0) ? 200 : 144);// hidden0: 4*message plus message, hidden1: only message
             twolayer[i] = (i<n_layers-1);
         }
 
