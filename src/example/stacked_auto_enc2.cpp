@@ -680,7 +680,7 @@ class pretrained_mlp_trainer
                 m_aes_lr[i]    = ar[i].Obj()["lr"].Double();
                 twolayer_ae[i]  = ar[i].Obj()["twolayer"].Bool();
             }
-            bool binary = m_sdl.get_ds().channels == 1; // MNIST vs. CIFAR... TODO: need "binary" property directly in ds
+            bool binary = m_sdl.get_ds().binary;
             m_aes.reset(
                 new auto_enc_stack(bs,dd,ar.size(),&layer_sizes[0], binary, &noise[0], &lambda[0], twolayer_ae));
             m_mlp.reset(
