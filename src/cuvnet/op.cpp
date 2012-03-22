@@ -57,6 +57,8 @@ Op::set_n_results(unsigned int n){
 }
 void 
 Op::add_param(unsigned int idx, result_t& p){
+    if( ! param(idx)->op)
+        param(idx)->op = this;
     param(idx)->param_uses.push_back(p);
     p->result_uses.push_back(param(idx));
 }
