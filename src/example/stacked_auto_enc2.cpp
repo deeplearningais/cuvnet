@@ -211,13 +211,13 @@ class auto_encoder_1l : public auto_encoder{
                     sum(sum(pow(m_enc*(1.f-m_enc),2.f),0)
                             * sum(pow(m_weights,2.f),0));
                 m_loss        = axpby(m_rec_loss, lambda/(float)bs  , m_contractive_loss);
-                m_reg_sink    = sink(m_contractive_loss);
-                m_rec_sink    = sink(m_rec_loss);
+                m_reg_sink    = sink("contractive loss",m_contractive_loss);
+                m_rec_sink    = sink("reconstruction loss", m_rec_loss);
             } else{
                 m_loss        =      m_rec_loss; // no change
-                m_rec_sink    = sink(m_rec_loss);
+                m_rec_sink    = sink("reconstruction loss", m_rec_loss);
             }
-            m_loss_sink       = sink(m_loss);
+            m_loss_sink       = sink("total loss", m_loss);
             reset_weights();
         }
 };
@@ -230,7 +230,7 @@ class auto_encoder_2l : public auto_encoder{
         op_ptr       m_input;
         input_ptr    m_weights1,m_weights2;
         input_ptr    m_bias_h1a, m_bias_h1b, m_bias_h2, m_bias_y;
-        sink_ptr     m_loss_sink, m_reg_sink, m_rec_sink, m_J_sink;
+        sink_ptr     m_loss_sink, m_reg_sink, m_rec_sink;
         op_ptr       m_decode, m_enc;
         op_ptr       m_loss, m_rec_loss, m_contractive_loss;
 
@@ -407,15 +407,13 @@ class auto_encoder_2l : public auto_encoder{
             if(lambda>0.f) { // contractive AE
                 m_contractive_loss = sum( sum(pow(prod(mat_times_vec(m_weights1,h1_,1), m_weights2),2.f),0)*pow(h2_,2.f));
                 //op_ptr J      = mat_times_vec(prod(mat_times_vec(m_weights1,h2_,1), m_weights2),h1_,0);
-                //m_J_sink      = sink(J);
                 //m_contractive_loss = sum( pow(J, 2.f) );
-                m_J_sink      = sink(m_contractive_loss); // TODO: calculate J!!!
                 m_loss        = axpby(m_rec_loss, lambda, m_contractive_loss);
-                m_rec_sink    = sink(m_rec_loss);
-                m_reg_sink    = sink(m_contractive_loss);
+                m_rec_sink    = sink("reconstruction loss", m_rec_loss);
+                m_reg_sink    = sink("contractive loss", m_contractive_loss);
             } else
                 m_loss        = m_rec_loss; // no change
-            m_loss_sink       = sink(m_loss);
+            m_loss_sink       = sink("total loss", m_loss);
             reset_weights();
         }
 };
@@ -497,8 +495,8 @@ struct auto_enc_stack {
                     m_output = m_aes[i]->decode(m_output);
                 }
                 m_combined_loss = m_aes[0]->reconstruction_loss(m_aes[0]->input_op(), m_output);
-                m_loss_sink       = sink(m_combined_loss);
-                m_out_sink        = sink(m_output);
+                m_loss_sink       = sink("AES combined loss", m_combined_loss);
+                m_out_sink        = sink("AES output", m_output);
             }
             return m_combined_loss;
         }
@@ -614,12 +612,12 @@ struct pretrained_mlp {
                 m_output = mat_plus_vec( prod( m_input, m_weights) ,m_bias,1);
 
                 // create a sink for outputs so we can determine classification error
-                m_out_sink = sink(m_output);
+                m_out_sink = sink("MLP output",m_output);
                 if(softmax) // multinomial logistic regression
                     m_loss = mean(multinomial_logistic_loss(m_output, m_targets,1));
                 else        // mean squared error
                     m_loss = mean(pow(axpby(-1.f,m_targets,m_output),2.f));
-                m_loss_sink = sink(m_loss);
+                m_loss_sink = sink("MLP loss",m_loss);
 
                 reset_weights();
             }
