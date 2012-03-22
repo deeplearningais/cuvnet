@@ -42,7 +42,8 @@ TEST(derivative_test, derivative_test_pow){
 TEST(derivative_test, derivative_test_log){
    typedef boost::shared_ptr<Op> ptr_t;
    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
-   ptr_t func                    = boost::make_shared<Log>(inp->result());
+   boost::shared_ptr<Pow>    pw  = boost::make_shared<Pow>(2, inp->result());
+   ptr_t func                    = boost::make_shared<Log>(pw->result());
    derivative_tester(*func);
 }
 
