@@ -33,13 +33,13 @@ namespace cuvnet
                 std::vector<boost::shared_ptr<op_result<T> > >     param_uses;
                 std::vector<unsigned int>      shape;
                 bool                           need_derivative;
-                boost::weak_ptr<Op>            op;
+                Op*                            op;
                 cow_ptr<T>                     value;
                 bool                           value_set;
                 unsigned int                   param_number;
                 //cow_ptr<T>                     delta;
 
-                boost::shared_ptr<Op> get_op(){ return boost::shared_ptr<Op>(op); }
+                Op* get_op(){ return op; }
                 bool can_overwrite_directly()const{
                     if(param_uses.size()!=1)
                         return false;
