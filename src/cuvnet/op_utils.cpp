@@ -1,6 +1,7 @@
 #include <fstream>
 #include <boost/lexical_cast.hpp>
 #include "op_utils.hpp"
+#include <cuvnet/ops/output.hpp>
 
 
 using namespace cuvnet;
@@ -23,11 +24,19 @@ void define_graphviz_node_visitor::preorder(Op* o){
 	detail::graphviz_node n;
 	n.shape = "box";
 	n.color = "black";
-	n.fillcolor = "gray92";
+    if(!o->need_derivative())
+        n.fillcolor = "white";
+    else
+        n.fillcolor = "gray70";
 	n.style = "filled";
-	o->_graphviz_node_desc(n);
     //n.label += boost::lexical_cast<std::string>(o);
     if(dynamic_cast<Input*>(o)){
+        // TODO: should check need_fprop, not need_bprop
+        //if(o->need_derivative())
+            //n.fillcolor = "goldenrod3";
+        //else
+            n.fillcolor = "lemonchiffon1";
+
         Op::value_ptr p = ((Input*)o)->data_ptr();
         if(!p);
         else{
@@ -38,7 +47,13 @@ void define_graphviz_node_visitor::preorder(Op* o){
             ss<<")";
             n.label += ss.str();
         }
+    }else if(dynamic_cast<Sink*>(o)){
+        //if(o->need_derivative())
+            //n.fillcolor = "cadetblue";
+        //else
+            n.fillcolor = "lightcyan";
     }
+	o->_graphviz_node_desc(n);
 
 	if(m_mark_order.size()){
 		std::vector<Op*>::iterator it = std::find(m_mark_order.begin(),m_mark_order.end(),o);
@@ -101,6 +116,7 @@ void define_graphviz_node_visitor::postorder(Op* o){
 			os << "edge [ "
                << "dir=forward,"
                << "style=solid,"
+               << "penwidth="+boost::lexical_cast<std::string>(r->need_result ? 2.0 : 0.5)+","
                << "weight=0.1"
 				   //<< " headlabel=\""<<boost::lexical_cast<std::string>(cnt) << "\""
 			   <<" ]"<<std::endl;
