@@ -35,7 +35,7 @@ using namespace cuvnet;
 using namespace boost::assign;
 
 typedef boost::shared_ptr<Input>  input_ptr;
-typedef boost::shared_ptr<Output> sink_ptr;
+typedef boost::shared_ptr<Sink> sink_ptr;
 typedef boost::shared_ptr<Op>     op_ptr;
 
 /**

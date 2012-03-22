@@ -5,7 +5,7 @@
 
 namespace cuvnet
 {
-    class Output
+    class Sink
         : public Op{
             public:
                 typedef Op::value_type    value_type;
@@ -15,8 +15,11 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
 
             public:
-                Output(){} /// for serialization
-                Output(result_t& p0):Op(1,1){ 
+                Sink(){} /// for serialization
+                Sink(const std::string& name, result_t& p0):Op(1,1),m_name(name){ 
+                    add_param(0,p0);
+                }
+                Sink(result_t& p0):Op(1,1){ 
                     add_param(0,p0);
                 }
                 void fprop(){
@@ -26,11 +29,17 @@ namespace cuvnet
                 //void _determine_shapes(){ }
                 //value_type&       data()      { return m_data; }
                 const value_type& cdata() const{ return m_params[0]->value.cdata(); }
+
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
+                    desc.label = "Sink `" + m_name + "'";
+                }
             private:
+                std::string    m_name;
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_name;
                     }
         };
 

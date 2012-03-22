@@ -41,7 +41,7 @@ namespace cuvnet
     inline
         Op::op_ptr prod(Op::op_ptr x, Op::op_ptr y, char tx='n', char ty='n') { return boost::make_shared<Prod>(x->result(), y->result(), tx, ty); }
     inline
-        boost::shared_ptr<Output> sink(Op::op_ptr x, unsigned int res=0){ return boost::make_shared<Output>(x->result(res)); }
+        boost::shared_ptr<Sink> sink(Op::op_ptr x, unsigned int res=0){ return boost::make_shared<Sink>(x->result(res)); }
     inline
         Op::op_ptr tanh(Op::op_ptr x)                   { return boost::make_shared<Tanh>(x->result()); }
     inline

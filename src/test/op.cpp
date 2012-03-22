@@ -47,7 +47,7 @@ TEST(op_test,fprop_and_bprop){
 	typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[10][20]);
     ptr_t pow                     = boost::make_shared<Pow>(2,inp->result());
-    boost::shared_ptr<Output> out = boost::make_shared<Output>(pow->result());
+    boost::shared_ptr<Sink> out = boost::make_shared<Sink>(pow->result());
 
     boost::dynamic_pointer_cast<Input>(inp)->data() = 2.f;
 

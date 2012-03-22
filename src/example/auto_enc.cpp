@@ -44,7 +44,7 @@ matrix trans(matrix& m){
 
 struct auto_encoder{
     boost::shared_ptr<Input>  m_input, m_weights,m_bias_h,m_bias_y;
-    boost::shared_ptr<Output> m_out, m_reconstruct, m_corrupt;
+    boost::shared_ptr<Sink> m_out, m_reconstruct, m_corrupt;
     boost::shared_ptr<Op>     m_decode, m_enc;
     boost::shared_ptr<Op>     m_loss, m_rec_loss, m_contractive_loss;
     acc_t                     s_loss;
@@ -77,9 +77,9 @@ struct auto_encoder{
             m_rec_loss = mean( pow( axpby(m_input, -1.f, m_decode), 2.f)); 
         else         // cross-entropy
             m_rec_loss = mean( sum(neg_log_cross_entropy_of_logistic(m_input,m_decode),1));
-        m_out         = make_shared<Output>(m_rec_loss->result()); // reconstruction error
-        m_reconstruct = make_shared<Output>(m_decode->result());   // for visualization of reconstructed images
-        //m_corrupt = make_shared<Output>(corrupt->result());      // for visualization of corrupted     images
+        m_out         = make_shared<Sink>(m_rec_loss->result()); // reconstruction error
+        m_reconstruct = make_shared<Sink>(m_decode->result());   // for visualization of reconstructed images
+        //m_corrupt = make_shared<Sink>(corrupt->result());      // for visualization of corrupted     images
 
         if(lambda>0.f){ // contractive AE
             m_contractive_loss = 

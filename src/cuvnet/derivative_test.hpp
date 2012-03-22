@@ -61,7 +61,7 @@ namespace cuvnet
 
         void derivative_tester(Op& op, int result=0, bool verbose=false, double prec=0.003){
             // assumption: op has only one result
-            boost::shared_ptr<Output> out_op = boost::make_shared<Output>(op.result(result));
+            boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op.result(result));
 
             // tell that we want derivative w.r.t. all params
             param_collector_visitor pcv;
