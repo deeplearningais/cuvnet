@@ -412,8 +412,10 @@ class auto_encoder_2l : public auto_encoder{
                 m_loss        = axpby(m_rec_loss, lambda, m_contractive_loss);
                 m_rec_sink    = sink("reconstruction loss", m_rec_loss);
                 m_reg_sink    = sink("contractive loss", m_contractive_loss);
-            } else
+            } else{
                 m_loss        = m_rec_loss; // no change
+                m_rec_sink    = sink(m_rec_loss);
+            }
             m_loss_sink       = sink("total loss", m_loss);
             reset_weights();
         }
