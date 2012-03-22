@@ -38,6 +38,7 @@ namespace cuvnet
                 bool                           value_set;
                 unsigned int                   param_number;
                 //cow_ptr<T>                     delta;
+                op_param():need_derivative(false),op(NULL),value_set(false){}
 
                 Op* get_op(){ return op; }
                 bool can_overwrite_directly()const{

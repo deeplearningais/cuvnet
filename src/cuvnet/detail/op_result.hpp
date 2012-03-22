@@ -24,6 +24,7 @@ namespace cuvnet
                 bool                           delta_set;
                 unsigned int                   result_number;
                 boost::shared_ptr<Op> get_op(){ return op; }
+                op_result():need_result(false),delta_set(false){}
                 bool want_result()const { return result_uses.size() > 0; }
                 bool can_overwrite_directly()const{
                     if(result_uses.size()!=1)
