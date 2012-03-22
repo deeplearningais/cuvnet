@@ -26,7 +26,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
 	n.fillcolor = "gray92";
 	n.style = "filled";
 	o->_graphviz_node_desc(n);
-    n.label += boost::lexical_cast<std::string>(o);
+    //n.label += boost::lexical_cast<std::string>(o);
     if(dynamic_cast<Input*>(o)){
         Op::value_ptr p = ((Input*)o)->data_ptr();
         if(!p);
