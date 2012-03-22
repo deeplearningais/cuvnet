@@ -992,7 +992,8 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
     size_t n_open     = q->m_hub.get_n_open();
     size_t n_finished = q->m_hub.get_n_ok();
     size_t n_assigned = q->m_hub.get_n_assigned();
-    std::cout << "o:"<<n_open<<" f:"<<n_finished<<" a:"<<n_assigned<<std::endl;
+    size_t n_failed   = q->m_hub.get_n_failed();
+    std::cout << "o:"<<n_open<<" f:"<<n_finished<<" a:"<<n_assigned<<" x:"<<n_failed<<std::endl;
     if(n_open<3){
         boost::shared_ptr<crossvalidatable> p(new pretrained_mlp_trainer());
         std::cout <<"generating new sample"<<std::endl;
