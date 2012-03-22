@@ -152,7 +152,7 @@ namespace cuvnet
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
                     std::string s = typeid(*this).name();
                     size_t n = s.find("cuvnet");
-                    desc.label = s.substr(n + 7);;
+                    desc.label = desc.label + s.substr(n + 7);;
                 }
 
                 private:
