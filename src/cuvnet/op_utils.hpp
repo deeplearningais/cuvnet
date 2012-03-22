@@ -112,7 +112,14 @@ namespace cuvnet
      * set need_derivative and need_result to false
      */
     struct reset_needed_flags : public op_visitor_adaptor{
-        inline void preorder(Op*o)const{
+        std::map<Op*,bool> visited;
+        inline bool discover(Op* o){
+            if(visited.find(o)!=visited.end()) 
+                return false;
+            visited[o] = true;
+            return true; 
+        }
+        inline void preorder(Op*o){
             for(unsigned int i=0;i<o->get_n_params();i++)
                 o->param(i)->need_derivative = false;
             for(unsigned int i=0;i<o->get_n_results();i++)
@@ -159,7 +166,8 @@ namespace cuvnet
          */
         swiper(Op& op, int result, const param_collector_visitor::container_type& paramlist)
         {
-                op.visit(reset_needed_flags());
+                reset_needed_flags rnf;
+                op.visit(rnf,true); // also in results!
                 op.result(result)->need_result = true;
                 op.set_calculate_derivative(paramlist);
                 op.visit(m_topo);
