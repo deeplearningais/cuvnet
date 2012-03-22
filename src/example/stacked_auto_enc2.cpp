@@ -802,8 +802,7 @@ class pretrained_mlp_trainer
                     std::copy(tmp.begin(), tmp.end(), std::back_inserter(params));
                 }
 
-                float learnrate = std::accumulate(m_aes_lr.begin(),m_aes_lr.end(),0.f)/m_aes_lr.size();
-                gradient_descent gd(m_aes->combined_rec_loss(),0,params, learnrate,0.00000f);
+                gradient_descent gd(m_aes->combined_rec_loss(),0,params, m_mlp_lr,0.00000f);
                 gd.before_epoch.connect(boost::bind(&auto_enc_stack::reset_loss, m_aes.get()));
                 gd.after_epoch.connect(boost::bind(&auto_enc_stack::log_loss, m_aes.get(), _1));
                 gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_unsupervised,this,_2));
