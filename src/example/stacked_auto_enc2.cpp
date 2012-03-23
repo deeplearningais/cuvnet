@@ -1022,7 +1022,7 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
             aes_lr[i] = aes_lr0;
             noise[i]  = 0.0;
             size[i]   = 
-                ((i==0) ? 200 : 144);// hidden0: 4*message plus message, hidden1: only message
+                ((i==0) ? 5*15 : 15);// hidden0: 4*message plus message, hidden1: only message
             twolayer[i] = (i<n_layers-1);
         }
 
@@ -1033,7 +1033,7 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
         for (int idx0 = 0; idx0 < 3; ++idx0)
         {
             mongo::BSONObjBuilder bob;
-            bob << "dataset" << "natural";
+            bob << "dataset" << "ldpc";
             bob << "bs"      << 16;
             bob << "nsplits" << 1;
             bob << "mlp_lr"  << mlp_lr;
@@ -1083,7 +1083,7 @@ int main(int argc, char **argv)
 
     boost::asio::io_service io;
     if(std::string("hub") == argv[1]){
-        cv::crossvalidation_queue q("131.220.7.92","test.twolayer_ae_natural");
+        cv::crossvalidation_queue q("131.220.7.92","test.twolayer_ae_ldpc2");
         std::cout << "Clear database? type `yes'" << std::endl;
         std::string s;
         std::cin >> s;
@@ -1101,7 +1101,7 @@ int main(int argc, char **argv)
         cuvAssert(argc==3);
         cuv::initCUDA(boost::lexical_cast<int>(argv[2]));
         cuv::initialize_mersenne_twister_seeds(time(NULL));
-        cv::crossvalidation_worker w("131.220.7.92","test.twolayer_ae_natural");
+        cv::crossvalidation_worker w("131.220.7.92","test.twolayer_ae_ldpc2");
         w.reg(io,1);
         io.run();
     }
