@@ -495,6 +495,7 @@ struct auto_enc_stack {
             if(!m_combined_loss){
                 m_output = m_aes.back()->output();
                 for(int i=m_aes.size()-1; i>=0; i--) {
+                    m_output = logistic(m_output);
                     m_output = m_aes[i]->decode(m_output);
                 }
                 m_combined_loss = m_aes[0]->reconstruction_loss(m_aes[0]->input_op(), m_output);
