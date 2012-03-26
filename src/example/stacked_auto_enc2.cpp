@@ -955,7 +955,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         {
             mongo::BSONObjBuilder bob;
             bob << "uuid" << uuid;
-            bob << "dataset" << "cifar";
+            bob << "dataset" << "mnist_rot";
             bob << "bs"      << 16;
             bob << "nsplits" << 1;
             bob << "mlp_lr"  << mlp_lr;
@@ -1083,7 +1083,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    const std::string hc_db = "test.twolayer_ae_natural";
+    const std::string hc_db = "test.twolayer_ae_mnist_rot2";
     boost::asio::io_service io;
     if(std::string("hub") == argv[1]){
         cv::crossvalidation_queue q("131.220.7.92",hc_db);
@@ -1095,7 +1095,7 @@ int main(int argc, char **argv)
             q.m_hub.clear_all();
         }
         boost::asio::deadline_timer dt(io, boost::posix_time::seconds(1));
-        dt.async_wait(boost::bind(generate_and_test_models_ldpc, &dt, &io, &q));
+        dt.async_wait(boost::bind(generate_and_test_models_random, &dt, &io, &q));
 
         q.m_hub.reg(io,1); // checks for timeouts
         io.run();
