@@ -887,11 +887,11 @@ class pretrained_mlp_trainer
         }
     private:
         void load_batch_supervised(unsigned int batch){
-            m_aes->input()  = m_sdl.get_data_batch(batch);
-            m_mlp->target() = m_sdl.get_label_batch(batch);
+            m_aes->input()  = m_sdl.get_data_batch(batch).copy();
+            m_mlp->target() = m_sdl.get_label_batch(batch).copy();
         }
         void load_batch_unsupervised(unsigned int batch){
-            m_aes->input()  = m_sdl.get_data_batch(batch);
+            m_aes->input()  = m_sdl.get_data_batch(batch).copy();
         }
 };
 
@@ -943,7 +943,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             aes_lr[i] = aes_lr0;
             noise[i]  = 0.0;
             size[i]   = 
-                (i==0 ? 1000 : 500 );
+                (i==0 ? 200 : 144 );
                 //512;
                 //int(pow(28+drand48()*8,2));
                 //((i==0) ? 5*30 : 15);// hidden0: 4*message plus message, hidden1: only message
@@ -955,7 +955,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         {
             mongo::BSONObjBuilder bob;
             bob << "uuid" << uuid;
-            bob << "dataset" << "mnist_rot";
+            bob << "dataset" << "natural";
             bob << "bs"      << 16;
             bob << "nsplits" << 1;
             bob << "mlp_lr"  << mlp_lr;
@@ -1083,7 +1083,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    const std::string hc_db = "test.twolayer_ae_mnist_rot2";
+    const std::string hc_db = "test.twolayer_ae_natural";
     boost::asio::io_service io;
     if(std::string("hub") == argv[1]){
         cv::crossvalidation_queue q("131.220.7.92",hc_db);
