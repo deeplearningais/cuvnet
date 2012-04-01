@@ -601,7 +601,7 @@ struct pretrained_mlp {
             g_worker->log(bob.obj());
             g_worker->checkpoint();
         }
-        sink_ptr encoded() {
+        sink_ptr output() {
             return m_out_sink;
         }
         op_ptr loss(){ return m_loss; }
