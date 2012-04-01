@@ -926,8 +926,8 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
 
         //float mlp_lr  = 0.1;
         //float aes_lr0  = 0.01;
-        float mlp_lr  = log_uniform(0.01, 0.2);
-        float aes_lr0  = log_uniform(0.01, 0.2);
+        float mlp_lr  = log_uniform(0.0001, 0.2);
+        float aes_lr0  = log_uniform(0.0001, 0.2);
         std::vector<float> lambda(n_layers);
         std::vector<float> aes_lr(n_layers);
         std::vector<float> noise(n_layers);
