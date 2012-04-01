@@ -61,7 +61,7 @@ class auto_encoder {
         virtual std::vector<Op*> unsupervised_params()=0;
         virtual matrix& input()=0;
         virtual op_ptr& input_op()=0;
-        virtual op_ptr output()=0;
+        virtual op_ptr encoded()=0;
         virtual op_ptr decode(op_ptr&)=0;
         virtual op_ptr loss()=0;
         virtual void reset_weights()=0;
@@ -72,7 +72,9 @@ class auto_encoder {
             if(!m_binary)  // squared loss
                 return mean( pow( axpby(input, -1.f, decode), 2.f));
             else         // cross-entropy
+            {
                 return mean( sum(neg_log_cross_entropy_of_logistic(input,decode),1));
+            }
         }
 
         virtual void acc_loss()=0;
@@ -125,7 +127,7 @@ class auto_encoder_1l : public auto_encoder{
         matrix&       input() {
             return boost::dynamic_pointer_cast<Input>(m_input)->data();
         }
-        op_ptr output() {
+        op_ptr encoded() {
             return m_enc;
         }
         void acc_loss() {
@@ -265,7 +267,7 @@ class auto_encoder_2l : public auto_encoder{
         matrix&       input() {
             return boost::dynamic_pointer_cast<Input>(m_input)->data();
         }
-        op_ptr output() {
+        op_ptr encoded() {
             return m_enc;
         }
         void acc_loss() {
@@ -428,7 +430,7 @@ struct auto_enc_stack {
     private:
         std::vector<auto_encoder*> m_aes; ///< all auto encoders
         op_ptr m_combined_loss; ///< for finetuning reconstruction of the complete autoencoder
-        op_ptr m_output;
+        op_ptr m_enc;
         sink_ptr     m_loss_sink, m_out_sink; ///< sink for combined loss
         acc_t  s_combined_loss; ///< statistics for combined loss
         acc_t  s_class_err; ///< classification error
@@ -458,7 +460,7 @@ struct auto_enc_stack {
             }
             // TODO: do not use noise in 1st layer when training 2nd layer
             for(; i<n_layers;) {
-                op_ptr out = m_aes.back()->output();
+                op_ptr out = m_aes.back()->encoded();
                 if(twolayer[i]){
                     m_aes.push_back(new auto_encoder_2l(i,out,layer_sizes[i],layer_sizes[i+1],true,noise[i],lambdas[i]));
                     i+=2;
@@ -480,8 +482,8 @@ struct auto_enc_stack {
         matrix&        input() {
             return m_aes.front()->input();
         }
-        op_ptr output() {
-            return m_aes.back()->output();
+        op_ptr encoded() {
+            return m_aes.back()->encoded();
         }
         unsigned int size()const{
             return m_aes.size();
@@ -493,14 +495,13 @@ struct auto_enc_stack {
         }
         op_ptr combined_rec_loss(){
             if(!m_combined_loss){
-                m_output = m_aes.back()->output();
+                m_enc = m_aes.back()->encoded(); // this is the result of the /encoder/
                 for(int i=m_aes.size()-1; i>=0; i--) {
-                    m_output = logistic(m_output);
-                    m_output = m_aes[i]->decode(m_output);
+                    m_enc = m_aes[i]->decode(m_enc);
                 }
-                m_combined_loss = m_aes[0]->reconstruction_loss(m_aes[0]->input_op(), m_output);
+                m_combined_loss = m_aes[0]->reconstruction_loss(m_aes[0]->input_op(), m_enc);
                 m_loss_sink       = sink("AES combined loss", m_combined_loss);
-                m_out_sink        = sink("AES output", m_output);
+                m_out_sink        = sink("AES encoded", m_enc);
             }
             return m_combined_loss;
         }
@@ -600,7 +601,7 @@ struct pretrained_mlp {
             g_worker->log(bob.obj());
             g_worker->checkpoint();
         }
-        sink_ptr output() {
+        sink_ptr encoded() {
             return m_out_sink;
         }
         op_ptr loss(){ return m_loss; }
@@ -697,7 +698,7 @@ class pretrained_mlp_trainer
             m_aes.reset(
                 new auto_enc_stack(bs,dd,ar.size(),&layer_sizes[0], binary, &noise[0], &lambda[0], twolayer_ae));
             m_mlp.reset(
-                new pretrained_mlp(m_aes->output(),10, true)); // TODO: fixed number of 10 classes!!???
+                new pretrained_mlp(m_aes->encoded(),10, true)); // TODO: fixed number of 10 classes!!???
             m_mlp_lr = o["mlp_lr"].Double();
             m_pretraining = o["pretrain"].Bool();
             m_finetune    = o["sfinetune"].Bool();
