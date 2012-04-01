@@ -961,8 +961,8 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             bob << "mlp_lr"  << mlp_lr;
 
             bob << "pretrain" << (drand48()>0.1f);
-            bob << "ufinetune" << false;
-            bob << "sfinetune" << true;
+            bob << "ufinetune" << true;
+            bob << "sfinetune" << false;
 
             if(idx0 == 2){
                 n_layers = 1;
@@ -1117,7 +1117,7 @@ int main(int argc, char **argv)
         cv::crossvalidation_worker w("131.220.7.92","test.dev");
 
         boost::asio::deadline_timer dt(io, boost::posix_time::seconds(1));
-        dt.async_wait(boost::bind(generate_and_test_models_ldpc, &dt, &io, &q));
+        dt.async_wait(boost::bind(generate_and_test_models_random, &dt, &io, &q));
         q.m_hub.clear_all();
 
         q.m_hub.reg(io,1); // checks for timeouts
