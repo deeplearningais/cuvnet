@@ -39,6 +39,30 @@ namespace cuvnet
             }
         }
     };
+    /** 
+     * cleanup unused data 
+     */
+    struct cleanup_temp_vars_visitor : public op_visitor_adaptor{
+        typedef std::vector<Op*> container_type;
+        container_type     plist;
+        std::map<Op*,bool> visited;
+        inline bool discover(Op* o){
+            if(visited.find(o)!=visited.end())
+                return false;
+            visited[o]=true;
+            return true;
+        }
+        inline void preorder(Op* o){
+            if(dynamic_cast<Input*>(o))
+                return;
+            BOOST_FOREACH(Op::param_t& r, o->m_params){
+                r->value.reset();
+            }
+            BOOST_FOREACH(Op::result_t& r, o->m_results){
+                r->delta.reset();
+            }
+        }
+    };
     /**
      * collect all ops in a list in topological order
      */
@@ -171,6 +195,10 @@ namespace cuvnet
                 op.result(result)->need_result = true;
                 op.set_calculate_derivative(paramlist);
                 op.visit(m_topo);
+
+                cleanup_temp_vars_visitor ctvv;
+                op.visit(ctvv,true); // also in results!
+
                 std::ofstream os("swiper-initial.dot");
                 write_graphviz(op, os, m_topo.plist );
                 op.visit(determine_shapes_visitor());

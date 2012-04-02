@@ -80,6 +80,7 @@ namespace cuvnet
                 friend struct param_collector_visitor;
                 friend struct toposort_visitor;
                 friend struct determine_shapes_visitor;
+                friend struct cleanup_temp_vars_visitor;
                 friend struct reset_value_set_flag;
                 friend struct reset_delta_set_flag;
                 friend struct define_graphviz_node_visitor;
