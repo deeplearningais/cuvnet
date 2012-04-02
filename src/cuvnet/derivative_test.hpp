@@ -128,7 +128,7 @@ namespace cuvnet
                 if(verbose)
                     std::cout << "...maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;
                 if(maxdiff>prec_){
-                    PM(J_t); PM(J);
+                    PM(J_t); PM(Jh);
                 }
                 EXPECT_NEAR(maxdiff, 0.f, prec_ );
             }
