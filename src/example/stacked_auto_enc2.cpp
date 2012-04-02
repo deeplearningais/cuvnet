@@ -512,6 +512,12 @@ struct auto_enc_stack {
                 m_enc = m_aes.back()->encoded(); // this is the result of the /encoder/
                 for(int i=m_aes.size()-1; i>=0; i--) {
                     m_enc = m_aes[i]->decode(m_enc);
+                    if(i != 0 ){
+                        // we avoided calling logistic in the decoder and let loss deal with it
+                        // ----> do that now!
+                        // for layer zero, this is again dealt with in the loss!
+                        m_enc = logistic(m_enc);    
+                    }
                 }
                 m_combined_loss = m_aes[0]->reconstruction_loss(m_aes[0]->input_op(), m_enc);
                 m_loss_sink       = sink("AES combined loss", m_combined_loss);
