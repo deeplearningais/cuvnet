@@ -102,7 +102,7 @@ class auto_encoder {
  * one layer of a stacked auto encoder
  */
 class auto_encoder_1l : public auto_encoder{
-    private:
+    public:
         op_ptr       m_input;
         input_ptr    m_weights,m_bias_h,m_bias_y;
         sink_ptr   m_reg_sink, m_rec_sink,m_loss_sink;
@@ -229,11 +229,11 @@ class auto_encoder_1l : public auto_encoder{
  * a two-layer auto-encoder
  */
 class auto_encoder_2l : public auto_encoder{
-    private:
+    public:
         op_ptr       m_input;
         input_ptr    m_weights1,m_weights2;
         input_ptr    m_bias_h1a, m_bias_h1b, m_bias_h2, m_bias_y;
-        sink_ptr     m_loss_sink, m_reg_sink, m_rec_sink;
+        sink_ptr     m_loss_sink, m_reg_sink, m_rec_sink, m_dec_sink;
         op_ptr       m_decode, m_enc;
         op_ptr       m_loss, m_rec_loss, m_contractive_loss;
 
@@ -276,6 +276,19 @@ class auto_encoder_2l : public auto_encoder{
                 s_rec_loss((float)m_rec_sink->cdata()[0]);
             if(m_reg_sink)
                 s_reg_loss((float)m_reg_sink->cdata()[0]);
+
+            /*
+             *if(acc::count(s_total_loss)==1){
+             *    std::cout << "((float)m_loss_sink->cdata()[0]:" << ((float)m_loss_sink->cdata()[0]) << std::endl;
+             *    cuv::libs::cimg::show(arrange_filters(((Input*)m_weights1.get())->data(), 't',4,4, m_input->result(0)->shape[0]),"decoded");
+             *    cuv::libs::cimg::show(arrange_filters(m_dec_sink->cdata(), 'n',4,4, m_input->result(0)->shape[0]),"decoded");
+             *    cuv::libs::cimg::show(arrange_filters(((Input*)m_input.get())->data(), 'n',4,4,     m_input->result(0)->shape[0]),"original");
+             *}else{
+             *    std::cout << "         \rcnt: " << acc::count(s_total_loss)<<std::endl;
+             *}
+             */
+
+
             // TODO: only normalize columns when NOT in validation mode! (why, they should not differ that much in that case...)
             //normalize_columns(m_weights1->data(), m_expected_size[0]);
             //normalize_columns(m_weights2->data(), m_expected_size[1]); // hmm... we have to leave /some/ freedom in the network???
@@ -398,6 +411,7 @@ class auto_encoder_2l : public auto_encoder{
             op_ptr h2  = logistic( mat_plus_vec( prod( h1     , m_weights2) ,m_bias_h2 ,1));
             m_enc      = h2;
             m_decode   = decode(m_enc);
+            m_dec_sink = sink("decoded", m_decode);
             m_rec_loss = reconstruction_loss(m_input,m_decode);
 
             op_ptr rs = row_select(h1,h2); // select same (random) row in h1 and h2
@@ -924,10 +938,10 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         //unsigned int n_layers = 1+3*drand48();
         unsigned int n_layers = 2;
 
-        //float mlp_lr  = 0.1;
-        //float aes_lr0  = 0.01;
         float mlp_lr  = log_uniform(0.0001, 0.2);
         float aes_lr0  = log_uniform(0.0001, 0.2);
+        //float mlp_lr  = 0.1;
+        //float aes_lr0  = 0.1;
         std::vector<float> lambda(n_layers);
         std::vector<float> aes_lr(n_layers);
         std::vector<float> noise(n_layers);
@@ -944,7 +958,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             aes_lr[i] = aes_lr0;
             noise[i]  = 0.0;
             size[i]   = 
-                (i==0 ? 200 : 144 );
+                (i==0 ? 128 : 64 );
                 //512;
                 //int(pow(28+drand48()*8,2));
                 //((i==0) ? 5*30 : 15);// hidden0: 4*message plus message, hidden1: only message
@@ -1113,6 +1127,75 @@ int main(int argc, char **argv)
         cuvAssert(argc==3);
         cuv::initCUDA(boost::lexical_cast<int>(argv[2]));
         cuv::initialize_mersenne_twister_seeds(time(NULL));
+
+
+        {   // check auto-encoder derivatives: 2l version
+            std::cout << "If you run these tests, add argument 0 to row_selector, or it will fail!" << std::endl;
+            std::vector<bool> twolayer(2,true);
+            int sizes[] = {3,4};
+            float noise[]   = {0.0f,0.0f};
+            float lambdas[] = {1.0f,1.0f};
+            auto_enc_stack ae(2,3,2,sizes,false,noise,lambdas,twolayer);
+            {  // test 1st layer of stack
+                auto_encoder_2l& ae0 = (auto_encoder_2l&) ae.get(0);
+                derivative_tester_verbose(*ae0.m_enc,0);
+                derivative_tester_verbose(*ae0.m_decode,0);
+                derivative_tester_verbose_prec(*ae0.m_rec_loss,0,0.03);
+                derivative_tester_verbose_prec(*ae0.m_loss,0,0.03);
+                if(ae0.m_contractive_loss.get()){
+                    derivative_tester_verbose(*ae0.m_contractive_loss,0);
+                }
+            }
+            if(ae.size()>1)
+            {  // test 2nd layer of stack
+                auto_encoder_2l& ae0 = (auto_encoder_2l&) ae.get(1);
+                derivative_tester_verbose(*ae0.m_enc,0);
+                derivative_tester_verbose(*ae0.m_decode,0);
+                derivative_tester_verbose_prec(*ae0.m_rec_loss,0,0.03);
+                derivative_tester_verbose_prec(*ae0.m_loss,0,0.03);
+                if(ae0.m_contractive_loss.get()){
+                    derivative_tester_verbose(*ae0.m_contractive_loss,0);
+                }
+            }
+
+            derivative_tester_verbose(*ae.encoded(),0);
+            derivative_tester_verbose(*ae.combined_rec_loss(),0);
+        }
+        {   // check auto-encoder derivatives: 1l version
+            std::vector<bool> twolayer(2,false);
+            int sizes[] = {3,4};
+            float noise[]   = {0.0f,0.0f};
+            float lambdas[] = {0.0f,0.0f};
+            auto_enc_stack ae(2,3,2,sizes,false,noise,lambdas,twolayer);
+            /*
+             *{  // test 1st layer of stack
+             *    auto_encoder_1l& ae0 = (auto_encoder_1l&) ae.get(0);
+             *    derivative_tester_verbose(*ae0.m_enc,0);
+             *    derivative_tester_verbose(*ae0.m_decode,0);
+             *    derivative_tester_verbose_prec(*ae0.m_rec_loss,0,0.03);
+             *    derivative_tester_verbose_prec(*ae0.m_loss,0,0.03);
+             *    if(ae0.m_contractive_loss.get()){
+             *        derivative_tester_verbose(*ae0.m_contractive_loss,0);
+             *    }
+             *}
+             *if(ae.size()>1)
+             *{  // test 2nd layer of stack
+             *    auto_encoder_1l& ae0 = (auto_encoder_1l&) ae.get(1);
+             *    derivative_tester_verbose(*ae0.m_enc,0);
+             *    derivative_tester_verbose(*ae0.m_decode,0);
+             *    derivative_tester_verbose_prec(*ae0.m_rec_loss,0,0.03);
+             *    derivative_tester_verbose_prec(*ae0.m_loss,0,0.03);
+             *    if(ae0.m_contractive_loss.get()){
+             *        derivative_tester_verbose(*ae0.m_contractive_loss,0);
+             *    }
+             *}
+             */
+
+            derivative_tester_verbose(*ae.combined_rec_loss(),0);
+            derivative_tester_verbose(*ae.encoded(),0);
+
+            exit(0);
+        }
 
         cv::crossvalidation_queue q("131.220.7.92","test.dev");
         cv::crossvalidation_worker w("131.220.7.92","test.dev");
