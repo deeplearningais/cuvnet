@@ -154,8 +154,10 @@ namespace cuvnet
     struct define_graphviz_node_visitor : public op_visitor_adaptor{
         std::ostream& os;
         std::vector<Op*> m_mark_order;
+        Op* m_current_op;
+        bool m_break_after_done;
         std::map<const void*, std::string> m_seen;
-        define_graphviz_node_visitor(std::ostream& o, std::vector<Op*>* mo=NULL):os(o){
+        define_graphviz_node_visitor(std::ostream& o, std::vector<Op*>* mo=NULL):os(o),m_current_op(NULL),m_break_after_done(false){
             if(mo)
                 m_mark_order = *mo;
         }
@@ -166,9 +168,11 @@ namespace cuvnet
         void preorder(Op*o);
         void postorder(Op*o);
         std::string define_data_ptr(const Op::value_ptr& vp);
+        inline void current_op(Op*o){m_current_op = o;}
+        inline Op* current_op()const{return m_current_op;}
     };
     void write_graphviz(Op& op, std::ostream& os);
-    void write_graphviz(Op& op, std::ostream& os, std::vector<Op*>&);
+    void write_graphviz(Op& op, std::ostream& os, std::vector<Op*>&, Op* current=NULL);
 
     /**
      * does a recursive forward/backward pass w.r.t. 
@@ -202,6 +206,7 @@ namespace cuvnet
                 std::ofstream os("swiper-initial.dot");
                 write_graphviz(op, os, m_topo.plist );
                 op.visit(determine_shapes_visitor());
+
             }
         /**
          * does recursive forward pass on op
@@ -211,6 +216,11 @@ namespace cuvnet
          * does recursive backward pass on op
          */
         void bprop(bool set_last_delta_to_one=true);
+
+        /**
+         * ouputs some stats of op results for debugging
+         */
+        void debug(unsigned int cnt, Op* o, bool results, bool params);
     };
 
 }

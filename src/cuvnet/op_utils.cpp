@@ -1,5 +1,7 @@
 #include <fstream>
 #include <boost/lexical_cast.hpp>
+#include <boost/format.hpp>
+#include <boost/filesystem.hpp>
 #include "op_utils.hpp"
 #include <cuvnet/ops/output.hpp>
 
@@ -60,6 +62,9 @@ void define_graphviz_node_visitor::preorder(Op* o){
 		if(it!=m_mark_order.end())
 			n.label += " <" + boost::lexical_cast<std::string>(std::distance(m_mark_order.begin(),it))+">";
 	}
+    if(current_op()==o){
+        n.fillcolor = "firebrick1";
+    }
 
     // define the op-node itself
     std::string opstr = "n" + boost::lexical_cast<std::string>( o );
@@ -87,9 +92,8 @@ void define_graphviz_node_visitor::preorder(Op* o){
 
             std::string vstr = define_data_ptr(p->value);
             if(vstr.size())
-                os << "edge [style=dotted,dir=none,weight=0.2]" << pstr << " -> "<< vstr << "; "<<std::endl;
+                os << "edge [style=dotted,dir=none,weight=10]" << pstr << " -> "<< vstr << "; "<<std::endl;
         }
-
     }
     // define the results of op
     BOOST_FOREACH(Op::result_t& r, o->m_results){
@@ -104,7 +108,26 @@ void define_graphviz_node_visitor::preorder(Op* o){
 
             std::string vstr = define_data_ptr(r->delta);
             if(vstr.size())
-                os << "edge [style=dotted,dir=none,weight=0.2]" << rstr << " -> "<< vstr << "; "<<std::endl;
+                os << "edge [style=dotted,dir=none,weight=10]" << rstr << " -> "<< vstr << "; "<<std::endl;
+
+            if(current_op()==o){
+                // create node with debug info in label
+                os << opstr << "_dbg"
+                    << " [ fontsize=16, label=\"";
+                if(r->result_uses.size()>0){
+                    bool has_nan = cuv::has_nan(r->result_uses[0].lock()->value.cdata());
+                    bool has_inf = cuv::has_inf(r->result_uses[0].lock()->value.cdata());
+                    os  << "min: " << cuv::minimum(r->result_uses[0].lock()->value.cdata()) <<"\\n"
+                        << "max: " << cuv::maximum(r->result_uses[0].lock()->value.cdata()) <<"\\n"
+                        << "avg: " << cuv::mean(r->result_uses[0].lock()->value.cdata()) <<"\\n"
+                        << "nan: " << has_nan <<"\\n"
+                        << "inf: " << has_inf<<"\\n";
+                    if(has_nan || has_inf)
+                        m_break_after_done = true;
+                }
+                os << "\" ];"<<std::endl;
+                os << "edge [style=solid,dir=none,weight=100] "<<opstr << " -> " << opstr<<"_dbg ;"<<std::endl;
+            }
         }
 
     }
@@ -117,7 +140,7 @@ void define_graphviz_node_visitor::postorder(Op* o){
                << "dir=forward,"
                << "style=solid,"
                << "penwidth="+boost::lexical_cast<std::string>(r->need_result ? 2.0 : 0.5)+","
-               << "weight=0.1"
+               << "weight=1"
 				   //<< " headlabel=\""<<boost::lexical_cast<std::string>(cnt) << "\""
 			   <<" ]"<<std::endl;
 
@@ -138,6 +161,7 @@ void define_graphviz_node_visitor::postorder(Op* o){
 	}
 }
 
+#define SWIPER_DEBUG 0
 void swiper::fprop(){
 	BOOST_FOREACH(Op* o, m_topo.plist){
 		BOOST_FOREACH(Op::result_t& r, o->m_results){
@@ -146,8 +170,14 @@ void swiper::fprop(){
 			}
 		}
 	}
+#if SWIPER_DEBUG
+    unsigned int cnt=0;
+#endif
 	BOOST_FOREACH(Op* o, m_topo.plist){
 		o->fprop();
+#if SWIPER_DEBUG
+        debug(cnt++,o,true,false);
+#endif
 	}
 }
 void swiper::bprop(bool set_last_delta_to_one){
@@ -171,15 +201,29 @@ void swiper::bprop(bool set_last_delta_to_one){
 			o->bprop();
 	}
 }
+void 
+swiper::debug(unsigned int cnt, Op* o, bool results, bool params){
+    if(results)
+    {
+        std::string s = boost::str(boost::format("dbg/fprop-%03d")%cnt);
+        boost::filesystem::create_directories(s);
+        std::ofstream os ((s+"/func.dot").c_str());
+    
+        write_graphviz(*m_topo.plist.back(),os,m_topo.plist,o);
+    }
+}
 void cuvnet::write_graphviz(Op& op, std::ostream& os){
 	os << "digraph { "<<std::endl;
 	define_graphviz_node_visitor dgnv(os);
 	op.visit(dgnv,true);
 	os << "}"<<std::endl;
+    if(dgnv.m_break_after_done)
+        exit(0);
 }
-void cuvnet::write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& l){
+void cuvnet::write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& l, Op* current){
 	os << "digraph { "<<std::endl;
 	define_graphviz_node_visitor dgnv(os,&l);
+    dgnv.current_op(current);
 	op.visit(dgnv,true);
 	os << "}"<<std::endl;
 }
