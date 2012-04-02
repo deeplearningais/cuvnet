@@ -58,6 +58,10 @@ namespace cuvnet
         std::cout << "Testing derivative of "<<#X<<":"<<std::endl; \
         cuvnet::derivative_testing::derivative_tester(X,R,true); \
         std::cout << "done."<<std::endl;
+#define derivative_tester_verbose_prec(X, R, P) \
+        std::cout << "Testing derivative of "<<#X<<":"<<std::endl; \
+        cuvnet::derivative_testing::derivative_tester(X,R,true, P); \
+        std::cout << "done."<<std::endl;
 
         void derivative_tester(Op& op, int result=0, bool verbose=false, double prec=0.003){
             // assumption: op has only one result
