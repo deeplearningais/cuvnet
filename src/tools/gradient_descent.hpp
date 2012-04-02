@@ -75,8 +75,8 @@ namespace cuvnet
                     return;
                 validation_epoch(current_epoch);
                 float perf = m_performance();
-                std::cout << "   validation: "<< perf<<std::endl;
                 if(perf < m_best_perf){
+                    std::cout << " * validation: "<< perf<<std::endl;
                     // save the (now best) parameters
                     for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
                         Input* p = dynamic_cast<Input*>(*it);
@@ -84,6 +84,8 @@ namespace cuvnet
                         m_best_perf_params[*it] = p->data();
                     }
                 }
+                else
+                    std::cout << " - validation: "<< perf<<std::endl;
                 if(perf <= m_best_perf-thresh){ // improve by at least thresh
                     m_best_perf = perf;
                     m_failed_improvement_rounds = 0;
@@ -95,6 +97,7 @@ namespace cuvnet
                     for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
                         Input* p = dynamic_cast<Input*>(*it);
                         cuvAssert(p);
+                        std::cout << "...loading best `"<<p->name()<<"'"<<std::endl;
                         std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >::iterator mit = m_best_perf_params.find(*it);
                         if(mit != m_best_perf_params.end())
                              p->data() = m_best_perf_params[*it];
