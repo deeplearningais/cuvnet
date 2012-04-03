@@ -105,7 +105,7 @@ class auto_encoder_1l : public auto_encoder{
     public:
         op_ptr       m_input;
         input_ptr    m_weights,m_bias_h,m_bias_y;
-        sink_ptr   m_reg_sink, m_rec_sink,m_loss_sink;
+        sink_ptr   m_reg_sink, m_rec_sink,m_loss_sink, m_dec_sink;
         op_ptr       m_decode, m_enc;
         op_ptr       m_loss, m_rec_loss, m_contractive_loss;
     public:
@@ -136,6 +136,16 @@ class auto_encoder_1l : public auto_encoder{
                 s_rec_loss((float)m_rec_sink->cdata()[0]);
             if(m_reg_sink)
                 s_reg_loss((float)m_reg_sink->cdata()[0]);
+            /*
+             *if(acc::count(s_total_loss)==1){
+             *    std::cout << "((float)m_loss_sink->cdata()[0]:" << ((float)m_loss_sink->cdata()[0]) << std::endl;
+             *    cuv::libs::cimg::show(arrange_filters(((Input*)m_weights.get())->data(), 't',4,4, m_input->result(0)->shape[0]),"decoded");
+             *    cuv::libs::cimg::show(arrange_filters(m_dec_sink->cdata(), 'n',4,4, m_input->result(0)->shape[0]),"decoded");
+             *    cuv::libs::cimg::show(arrange_filters(((Input*)m_input.get())->data(), 'n',4,4,     m_input->result(0)->shape[0]),"original");
+             *}else{
+             *    std::cout << "         \rcnt: " << acc::count(s_total_loss)<<std::endl;
+             *}
+             */
         }
         /**
          * this constructor gets the \e encoded output of another autoencoder as
@@ -206,6 +216,7 @@ class auto_encoder_1l : public auto_encoder{
                         prod( corrupt, m_weights)
                         ,m_bias_h,1));
             m_decode = decode(m_enc);
+            m_dec_sink = sink("decoded", m_decode);
 
             m_rec_loss = reconstruction_loss(m_input,m_decode);
 
