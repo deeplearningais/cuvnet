@@ -1011,6 +1011,72 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
     dt->async_wait(boost::bind(generate_and_test_models_random, dt, io, q));
 }
 
+void generate_and_test_models_test(boost::asio::deadline_timer* dt, boost::asio::io_service* io, cv::crossvalidation_queue* q) {
+    size_t n_open     = q->m_hub.get_n_open();
+    size_t n_finished = q->m_hub.get_n_ok();
+    size_t n_assigned = q->m_hub.get_n_assigned();
+    std::cout << "o:"<<n_open<<" f:"<<n_finished<<" a:"<<n_assigned<<std::endl;
+    // Working on: { uuid: "12199984-9393-4a0d-abf8-6952a6668711",
+    // dataset: "natural", bs: 16, nsplits: 1, mlp_lr:
+    // 0.00013957783812657, pretrain: true, ufinetune: true, sfinetune:
+    // false, 
+    // stack: [ { lambda: 0.9767487049102783, lr: 0.0304716695100069,
+    //            noise: 0.0, size: 196, twolayer: false } ] } 
+    if(n_open<3){
+        boost::shared_ptr<crossvalidatable> p(new pretrained_mlp_trainer());
+        std::cout <<"generating new sample"<<std::endl;
+
+        //unsigned int n_layers = 1+3*drand48();
+        unsigned int n_layers = 1;
+
+        float mlp_lr  = 0.00013957783812657;
+        float aes_lr0  = 0.0304716695100069;
+        std::vector<float> lambda(n_layers);
+        std::vector<float> aes_lr(n_layers);
+        std::vector<float> noise(n_layers);
+        std::vector<int  > size(n_layers);
+        std::vector<bool > twolayer(n_layers);
+
+        float lambda0 = 0.9767487049102783;
+
+        for (unsigned int i = 0; i < n_layers; ++i)
+        {
+            lambda[i] = lambda0;
+            aes_lr[i] = aes_lr0;
+            noise[i]  = 0.0;
+            size[i]   = 196;
+            twolayer[i] = false;
+        }
+
+        mongo::BSONObjBuilder bob;
+        bob << "dataset" << "natural";
+        bob << "bs"      << 16;
+        bob << "nsplits" << 1;
+        bob << "mlp_lr"  << mlp_lr;
+
+        bob << "pretrain" << true;
+        bob << "ufinetune" << true;
+        bob << "sfinetune" << false;
+
+        mongo::BSONArrayBuilder stack;
+        for (unsigned int i = 0; i < n_layers; ++i)
+        {
+            stack << BSON(
+                    "lambda"   << lambda[i]   <<
+                    "lr"       << aes_lr[i]   <<
+                    "noise"    << noise[i]    <<
+                    "size"     << size[i]     <<
+                    "twolayer" << false
+                    );
+        }
+        bob << "stack"<<stack.arr();
+        q->dispatch(p, bob.obj());
+    }
+
+    dt->expires_at(dt->expires_at() + boost::posix_time::seconds(1));
+    dt->async_wait(boost::bind(generate_and_test_models_random, dt, io, q));
+}
+
 void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio::io_service* io, cv::crossvalidation_queue* q) {
     size_t n_open     = q->m_hub.get_n_open();
     size_t n_finished = q->m_hub.get_n_ok();
@@ -1135,6 +1201,7 @@ int main(int argc, char **argv)
         cuv::initialize_mersenne_twister_seeds(time(NULL));
 
 
+        if(0)
         {   // check auto-encoder derivatives: 2l version
             std::cout << "If you run these tests, add argument 0 to row_selector, or it will fail!" << std::endl;
             std::vector<bool> twolayer(2,true);
@@ -1167,6 +1234,7 @@ int main(int argc, char **argv)
             derivative_tester_verbose(*ae.encoded(),0);
             derivative_tester_verbose(*ae.combined_rec_loss(),0);
         }
+        if(0)
         {   // check auto-encoder derivatives: 1l version
             std::vector<bool> twolayer(2,false);
             int sizes[] = {3,4};
@@ -1207,7 +1275,7 @@ int main(int argc, char **argv)
         cv::crossvalidation_worker w("131.220.7.92","test.dev");
 
         boost::asio::deadline_timer dt(io, boost::posix_time::seconds(1));
-        dt.async_wait(boost::bind(generate_and_test_models_random, &dt, &io, &q));
+        dt.async_wait(boost::bind(generate_and_test_models_test, &dt, &io, &q));
         q.m_hub.clear_all();
 
         q.m_hub.reg(io,1); // checks for timeouts
