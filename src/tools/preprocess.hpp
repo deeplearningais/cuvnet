@@ -37,7 +37,7 @@ namespace cuvnet
             }
             void transform(cuv::tensor<float,M>& data){
                 cuv::tensor<float,M> c(cuv::extents[data.shape(0)]);
-                cuv::reduce_to_col(c,data,cuv::RF_ADD,0.f,-1.f); 
+                cuv::reduce_to_col(c,data,cuv::RF_ADD,-1.f,0.f); 
                 c/=(float)data.shape(1);
                 cuv::matrix_plus_col(data,c);
             }

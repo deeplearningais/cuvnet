@@ -85,6 +85,12 @@ namespace cuvnet
             // TODO: this one has complicated pre-processing, needs normalizer
             // to be accessible for filter visualization
             dsall         = randomizer().transform(dsall);
+            {
+                // after applying logarithm, data distribution looks roughly gaussian.
+                log_transformer<cuv::host_memory_space> lt;
+                lt.fit_transform(dsall.train_data);
+                lt.transform(dsall.test_data);
+            }
             /*
              *{
              *    global_min_max_normalize<> normalizer(0,1);
