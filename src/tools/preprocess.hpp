@@ -97,7 +97,7 @@ namespace cuvnet
                 if(m_unitvar)
                     cuv::matrix_divide_row(data,m_std);
             }
-            void reverse_transform(cuv::tensor<float,M>& data){
+            void reverse_transform(cuv::tensor<float,M>& data, bool b=false){
                 using namespace cuv; // for operator-
                 tensor<float,M> tmp(m_mean.shape());
                 apply_scalar_functor(tmp,m_mean,SF_NEGATE);
