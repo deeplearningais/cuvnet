@@ -14,22 +14,16 @@
 
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/derivative_test.hpp>
-#include <cuv/libs/cimg/cuv_cimg.hpp>
 #include <tools/visualization.hpp>
-//#include <tools/preprocess.hpp>
 #include <tools/gradient_descent.hpp>
 #include <mongo/bson/bson.h>
 
-//#include <cuvnet/op_io.hpp>
 #include <tools/crossvalid.hpp>
 #include <tools/learner.hpp>
 
 #include "stacked_auto_enc2.hpp"
 #include "pretrained_mlp.hpp"
 
-namespace cuvnet{
-    extern cv::crossvalidation_worker* g_worker;
-}
 
 using namespace boost::assign;
 
@@ -108,7 +102,7 @@ class pretrained_mlp_trainer
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
                 gd.minibatch_learning(1,0,0); // 1 epoch
                 return m_mlp->perf();
-            }else if(m_unsupervised_finetune){
+            }else /*if(m_unsupervised_finetune)*/{
                 std::vector<Op*> params;
                 gradient_descent gd(m_aes->combined_rec_loss(),0,params, 0.0f,0.00000f);
                 gd.before_epoch.connect(boost::bind(&auto_enc_stack::reset_loss, m_aes.get()));
@@ -118,16 +112,16 @@ class pretrained_mlp_trainer
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
                 gd.minibatch_learning(1,0,0); // 1 epoch
                 return m_aes->perf();
-            }else{
-                cuvAssert(false);
-            }
+            }/*else{*/
+                //cuvAssert(false);
+            /*}*/
             return -2.f;
         }
-        void log_params(std::string desc, std::vector<Op*> ops){
+        void param_logging(std::string desc, std::vector<Op*> ops){
             for(unsigned int i=0;i<ops.size(); i++)
-                log_param(desc, ops[i]);
+                param_logging(desc, ops[i]);
         }
-        void log_param(std::string desc, Op* op){
+        void param_logging(std::string desc, Op* op){
             Input* inp = (Input*)op;
             cuv::tensor<float,cuv::host_memory_space> cpy = inp->data();
             mongo::BSONObjBuilder bob;
@@ -163,7 +157,7 @@ class pretrained_mlp_trainer
                     if(m_sdl.can_earlystop()) {
                         // we can only use early stopping when validation data is given
                         //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
-                        gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.0001f, 2);
+                        gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.01f, 2);
                         gd.before_validation_epoch.connect(boost::bind(&auto_encoder::reset_loss, &m_aes->get(l)));
                         gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
                         gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
@@ -176,7 +170,7 @@ class pretrained_mlp_trainer
                         std::cout << "TRAINALL phase: aes"<<l<<" avg_epochs="<<m_aes->get(l).avg_epochs()<<std::endl;
                         gd.minibatch_learning(m_aes->get(l).avg_epochs()); // TRAINALL phase. Use as many as in previous runs
                     }
-                    log_params("after_pretrain", params);
+                    param_logging("after_pretrain", params);
                 }
             }
             ////////////////////////////////////////////////////////////
@@ -215,7 +209,7 @@ class pretrained_mlp_trainer
                     gd.minibatch_learning(m_aes->avg_epochs()); // TRAINALL phase. Use as many as in previous runs
                 }
 
-                log_params("after_unsup_finetune", params);
+                param_logging("after_unsup_finetune", params);
             }
             ////////////////////////////////////////////////////////////
             //                 supervised finetuning
@@ -254,7 +248,7 @@ class pretrained_mlp_trainer
                     std::cout << "TRAINALL phase: mlp avg_epochs="<<m_mlp->avg_epochs()<<std::endl;
                     gd.minibatch_learning(m_mlp->avg_epochs()); // TRAINALL phase. use as many iterations as in previous runs
                 }
-                log_params("after_sup_finetune", params);
+                param_logging("after_sup_finetune", params);
             }
         }
         void validation_epoch(bool b){
@@ -303,7 +297,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
     size_t n_open     = q->m_hub.get_n_open();
     size_t n_finished = q->m_hub.get_n_ok();
     size_t n_assigned = q->m_hub.get_n_assigned();
-    std::cout << "o:"<<n_open<<" f:"<<n_finished<<" a:"<<n_assigned<<std::endl;
+    std::cout << "o:"<<n_open<<" f:"<<n_finished<<" a:"<<n_assigned<<" x:"<<q->m_hub.get_n_failed()<<std::endl;
     if(n_open<3){
         boost::shared_ptr<crossvalidatable> p(new pretrained_mlp_trainer());
         std::cout <<"generating new sample"<<std::endl;
@@ -331,7 +325,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             aes_lr[i] = aes_lr0;
             noise[i]  = 0.0;
             size[i]   = 
-                (i==0 ? 512 : 196 );
+                (i==0 ? 512 : 81 );
                 //512;
                 //int(pow(28+drand48()*8,2));
                 //((i==0) ? 5*30 : 15);// hidden0: 4*message plus message, hidden1: only message
@@ -382,147 +376,50 @@ void generate_and_test_models_test(boost::asio::deadline_timer* dt, boost::asio:
     size_t n_open     = q->m_hub.get_n_open();
     size_t n_finished = q->m_hub.get_n_ok();
     size_t n_assigned = q->m_hub.get_n_assigned();
-    std::cout << "o:"<<n_open<<" f:"<<n_finished<<" a:"<<n_assigned<<std::endl;
-    // Working on: { uuid: "12199984-9393-4a0d-abf8-6952a6668711",
-    // dataset: "natural", bs: 16, nsplits: 1, mlp_lr:
-    // 0.00013957783812657, pretrain: true, ufinetune: true, sfinetune:
-    // false, 
-    // stack: [ { lambda: 0.9767487049102783, lr: 0.0304716695100069,
-    //            noise: 0.0, size: 196, twolayer: false } ] } 
-    if(n_open<3){
-        boost::shared_ptr<crossvalidatable> p(new pretrained_mlp_trainer());
-        std::cout <<"generating new sample"<<std::endl;
-
-        //unsigned int n_layers = 1+3*drand48();
-        unsigned int n_layers = 1;
-
-        float mlp_lr  = 0.00013957783812657;
-        float aes_lr0  = 0.0304716695100069;
-        std::vector<float> lambda(n_layers);
-        std::vector<float> aes_lr(n_layers);
-        std::vector<float> noise(n_layers);
-        std::vector<int  > size(n_layers);
-        std::vector<bool > twolayer(n_layers);
-
-        float lambda0 = 0.9767487049102783;
-
-        for (unsigned int i = 0; i < n_layers; ++i)
-        {
-            lambda[i] = lambda0;
-            aes_lr[i] = aes_lr0;
-            noise[i]  = 0.0;
-            size[i]   = 196;
-            twolayer[i] = false;
-        }
-
-        mongo::BSONObjBuilder bob;
-        bob << "dataset" << "natural";
-        bob << "bs"      << 16;
-        bob << "nsplits" << 1;
-        bob << "mlp_lr"  << mlp_lr;
-
-        bob << "pretrain" << true;
-        bob << "ufinetune" << true;
-        bob << "sfinetune" << false;
-
-        mongo::BSONArrayBuilder stack;
-        for (unsigned int i = 0; i < n_layers; ++i)
-        {
-            stack << BSON(
-                    "lambda"   << lambda[i]   <<
-                    "lr"       << aes_lr[i]   <<
-                    "noise"    << noise[i]    <<
-                    "size"     << size[i]     <<
-                    "twolayer" << false
-                    );
-        }
-        bob << "stack"<<stack.arr();
-        q->dispatch(p, bob.obj());
-    }
+    std::cout << "o:"<<n_open<<" f:"<<n_finished<<" a:"<<n_assigned<<" x:"<<q->m_hub.get_n_failed()<<std::endl;
+    boost::shared_ptr<crossvalidatable> p(new pretrained_mlp_trainer());
+    q->dispatch( p,
+            BSON(
+                "dataset"     << "natural"   <<
+                "bs"          << 16          <<
+                "nsplits"     << 1           <<
+                "mlp_lr"      << 0.1         <<
+                "pretrain"    << true        <<
+                "ufinetune"   << false       <<
+                "sfinetune"   << false       <<
+                "stack"       << BSON_ARRAY(
+                    BSON(
+                        "lambda"   << 1.0        <<
+                        "lr"       << 0.1        <<
+                        "noise"    << 0.0        <<
+                        "size"     << 81         <<
+                        "twolayer" << false))));
+    q->dispatch( p,
+            BSON(
+                "dataset"   << "natural"   <<
+                "bs"        << 16          <<
+                "nsplits"   << 1           <<
+                "mlp_lr"    << 0.1         <<
+                "pretrain"  << true        <<
+                "ufinetune" << false       <<
+                "sfinetune" << false       <<
+                "stack"     << BSON_ARRAY(
+                    BSON(
+                        "lambda"   << 1.0        <<
+                        "lr"       << 0.1        <<
+                        "noise"    << 0.0        <<
+                        "size"     << 81         <<
+                        "twolayer" << false)
+                    <<
+                    BSON(
+                        "lambda"   << 1.0        <<
+                        "lr"       << 0.1        <<
+                        "noise"    << 0.0        <<
+                        "size"     << 81         <<
+                        "twolayer" << false))));
 
     dt->expires_at(dt->expires_at() + boost::posix_time::seconds(1));
     dt->async_wait(boost::bind(generate_and_test_models_test, dt, io, q));
-}
-
-void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio::io_service* io, cv::crossvalidation_queue* q) {
-    size_t n_open     = q->m_hub.get_n_open();
-    size_t n_finished = q->m_hub.get_n_ok();
-    size_t n_assigned = q->m_hub.get_n_assigned();
-    size_t n_failed   = q->m_hub.get_n_failed();
-    std::cout << "o:"<<n_open<<" f:"<<n_finished<<" a:"<<n_assigned<<" x:"<<n_failed<<std::endl;
-    if(n_open<3){
-        boost::shared_ptr<crossvalidatable> p(new pretrained_mlp_trainer());
-        std::cout <<"generating new sample"<<std::endl;
-
-        //unsigned int n_layers = 1+3*drand48();
-        unsigned int n_layers = 2;
-
-        //float mlp_lr  = 0.1;
-        //float aes_lr0  = 0.01;
-        float mlp_lr  = log_uniform(0.01, 0.2);
-        float aes_lr0  = log_uniform(0.01, 0.2);
-        std::vector<float> lambda(n_layers);
-        std::vector<float> aes_lr(n_layers);
-        std::vector<float> noise(n_layers);
-        std::vector<int  > size(n_layers);
-        std::vector<bool > twolayer(n_layers);
-
-        //float lambda0 = log_uniform(0.000001, 2.0);
-        float lambda0 = uniform(0.01, 2.0);
-        if(drand48() < 0.1)
-            lambda0 = 0.f;
-        for (unsigned int i = 0; i < n_layers; ++i)
-        {
-            lambda[i] = lambda0;
-            aes_lr[i] = aes_lr0;
-            noise[i]  = 0.0;
-            size[i]   = 
-                //((i==0) ? 5*15 : 15);// hidden0: 4*message plus message, hidden1: only message
-                ((i==0) ? 200 : 144);// hidden0: 4*message plus message, hidden1: only message
-            twolayer[i] = (i<n_layers-1);
-        }
-
-        //
-        // idx0=0 : twolayer == true     (train two layers at once)
-        // idx0=1 : twolayer == false    (greedy pretraining)
-        // idx0=2 : only one layer       (single layer)
-        for (int idx0 = 0; idx0 < 3; ++idx0)
-        {
-            mongo::BSONObjBuilder bob;
-            bob << "dataset" << "natural";
-            bob << "bs"      << 16;
-            bob << "nsplits" << 1;
-            bob << "mlp_lr"  << mlp_lr;
-
-            bob << "pretrain" << (drand48()>0.1f);
-            //bob << "pretrain" << true;
-            bob << "ufinetune" << true;
-            bob << "sfinetune" << false;
-
-            if(idx0 == 2){
-                n_layers = 1;
-                size[0] = size[1]; // skip 1st layer
-            }
-
-            mongo::BSONArrayBuilder stack;
-            for (unsigned int i = 0; i < n_layers; ++i)
-            {
-                stack << BSON(
-                        "lambda"   << lambda[i]   <<
-                        "lr"       << aes_lr[i]   <<
-                        "noise"    << noise[i]    <<
-                        "size"     << size[i]     <<
-                        // exactly same settings, but w/ and w/o twolayer
-                        "twolayer" << ((idx0==0) ? true : false)
-                        );
-            }
-            bob << "stack"<<stack.arr();
-            q->dispatch(p, bob.obj());
-        }
-    }
-
-    dt->expires_at(dt->expires_at() + boost::posix_time::seconds(1));
-    dt->async_wait(boost::bind(generate_and_test_models_ldpc, dt, io, q));
 }
 
 
@@ -567,77 +464,6 @@ int main(int argc, char **argv)
         cuvAssert(argc==3);
         cuv::initCUDA(boost::lexical_cast<int>(argv[2]));
         cuv::initialize_mersenne_twister_seeds(time(NULL));
-
-
-        if(0)
-        {   // check auto-encoder derivatives: 2l version
-            std::cout << "If you run these tests, add argument 0 to row_selector, or it will fail!" << std::endl;
-            std::vector<bool> twolayer(2,true);
-            int sizes[] = {3,4};
-            float noise[]   = {0.0f,0.0f};
-            float lambdas[] = {1.0f,1.0f};
-            auto_enc_stack ae(2,3,2,sizes,false,noise,lambdas,twolayer);
-            {  // test 1st layer of stack
-                auto_encoder_2l& ae0 = (auto_encoder_2l&) ae.get(0);
-                derivative_tester_verbose(*ae0.m_enc,0);
-                derivative_tester_verbose(*ae0.m_decode,0);
-                derivative_tester_verbose_prec(*ae0.m_rec_loss,0,0.03);
-                derivative_tester_verbose_prec(*ae0.m_loss,0,0.03);
-                if(ae0.m_contractive_loss.get()){
-                    derivative_tester_verbose(*ae0.m_contractive_loss,0);
-                }
-            }
-            if(ae.size()>1)
-            {  // test 2nd layer of stack
-                auto_encoder_2l& ae0 = (auto_encoder_2l&) ae.get(1);
-                derivative_tester_verbose(*ae0.m_enc,0);
-                derivative_tester_verbose(*ae0.m_decode,0);
-                derivative_tester_verbose_prec(*ae0.m_rec_loss,0,0.03);
-                derivative_tester_verbose_prec(*ae0.m_loss,0,0.03);
-                if(ae0.m_contractive_loss.get()){
-                    derivative_tester_verbose(*ae0.m_contractive_loss,0);
-                }
-            }
-
-            derivative_tester_verbose(*ae.encoded(),0);
-            derivative_tester_verbose(*ae.combined_rec_loss(),0);
-        }
-        if(0)
-        {   // check auto-encoder derivatives: 1l version
-            std::vector<bool> twolayer(2,false);
-            int sizes[] = {3,4};
-            float noise[]   = {0.0f,0.0f};
-            float lambdas[] = {0.0f,0.0f};
-            auto_enc_stack ae(2,3,2,sizes,false,noise,lambdas,twolayer);
-            /*
-             *{  // test 1st layer of stack
-             *    auto_encoder_1l& ae0 = (auto_encoder_1l&) ae.get(0);
-             *    derivative_tester_verbose(*ae0.m_enc,0);
-             *    derivative_tester_verbose(*ae0.m_decode,0);
-             *    derivative_tester_verbose_prec(*ae0.m_rec_loss,0,0.03);
-             *    derivative_tester_verbose_prec(*ae0.m_loss,0,0.03);
-             *    if(ae0.m_contractive_loss.get()){
-             *        derivative_tester_verbose(*ae0.m_contractive_loss,0);
-             *    }
-             *}
-             *if(ae.size()>1)
-             *{  // test 2nd layer of stack
-             *    auto_encoder_1l& ae0 = (auto_encoder_1l&) ae.get(1);
-             *    derivative_tester_verbose(*ae0.m_enc,0);
-             *    derivative_tester_verbose(*ae0.m_decode,0);
-             *    derivative_tester_verbose_prec(*ae0.m_rec_loss,0,0.03);
-             *    derivative_tester_verbose_prec(*ae0.m_loss,0,0.03);
-             *    if(ae0.m_contractive_loss.get()){
-             *        derivative_tester_verbose(*ae0.m_contractive_loss,0);
-             *    }
-             *}
-             */
-
-            derivative_tester_verbose(*ae.combined_rec_loss(),0);
-            derivative_tester_verbose(*ae.encoded(),0);
-
-            exit(0);
-        }
 
         cv::crossvalidation_queue q("131.220.7.92","test.dev");
         cv::crossvalidation_worker w("131.220.7.92","test.dev");
