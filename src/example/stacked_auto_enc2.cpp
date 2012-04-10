@@ -955,8 +955,8 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         //unsigned int n_layers = 1+3*drand48();
         unsigned int n_layers = 2;
 
-        float mlp_lr  = log_uniform(0.0001, 0.2);
-        float aes_lr0  = log_uniform(0.0001, 0.2);
+        float mlp_lr  = log_uniform(0.01, 0.2);
+        float aes_lr0  = log_uniform(0.01, 0.2);
         //float mlp_lr  = 0.1;
         //float aes_lr0  = 0.1;
         std::vector<float> lambda(n_layers);
@@ -965,7 +965,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         std::vector<int  > size(n_layers);
         std::vector<bool > twolayer(n_layers);
 
-        float lambda0 = uniform(0.0001, 2.0);
+        float lambda0 = log_uniform(0.001, 2.0);
         if(drand48()<0.1)
             lambda0 = 0.f;
 
@@ -975,7 +975,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             aes_lr[i] = aes_lr0;
             noise[i]  = 0.0;
             size[i]   = 
-                (i==0 ? 128 : 64 );
+                (i==0 ? 512 : 196 );
                 //512;
                 //int(pow(28+drand48()*8,2));
                 //((i==0) ? 5*30 : 15);// hidden0: 4*message plus message, hidden1: only message
@@ -1085,7 +1085,7 @@ void generate_and_test_models_test(boost::asio::deadline_timer* dt, boost::asio:
     }
 
     dt->expires_at(dt->expires_at() + boost::posix_time::seconds(1));
-    dt->async_wait(boost::bind(generate_and_test_models_random, dt, io, q));
+    dt->async_wait(boost::bind(generate_and_test_models_test, dt, io, q));
 }
 
 void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio::io_service* io, cv::crossvalidation_queue* q) {
@@ -1172,6 +1172,7 @@ void generate_and_test_models_ldpc(boost::asio::deadline_timer* dt, boost::asio:
 
 int main(int argc, char **argv)
 {
+
     srand48(time(NULL));
     if(argc<=1){
         std::cout <<"Usage: "<<argv[0] << " {hub|client|test} "<<std::endl;
