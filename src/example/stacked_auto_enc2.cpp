@@ -157,7 +157,7 @@ class pretrained_mlp_trainer
                     if(m_sdl.can_earlystop()) {
                         // we can only use early stopping when validation data is given
                         //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
-                        gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.01f, 2);
+                        gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.0001f, 3);
                         gd.before_validation_epoch.connect(boost::bind(&auto_encoder::reset_loss, &m_aes->get(l)));
                         gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
                         gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
@@ -195,7 +195,7 @@ class pretrained_mlp_trainer
                 if(m_sdl.can_earlystop()) {
                     // we can only use early stopping when validation data is given
                     //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
-                    gd.setup_early_stopping(boost::bind(&auto_enc_stack::perf,m_aes.get()), 5, 0.00000001f, 2);
+                    gd.setup_early_stopping(boost::bind(&auto_enc_stack::perf,m_aes.get()), 5, 0.0001f, 3);
                     gd.before_validation_epoch.connect(boost::bind(&auto_enc_stack::reset_loss, m_aes.get()));
                     gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
                     gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
@@ -315,7 +315,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         std::vector<int  > size(n_layers);
         std::vector<bool > twolayer(n_layers);
 
-        float lambda0 = log_uniform(0.001, 2.0);
+        float lambda0 = log_uniform(0.0001, 1.0);
         if(drand48()<0.1)
             lambda0 = 0.f;
 
