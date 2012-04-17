@@ -43,8 +43,8 @@ void load_batch(
 }
 
 //void visualize_filters(auto_encoder* ae, pca_whitening* normalizer, int fa,int fb, int image_size, int channels, unsigned int epoch){
-void visualize_filters(auto_encoder* ae, zero_mean_unit_variance<>* normalizer, int fa,int fb, int image_size, int channels, unsigned int epoch){
-    if(epoch%100 != 0)
+void visualize_filters(auto_encoder* ae, pca_whitening* normalizer, int fa,int fb, int image_size, int channels, unsigned int epoch){
+    if(epoch%300 != 0)
         return;
     {
         std::string base = (boost::format("weights-%06d-")%epoch).str();
@@ -99,10 +99,10 @@ void visualize_filters(auto_encoder* ae, zero_mean_unit_variance<>* normalizer, 
 
 int main(int argc, char **argv)
 {
-    cuv::initCUDA(1);
+    cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
     {   // check auto-encoder derivatives
-        auto_encoder ae(2,4,2,false,0.0f,0.2f);
+        auto_encoder ae(2,4,2,false,0.0f,0.2f,10.f);
         derivative_tester_verbose(*ae.m_enc,0);
         derivative_tester_verbose(*ae.m_decode,0);
         derivative_tester_verbose(*ae.m_rec_loss,0);
@@ -113,17 +113,17 @@ int main(int argc, char **argv)
 
     //mnist_dataset ds_all("/home/local/datasets/MNIST");
     natural_dataset ds_all("/home/local/datasets/natural_images");
-    //pca_whitening normalizer(81,false,true, 0.01);
+    pca_whitening normalizer(128,true,true, 0.01);
     //global_min_max_normalize<> normalizer(0,1); // 0,1
     //cifar_dataset ds;
-    zero_mean_unit_variance<> normalizer;
+    //zero_mean_unit_variance<> normalizer;
     //amat_dataset ds_all("/home/local/datasets/bengio/mnist.zip","mnist_train.amat", "mnist_test.amat");
     //global_min_max_normalize<> normalizer(0,1); // 0,1
     splitter ds_split(ds_all,2);
     dataset ds  = ds_split[0];
     ds.binary   = false;
 
-    unsigned int fa=8,fb=8,bs=512;
+    unsigned int fa=16,fb=8,bs=512;
     
     {   //-------------------------------------------------------------
         // pre-processing                                              +
@@ -164,13 +164,13 @@ int main(int argc, char **argv)
 
     auto_encoder ae(bs==0?ds.val_data.shape(0):bs,
             ds.train_data.shape(1), fa*fb, 
-            ds.binary, 0.0f, 0.050000f); // CIFAR: lambda=0.05, MNIST lambda=1.0
+            ds.binary, 0.0f, 0.000000f, 100.0f); // CIFAR: lambda=0.05, MNIST lambda=1.0
 
     std::vector<Op*> params;
     params += ae.m_weights.get(), ae.m_bias_y.get(), ae.m_bias_h.get();
 
     Op::value_type alldata = bs==0 ? ds.val_data : ds.train_data;
-    gradient_descent gd(ae.m_loss,0,params,0.1f,-0.00000f);
+    gradient_descent gd(ae.m_loss,0,params,0.1f,-0.00001f);
     gd.after_epoch.connect(boost::bind(&auto_encoder::print_loss, &ae, _1));
     gd.after_epoch.connect(boost::bind(&auto_encoder::reset_loss, &ae));
     gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&normalizer,fa,fb,ds.image_size,ds.channels,_1));

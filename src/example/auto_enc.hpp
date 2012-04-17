@@ -17,7 +17,7 @@ struct auto_encoder{
     boost::shared_ptr<Input>  m_input, m_weights,m_bias_h,m_bias_y;
     boost::shared_ptr<Sink> m_out, m_reconstruct, m_corrupt;
     boost::shared_ptr<Op>     m_decode, m_enc;
-    boost::shared_ptr<Op>     m_loss, m_rec_loss, m_contractive_loss;
+    boost::shared_ptr<Op>     m_loss, m_rec_loss, m_contractive_loss, m_sparse_loss;
     acc_t                     s_loss;
     matrix&       input() {return m_input->data();}
     const matrix& output(){return m_out->cdata();}
@@ -26,7 +26,7 @@ struct auto_encoder{
     void acc_loss(){ s_loss((float) output()[0]);}
     void reset_loss(){ s_loss = acc_t();}
 
-    auto_encoder(unsigned int inp0, unsigned int inp1, unsigned int hl, bool binary, float noise=0.0f, float lambda=0.0f)
+    auto_encoder(unsigned int inp0, unsigned int inp1, unsigned int hl, bool binary, float noise=0.0f, float lambda=0.0f, float gamma=0.0f)
     :m_input(new Input(cuv::extents[inp0][inp1],"input"))
     ,m_weights(new Input(cuv::extents[inp1][hl],"weights"))
     ,m_bias_h(new Input(cuv::extents[hl],       "bias_h"))
@@ -51,14 +51,23 @@ struct auto_encoder{
         m_out         = make_shared<Sink>(m_rec_loss->result()); // reconstruction error
         m_reconstruct = make_shared<Sink>(m_decode->result());   // for visualization of reconstructed images
         //m_corrupt = make_shared<Sink>(corrupt->result());      // for visualization of corrupted     images
+        
+        m_loss = m_rec_loss;
 
-        if(lambda>0.f){ // contractive AE
+        if(lambda>0.f){ 
+            // contractive AE
             m_contractive_loss = 
                 sum(sum(pow(m_enc*(1.f-m_enc),2.f),0) 
                         * sum(pow(m_weights,2.f),0));
-            m_loss        = axpby(m_rec_loss, lambda/(float)inp0, m_contractive_loss);
-        }else
-            m_loss        = m_rec_loss; // no change
+            m_loss        = axpby(m_loss, lambda/(float)inp0, m_contractive_loss);
+        }
+        if(gamma>0.f){
+            // penalize deviation from target average activation
+            m_sparse_loss = mean(make_shared<BernoulliKullbackLeibler>(
+                        0.01f,
+                        (sum(m_enc,0)/(float)inp0)->result())); // soft L1-norm on hidden units
+            m_loss        = axpby(m_loss, gamma, m_sparse_loss);
+        }
 
         // initialize weights and biases
         float diff = 4.f*std::sqrt(6.f/(inp1+hl));
