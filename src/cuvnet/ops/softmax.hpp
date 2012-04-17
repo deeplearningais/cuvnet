@@ -130,6 +130,151 @@ namespace cuvnet
                     }
         };
     /**
+     * calculates the elementwise KullbackLeibler-Divergence of two Bernoulli
+     * variables given by their means
+     * 
+     * \f$ x\log (x/y) + (1-x)\log\frac{1-x}{1-y} \f$
+     */
+    class BernoulliKullbackLeibler
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            public:
+                BernoulliKullbackLeibler(){} /// for serialization
+                BernoulliKullbackLeibler(result_t& p0, result_t& p1)
+                    :Op(2,1), m_scalar(-1.f){
+                         add_param(0,p0);
+                         add_param(1,p1);
+                     }
+                BernoulliKullbackLeibler(float scalar, result_t& p0)
+                    :Op(1,1),m_scalar(scalar){
+                         add_param(0,p0);
+                     }
+                void fprop(){
+                    if(m_scalar<0.f) fprop_2p();
+                    else             fprop_1p();
+                }
+                void bprop(){
+                    if(m_scalar<0.f) bprop_2p();
+                    else             bprop_1p();
+                }
+
+                void fprop_1p(){
+                    using namespace cuv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+
+                    const value_type& inp0 = p0.value.cdata();           // original
+
+                    if(r0.can_overwrite_directly()){
+                        value_type& result = r0.overwrite_or_add_value().data();
+                        apply_scalar_functor(result, inp0, SF_BERNOULLI_KL, m_scalar);
+                    }else{
+                        value_ptr presult  = p0.value;
+                        value_type& result = presult.data_onlyshape();
+                        apply_scalar_functor(result, inp0, SF_BERNOULLI_KL, m_scalar);
+                        r0.push(presult);
+                    }
+
+                    if(!p0.need_derivative) {
+                        p0.value.reset();
+                    }
+                }
+                void fprop_2p(){
+                    using namespace cuv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    param_t::element_type&  p1 = *m_params[1];
+                    result_t::element_type& r0 = *m_results[0];
+
+                    const value_type& inp0 = p0.value.cdata();           // original
+                    const value_type& inp1 = p1.value.cdata();           // original
+
+                    if(r0.can_overwrite_directly()){
+                        value_type& result = r0.overwrite_or_add_value().data();
+                        apply_binary_functor(result, inp0, inp1, BF_BERNOULLI_KL);
+                    }else{
+                        value_ptr presult  = p0.value;
+                        value_type& result = presult.data_onlyshape();
+                        apply_binary_functor(result, inp0, inp1, BF_BERNOULLI_KL);
+                        r0.push(presult);
+                    }
+
+                    if(!p0.need_derivative && !p1.need_derivative) {
+                        p0.value.reset();
+                        p1.value.reset();
+                    }
+                }
+                void bprop_1p(){
+                    using namespace cuv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    assert(p0.need_derivative); 
+
+                    if(p0.can_overwrite_directly()){
+                        value_type& r       = p0.overwrite_or_add_value();
+                        apply_scalar_functor(r,p0.value.cdata(),SF_DBERNOULLI_KL,m_scalar);
+                        r *= r0.delta.cdata();
+                    }else{
+                        // try to overwrite p0
+                        value_ptr v = p0.value;
+                        p0.value.reset();
+                        value_type& x       = v.data();
+                        apply_scalar_functor(x,SF_DBERNOULLI_KL,m_scalar);
+                        x *= r0.delta.cdata();
+                        p0.push(v); 
+                    }
+
+                    p0.value.reset();
+                    r0.delta.reset();
+                }
+                void bprop_2p(){
+                    using namespace cuv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    param_t::element_type&  p1 = *m_params[1];
+                    result_t::element_type& r0 = *m_results[0];
+                    //assert(!p0.need_derivative && p1.need_derivative); // cannot derive for x
+                    assert(p1.need_derivative); // cannot derive for x!
+
+                    if(p0.can_overwrite_directly()){
+                        value_type& r       = p0.overwrite_or_add_value();
+                        const value_type& x = p0.value.cdata();
+                        apply_binary_functor(r,x,p0.value.cdata(),BF_DBERNOULLI_KL);
+                        r *= r0.delta.cdata();
+                    }else{
+                        // try to overwrite p1
+                        value_ptr v = p1.value;
+                        p1.value.reset();
+                        value_type& y       = v .data();
+                        const value_type& x = p0.value.cdata();
+                        apply_binary_functor(y,x,y,BF_DBERNOULLI_KL);
+                        y *= r0.delta.cdata();
+                        p1.push(v); // derive w.r.t. p1!
+                    }
+
+                    p1.value.reset();
+                    p0.value.reset();
+                    r0.delta.reset();
+                }
+                void _determine_shapes(){
+                    if(m_scalar<0.f){
+                        assert(m_params[0]->shape == m_params[1]->shape);
+                    }
+                    m_results[0]->shape = m_params[0]->shape;
+                }
+            private:
+                float m_scalar;
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_scalar;
+                    }
+        };
+    /**
      * Softmax activation function
      *
      * \f[

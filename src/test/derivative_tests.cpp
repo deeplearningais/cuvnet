@@ -95,6 +95,21 @@ TEST(derivative_test, derivative_test_neg_cross_entropy_logistic){
     ptr_t func                     = boost::make_shared<NegCrossEntropyOfLogistic>(inp0->result(), inp1->result());
     derivative_tester(*func);
 }
+TEST(derivative_test, bernoulli_kl){
+	typedef boost::shared_ptr<Op> ptr_t;
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[5], "inp0");
+        boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[5], "inp1");
+        inp0->set_derivable(false);
+        ptr_t func                     = boost::make_shared<BernoulliKullbackLeibler>(inp0->result(), inp1->result());
+        derivative_tester(*func);
+    }
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[5], "inp0");
+        ptr_t func                     = boost::make_shared<BernoulliKullbackLeibler>(0.5f, inp0->result());
+        derivative_tester(*func,0,false,.003,0.1,0.9); // test in the range of 0.1, 0.9
+    }
+}
 TEST(derivative_test, derivative_test_axpby){
 	typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
