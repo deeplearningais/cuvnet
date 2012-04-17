@@ -220,7 +220,7 @@ namespace cuvnet
         /**
          * ouputs some stats of op results for debugging
          */
-        void debug(unsigned int cnt, Op* o, bool results, bool params);
+        void debug(unsigned int cnt, Op* o, bool results, bool params, const char* ident);
     };
 
 }

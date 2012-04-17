@@ -112,21 +112,40 @@ void define_graphviz_node_visitor::preorder(Op* o){
 
             if(current_op()==o){
                 // create node with debug info in label
-                os << opstr << "_dbg"
+                os << opstr << "_dbg_result"
                     << " [ fontsize=16, label=\"";
                 if(r->result_uses.size()>0){
-                    bool has_nan = cuv::has_nan(r->result_uses[0].lock()->value.cdata());
-                    bool has_inf = cuv::has_inf(r->result_uses[0].lock()->value.cdata());
-                    os  << "min: " << cuv::minimum(r->result_uses[0].lock()->value.cdata()) <<"\\n"
-                        << "max: " << cuv::maximum(r->result_uses[0].lock()->value.cdata()) <<"\\n"
-                        << "avg: " << cuv::mean(r->result_uses[0].lock()->value.cdata()) <<"\\n"
-                        << "nan: " << has_nan <<"\\n"
-                        << "inf: " << has_inf<<"\\n";
-                    if(has_nan || has_inf)
-                        m_break_after_done = true;
+                    if(r->result_uses[0].lock()->value.ptr()){
+                        os<<"Result:\\n";
+                        bool has_nan = cuv::has_nan(r->result_uses[0].lock()->value.cdata());
+                        bool has_inf = cuv::has_inf(r->result_uses[0].lock()->value.cdata());
+                        os  << "min: " << cuv::minimum(r->result_uses[0].lock()->value.cdata()) <<"\\n"
+                            << "max: " << cuv::maximum(r->result_uses[0].lock()->value.cdata()) <<"\\n"
+                            << "avg: " << cuv::mean(r->result_uses[0].lock()->value.cdata()) <<"\\n"
+                            << "var: " << cuv::var(r->result_uses[0].lock()->value.cdata()) <<"\\n"
+                            << "nan: " << has_nan <<"\\n"
+                            << "inf: " << has_inf<<"\\n";
+                        if(has_nan || has_inf)
+                            m_break_after_done = true;
+                    }
+
+                    if(r->delta.ptr())
+                    {
+                        os<<"Delta:\\n";
+                        bool has_nan = cuv::has_nan(r->delta.cdata());
+                        bool has_inf = cuv::has_inf(r->delta.cdata());
+                        os  << "min: " << cuv::minimum(r->delta.cdata()) <<"\\n"
+                            << "max: " << cuv::maximum(r->delta.cdata()) <<"\\n"
+                            << "avg: " << cuv::mean(r->delta.cdata()) <<"\\n"
+                            << "var: " << cuv::var(r->delta.cdata()) <<"\\n"
+                            << "nan: " << has_nan <<"\\n"
+                            << "inf: " << has_inf<<"\\n";
+                        if(has_nan || has_inf)
+                            m_break_after_done = true;
+                    }
                 }
                 os << "\" ];"<<std::endl;
-                os << "edge [style=solid,dir=none,weight=100] "<<opstr << " -> " << opstr<<"_dbg ;"<<std::endl;
+                os << "edge [style=solid,dir=none,weight=100] "<<opstr << " -> " << opstr<<"_dbg_result ;"<<std::endl;
             }
         }
 
@@ -176,7 +195,7 @@ void swiper::fprop(){
 	BOOST_FOREACH(Op* o, m_topo.plist){
 		o->fprop();
 #if SWIPER_DEBUG
-        debug(cnt++,o,true,false);
+        debug(cnt++,o,true,false,"fprop");
 #endif
 	}
 }
@@ -196,16 +215,25 @@ void swiper::bprop(bool set_last_delta_to_one){
 			}
 		}
 	}
+#if SWIPER_DEBUG
+    unsigned int cnt=0;
+#endif
 	BOOST_REVERSE_FOREACH(Op* o, m_topo.plist){
-		if(o->need_derivative())
+		if(o->need_derivative()){
+#if SWIPER_DEBUG
+        debug(cnt++,o,true,false,"bprop");
+#endif
 			o->bprop();
+        }
 	}
+    std::cout << "exiting after 1st bprop call" << std::endl;
+    exit(0);
 }
 void 
-swiper::debug(unsigned int cnt, Op* o, bool results, bool params){
+swiper::debug(unsigned int cnt, Op* o, bool results, bool params, const char* ident){
     if(results)
     {
-        std::string s = boost::str(boost::format("dbg/fprop-%03d")%cnt);
+        std::string s = boost::str(boost::format("dbg/%s-%03d")%ident%cnt);
         boost::filesystem::create_directories(s);
         std::ofstream os ((s+"/func.dot").c_str());
     
