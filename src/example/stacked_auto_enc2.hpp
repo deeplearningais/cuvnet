@@ -119,16 +119,6 @@ class auto_encoder_1l : public auto_encoder{
                 s_rec_loss((float)m_rec_sink->cdata()[0]);
             if(m_reg_sink)
                 s_reg_loss((float)m_reg_sink->cdata()[0]);
-            /*
-             *if(acc::count(s_total_loss)==1){
-             *    std::cout << "((float)m_loss_sink->cdata()[0]:" << ((float)m_loss_sink->cdata()[0]) << std::endl;
-             *    cuv::libs::cimg::show(arrange_filters(((Input*)m_weights.get())->data(), 't',4,4, m_input->result(0)->shape[0]),"decoded");
-             *    cuv::libs::cimg::show(arrange_filters(m_dec_sink->cdata(), 'n',4,4, m_input->result(0)->shape[0]),"decoded");
-             *    cuv::libs::cimg::show(arrange_filters(((Input*)m_input.get())->data(), 'n',4,4,     m_input->result(0)->shape[0]),"original");
-             *}else{
-             *    std::cout << "         \rcnt: " << acc::count(s_total_loss)<<std::endl;
-             *}
-             */
         }
         /**
          * this constructor gets the \e encoded output of another autoencoder as
@@ -273,18 +263,6 @@ class auto_encoder_2l : public auto_encoder{
             if(m_reg_sink)
                 s_reg_loss((float)m_reg_sink->cdata()[0]);
 
-            /*
-             *if(acc::count(s_total_loss)==1){
-             *    std::cout << "((float)m_loss_sink->cdata()[0]:" << ((float)m_loss_sink->cdata()[0]) << std::endl;
-             *    cuv::libs::cimg::show(arrange_filters(((Input*)m_weights1.get())->data(), 't',4,4, m_input->result(0)->shape[0]),"decoded");
-             *    cuv::libs::cimg::show(arrange_filters(m_dec_sink->cdata(), 'n',4,4, m_input->result(0)->shape[0]),"decoded");
-             *    cuv::libs::cimg::show(arrange_filters(((Input*)m_input.get())->data(), 'n',4,4,     m_input->result(0)->shape[0]),"original");
-             *}else{
-             *    std::cout << "         \rcnt: " << acc::count(s_total_loss)<<std::endl;
-             *}
-             */
-
-
             // TODO: only normalize columns when NOT in validation mode! (why, they should not differ that much in that case...)
             //normalize_columns(m_weights1->data(), m_expected_size[0]);
             //normalize_columns(m_weights2->data(), m_expected_size[1]); // hmm... we have to leave /some/ freedom in the network???
@@ -305,10 +283,6 @@ class auto_encoder_2l : public auto_encoder{
         virtual
         void log_loss(unsigned int epoch) {
             auto_encoder::log_loss(epoch);
-            //std::cout << "Expected Size: "<<m_expected_size[0] << ", "<<m_expected_size[1]<<std::endl;
-            // TODO: determine number of saturated units in output/hidden layer
-            // TODO: determine Jacobian properties (spectrum)
-            // TODO: determine Jacobian of models learned in two separate steps
         }
 
         /**
