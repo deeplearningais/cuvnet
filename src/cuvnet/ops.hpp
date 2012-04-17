@@ -14,6 +14,7 @@
 #include <cuvnet/ops/multiply.hpp>
 #include <cuvnet/ops/sum_mat_to_vec.hpp>
 #include <cuvnet/ops/add_scalar.hpp>
+#include <cuvnet/ops/mult_scalar.hpp>
 #include <cuvnet/ops/log.hpp>
 #include <cuvnet/ops/softmax.hpp>
 #include <cuvnet/ops/convolve.hpp>
@@ -30,6 +31,12 @@ namespace cuvnet
         Op::op_ptr operator+(Op::op_ptr x, float f)     { return boost::make_shared<AddScalar>(x->result(), f); }
     inline
         Op::op_ptr operator+(float f, Op::op_ptr x)     { return boost::make_shared<AddScalar>(f, x->result()); }
+    inline
+        Op::op_ptr operator*(Op::op_ptr x, float f)     { return boost::make_shared<MultScalar>(x->result(), f); }
+    inline
+        Op::op_ptr operator*(float f, Op::op_ptr x)     { return boost::make_shared<MultScalar>(f, x->result()); }
+    inline
+        Op::op_ptr operator/(Op::op_ptr x, float f)     { return boost::make_shared<MultScalar>(x->result(), 1.f/f); }
     inline
         Op::op_ptr operator-(float f, Op::op_ptr x)     { return boost::make_shared<SubtractFromScalar>(f, x->result()); }
     inline
