@@ -63,7 +63,7 @@ namespace cuvnet
         cuvnet::derivative_testing::derivative_tester(X,R,true, P); \
         std::cout << "done."<<std::endl;
 
-        void derivative_tester(Op& op, int result=0, bool verbose=false, double prec=0.003){
+        void derivative_tester(Op& op, int result=0, bool verbose=false, double prec=0.003, float minv=1.0, float maxv=-1.0){
             // assumption: op has only one result
             boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op.result(result));
 
@@ -78,7 +78,11 @@ namespace cuvnet
                 for (unsigned int i = 0; i < param->data().size(); ++i)
                 {
                     //param->data()[i] = 2.f;
-                    param->data()[i] = (float)(0.1f + 0.9f*drand48()) * (drand48()<.5?-1.f:1.f); // avoid values around 0
+                    if(maxv>minv){
+                        param->data()[i] = (float)((maxv-minv)*drand48()+minv);
+                    }else{
+                        param->data()[i] = (float)(0.1f + 0.9f*drand48()) * (drand48()<.5?-1.f:1.f); // avoid values around 0
+                    }
                 }
             }
 
