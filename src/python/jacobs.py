@@ -16,19 +16,20 @@ def jacobian_2l(W1,b1, W2,b2, data, only_norm=False):
     res = {}
     idx = np.arange(data.shape[0])
     if only_norm:
-        idx = idx[:]
+        idx = idx[:50]
     else:
         np.random.shuffle(idx)
         idx = idx[:10]
-    data = data[idx,:]
+    data = data[idx,:].copy('C')
 
     h1 = g(np.dot(data,W1)+b1)
     h2 = g(np.dot(h1,W2)+b2)
     h1_ = g_(h1)
     h2_ = g_(h2)
 
-    J_ = h2_[:,None,:] * np.dot(W1[None,:,:] * h1_[:,None,:], W2)
+    J_ = h2_[:,None,:] * np.dot((W1[None,:,:] * h1_[:,None,:]).copy("C"), W2)
     res['v'] = np.mean(np.sqrt((J_**2).sum(1).sum(1)))
+    print res['v']
     if only_norm:
         return res
 
