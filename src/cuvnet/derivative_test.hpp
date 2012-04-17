@@ -90,9 +90,11 @@ namespace cuvnet
 
             BOOST_FOREACH(Op* raw, pcv.plist){
                 Input* param = dynamic_cast<Input*>(raw);
+                EXPECT_TRUE(param!=NULL);
+                if(!param->derivable())
+                    continue;
                 if(verbose)
                     std::cout << "...testing derivative w.r.t. "<<param->name()<<"..."<<std::endl;
-                EXPECT_TRUE(param!=NULL);
                 unsigned int n_inputs  = param->data().size();
                 unsigned int n_outputs = prod(op.result(result)->shape);
                 matrix J(n_outputs, n_inputs); J = 0.f;
