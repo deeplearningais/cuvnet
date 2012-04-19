@@ -4,6 +4,7 @@
 
 #include <tools/argsort.hpp>
 #include <tools/preprocess.hpp>
+#include <tools/orthonormalization.hpp>
 
 #define V(X) #X<<":"<<(X)<<", "
 
@@ -37,6 +38,81 @@ TEST(argsort, inv){
     EXPECT_EQ(50, idx.size());
     for(unsigned int i=1;i<50;i++){
         EXPECT_GT(v[idx[i-1]] , v[idx[i]]);
+    }
+}
+TEST(orthogonalization, everything){
+    cuv::tensor<float,cuv::dev_memory_space> m(cuv::extents[16*2][16*2]);
+    for (int i = 0; i < m.shape(0); ++i)
+    {
+        for (int j = 0; j < m.shape(1); ++j)
+        {
+            m(i,j) = drand48();
+        }
+    }
+
+    // rows
+    orthogonalize(m);
+    // scalar products between any two rows should now be 0.
+    for (int i = 0; i < m.shape(0); ++i) {
+        for (int j = i+1; j < m.shape(0); ++j) {
+            float s = 0;
+            for (int k = 0; k < m.shape(1); ++k)
+            {
+                s  += m(i,k)*m(j,k);
+            }
+            EXPECT_NEAR(0.f, s, 0.001f);
+        }
+    }
+    
+    // columns
+    orthogonalize(m,true);
+    // scalar products between any two rows should now be 0.
+    for (int i = 0; i < m.shape(1); ++i) {
+        for (int j = i+1; j < m.shape(1); ++j) {
+            float s = 0;
+            for (int k = 0; k < m.shape(0); ++k)
+            {
+                s += m(k,i)*m(k,j);
+            }
+            EXPECT_NEAR(0.f, s, 0.001f);
+        }
+    }
+}
+
+TEST(orthogonalization, pairs){
+    cuv::tensor<float,cuv::dev_memory_space> m(cuv::extents[16*2][16*2]);
+    for (int i = 0; i < m.shape(0); ++i)
+    {
+        for (int j = 0; j < m.shape(1); ++j)
+        {
+            m(i,j) = drand48();
+        }
+    }
+
+    // rows
+    orthogonalize(m);
+    // scalar products between any two rows should now be 0.
+    for (int i = 0; i < m.shape(0)-1; i+=2) {
+        int j   = i+1;
+        float s = 0;
+        for (int k = 0; k < m.shape(1); ++k)
+        {
+            s  += m(i,k)*m(j,k);
+        }
+        EXPECT_NEAR(0.f, s, 0.001f);
+    }
+    
+    // columns
+    orthogonalize(m,true);
+    // scalar products between any two rows should now be 0.
+    for (int i = 0; i < m.shape(1)-1; i+=2) {
+        int j   = i+1;
+        float s = 0;
+        for (int k = 0; k < m.shape(0); ++k)
+        {
+            s += m(k,i)*m(k,j);
+        }
+        EXPECT_NEAR(0.f, s, 0.001f);
     }
 }
 
