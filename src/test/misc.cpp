@@ -41,79 +41,96 @@ TEST(argsort, inv){
     }
 }
 TEST(orthogonalization, everything){
-    cuv::tensor<float,cuv::dev_memory_space> m(cuv::extents[16*2][16*2]);
-    for (int i = 0; i < m.shape(0); ++i)
     {
-        for (int j = 0; j < m.shape(1); ++j)
-        {
-            m(i,j) = drand48();
+        cuv::tensor<float,cuv::host_memory_space> m(cuv::extents[5][2]);
+        for (unsigned int i = 0; i < m.shape(0); ++i)
+            for (unsigned int j = 0; j < m.shape(1); ++j)
+                m(i,j) = drand48();
+    
+        // columns
+        orthogonalize_symmetric(m,true);
+        // scalar products between any two rows should now be 0.
+        for (unsigned int i = 0; i < m.shape(1); ++i) {
+            for (unsigned int j = i+1; j < m.shape(1); ++j) {
+                float s = 0;
+                for (unsigned int k = 0; k < m.shape(0); ++k)
+                {
+                    s += m(k,i)*m(k,j);
+                }
+                //EXPECT_NEAR(0.f, s, 0.001f);
+                if(fabs(s) > 0.001f){
+                    std::cout << "error: " << s << std::endl;
+                    EXPECT_EQ(true,false);
+                }
+            }
         }
     }
 
+    cuv::tensor<float,cuv::host_memory_space> m(cuv::extents[2][5]);
     // rows
-    orthogonalize(m);
+    orthogonalize_symmetric(m);
     // scalar products between any two rows should now be 0.
-    for (int i = 0; i < m.shape(0); ++i) {
-        for (int j = i+1; j < m.shape(0); ++j) {
+    for (unsigned int i = 0; i < m.shape(0); ++i) {
+        for (unsigned int j = i+1; j < m.shape(0); ++j) {
             float s = 0;
-            for (int k = 0; k < m.shape(1); ++k)
+            for (unsigned int k = 0; k < m.shape(1); ++k)
             {
                 s  += m(i,k)*m(j,k);
             }
-            EXPECT_NEAR(0.f, s, 0.001f);
+            //EXPECT_NEAR(0.f, s, 0.001f);
+            if(fabs(s) > 0.001f){
+                std::cout << "error: " << s << std::endl;
+                EXPECT_EQ(true,false);
+            }
         }
     }
     
-    // columns
-    orthogonalize(m,true);
-    // scalar products between any two rows should now be 0.
-    for (int i = 0; i < m.shape(1); ++i) {
-        for (int j = i+1; j < m.shape(1); ++j) {
-            float s = 0;
-            for (int k = 0; k < m.shape(0); ++k)
-            {
-                s += m(k,i)*m(k,j);
-            }
-            EXPECT_NEAR(0.f, s, 0.001f);
-        }
-    }
 }
 
 TEST(orthogonalization, pairs){
     cuv::tensor<float,cuv::dev_memory_space> m(cuv::extents[16*2][16*2]);
-    for (int i = 0; i < m.shape(0); ++i)
+    for (unsigned int i = 0; i < m.shape(0); ++i)
     {
-        for (int j = 0; j < m.shape(1); ++j)
+        for (unsigned int j = 0; j < m.shape(1); ++j)
         {
             m(i,j) = drand48();
         }
     }
 
-    // rows
-    orthogonalize(m);
-    // scalar products between any two rows should now be 0.
-    for (int i = 0; i < m.shape(0)-1; i+=2) {
-        int j   = i+1;
-        float s = 0;
-        for (int k = 0; k < m.shape(1); ++k)
-        {
-            s  += m(i,k)*m(j,k);
-        }
-        EXPECT_NEAR(0.f, s, 0.001f);
-    }
-    
     // columns
-    orthogonalize(m,true);
+    orthogonalize_pairs(m,true);
     // scalar products between any two rows should now be 0.
-    for (int i = 0; i < m.shape(1)-1; i+=2) {
+    for (unsigned int i = 0; i < m.shape(1)-1; i+=2) {
         int j   = i+1;
         float s = 0;
-        for (int k = 0; k < m.shape(0); ++k)
+        for (unsigned int k = 0; k < m.shape(0); ++k)
         {
             s += m(k,i)*m(k,j);
         }
-        EXPECT_NEAR(0.f, s, 0.001f);
+        //EXPECT_NEAR(0.f, s, 0.001f);
+        if(fabs(s) > 0.001f){
+            std::cout << "error: " << s << std::endl;
+            EXPECT_EQ(true,false);
+        }
     }
+
+    // rows
+    orthogonalize_pairs(m);
+    // scalar products between any two rows should now be 0.
+    for (unsigned int i = 0; i < m.shape(0)-1; i+=2) {
+        int j   = i+1;
+        float s = 0;
+        for (unsigned int k = 0; k < m.shape(1); ++k)
+        {
+            s  += m(i,k)*m(j,k);
+        }
+        //EXPECT_NEAR(0.f, s, 0.001f);
+        if(fabs(s) > 0.001f){
+            std::cout << "error: " << s << std::endl;
+            EXPECT_EQ(true,false);
+        }
+    }
+    
 }
 
 TEST(pca,normal){
