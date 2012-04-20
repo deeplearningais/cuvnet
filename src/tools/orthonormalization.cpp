@@ -42,7 +42,6 @@ void orthogonalize_symmetric_(cuv::tensor<float, T>& m, bool columns){
 
     unsigned int n = columns ? m.shape(0) : m.shape(1);
 
-    std::cout << "columns:" << columns << " n:" << n << std::endl;
 
     // determine correlations between columns/rows
     cuv::tensor<float,T> res(cuv::extents[n][n]);
@@ -64,15 +63,14 @@ void orthogonalize_symmetric_(cuv::tensor<float, T>& m, bool columns){
 
     ublas::diagonal_matrix<real> diagMatrix(S.size());
     for(unsigned int i=0;i<S.size(); i++){
-        if(S(i)>0.000001) diagMatrix(i,i) = 1.0/sqrt(S(i));
-        else              diagMatrix(i,i) = 0.;
+        if(S(i)>0.0001) diagMatrix(i,i) = 1.0/sqrt(S(i));
+        else            diagMatrix(i,i) = 0.;
     }
     ubmatrix v2 = ublas::prod(diagMatrix, ublas::trans(U));
     ublas::noalias(hresa) = ublas::prod(ublas::trans(Vt),v2);
 
     // copy back to device
     cuv::tensor<float,T> invres = hres;
-    std::cout << "m.shape(0):" << m.shape(0) << " m.shape(1):" << m.shape(1) << " invres.shape(0):" << invres.shape(0) << " invres.shape(1):" <<  invres.shape(1)<< std::endl;
     if(columns) cuv::prod(m,invres,m.copy());
     else        cuv::prod(m,m.copy(),invres,'n','t');
 }
@@ -81,23 +79,6 @@ void orthogonalize_symmetric(cuv::tensor<float, cuv::host_memory_space>& m, bool
 }
 void orthogonalize_symmetric(cuv::tensor<float, cuv::dev_memory_space>& m, bool columns){
     orthogonalize_symmetric_(m,columns);
-}
-void orthogonalize_symmetric(cuv::tensor<float, cuv::host_memory_space>& m){
-    namespace ublas = boost::numeric::ublas; 
-    namespace lapack = boost::numeric::bindings::lapack;
-    cuvAssert(m.ndim()==2);
-
-    adaptor_matrix m_       (m.shape(0),m.shape(1),ArrayAdaptor(m.size(),const_cast<float*>(m.ptr())));
-    ubmatrix A(m_);
-
-    unsigned int minmn = std::min(A.size1(), A.size2());
-    ubmatrix U (A.size1(), minmn);  
-    vector   S(minmn);
-    ubmatrix Vt(minmn,A.size2());
-
-    lapack::gesdd('S',A,S,U,Vt);
-
-    ublas::noalias(m_) = ublas::prod(U,Vt);
 }
 
 void orthogonalize_lowdin(cuv::tensor<float, cuv::host_memory_space>& m){
@@ -122,16 +103,16 @@ template<class T>
 void orthogonalize_pairs_(cuv::tensor<float, T>& m, bool columns){
     if(columns){
         for (unsigned int i = 0; i < m.shape(1)-1; i += 2) {
-            cuv::tensor<float,cuv::host_memory_space> pair
+            cuv::tensor<float,T> pair
                 = m[cuv::indices[cuv::index_range()][cuv::index_range(i,i+2)]].copy();
-            orthogonalize_symmetric_(pair,true);
+            orthogonalize_symmetric_(pair,columns);
             m[cuv::indices[cuv::index_range()][cuv::index_range(i,i+2)]] = pair;
         }
     }else{
         for (unsigned int i = 0; i < m.shape(0)-1; i += 2) {
-            cuv::tensor<float,cuv::host_memory_space> pair
+            cuv::tensor<float,T> pair
                 = m[cuv::indices[cuv::index_range(i,i+2)][cuv::index_range()]].copy();
-            orthogonalize_symmetric_(pair,true);
+            orthogonalize_symmetric_(pair,columns);
             m[cuv::indices[cuv::index_range(i,i+2)][cuv::index_range()]] = pair;
         }
     }
