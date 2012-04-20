@@ -115,7 +115,7 @@ class auto_encoder_rel : public auto_encoder{
             std::vector<Op*> tmp; 
             tmp += m_weights_x.get();
             //tmp += m_weights_h.get();
-            tmp += m_bias_h.get();
+            //tmp += m_bias_h.get();
             return tmp; 
         };
         std::vector<Op*> unsupervised_params(){ 
@@ -357,7 +357,6 @@ class auto_encoder_rel : public auto_encoder{
          * constructor
          */
         void init(unsigned int bs  , unsigned int inp1, unsigned int hl, unsigned int factorsize, bool binary, float noise, float lambda) {
-            noise = 0.1f;
             Op::op_ptr corruptx              = m_input;
             Op::op_ptr corrupty              = m_input;
             if( binary && noise>0.f) corruptx =       zero_out(m_input,noise);
@@ -366,10 +365,34 @@ class auto_encoder_rel : public auto_encoder{
             if(!binary && noise>0.f) corrupty = add_rnd_normal(m_input,noise);
 
             op_ptr x_ = prod(corruptx, m_weights_x);
-            op_ptr y_ = prod(corrupty, m_weights_x);
-            //op_ptr xsq = pow(x_,2.f);
-            op_ptr xsq = x_*y_;
-            m_enc     = logistic(mat_plus_vec( prod(xsq, m_weights_h), m_bias_h, 1));
+
+            bool use_same_input_twice = true;
+            op_ptr y_, xsq;
+            if(use_same_input_twice){
+                y_ = x_;
+                xsq = pow(x_,2.f);
+            }else{
+                y_ = prod(corrupty, m_weights_x);
+                xsq = x_*y_;
+            }
+
+            enum functype {FT_TANH, FT_LOGISTIC, FT_SQRT, FT_1MEXPMX} ft = FT_1MEXPMX;
+
+            op_ptr m_enc_lin = mat_plus_vec( prod(xsq, m_weights_h), m_bias_h, 1);
+
+            switch(ft){
+                case FT_TANH: m_enc     = tanh(m_enc_lin);
+                    break;
+                case FT_LOGISTIC:
+                    m_enc     = logistic(m_enc_lin);
+                    break;
+                case FT_SQRT:
+                    m_enc     = pow(m_enc_lin, 0.5f);
+                    break;
+                case FT_1MEXPMX:
+                    m_enc     = 1-exp(-1.f,m_enc_lin);
+                    break;
+            }
             
             op_ptr hp = prod(m_enc, m_weights_h, 'n','t'); // watch out that this is not 1 all the time!
             m_tmp_sink = sink("tmp",m_enc);
@@ -382,21 +405,41 @@ class auto_encoder_rel : public auto_encoder{
             m_rec_sink    = sink("reconstruction loss", m_rec_loss);
 
             if(lambda>0.f) { // contractive AE
-                op_ptr rs  = row_select(xsq,m_enc); // select same (random) row in h1 and h2
-                op_ptr xsqr = result(rs,0);
-                op_ptr encr = result(rs,1);
 
+                op_ptr rs, encr, h2_;
+                switch(ft){
+                    case FT_TANH: 
+                        rs   = row_select(xsq,m_enc);
+                        encr = result(rs,1);
+                        h2_  = (1.f-pow(encr,2.f));  // tanh
+                        break;
+                    case FT_LOGISTIC:
+                        rs   = row_select(xsq,m_enc); 
+                        encr = result(rs,1);
+                        h2_  = encr*(1.f-encr); // logistic
+                        break;
+                    case FT_SQRT:
+                        rs   = row_select(xsq,m_enc); 
+                        encr = result(rs,1);
+                        h2_  = 0.5f * pow(encr+0.01f,-0.5f);
+                        break;
+                    case FT_1MEXPMX:
+                        rs   = row_select(xsq,m_enc_lin); 
+                        encr = result(rs,1);
+                        h2_  = exp(-1.f,encr); // d/dx [1-exp(-x)]  == exp(-x)
+                        break;
+                }
+                op_ptr xsqr   = result(rs,0);
                 op_ptr    h1_ = 2.f*xsqr;
-                op_ptr    h2_ = encr*(1.f-encr);
 
                 m_reg_loss = sum( sum(pow(prod(mat_times_vec(m_weights_x,h1_,1), m_weights_h),2.f),0)*pow(h2_,2.f));
-                m_loss        = axpby(m_rec_loss, lambda, m_reg_loss);
-                m_reg_sink    = sink("contractive loss", m_reg_loss);
+                m_loss     = axpby(m_rec_loss, lambda, m_reg_loss);
+                m_reg_sink = sink("contractive loss", m_reg_loss);
             } 
             if(1){
-                float gamma = 0.1f;
+                float gamma = 1.0f;
                 op_ptr m_sparse_loss = mean(make_shared<BernoulliKullbackLeibler>(
-                            0.3f,
+                            0.1f,
                             (sum(m_enc,0)/(float)bs)->result())); // soft L1-norm on hidden units
                 m_loss        = axpby(m_loss, gamma, m_sparse_loss);
             }
@@ -502,7 +545,7 @@ int main(int argc, char **argv)
     ds  = ds_split[0];
     ds.binary   = false;
 
-    unsigned int fa=8,fb=8,bs=256;
+    unsigned int fa=8,fb=8,bs=512;
     
     {   //-------------------------------------------------------------
         // pre-processing                                              +
@@ -533,7 +576,7 @@ int main(int argc, char **argv)
         //-------------------------------------------------------------
     }
         //auto_encoder_rel(unsigned int bs  , unsigned int inp1, unsigned int hl, unsigned int factorsize, bool binary, float noise=0.0f, float lambda=0.0f)
-    auto_encoder_rel ae(bs, ds.train_data.shape(1), 32, fa*fb, ds.binary, 0.0f, 1.00f);
+    auto_encoder_rel ae(bs, ds.train_data.shape(1), 32, fa*fb, ds.binary, 0.0f, 0.00f);
 
     std::vector<Op*> params = ae.unsupervised_params();
 
@@ -553,7 +596,7 @@ int main(int argc, char **argv)
     }
     else      
     {
-        gd.decay_learnrate(0.98);
+        //gd.decay_learnrate(0.98);
         gd.minibatch_learning(6000);
     }
     
