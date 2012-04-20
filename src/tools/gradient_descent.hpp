@@ -24,6 +24,7 @@ namespace cuvnet
             swiper           m_swipe;    ///< does fprop and bprop for us
             paramvec_t       m_params;   ///< all parameters w.r.t. which we optimize
             float            m_learnrate; ///< learnrate for weight updates
+            float            m_learnrate_decay; ///< factor by which lr is multiplied after each epoch
             float            m_weightdecay; ///< weight decay for weight updates
             unsigned int     m_rounds;    ///< number of rounds until optimum on validation set was attained
             std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >    m_best_perf_params; ///< copies of parameters for current best performance
@@ -58,7 +59,7 @@ namespace cuvnet
              * @param weightdecay the weight decay for weight updates
              */
             gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.1f, float weightdecay=0.0f)
-                :m_swipe(*op, result, params), m_params(params), m_learnrate(learnrate), m_weightdecay(weightdecay)
+                :m_swipe(*op, result, params), m_params(params), m_learnrate(learnrate), m_learnrate_decay(1.f), m_weightdecay(weightdecay)
                 ,m_best_perf(std::numeric_limits<float>::infinity()), m_failed_improvement_rounds(0)
             { }
 
@@ -177,6 +178,7 @@ namespace cuvnet
                             after_batch(epoch, batchids[batch]);
                         }
                         after_epoch(epoch);
+                        m_learnrate *= m_learnrate_decay;
                     }
                 }catch(no_improvement_stop){
                     ; // done.
@@ -197,7 +199,15 @@ namespace cuvnet
                     m_swipe.bprop();
                     update_weights();
                     after_epoch(epoch);
+                    m_learnrate *= m_learnrate_decay;
                 }
+            }
+
+            /**
+             * decay learnrate by factor
+             */
+            void decay_learnrate(float fact=0.98){
+                m_learnrate_decay = fact;
             }
     };
     /**
