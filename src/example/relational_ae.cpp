@@ -12,12 +12,16 @@
 #include <cuv/libs/cimg/cuv_cimg.hpp>
 
 #include <datasets/natural.hpp>
+#include <datasets/cifar.hpp>
+#include <datasets/mnist.hpp>
 #include <datasets/splitter.hpp>
+#include <datasets/randomizer.hpp>
 
 #include <tools/crossvalid.hpp>
 #include <tools/preprocess.hpp>
 #include <tools/gradient_descent.hpp>
 #include <tools/visualization.hpp>
+#include <tools/orthonormalization.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/ops.hpp>
 
@@ -25,6 +29,7 @@
 using namespace cuvnet;
 namespace acc=boost::accumulators;
 namespace ll = boost::lambda;
+using boost::make_shared;
 
 typedef boost::shared_ptr<Input>  input_ptr;
 typedef boost::shared_ptr<Sink> sink_ptr;
@@ -76,7 +81,7 @@ class auto_encoder {
         }
         virtual
         void print_loss(unsigned int epoch) {
-            std::cout << "epoch " << epoch<< "perf"<<acc::mean(s_total_loss)<<"reg"<<acc::mean(s_reg_loss)<<"rec"<<acc::mean(s_rec_loss) << std::endl;
+            std::cout << "epoch " << epoch<< " perf: "<<acc::mean(s_total_loss)<<" reg: "<<acc::mean(s_reg_loss)<<" rec: "<<acc::mean(s_rec_loss) << std::endl;
             //g_worker->log(BSON("who"<<"AE"<<"epoch"<<epoch<<"perf"<<acc::mean(s_total_loss)<<"reg"<<acc::mean(s_reg_loss)<<"rec"<<acc::mean(s_rec_loss)));
             //g_worker->checkpoint();
         }
@@ -95,6 +100,7 @@ class auto_encoder_rel : public auto_encoder{
         input_ptr    m_bias_xvis; /// bias of the reconstruction
         input_ptr    m_bias_h;    /// bias of the hidden layer
         sink_ptr     m_loss_sink, m_reg_sink, m_rec_sink, m_decode_sink;
+        sink_ptr     m_tmp_sink;
         op_ptr       m_decode, m_enc;
         op_ptr       m_loss, m_rec_loss, m_reg_loss;
         float        m_expected_size[2];
@@ -107,7 +113,8 @@ class auto_encoder_rel : public auto_encoder{
         std::vector<Op*>   supervised_params(){ 
             using namespace boost::assign;
             std::vector<Op*> tmp; 
-            tmp += m_weights_x.get(), m_weights_h.get();
+            tmp += m_weights_x.get();
+            //tmp += m_weights_h.get();
             tmp += m_bias_h.get();
             return tmp; 
         };
@@ -130,25 +137,79 @@ class auto_encoder_rel : public auto_encoder{
             if(m_reg_sink) s_reg_loss  ((float)m_reg_sink->cdata()[0]);
 
             // TODO: only normalize columns when NOT in validation mode! (why, they should not differ that much in that case...)
-            //normalize_columns(m_weights1->data(), m_expected_size[0]);
-            //normalize_columns(m_weights2->data(), m_expected_size[1]); // hmm... we have to leave /some/ freedom in the network???
+            normalize_columns(m_weights_x->data(), m_expected_size[0]);
+            //normalize_columns(m_weights_h->data(), m_expected_size[1]); // hmm... we have to leave /some/ freedom in the network???
+        }
+        void angle_stats(const cuv::tensor<float,cuv::host_memory_space>& m){
+            // determine angles between successive feature pairs
+            acc_t s_theta;
+            std::ofstream os("angles.txt");
+            for (int i = 0; i < m.shape(1)-1; i+=2)
+            {
+                float s = 0, b1=0, b2=0;
+                for (int x = 0; x < m.shape(0); ++x)
+                {
+                    s  += m(x,i)   * m(x,i+1);
+                    b1 += m(x,i)   * m(x,i);
+                    b2 += m(x,i+1) * m(x,i+1);
+                }
+                b1 = sqrt(b1);
+                b2 = sqrt(b2);
+                float theta = acos(std::min(1.f,std::max(-1.f,s/b1/b2)));
+                s_theta(theta*180.f/(float)M_PI);
+                os << theta<<std::endl;
+            }
+            std::cout << "acc::mean(s_theta):" << acc::mean(s_theta) << " acc::var(s_theta):" << acc::variance(s_theta) << std::endl;/* cursor */
         }
         void normalize_columns(matrix& w, float& expected_size){
-            matrix r(w.shape(1));
-            cuv::reduce_to_row(r, w, cuv::RF_ADD_SQUARED);
-            cuv::apply_scalar_functor(r, cuv::SF_SQRT);
-            float f = cuv::mean(r);
+            matrix mean(w.shape(1));
+            matrix var (w.shape(1));
+
+            static unsigned int cnt=0;
+            //if(cnt++ > 100000 && cnt%100==0)
+            bool step2 = cnt++>1;
+            if(step2) {
+                if(cnt%100==0)
+                //orthogonalize_pairs(w,true);
+                orthogonalize_symmetric(w,true);
+            }
+
+            if(1||!step2){
+                // subtract filter means
+                cuv::reduce_to_row(mean, w, cuv::RF_ADD);
+                mean /= (float) w.shape(0);  // mean of each filter
+                cuv::apply_scalar_functor(mean, cuv::SF_NEGATE);
+                cuv::matrix_plus_row(w,mean);
+            }
+
+            // enforce small variance (determined by running average)
+            cuv::reduce_to_row(var, w, cuv::RF_ADD_SQUARED);
+            cuv::apply_scalar_functor(var, cuv::SF_SQRT);
+            float f = cuv::mean(var);
             if(expected_size < 0)
                 expected_size = f;
             else
-                expected_size += 0.99f * (f - expected_size);
-            r /= std::max(0.0001f, expected_size);
-            cuv::apply_scalar_functor(r, cuv::SF_MAX, 0.00001f); // avoid div by 0
-            cuv::matrix_divide_row(w, r);
+                expected_size += 0.01f * (f - expected_size);
+            //std::cout << "expected_size:" << expected_size  << std::endl;
+
+            cuv::apply_scalar_functor(var, cuv::SF_MAX, 0.0001f);
+            cuv::apply_scalar_functor(var, cuv::SF_RDIV, expected_size);
+            cuv::matrix_times_row(w, var);
+
+            //if(step2)
+                //angle_stats(w);
+
+            // add filter mean again
+            //cuv::apply_scalar_functor(mean, cuv::SF_NEGATE);
+            //cuv::matrix_plus_row(w,mean);
         }
         virtual
         void print_loss(unsigned int epoch) {
             auto_encoder::print_loss(epoch);
+            std::cout << "TmpStats  mean: " << cuv::mean(m_tmp_sink->cdata()) << std::endl;
+            std::cout << "           var: " << cuv::var(m_tmp_sink->cdata()) << std::endl;
+            std::cout << "           min: " << cuv::minimum(m_tmp_sink->cdata()) << std::endl;
+            std::cout << "           max: " << cuv::maximum(m_tmp_sink->cdata()) << std::endl;
         }
 
         /**
@@ -283,8 +344,8 @@ class auto_encoder_rel : public auto_encoder{
 
             m_expected_size[0] = -1;
             m_expected_size[1] = -1;
-            //normalize_columns(m_weights1->data(), m_expected_size[0]);
-            //normalize_columns(m_weights2->data(), m_expected_size[1]);
+            normalize_columns(m_weights_x->data(), m_expected_size[0]);
+            //normalize_columns(m_weights_h->data(), m_expected_size[1]);
 
             m_bias_xvis->data() = 0.f;
             m_bias_h->data()    = 0.f;
@@ -296,33 +357,54 @@ class auto_encoder_rel : public auto_encoder{
          * constructor
          */
         void init(unsigned int bs  , unsigned int inp1, unsigned int hl, unsigned int factorsize, bool binary, float noise, float lambda) {
-            Op::op_ptr corrupt               = m_input;
-            if( binary && noise>0.f) corrupt =       zero_out(m_input,noise);
-            if(!binary && noise>0.f) corrupt = add_rnd_normal(m_input,noise);
+            noise = 0.1f;
+            Op::op_ptr corruptx              = m_input;
+            Op::op_ptr corrupty              = m_input;
+            if( binary && noise>0.f) corruptx =       zero_out(m_input,noise);
+            if(!binary && noise>0.f) corruptx = add_rnd_normal(m_input,noise);
+            if( binary && noise>0.f) corrupty =       zero_out(m_input,noise);
+            if(!binary && noise>0.f) corrupty = add_rnd_normal(m_input,noise);
 
-            op_ptr x_ = prod(corrupt, m_weights_x);
-            op_ptr xsq = pow(x_,2.f);
+            op_ptr x_ = prod(corruptx, m_weights_x);
+            op_ptr y_ = prod(corrupty, m_weights_x);
+            //op_ptr xsq = pow(x_,2.f);
+            op_ptr xsq = x_*y_;
             m_enc     = logistic(mat_plus_vec( prod(xsq, m_weights_h), m_bias_h, 1));
             
-            m_decode      = mat_plus_vec(prod(prod(m_enc, m_weights_h, 'n','t')*x_,m_weights_x,'n','t'),m_bias_xvis,1);
+            op_ptr hp = prod(m_enc, m_weights_h, 'n','t'); // watch out that this is not 1 all the time!
+            m_tmp_sink = sink("tmp",m_enc);
+
+            m_decode      = mat_plus_vec(prod(hp*y_,m_weights_x,'n','t'),m_bias_xvis,1);
             m_decode_sink = sink("decoded", m_decode);
             m_rec_loss    = reconstruction_loss(m_input,m_decode);
+
+            m_loss        = m_rec_loss; // no change
+            m_rec_sink    = sink("reconstruction loss", m_rec_loss);
 
             if(lambda>0.f) { // contractive AE
                 op_ptr rs  = row_select(xsq,m_enc); // select same (random) row in h1 and h2
                 op_ptr xsqr = result(rs,0);
                 op_ptr encr = result(rs,1);
 
-                op_ptr    h1_ = 2.f*xsq;
+                op_ptr    h1_ = 2.f*xsqr;
                 op_ptr    h2_ = encr*(1.f-encr);
 
                 m_reg_loss = sum( sum(pow(prod(mat_times_vec(m_weights_x,h1_,1), m_weights_h),2.f),0)*pow(h2_,2.f));
                 m_loss        = axpby(m_rec_loss, lambda, m_reg_loss);
-                m_rec_sink    = sink("reconstruction loss", m_rec_loss);
                 m_reg_sink    = sink("contractive loss", m_reg_loss);
-            } else{
-                m_loss        = m_rec_loss; // no change
-                m_rec_sink    = sink(m_rec_loss);
+            } 
+            if(1){
+                float gamma = 0.1f;
+                op_ptr m_sparse_loss = mean(make_shared<BernoulliKullbackLeibler>(
+                            0.3f,
+                            (sum(m_enc,0)/(float)bs)->result())); // soft L1-norm on hidden units
+                m_loss        = axpby(m_loss, gamma, m_sparse_loss);
+            }
+            if(1){
+                // L2-weight decay
+                //m_loss = axpby(m_loss, 0.01f,sum(pow(m_weights_x,2.f)));
+                // L1-weight decay
+                //m_loss = axpby(m_loss, 0.00001f,sum(pow(pow(m_weights_x,2.f)+0.0001f,0.5f)));
             }
             m_loss_sink       = sink("total loss", m_loss);
             reset_weights();
@@ -344,8 +426,10 @@ matrix trans(matrix& m){
 }
 //void visualize_filters(auto_encoder* ae, pca_whitening* normalizer, int fa,int fb, int image_size, int channels, unsigned int epoch){
 void visualize_filters(auto_encoder_rel* ae, pca_whitening* normalizer, int fa,int fb, int image_size, int channels, unsigned int epoch){
-    if(epoch%300 != 0)
+    if(epoch%10 != 0)
         return;
+    //if(epoch%50 == 0)
+        //cuv::libs::cimg::show(cuv::tensor<float,cuv::host_memory_space>(ae->m_weights_h->data()),"Wh");
     {
         std::string base = (boost::format("weights-%06d-")%epoch).str();
         // show the resulting filters
@@ -357,11 +441,14 @@ void visualize_filters(auto_encoder_rel* ae, pca_whitening* normalizer, int fa,i
         cuv::libs::cimg::save(wvis, base+"nb.png");
         wvis      = arrange_filters(w, 'n', fa, fb, (int)sqrt(w.shape(1)),channels,true);
         cuv::libs::cimg::save(wvis, base+"sb.png");
-        normalizer->reverse_transform(w,true); // no mean added
-        wvis      = arrange_filters(w, 'n', fa, fb, image_size,channels,false);
-        cuv::libs::cimg::save(wvis, base+"nr.png");
-        wvis      = arrange_filters(w, 'n', fa, fb, image_size,channels,true);
-        cuv::libs::cimg::save(wvis, base+"sr.png");
+        if(normalizer){
+            ae->angle_stats(w);
+            normalizer->reverse_transform(w,true); // no mean added
+            wvis      = arrange_filters(w, 'n', fa, fb, image_size,channels,false);
+            cuv::libs::cimg::save(wvis, base+"nr.png");
+            wvis      = arrange_filters(w, 'n', fa, fb, image_size,channels,true);
+            cuv::libs::cimg::save(wvis, base+"sr.png");
+        }
     }
 
     {
@@ -373,11 +460,13 @@ void visualize_filters(auto_encoder_rel* ae, pca_whitening* normalizer, int fa,i
         cuv::libs::cimg::save(wvis, base+"nb.png");
         wvis      = arrange_filters(w, 'n', fa, fb, (int)sqrt(w.shape(1)),channels,true);
         cuv::libs::cimg::save(wvis, base+"sb.png");
-        normalizer->reverse_transform(w); 
-        wvis      = arrange_filters(w, 'n', fa, fb, image_size,channels,false);
-        cuv::libs::cimg::save(wvis, base+"nr.png");
-        wvis      = arrange_filters(w, 'n', fa, fb, image_size,channels,true);
-        cuv::libs::cimg::save(wvis, base+"sr.png");
+        if(normalizer){
+            normalizer->reverse_transform(w); 
+            wvis      = arrange_filters(w, 'n', fa, fb, image_size,channels,false);
+            cuv::libs::cimg::save(wvis, base+"nr.png");
+            wvis      = arrange_filters(w, 'n', fa, fb, image_size,channels,true);
+            cuv::libs::cimg::save(wvis, base+"sr.png");
+        }
     }
 
     {
@@ -389,11 +478,13 @@ void visualize_filters(auto_encoder_rel* ae, pca_whitening* normalizer, int fa,i
         cuv::libs::cimg::save(wvis, base+"nb.png");
         wvis      = arrange_filters(w, 'n', fa, fb, (int)sqrt(w.shape(1)),channels,true);
         cuv::libs::cimg::save(wvis, base+"sb.png");
-        normalizer->reverse_transform(w); 
-        wvis      = arrange_filters(w, 'n', fa, fb, image_size,channels,false);
-        cuv::libs::cimg::save(wvis, base+"nr.png");
-        wvis      = arrange_filters(w, 'n', fa, fb, image_size,channels,true);
-        cuv::libs::cimg::save(wvis, base+"sr.png");
+        if(normalizer){
+            normalizer->reverse_transform(w); 
+            wvis      = arrange_filters(w, 'n', fa, fb, image_size,channels,false);
+            cuv::libs::cimg::save(wvis, base+"nr.png");
+            wvis      = arrange_filters(w, 'n', fa, fb, image_size,channels,true);
+            cuv::libs::cimg::save(wvis, base+"sr.png");
+        }
     }
 }
 
@@ -403,12 +494,15 @@ int main(int argc, char **argv)
     cuv::initialize_mersenne_twister_seeds();
 
     natural_dataset ds_all("/home/local/datasets/natural_images");
-    pca_whitening normalizer(128,false,true, 0.01);
-    splitter ds_split(ds_all,2);
-    dataset ds  = ds_split[0];
+    //cifar_dataset ds_all;
+    //mnist_dataset ds_all("/home/local/datasets/MNIST");
+    pca_whitening normalizer(176,false,true, 0.01);
+    dataset ds = randomizer().transform(ds_all);
+    splitter ds_split(ds,2);
+    ds  = ds_split[0];
     ds.binary   = false;
 
-    unsigned int fa=16,fb=8,bs=512;
+    unsigned int fa=8,fb=8,bs=256;
     
     {   //-------------------------------------------------------------
         // pre-processing                                              +
@@ -422,6 +516,7 @@ int main(int argc, char **argv)
         zero_sample_mean<> n;
         log_transformer<> n2;
         zero_mean_unit_variance<> n3; 
+        
 
         n2.fit_transform(ds.train_data); // results pretty much in gaussian
         n2.transform(ds.val_data);    // do the same to the validation set
@@ -432,19 +527,18 @@ int main(int argc, char **argv)
         n3.fit_transform(ds.train_data); // normalize each feature to get to defined range
         n3.transform(ds.val_data);    // do the same to the validation set
         
-
         normalizer.fit_transform(ds.train_data);
         normalizer.transform(ds.val_data);
         // end preprocessing                                           /
         //-------------------------------------------------------------
     }
         //auto_encoder_rel(unsigned int bs  , unsigned int inp1, unsigned int hl, unsigned int factorsize, bool binary, float noise=0.0f, float lambda=0.0f)
-    auto_encoder_rel ae(bs, ds.train_data.shape(1), 64, fa*fb, ds.binary, 0.0f, 0.0f);
+    auto_encoder_rel ae(bs, ds.train_data.shape(1), 32, fa*fb, ds.binary, 0.0f, 1.00f);
 
     std::vector<Op*> params = ae.unsupervised_params();
 
     Op::value_type alldata = bs==0 ? ds.val_data : ds.train_data;
-    gradient_descent gd(ae.m_loss,0,params,0.1f,-0.00000f);
+    gradient_descent gd(ae.m_loss,0,params,0.05f,-0.00000f);
     gd.after_epoch.connect(boost::bind(&auto_encoder::print_loss, &ae, _1));
     gd.after_epoch.connect(boost::bind(&auto_encoder::reset_loss, &ae));
     gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&normalizer,fa,fb,ds.image_size,ds.channels,_1));
@@ -457,7 +551,11 @@ int main(int argc, char **argv)
         alldata.dealloc();
         gd.batch_learning(3200);
     }
-    else      gd.minibatch_learning(6000);
+    else      
+    {
+        gd.decay_learnrate(0.98);
+        gd.minibatch_learning(6000);
+    }
     
     return 0;
 }
