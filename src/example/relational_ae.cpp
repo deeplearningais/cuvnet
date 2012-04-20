@@ -208,8 +208,67 @@ class auto_encoder_rel : public auto_encoder{
                     +         m_weights_h->data().shape(1) + 1;
                 float diff = 4.f*std::sqrt(6.f/wnorm);
                 cuv::fill_rnd_uniform(m_weights_h->data());
-                m_weights_h->data() *= 2*diff;
-                m_weights_h->data() -=   diff;
+                //m_weights_h->data() *= 2*diff;
+                //m_weights_h->data() -=   diff;
+                m_weights_h->data() -= 3.f;
+                cuv::apply_scalar_functor(m_weights_h->data(), cuv::SF_EXP); // from memisevic code, i guess to make h sparse
+
+                if(1){
+                    // 1d-topology, as in memisevic code. 
+                    matrix& m = m_weights_h->data();
+                    m = 0.f;
+                    int hls = m.shape(1);
+                    int fs  = m.shape(0);
+                    float step = std::max(fs,hls) / (float) std::min(fs,hls);
+                    cuv::tensor<float,cuv::host_memory_space> kern(2*step+1);
+                    for (int i = -step; i < step; ++i)
+                    {
+                        kern(i+step) = exp(i*i/(step/3.f));
+                    }
+                    kern /= cuv::sum(kern);
+                    if(fs>hls){
+                        for(int i=0;i<hls;i++){
+                            for(int j=0; j<step; j++){
+                                int idx = i*step+j;
+                                if(idx >= 0 && idx < fs)
+                                    m(idx, i) = 1.f;
+                            }
+                        }
+                    }else{
+                        for(int i=0;i<fs;i++){
+                            for(int j=0; j<step; j++){
+                                int idx = i*step+j;
+                                if(idx >= 0 && idx < hls)
+                                    m(i,idx) = 1.f;
+                            }
+                        }
+                    }
+                }else if(0){
+                    // 2d-topology
+                    matrix& m = m_weights_h->data();
+                    m = 0.f;
+                    int hls = m.shape(1);
+                    int fs  = m.shape(0);
+
+                    int hx = sqrt(hls);
+                    int hy = hls/hx;
+                    cuvAssert(hx*hy==hls);
+                    float stepi = 1;
+                    float stepj = 1;
+                    for (int i = 0; i < hx; ++i)
+                    {
+                        for (int j = 0; j < hy; ++j)
+                        {
+                            for (int si = -stepi; si < stepi; ++si)
+                            {
+                                for (int sj = -stepj; sj < stepj; ++sj)
+                                {
+                                    // TODO
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             {
@@ -217,6 +276,7 @@ class auto_encoder_rel : public auto_encoder{
                     +         m_weights_x->data().shape(1) + 1;
                 float diff = 4.f*std::sqrt(6.f/wnorm);
                 cuv::fill_rnd_uniform(m_weights_x->data());
+                diff = 0.01f;
                 m_weights_x->data() *= 2*diff;
                 m_weights_x->data() -=   diff;
             }
