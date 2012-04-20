@@ -16,6 +16,7 @@
 #include <cuvnet/ops/add_scalar.hpp>
 #include <cuvnet/ops/mult_scalar.hpp>
 #include <cuvnet/ops/log.hpp>
+#include <cuvnet/ops/exp.hpp>
 #include <cuvnet/ops/softmax.hpp>
 #include <cuvnet/ops/convolve.hpp>
 #include <cuvnet/ops/reshape.hpp>
@@ -45,6 +46,8 @@ namespace cuvnet
         Op::op_ptr log(Op::op_ptr x)                    { return boost::make_shared<Log>(x->result()); }
     inline
         Op::op_ptr pow(Op::op_ptr x, float f)           { return boost::make_shared<Pow>(f, x->result()); }
+    inline
+        Op::op_ptr exp(float f, Op::op_ptr x)           { return boost::make_shared<Exp>(f, x->result()); }
     inline
         Op::op_ptr prod(Op::op_ptr x, Op::op_ptr y, char tx='n', char ty='n') { return boost::make_shared<Prod>(x->result(), y->result(), tx, ty); }
     inline
