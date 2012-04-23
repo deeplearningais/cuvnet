@@ -174,7 +174,7 @@ class auto_encoder_rel : public auto_encoder{
                 orthogonalize_symmetric(w,true);
             }
 
-            if(1||!step2){
+            if(!step2){
                 // subtract filter means
                 cuv::reduce_to_row(mean, w, cuv::RF_ADD);
                 mean /= (float) w.shape(0);  // mean of each filter
@@ -445,7 +445,7 @@ class auto_encoder_rel : public auto_encoder{
             }
             if(1){
                 // L2-weight decay
-                //m_loss = axpby(m_loss, 0.01f,sum(pow(m_weights_x,2.f)));
+                m_loss = axpby(m_loss, 0.1f,sum(pow(m_weights_x,2.f)));
                 // L1-weight decay
                 //m_loss = axpby(m_loss, 0.00001f,sum(pow(pow(m_weights_x,2.f)+0.0001f,0.5f)));
             }
@@ -467,7 +467,7 @@ matrix trans(matrix& m){
     cuv::transpose(mt,m);
     return mt;
 }
-//void visualize_filters(auto_encoder* ae, pca_whitening* normalizer, int fa,int fb, int image_size, int channels, unsigned int epoch){
+//void visualize_filters(auto_encoder_rel* ae, zero_mean_unit_variance<>* normalizer, int fa,int fb, int image_size, int channels, unsigned int epoch){
 void visualize_filters(auto_encoder_rel* ae, pca_whitening* normalizer, int fa,int fb, int image_size, int channels, unsigned int epoch){
     if(epoch%10 != 0)
         return;
@@ -540,12 +540,13 @@ int main(int argc, char **argv)
     //cifar_dataset ds_all;
     //mnist_dataset ds_all("/home/local/datasets/MNIST");
     pca_whitening normalizer(176,false,true, 0.01);
+    //zero_mean_unit_variance<> normalizer;
     dataset ds = randomizer().transform(ds_all);
     splitter ds_split(ds,2);
     ds  = ds_split[0];
     ds.binary   = false;
 
-    unsigned int fa=8,fb=8,bs=512;
+    unsigned int fa=12,fb=12,bs=128;
     
     {   //-------------------------------------------------------------
         // pre-processing                                              +
@@ -576,7 +577,7 @@ int main(int argc, char **argv)
         //-------------------------------------------------------------
     }
         //auto_encoder_rel(unsigned int bs  , unsigned int inp1, unsigned int hl, unsigned int factorsize, bool binary, float noise=0.0f, float lambda=0.0f)
-    auto_encoder_rel ae(bs, ds.train_data.shape(1), 32, fa*fb, ds.binary, 0.0f, 0.00f);
+    auto_encoder_rel ae(bs, ds.train_data.shape(1), 72, fa*fb, ds.binary, 0.0f, 0.00f);
 
     std::vector<Op*> params = ae.unsupervised_params();
 
@@ -596,7 +597,7 @@ int main(int argc, char **argv)
     }
     else      
     {
-        //gd.decay_learnrate(0.98);
+        gd.decay_learnrate(0.9995);
         gd.minibatch_learning(6000);
     }
     
