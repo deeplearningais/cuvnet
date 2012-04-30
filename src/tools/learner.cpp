@@ -6,6 +6,7 @@
 #include <datasets/natural.hpp>
 #include <datasets/randomizer.hpp>
 #include <datasets/amat_datasets.hpp>
+#include <datasets/msrc_descriptors.hpp>
 #include <tools/preprocess.hpp>
 #include <cuvnet/op.hpp>
 #include "learner.hpp"
@@ -79,6 +80,15 @@ namespace cuvnet
             dataset dsall = ldpc_dataset("/home/local/datasets/LDPC");
             dsall         = randomizer().transform(dsall);
             // no transformation except randomization needed
+            m_splits.init(dsall, nsplits);
+        }else if(ds == "msrc_descr"){
+            dataset dsall = msrc_desc_dataset("/home/local/datasets/msrc_superpixel");
+            dsall         = randomizer().transform(dsall);
+
+            zero_mean_unit_variance<> zmuv;
+            zmuv.fit_transform(dsall.train_data);
+            zmuv.transform(dsall.test_data);
+
             m_splits.init(dsall, nsplits);
         }else if (ds == "natural"){
             dataset dsall = natural_dataset("/home/local/datasets/natural_images");
