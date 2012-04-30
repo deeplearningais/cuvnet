@@ -47,7 +47,8 @@ namespace cuvnet
                     result_t::element_type& r0 = *m_results[0];
                     assert(p0.need_derivative);
 
-                    apply_scalar_functor(*m_res,*m_res,SF_MULT, m_scalar);
+                    if(m_scalar != 1.f)
+                        apply_scalar_functor(*m_res,*m_res,SF_MULT, m_scalar);
                     *m_res *= r0.delta.cdata(); 
                     r0.delta.reset();
                     p0.push(m_res);
