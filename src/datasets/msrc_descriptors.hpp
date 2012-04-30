@@ -13,19 +13,19 @@ namespace cuvnet
             std::ifstream ftrainl((path + "/y_train.bin").c_str(),std::ios::in | std::ios::binary); // label data
             std::ifstream ftestd ((path + "/X_val.bin").c_str(),std::ios::in | std::ios::binary); // image data
             std::ifstream ftestl ((path + "/y_val.bin").c_str(),std::ios::in | std::ios::binary); // label data
-            assert(ftraind.is_open());
-            assert(ftrainl.is_open());
-            assert(ftestd.is_open());
-            assert(ftestl.is_open());
+            cuvAssert(ftraind.is_open());
+            cuvAssert(ftrainl.is_open());
+            cuvAssert(ftestd.is_open());
+            cuvAssert(ftestl.is_open());
 
             cuv::tensor<float,cuv::host_memory_space> traind(cuv::extents[21201][2200]);
-            cuv::tensor<float,cuv::host_memory_space> trainl(cuv::extents[21201]);
-            cuv::tensor<int,cuv::host_memory_space> testd(cuv::extents[4410][2200]);
+            cuv::tensor<int,cuv::host_memory_space> trainl(cuv::extents[21201]);
+            cuv::tensor<float,cuv::host_memory_space> testd(cuv::extents[4410][2200]);
             cuv::tensor<int,cuv::host_memory_space> testl(cuv::extents[4410]);
-            ftraind.read((char*)traind.ptr(), traind.size()); assert(ftraind.good());
-            ftrainl.read((char*)trainl.ptr(), trainl.size()); assert(ftrainl.good());
-            ftestd.read((char*)testd.ptr(), testd.size());    assert(ftestd.good());
-            ftestl.read((char*)testl.ptr(), testl.size());    assert(ftestl.good());
+            ftraind.read((char*)traind.ptr(), sizeof(float)*traind.size()); cuvAssert(ftraind.good());
+            ftrainl.read((char*)trainl.ptr(), sizeof(int)*trainl.size()); cuvAssert(ftrainl.good());
+            ftestd.read((char*)testd.ptr(), sizeof(float)*testd.size());    cuvAssert(ftestd.good());
+            ftestl.read((char*)testl.ptr(), sizeof(int)*testl.size());    cuvAssert(ftestl.good());
 
             train_data.resize(traind.shape());
             test_data.resize(testd.shape());
