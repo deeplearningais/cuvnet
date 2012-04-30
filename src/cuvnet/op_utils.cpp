@@ -226,8 +226,10 @@ void swiper::bprop(bool set_last_delta_to_one){
 			o->bprop();
         }
 	}
-    std::cout << "exiting after 1st bprop call" << std::endl;
-    exit(0);
+#if SWIPER_DEBUG
+        std::cout << "Exiting after first bprop (swiper debugging)" << std::endl;
+        exit(0);
+#endif
 }
 void 
 swiper::debug(unsigned int cnt, Op* o, bool results, bool params, const char* ident){
