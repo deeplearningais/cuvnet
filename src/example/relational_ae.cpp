@@ -388,7 +388,7 @@ class auto_encoder_rel : public auto_encoder{
             op_ptr y_, xsq;
             if(use_same_input_twice){
                 y_ = x_;
-                xsq = pow(x_,2.f);
+                xsq = square(x_);
             }else{
                 y_ = prod(corrupty, m_weights_x);
                 xsq = x_*y_;
