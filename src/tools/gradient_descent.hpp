@@ -21,13 +21,15 @@ namespace cuvnet
         public:
             typedef std::vector<Op*> paramvec_t;
         protected:
-            swiper           m_swipe;    ///< does fprop and bprop for us
+            Op::op_ptr       m_loss;     ///< the loss op we want to minimize
+            unsigned int     m_result;   ///< the number of the result of the loss op we want to minimize
             paramvec_t       m_params;   ///< all parameters w.r.t. which we optimize
             float            m_learnrate; ///< learnrate for weight updates
             float            m_learnrate_decay; ///< factor by which lr is multiplied after each epoch
             float            m_weightdecay; ///< weight decay for weight updates
             unsigned int     m_rounds;    ///< number of rounds until optimum on validation set was attained
             std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >    m_best_perf_params; ///< copies of parameters for current best performance
+            swiper           m_swipe;    ///< does fprop and bprop for us
         public:
             /// triggered before an epoch starts. Should return number of batches!
             boost::signal<void(unsigned int)> before_epoch;
@@ -48,6 +50,9 @@ namespace cuvnet
 
             unsigned int rounds()const{ return m_rounds; }
 
+            void repair_swiper(){
+                m_swipe = swiper(*m_loss, m_result, m_params);
+            }
 
             /**
              * constructor
@@ -59,9 +64,11 @@ namespace cuvnet
              * @param weightdecay the weight decay for weight updates
              */
             gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.1f, float weightdecay=0.0f)
-                :m_swipe(*op, result, params), m_params(params), m_learnrate(learnrate), m_learnrate_decay(1.f), m_weightdecay(weightdecay)
+                :m_loss(op), m_result(result), m_params(params), m_learnrate(learnrate), m_learnrate_decay(1.f), m_weightdecay(weightdecay)
+                ,m_swipe(*op,result,params)
                 ,m_best_perf(std::numeric_limits<float>::infinity()), m_failed_improvement_rounds(0)
-            { }
+            { 
+            }
 
             /**
              * (virtual) destructor
