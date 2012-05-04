@@ -97,6 +97,7 @@ class auto_encoder_rel : public auto_encoder{
     public:
         op_ptr       m_input;
         input_ptr    m_weights_x, m_weights_h;
+        input_ptr    m_meanweights, m_meanbias;
         input_ptr    m_bias_xvis; /// bias of the reconstruction
         input_ptr    m_bias_h;    /// bias of the hidden layer
         sink_ptr     m_loss_sink, m_reg_sink, m_rec_sink, m_decode_sink;
@@ -114,6 +115,8 @@ class auto_encoder_rel : public auto_encoder{
             using namespace boost::assign;
             std::vector<Op*> tmp; 
             tmp += m_weights_x.get();
+            //tmp += m_meanweights.get();
+            //tmp += m_meanbias.get();
             //tmp += m_weights_h.get();
             //tmp += m_bias_h.get();
             return tmp; 
@@ -235,6 +238,8 @@ class auto_encoder_rel : public auto_encoder{
                  m_weights_h.reset(new Input(cuv::extents[factorsize][hl],  "ae_wh" + boost::lexical_cast<std::string>(layer)));
                  m_bias_xvis.reset(new Input(cuv::extents[inp1],     "ae_bias_xvis" + boost::lexical_cast<std::string>(layer)));
                  m_bias_h   .reset(new Input(cuv::extents[hl],       "ae_bias_h"    + boost::lexical_cast<std::string>(layer)));
+                 m_meanweights.reset(new Input(cuv::extents[inp1][hl/2],  "ae_wmx"));
+                 m_meanbias.reset(new Input(cuv::extents[hl/2],  "ae_bmx"));
                  init(bs  ,inp1,hl,factorsize,binary,noise,lambda);
              }
 
@@ -252,6 +257,8 @@ class auto_encoder_rel : public auto_encoder{
             ,m_input(new Input(cuv::extents[bs  ][inp1],"ae_input"))
             ,m_weights_x(new Input(cuv::extents[inp1][factorsize],"ae_wx"))
             ,m_weights_h(new Input(cuv::extents[factorsize][hl],  "ae_wh"))
+            ,m_meanweights(new Input(cuv::extents[inp1][hl/2],  "ae_wmx"))
+            ,m_meanbias(new Input(cuv::extents[hl/2],  "ae_bmx"))
             ,m_bias_xvis(new Input(cuv::extents[inp1],     "ae_bias_xvis")) 
             ,m_bias_h   (new Input(cuv::extents[hl],     "ae_bias_h")) 
         {
@@ -264,6 +271,15 @@ class auto_encoder_rel : public auto_encoder{
          */    
         void reset_weights() {
             // initialize weights and biases
+            {
+                float wnorm = m_meanweights->data().shape(0)
+                    +         m_meanweights->data().shape(1) + 1;
+                float diff = 4.f*std::sqrt(6.f/wnorm);
+                cuv::fill_rnd_uniform(m_meanweights->data());
+                m_meanweights->data() *= 2*diff;
+                m_meanweights->data() -=   diff;
+                m_meanbias->data() = 0.f;
+            }
             {
                 float wnorm = m_weights_h->data().shape(0)
                     +         m_weights_h->data().shape(1) + 1;
@@ -398,6 +414,13 @@ class auto_encoder_rel : public auto_encoder{
             m_tmp_sink = sink("tmp",m_enc);
 
             m_decode      = mat_plus_vec(prod(hp*y_,m_weights_x,'n','t'),m_bias_xvis,1);
+
+
+            bool use_means = false;
+            if(use_means){
+                m_decode = m_decode + prod(logistic(mat_plus_vec(prod(corruptx, m_meanweights),m_meanbias,1)),m_meanweights,'n','t');
+            }
+
             m_decode_sink = sink("decoded", m_decode);
             m_rec_loss    = reconstruction_loss(m_input,m_decode);
 
