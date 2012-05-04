@@ -597,14 +597,14 @@ int main(int argc, char **argv)
     natural_dataset ds_all("/home/local/datasets/natural_images");
     //cifar_dataset ds_all;
     //mnist_dataset ds_all("/home/local/datasets/MNIST");
-    pca_whitening normalizer(176,false,true, 0.01);
+    pca_whitening normalizer(144,true,false, 0.01);
     //zero_mean_unit_variance<> normalizer;
-    dataset ds = randomizer().transform(ds_all);
-    splitter ds_split(ds,2);
-    ds  = ds_split[0];
+    randomizer().transform(ds_all.train_data, ds_all.train_labels);
+    splitter ds_split(ds_all,2);
+    dataset ds  = ds_split[0];
     ds.binary   = false;
 
-    unsigned int fa=12,fb=12,bs=128;
+    unsigned int fa=12,fb=12,bs=64;
     
     {   //-------------------------------------------------------------
         // pre-processing                                              +
@@ -635,7 +635,7 @@ int main(int argc, char **argv)
         //-------------------------------------------------------------
     }
         //auto_encoder_rel(unsigned int bs  , unsigned int inp1, unsigned int hl, unsigned int factorsize, bool binary, float noise=0.0f, float lambda=0.0f)
-    auto_encoder_rel ae(bs, ds.train_data.shape(1), 72, fa*fb, ds.binary, 0.0f, 0.00f);
+    auto_encoder_rel ae(bs, ds.train_data.shape(1), 72, fa*fb, ds.binary, 0.0f, 0.10f);
 
     std::vector<Op*> params = ae.unsupervised_params();
 
@@ -651,16 +651,9 @@ int main(int argc, char **argv)
     gd.after_batch.connect(boost::bind(&auto_encoder::acc_loss, &ae));
     gd.current_batch_num.connect(ds.train_data.shape(0)/ll::constant(bs));
 
-    if(bs==0){
-        ae.input()= alldata;
-        alldata.dealloc();
-        gd.batch_learning(3200);
-    }
-    else      
-    {
-        gd.decay_learnrate(0.9995);
-        gd.minibatch_learning(6000);
-    }
+    gd.decay_learnrate(0.9995);
+    gd.minibatch_learning(6000);
+
     
     return 0;
 }
