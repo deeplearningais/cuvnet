@@ -394,7 +394,7 @@ class auto_encoder_rel : public auto_encoder{
                 xsq = x_*y_;
             }
 
-            enum functype {FT_TANH, FT_LOGISTIC, FT_SQRT, FT_1MEXPMX} ft = FT_1MEXPMX;
+            enum functype {FT_TANH, FT_LOGISTIC, FT_SQRT, FT_1MEXPMX} ft = FT_SQRT;
 
             op_ptr m_enc_lin = mat_plus_vec( prod(xsq, m_weights_h), m_bias_h, 1);
 
@@ -405,7 +405,7 @@ class auto_encoder_rel : public auto_encoder{
                     m_enc     = logistic(m_enc_lin);
                     break;
                 case FT_SQRT:
-                    m_enc     = pow(m_enc_lin, 0.5f);
+                    m_enc     = sqrt(m_enc_lin+0.001f);
                     break;
                 case FT_1MEXPMX:
                     m_enc     = 1-exp(-1.f,m_enc_lin);
@@ -430,35 +430,40 @@ class auto_encoder_rel : public auto_encoder{
             m_rec_sink    = sink("reconstruction loss", m_rec_loss);
 
             if(lambda>0.f) { // contractive AE
+                unsigned int numcontr = std::min(bs,(unsigned int)16);
+                for(unsigned int i=0; i< numcontr; i++){
+                    op_ptr rs, encr, h2_;
+                    switch(ft){
+                        case FT_TANH: 
+                            rs   = row_select(xsq,m_enc);
+                            encr = result(rs,1);
+                            h2_  = (1.f-square(encr));  // tanh
+                            break;
+                        case FT_LOGISTIC:
+                            rs   = row_select(xsq,m_enc); 
+                            encr = result(rs,1);
+                            h2_  = encr*(1.f-encr); // logistic
+                            break;
+                        case FT_SQRT:
+                            rs   = row_select(xsq,m_enc); 
+                            encr = result(rs,1);
+                            h2_  = 0.5f * pow(encr+0.01f,-1.f); // 1/2  1/sqrt(x), where m_enc=sqrt(x)
+                            break;
+                        case FT_1MEXPMX:
+                            rs   = row_select(xsq,m_enc_lin); 
+                            encr = result(rs,1);
+                            h2_  = exp(-1.f,encr); // d/dx [1-exp(-x)]  == exp(-x)
+                            break;
+                    }
+                    op_ptr xsqr   = result(rs,0);
+                    op_ptr    h1_ = 2.f*xsqr;
 
-                op_ptr rs, encr, h2_;
-                switch(ft){
-                    case FT_TANH: 
-                        rs   = row_select(xsq,m_enc);
-                        encr = result(rs,1);
-                        h2_  = (1.f-pow(encr,2.f));  // tanh
-                        break;
-                    case FT_LOGISTIC:
-                        rs   = row_select(xsq,m_enc); 
-                        encr = result(rs,1);
-                        h2_  = encr*(1.f-encr); // logistic
-                        break;
-                    case FT_SQRT:
-                        rs   = row_select(xsq,m_enc); 
-                        encr = result(rs,1);
-                        h2_  = 0.5f * pow(encr+0.01f,-0.5f);
-                        break;
-                    case FT_1MEXPMX:
-                        rs   = row_select(xsq,m_enc_lin); 
-                        encr = result(rs,1);
-                        h2_  = exp(-1.f,encr); // d/dx [1-exp(-x)]  == exp(-x)
-                        break;
+                    op_ptr tmp = sum( sum(pow(prod(mat_times_vec(m_weights_x,h1_,1), m_weights_h),2.f),0)*pow(h2_,2.f));
+                    if(!m_reg_loss)
+                        m_reg_loss = tmp;
+                    else
+                        m_reg_loss = m_reg_loss + tmp;
                 }
-                op_ptr xsqr   = result(rs,0);
-                op_ptr    h1_ = 2.f*xsqr;
-
-                m_reg_loss = sum( sum(pow(prod(mat_times_vec(m_weights_x,h1_,1), m_weights_h),2.f),0)*pow(h2_,2.f));
-                m_loss     = axpby(m_rec_loss, lambda, m_reg_loss);
                 m_reg_sink = sink("contractive loss", m_reg_loss);
             } 
             if(1){
