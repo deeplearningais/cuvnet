@@ -13,15 +13,48 @@
 namespace cuvnet
 {
 
+    /**
+     * split training set items, but assume that each one is stored in a /bag/,
+     * which is completely either in a split or not.
+     */
+    cuv::tensor<int,cuv::host_memory_space> 
+        split_bags(unsigned int n_splits, const cuv::tensor<int,cuv::host_memory_space>& bag_index, float frac_val = 0.2f){
+            cuv::tensor<int,cuv::host_memory_space> split_index(bag_index.shape());
+
+            unsigned int n_bags = cuv::maximum(bag_index) + 1; // +1: bag number 0
+
+            // create a mapping from a bag id to a random new bag id
+            std::vector<int> rnd_bags (n_bags);
+            for (unsigned int i = 0; i < n_bags; ++i)
+                rnd_bags[i] = i;
+            std::random_shuffle(rnd_bags.begin(),rnd_bags.end());
+
+            // now each bag is in fold `i' when its random new bag id modulo n_splits is `i'.
+            if(n_splits > 1){
+                for(unsigned int i=0;i<bag_index.size();i++)
+                    split_index[i] = rnd_bags[bag_index[i]] % n_splits;
+            }else{
+                for(unsigned int i=0;i<bag_index.size();i++)
+                    split_index[i] = rnd_bags[bag_index[i]] / (float) n_bags > frac_val; // larger fraction goes in split `1'
+            }
+            return split_index;
+    }
+
     template<class StorageSpace>
     void SimpleDatasetLearner<StorageSpace>::switch_dataset(unsigned int split, cv_mode mode){
         cuv::tensor<float,cuv::host_memory_space> data, vdata;
         cuv::tensor<int,  cuv::host_memory_space> labels, vlabels;
+
+        m_current_mode  = mode;
+        m_current_split = split;
+
         dataset ds = m_splits[split];
         switch(mode) {
             case CM_TRAINALL:
                 data   = m_splits.get_ds().train_data;
                 labels = m_splits.get_ds().train_labels;
+                //vdata   = ds.test_data;    // for testing overfitting during trainall
+                //vlabels = ds.test_labels;  // do not use in real learning!
                 break;
             case CM_TRAIN:
                 data    = ds.train_data;
@@ -63,7 +96,7 @@ namespace cuvnet
         if(0);
         else if (ds == "mnist"){
             dataset dsall = mnist_dataset("/home/local/datasets/MNIST");
-            dsall         = randomizer().transform(dsall);
+            randomizer().transform(dsall.train_data, dsall.train_labels);
             global_min_max_normalize<> normalizer(0,1);
             normalizer.fit_transform(dsall.train_data);
             normalizer.transform(dsall.test_data);
@@ -71,30 +104,34 @@ namespace cuvnet
         }else if (ds == "mnist_rot"){
             dataset dsall = amat_dataset("/home/local/datasets/bengio/mnist_rotation_new.zip", "mnist_all_rotation_normalized_float_train_valid.amat","mnist_all_rotation_normalized_float_test.amat");
             dsall.binary = true; // Note: not all amat_datasets are binary!
-            dsall         = randomizer().transform(dsall);
+            randomizer().transform(dsall.train_data, dsall.train_labels);
             global_min_max_normalize<> normalizer(0,1);
             normalizer.fit_transform(dsall.train_data);
             normalizer.transform(dsall.test_data);
             m_splits.init(dsall, nsplits);
         }else if (ds == "ldpc"){
             dataset dsall = ldpc_dataset("/home/local/datasets/LDPC");
-            dsall         = randomizer().transform(dsall);
+            randomizer().transform(dsall.train_data, dsall.train_labels);
             // no transformation except randomization needed
             m_splits.init(dsall, nsplits);
         }else if(ds == "msrc_descr"){
-            dataset dsall = msrc_desc_dataset("/home/local/datasets/msrc_superpixel");
-            dsall         = randomizer().transform(dsall);
+            msrc_desc_dataset dsall("/home/local/datasets/msrc_superpixel");
+            randomizer().transform(dsall.train_data, dsall.train_labels, &dsall.imagen);
 
-            zero_mean_unit_variance<> zmuv;
-            zmuv.fit_transform(dsall.train_data);
-            zmuv.transform(dsall.test_data);
 
-            m_splits.init(dsall, nsplits);
+            //zero_mean_unit_variance<> zmuv;
+            //zmuv.fit_transform(dsall.train_data);
+            //zmuv.transform(dsall.test_data);
+
+            // split images, not descriptors, since descriptors contain global
+            // (image) descriptor and are therefore not really i.i.d!
+            cuv::tensor<int,cuv::host_memory_space> splits = split_bags(nsplits, dsall.imagen);
+            m_splits.init(dsall, splits);
         }else if (ds == "natural"){
             dataset dsall = natural_dataset("/home/local/datasets/natural_images");
             // TODO: this one has complicated pre-processing, needs normalizer
             // to be accessible for filter visualization
-            dsall         = randomizer().transform(dsall);
+            randomizer().transform(dsall.train_data, dsall.train_labels);
             {
                 // after applying logarithm, data distribution looks roughly gaussian.
                 log_transformer<cuv::host_memory_space> lt;
@@ -121,7 +158,7 @@ namespace cuvnet
             m_splits.init(dsall, nsplits);
         }else if(ds == "cifar"){
             dataset dsall = cifar_dataset();
-            dsall = randomizer().transform(dsall);
+            randomizer().transform(dsall.train_data, dsall.train_labels);
             zero_mean_unit_variance<> normalizer;
             normalizer.fit_transform(dsall.train_data);
             normalizer.transform(dsall.test_data);

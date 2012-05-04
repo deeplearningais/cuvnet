@@ -65,6 +65,7 @@ class pretrained_mlp_trainer
             std::vector<int>   layer_sizes(ar.size());
             std::vector<float> noise(ar.size());
             std::vector<float> lambda(ar.size());
+            std::vector<float> wd(ar.size());
             std::vector<bool> twolayer_ae(ar.size());
             m_aes_lr.resize(ar.size());
 
@@ -72,14 +73,16 @@ class pretrained_mlp_trainer
                 layer_sizes[i] = ar[i].Obj()["size"].Int();
                 noise[i]       = ar[i].Obj()["noise"].Double();
                 lambda[i]      = ar[i].Obj()["lambda"].Double();
+                wd[i]          = ar[i].Obj()["wd"].Double();
                 m_aes_lr[i]    = ar[i].Obj()["lr"].Double();
                 twolayer_ae[i]  = ar[i].Obj()["twolayer"].Bool();
             }
             bool binary = m_sdl.get_ds().binary;
             m_aes.reset(
-                new auto_enc_stack(bs,dd,ar.size(),&layer_sizes[0], binary, &noise[0], &lambda[0], twolayer_ae));
+                new auto_enc_stack(bs,dd,ar.size(),&layer_sizes[0], binary, 
+                    &noise[0], &wd[0], &lambda[0], twolayer_ae));
             m_mlp.reset(
-                new pretrained_mlp(m_aes->encoded(),10, true)); // TODO: fixed number of 10 classes!!???
+                new pretrained_mlp(m_aes->encoded(),10, true, o["mlp_wd"].Double())); // TODO: fixed number of 10 classes!!???
             m_mlp_lr = o["mlp_lr"].Double();
             m_pretraining = o["pretrain"].Bool();
             m_finetune    = o["sfinetune"].Bool();
@@ -341,6 +344,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             bob << "bs"      << 16;
             bob << "nsplits" << 1;
             bob << "mlp_lr"  << mlp_lr;
+            bob << "mlp_wd"  << 0.0;
 
             bob << "pretrain" << (drand48()>0.1f);
             bob << "ufinetune" << true;
@@ -357,6 +361,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
                 stack << BSON(
                         "lambda"   << lambda[i]   <<
                         "lr"       << aes_lr[i]   <<
+                        "wd"       << 0.0   <<
                         "noise"    << noise[i]    <<
                         "size"     << size[i]     <<
                         // exactly same settings, but w/ and w/o twolayer
@@ -384,6 +389,7 @@ void generate_and_test_models_test(boost::asio::deadline_timer* dt, boost::asio:
                 "bs"          << 16          <<
                 "nsplits"     << 1           <<
                 "mlp_lr"      << 0.1         <<
+                "mlp_wd"      << 0.0         <<
                 "pretrain"    << true        <<
                 "ufinetune"   << false       <<
                 "sfinetune"   << false       <<
@@ -391,6 +397,7 @@ void generate_and_test_models_test(boost::asio::deadline_timer* dt, boost::asio:
                     BSON(
                         "lambda"   << 1.0        <<
                         "lr"       << 0.1        <<
+                        "wd"       << 0.0        <<
                         "noise"    << 0.0        <<
                         "size"     << 81         <<
                         "twolayer" << false))));
@@ -400,6 +407,7 @@ void generate_and_test_models_test(boost::asio::deadline_timer* dt, boost::asio:
                 "bs"        << 16          <<
                 "nsplits"   << 1           <<
                 "mlp_lr"    << 0.1         <<
+                "mlp_wd"    << 0.0         <<
                 "pretrain"  << true        <<
                 "ufinetune" << false       <<
                 "sfinetune" << false       <<
@@ -407,6 +415,7 @@ void generate_and_test_models_test(boost::asio::deadline_timer* dt, boost::asio:
                     BSON(
                         "lambda"   << 1.0        <<
                         "lr"       << 0.1        <<
+                        "wd"       << 0.0        <<
                         "noise"    << 0.0        <<
                         "size"     << 81         <<
                         "twolayer" << false)
@@ -414,6 +423,7 @@ void generate_and_test_models_test(boost::asio::deadline_timer* dt, boost::asio:
                     BSON(
                         "lambda"   << 1.0        <<
                         "lr"       << 0.1        <<
+                        "wd"       << 0.0        <<
                         "noise"    << 0.0        <<
                         "size"     << 81         <<
                         "twolayer" << false))));

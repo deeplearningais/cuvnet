@@ -131,7 +131,7 @@ class auto_encoder_1l : public auto_encoder{
          * @param noise  if noise>0, add noise to the input
          * @param lambda if lambda>0, it represents the "contractive" weight of the autoencoder
          */
-        auto_encoder_1l(unsigned int layer, op_ptr& inputs, unsigned int hl, bool binary, float noise=0.0f, float lambda=0.0f)
+        auto_encoder_1l(unsigned int layer, op_ptr& inputs, unsigned int hl, bool binary, float noise=0.0f, float wd=0.f, float lambda=0.0f)
             :auto_encoder(binary),
             m_input(inputs)
              ,m_bias_h(new Input(cuv::extents[hl],       "ae_bias_h"+ boost::lexical_cast<std::string>(layer))) {
@@ -140,7 +140,7 @@ class auto_encoder_1l : public auto_encoder{
                  unsigned int inp1 = inputs->result()->shape[1];
                  m_weights.reset(new Input(cuv::extents[inp1][hl],"ae_weights" + boost::lexical_cast<std::string>(layer)));
                  m_bias_y.reset(new Input(cuv::extents[inp1],     "ae_bias_y"  + boost::lexical_cast<std::string>(layer)));
-                 init(bs  ,inp1,hl,binary,noise,lambda);
+                 init(bs  ,inp1,hl,binary,noise,wd,lambda);
              }
 
         /** this constructor is used for the outermost autoencoder in a stack
@@ -151,13 +151,13 @@ class auto_encoder_1l : public auto_encoder{
          * @param noise  if noise>0, add noise to the input
          * @param lambda if lambda>0, it represents the "contractive" weight of the autoencoder
          */
-        auto_encoder_1l(unsigned int bs  , unsigned int inp1, unsigned int hl, bool binary, float noise=0.0f, float lambda=0.0f)
+        auto_encoder_1l(unsigned int bs  , unsigned int inp1, unsigned int hl, bool binary, float noise=0.0f, float wd=0.f, float lambda=0.0f)
             :auto_encoder(binary),
             m_input(new Input(cuv::extents[bs  ][inp1],"ae_input"))
              ,m_weights(new Input(cuv::extents[inp1][hl],"ae_weights"))
              ,m_bias_h(new Input(cuv::extents[hl],       "ae_bias_h"))
              ,m_bias_y(new Input(cuv::extents[inp1],     "ae_bias_y")) {
-                 init(bs  ,inp1,hl,binary,noise,lambda);
+                 init(bs  ,inp1,hl,binary,noise,wd, lambda);
              }
 
         /** 
@@ -181,7 +181,7 @@ class auto_encoder_1l : public auto_encoder{
          * initializes the functions in the AE  according to params given in the
          * constructor
          */
-        void init(unsigned int bs  , unsigned int inp1, unsigned int hl, bool binary, float noise, float lambda) {
+        void init(unsigned int bs  , unsigned int inp1, unsigned int hl, bool binary, float noise, float wd, float lambda) {
             Op::op_ptr corrupt               = m_input;
             if( binary && noise>0.f) corrupt =       zero_out(m_input,noise);
             if(!binary && noise>0.f) corrupt = add_rnd_normal(m_input,noise);
@@ -193,7 +193,13 @@ class auto_encoder_1l : public auto_encoder{
 
             m_rec_loss = reconstruction_loss(m_input,m_decode);
 
-            if(lambda>0.f) { // contractive AE
+            if(wd>0.f){
+                m_contractive_loss = mean(pow(m_weights,2.f));
+                m_loss = axpby(m_rec_loss, wd, m_contractive_loss);
+                m_reg_sink = sink("weight decay loss", m_contractive_loss);
+                m_rec_sink = sink("reconstruction loss", m_rec_loss);
+            }
+            else if(lambda>0.f) { // contractive AE
                 m_contractive_loss =
                     sum(sum(pow(m_enc*(1.f-m_enc),2.f),0)
                             * sum(pow(m_weights,2.f),0));
@@ -296,7 +302,7 @@ class auto_encoder_2l : public auto_encoder{
          * @param noise  if noise>0, add noise to the input
          * @param lambda if lambda>0, it represents the "contractive" weight of the autoencoder
          */
-        auto_encoder_2l(unsigned int layer, op_ptr& inputs, unsigned int hl1, unsigned int hl2, bool binary, float noise=0.0f, float lambda=0.0f)
+        auto_encoder_2l(unsigned int layer, op_ptr& inputs, unsigned int hl1, unsigned int hl2, bool binary, float noise=0.0f, float wd0=0.0f, float wd1=0.0f, float lambda=0.0f)
             :auto_encoder(binary),
             m_input(inputs)
              ,m_bias_h1a(new Input(cuv::extents[hl1],       "ae_bias_h1a"+ boost::lexical_cast<std::string>(layer))) 
@@ -309,7 +315,7 @@ class auto_encoder_2l : public auto_encoder{
                  m_weights1.reset(new Input(cuv::extents[inp1][hl1],"ae_weights1" + boost::lexical_cast<std::string>(layer)));
                  m_weights2.reset(new Input(cuv::extents[hl1][hl2], "ae_weights2" + boost::lexical_cast<std::string>(layer)));
                  m_bias_y.reset(new Input(cuv::extents[inp1],       "ae_bias_y"   + boost::lexical_cast<std::string>(layer)));
-                 init(bs  ,inp1,hl1,hl2,binary,noise,lambda);
+                 init(bs  ,inp1,hl1,hl2,binary,noise,wd0,wd1,lambda);
              }
 
         /** this constructor is used for the outermost autoencoder in a stack
@@ -320,7 +326,7 @@ class auto_encoder_2l : public auto_encoder{
          * @param noise  if noise>0, add noise to the input
          * @param lambda if lambda>0, it represents the "contractive" weight of the autoencoder
          */
-        auto_encoder_2l(unsigned int bs  , unsigned int inp1, unsigned int hl1, unsigned int hl2, bool binary, float noise=0.0f, float lambda=0.0f)
+        auto_encoder_2l(unsigned int bs  , unsigned int inp1, unsigned int hl1, unsigned int hl2, bool binary, float noise=0.0f, float wd0=0.0f, float wd1=0.0f, float lambda=0.0f)
             :auto_encoder(binary),
             m_input(new Input(cuv::extents[bs  ][inp1],"ae_input"))
              ,m_weights1(new Input(cuv::extents[inp1][hl1],"ae_weights1"))
@@ -329,7 +335,7 @@ class auto_encoder_2l : public auto_encoder{
              ,m_bias_h1b(new Input(cuv::extents[hl1],       "ae_bias_h1b"))
              ,m_bias_h2 (new Input(cuv::extents[hl2],       "ae_bias_h2"))
              ,m_bias_y(new Input(cuv::extents[inp1],     "ae_bias_y")) {
-                 init(bs  ,inp1,hl1,hl2,binary,noise,lambda);
+                 init(bs  ,inp1,hl1,hl2,binary,noise,wd0, wd1, lambda);
              }
 
         /** 
@@ -372,7 +378,7 @@ class auto_encoder_2l : public auto_encoder{
          * initializes the functions in the AE  according to params given in the
          * constructor
          */
-        void init(unsigned int bs  , unsigned int inp1, unsigned int hl1, unsigned int hl2, bool binary, float noise, float lambda) {
+        void init(unsigned int bs  , unsigned int inp1, unsigned int hl1, unsigned int hl2, bool binary, float noise, float wd0, float wd1, float lambda) {
             Op::op_ptr corrupt               = m_input;
             if( binary && noise>0.f) corrupt =       zero_out(m_input,noise);
             if(!binary && noise>0.f) corrupt = add_rnd_normal(m_input,noise);
@@ -384,25 +390,29 @@ class auto_encoder_2l : public auto_encoder{
             m_dec_sink = sink("decoded", m_decode);
             m_rec_loss = reconstruction_loss(m_input,m_decode);
 
-            op_ptr rs = row_select(h1,h2); // select same (random) row in h1 and h2
-            op_ptr h1r = result(rs,0);
-            op_ptr h2r = result(rs,1);
-            
-            op_ptr h1_ = h1r*(1.f-h1r);
-            op_ptr h2_ = h2r*(1.f-h2r);
+            if(wd0 > 0.f || wd1 > 0.f){
+                m_contractive_loss = axpby(wd0,mean(pow(m_weights1,2.f)), wd1, mean(pow(m_weights2,2.f)));
+                m_loss             = axpby(m_rec_loss, 1.f, m_contractive_loss);
+                m_reg_sink         = sink("weight decay loss", m_contractive_loss);
+            }
+            else if(lambda>0.f) { // contractive AE
+                op_ptr rs  = row_select(h1,h2); // select same (random) row in h1 and h2
+                op_ptr h1r = result(rs,0);
+                op_ptr h2r = result(rs,1);
 
-            if(lambda>0.f) { // contractive AE
+                op_ptr h1_ = h1r*(1.f-h1r);
+                op_ptr h2_ = h2r*(1.f-h2r);
+
                 m_contractive_loss = sum( sum(pow(prod(mat_times_vec(m_weights1,h1_,1), m_weights2),2.f),0)*pow(h2_,2.f));
                 //op_ptr J      = mat_times_vec(prod(mat_times_vec(m_weights1,h2_,1), m_weights2),h1_,0);
                 //m_contractive_loss = sum( pow(J, 2.f) );
                 m_loss        = axpby(m_rec_loss, lambda, m_contractive_loss);
-                m_rec_sink    = sink("reconstruction loss", m_rec_loss);
                 m_reg_sink    = sink("contractive loss", m_contractive_loss);
             } else{
                 m_loss        = m_rec_loss; // no change
-                m_rec_sink    = sink(m_rec_loss);
             }
-            m_loss_sink       = sink("total loss", m_loss);
+            m_rec_sink    = sink("reconstruction loss", m_rec_loss);
+            m_loss_sink   = sink("total loss", m_loss);
             reset_weights();
         }
 };
@@ -428,29 +438,30 @@ struct auto_enc_stack {
          * @param n_layers "height" of the stack
          * @param layer_sizes an array of n_layers integers denoting the "hidden" layer sizes
          * @param binary   if true, logistic function is applied to outputs
-         * @param noise  if noise>0, add noise to the input
-         * @param lambda if lambda>0, it represents the "contractive" weight of the autoencoder
+         * @param noise    if noise>0, add noise to the input
+         * @param wd       if wd>0, add weight decay
+         * @param lambda   if lambda>0, it represents the "contractive" weight of the autoencoder
          */
-        auto_enc_stack(unsigned int bs, unsigned int inp1, int n_layers, const int* layer_sizes, bool binary, float* noise, float* lambdas, std::vector<bool> twolayer) 
+        auto_enc_stack(unsigned int bs, unsigned int inp1, int n_layers, const int* layer_sizes, bool binary, float* noise, float* wd, float* lambdas, std::vector<bool> twolayer) 
         {
             int i = 0;
             if(twolayer[i]) {
-                m_aes.push_back(new auto_encoder_2l(bs  ,inp1,layer_sizes[0],layer_sizes[1], binary,noise[0],lambdas[0]));
+                m_aes.push_back(new auto_encoder_2l(bs  ,inp1,layer_sizes[0],layer_sizes[1], binary,noise[0],wd[0], wd[1], lambdas[0]));
                 i+=2;
             }
             else{
-                m_aes.push_back(new auto_encoder_1l(bs  ,inp1,layer_sizes[0], binary,noise[0],lambdas[0]));
+                m_aes.push_back(new auto_encoder_1l(bs  ,inp1,layer_sizes[0], binary,noise[0],wd[0], lambdas[0]));
                 i+=1;
             }
             // TODO: do not use noise in 1st layer when training 2nd layer
             for(; i<n_layers;) {
                 op_ptr out = m_aes.back()->encoded();
                 if(twolayer[i]){
-                    m_aes.push_back(new auto_encoder_2l(i,out,layer_sizes[i],layer_sizes[i+1],true,noise[i],lambdas[i]));
+                    m_aes.push_back(new auto_encoder_2l(i,out,layer_sizes[i],layer_sizes[i+1],true,noise[i],wd[i], wd[i+1], lambdas[i]));
                     i+=2;
                 }
                 else{
-                    m_aes.push_back(new auto_encoder_1l(i,out,layer_sizes[i],true,noise[i],lambdas[i]));
+                    m_aes.push_back(new auto_encoder_1l(i,out,layer_sizes[i],true,noise[i],wd[i],lambdas[i]));
                     i+=1;
                 }
             }

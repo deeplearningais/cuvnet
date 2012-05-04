@@ -65,6 +65,7 @@ class pretrained_mlp_trainer
             std::vector<int>   layer_sizes(ar.size());
             std::vector<float> noise(ar.size());
             std::vector<float> lambda(ar.size());
+            std::vector<float> wd(ar.size());
             std::vector<bool> twolayer_ae(ar.size());
             m_aes_lr.resize(ar.size());
 
@@ -73,13 +74,14 @@ class pretrained_mlp_trainer
                 noise[i]       = ar[i].Obj()["noise"].Double();
                 lambda[i]      = ar[i].Obj()["lambda"].Double();
                 m_aes_lr[i]    = ar[i].Obj()["lr"].Double();
+                wd[i]          = ar[i].Obj()["wd"].Double();
                 twolayer_ae[i]  = ar[i].Obj()["twolayer"].Bool();
             }
             bool binary = m_sdl.get_ds().binary;
             m_aes.reset(
-                new auto_enc_stack(bs,dd,ar.size(),&layer_sizes[0], binary, &noise[0], &lambda[0], twolayer_ae));
+                new auto_enc_stack(bs,dd,ar.size(),&layer_sizes[0], binary, &noise[0], &wd[0], &lambda[0], twolayer_ae));
             m_mlp.reset(
-                new pretrained_mlp(m_aes->encoded(),21, true)); // TODO: fixed number of 10 classes!!???
+                new pretrained_mlp(m_aes->encoded(),21, true, o["mlp_wd"].Double())); // TODO: fixed number of 10 classes!!???
             m_mlp_lr = o["mlp_lr"].Double();
             m_pretraining = o["pretrain"].Bool();
             m_finetune    = o["sfinetune"].Bool();
@@ -157,14 +159,14 @@ class pretrained_mlp_trainer
                     if(m_sdl.can_earlystop()) {
                         // we can only use early stopping when validation data is given
                         //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
-                        gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.0001f, 3);
+                        gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.001f, 3);
                         gd.before_validation_epoch.connect(boost::bind(&auto_encoder::reset_loss, &m_aes->get(l)));
                         gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
                         gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
                         gd.after_validation_epoch.connect(1, boost::bind(&sdl_t::after_validation_epoch, &m_sdl));
                         gd.after_validation_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
                         gd.after_validation_epoch.connect(0, boost::bind(&auto_encoder::log_loss, &m_aes->get(l), _1));
-                        gd.minibatch_learning(10000);
+                        gd.minibatch_learning(1000);
                         m_aes->get(l).s_epochs(gd.rounds()); // remember number of iterations until optimum
                     } else {
                         std::cout << "TRAINALL phase: aes"<<l<<" avg_epochs="<<m_aes->get(l).avg_epochs()<<std::endl;
@@ -235,14 +237,17 @@ class pretrained_mlp_trainer
 
                 if(m_sdl.can_earlystop()) {
                     //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
-                    gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, 0.00001f, 2);
+                    //if(m_sdl.get_current_cv_mode() == CM_TRAINALL)
+                        //gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, -1.f, 2); // this will probably never fail.
+                    //else
+                        gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, 0.0000f, 4);
                     gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
                     gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
                     gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
                     gd.after_validation_epoch.connect(1, boost::bind(&sdl_t::after_validation_epoch,&m_sdl));
                     gd.after_validation_epoch.connect(0,boost::bind(&pretrained_mlp::log_loss, m_mlp.get(), _1));
                     gd.after_validation_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
-                    gd.minibatch_learning(10000);
+                    gd.minibatch_learning(1000);
                     m_mlp->s_epochs(gd.rounds()); // remember number of iterations until optimum
                 } else {
                     std::cout << "TRAINALL phase: mlp avg_epochs="<<m_mlp->avg_epochs()<<std::endl;
@@ -303,21 +308,24 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         std::cout <<"generating new sample"<<std::endl;
 
         //unsigned int n_layers = 1+3*drand48();
-        unsigned int n_layers = 2;
+        unsigned int n_layers = 1;
 
-        float mlp_lr  = log_uniform(0.01, 0.2);
-        float aes_lr0  = log_uniform(0.01, 0.2);
-        //float mlp_lr  = 0.1;
-        //float aes_lr0  = 0.1;
+        float mlp_lr     = log_uniform(0.05, 0.5);
+        float aes_lr0    = log_uniform(0.01, 0.2);
         std::vector<float> lambda(n_layers);
         std::vector<float> aes_lr(n_layers);
         std::vector<float> noise(n_layers);
         std::vector<int  > size(n_layers);
         std::vector<bool > twolayer(n_layers);
+        std::vector<float> wd(n_layers+1); // weight decay
 
         float lambda0 = log_uniform(0.0001, 1.0);
-        if(drand48()<0.1)
+        //if(drand48()<0.1)
             lambda0 = 0.f;
+
+
+        for (unsigned int i = 0; i < n_layers+1; ++i)
+            wd[i] = log_uniform(0.000001,0.1);
 
         for (unsigned int i = 0; i < n_layers; ++i)
         {
@@ -325,31 +333,24 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             aes_lr[i] = aes_lr0;
             noise[i]  = 0.0;
             size[i]   = 
-                (i==0 ? 512 : 256 );
-                //512;
-                //int(pow(28+drand48()*8,2));
-                //((i==0) ? 5*30 : 15);// hidden0: 4*message plus message, hidden1: only message
+                (int) 1000 * log_uniform(0.01,1.);
             twolayer[i] = (i<n_layers-1);
         }
 
         std::string uuid = boost::lexical_cast<std::string>(boost::uuids::uuid(boost::uuids::random_generator()()));
-        for (int idx0 = 0; idx0 < 3; ++idx0)
+        for (int idx0 = 0; idx0 < 1; ++idx0)
         {
             mongo::BSONObjBuilder bob;
             bob << "uuid" << uuid;
             bob << "dataset" << "msrc_descr";
-            bob << "bs"      << 128;
-            bob << "nsplits" << 1;
+            bob << "bs"      << 256;
+            bob << "nsplits" << 5;
             bob << "mlp_lr"  << mlp_lr;
+            bob << "mlp_wd"  << wd.back();
 
-            bob << "pretrain" << (drand48()>0.1f);
-            bob << "ufinetune" << true;
-            bob << "sfinetune" << false;
-
-            if(idx0 == 2){
-                n_layers = 1;
-                size[0] = size[1]; // skip 1st layer
-            }
+            bob << "pretrain" << true;
+            bob << "ufinetune" << false;
+            bob << "sfinetune" << true;
 
             mongo::BSONArrayBuilder stack;
             for (unsigned int i = 0; i < n_layers; ++i)
@@ -357,10 +358,11 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
                 stack << BSON(
                         "lambda"   << lambda[i]   <<
                         "lr"       << aes_lr[i]   <<
+                        "wd"       << wd[i]       <<
                         "noise"    << noise[i]    <<
                         "size"     << size[i]     <<
                         // exactly same settings, but w/ and w/o twolayer
-                        "twolayer" << ((idx0==0) ? true : false)
+                        "twolayer" << false
                         );
             }
             bob << "stack"<<stack.arr();

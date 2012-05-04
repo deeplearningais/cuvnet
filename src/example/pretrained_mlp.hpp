@@ -84,8 +84,9 @@ struct pretrained_mlp {
          * @param inputs  where data is coming from
          * @param outputs number of targets per input (the matrix created will be of size inputs.shape(0) times outputs)
          * @param softmax if true, use softmax for training
+         * @param wd weight decay of output layer
          */
-        pretrained_mlp(op_ptr inputs, unsigned int outputs, bool softmax)
+        pretrained_mlp(op_ptr inputs, unsigned int outputs, bool softmax, float wd)
             :m_input(inputs) {
                 m_input->visit(determine_shapes_visitor()); // ensure that we have shape information
                 unsigned int bs   = inputs->result()->shape[0];
@@ -101,6 +102,8 @@ struct pretrained_mlp {
                     m_loss = mean(multinomial_logistic_loss(m_output, m_targets,1));
                 else        // mean squared error
                     m_loss = mean(pow(axpby(-1.f,m_targets,m_output),2.f));
+                if(wd>0.f)
+                    m_loss = axpby(m_loss,wd,mean(pow(m_weights,2.f)));
                 m_loss_sink = sink("MLP loss",m_loss);
 
                 reset_weights();

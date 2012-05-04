@@ -34,6 +34,11 @@ namespace cuvnet
             /// true if we are should work on the validation set (e.g. for early stopping)
             bool         m_in_validation_mode;
 
+            /// the current cv_mode
+            cv_mode      m_current_mode;
+            /// the current split
+            unsigned int m_current_split;
+
             cuv::tensor<float,StorageSpace> m_current_data, m_current_vdata;
             cuv::tensor<float,StorageSpace> m_current_labels, m_current_vlabels;
 
@@ -47,6 +52,12 @@ namespace cuvnet
              * switch to a split and a cross-validation mode
              */
             void switch_dataset(unsigned int split, cv_mode mode);
+
+            /// @return the current cv-mode
+            inline cv_mode get_current_cv_mode(){ return m_current_mode; }
+
+            /// @return the current cv-mode
+            inline unsigned int get_current_split(){ return m_current_split; }
 
             void before_validation_epoch(); /// sets m_in_validation_mode to true
             void after_validation_epoch();  /// sets m_in_validation_mode to false
