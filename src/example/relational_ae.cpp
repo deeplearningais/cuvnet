@@ -194,6 +194,7 @@ class auto_encoder_rel : public auto_encoder{
                 expected_size = f;
             else
                 expected_size += 0.01f * (f - expected_size);
+            expected_size = std::min(1.f, expected_size);
             //std::cout << "expected_size:" << expected_size  << std::endl;
 
             cuv::apply_scalar_functor(var, cuv::SF_MAX, 0.0001f);
