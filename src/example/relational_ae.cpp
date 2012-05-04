@@ -22,6 +22,7 @@
 #include <tools/gradient_descent.hpp>
 #include <tools/visualization.hpp>
 #include <tools/orthonormalization.hpp>
+#include <tools/dumper.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/ops.hpp>
 
@@ -554,6 +555,24 @@ void visualize_filters(auto_encoder_rel* ae, pca_whitening* normalizer, int fa,i
     }
 }
 
+void dump_features(auto_encoder_rel* ae, 
+        gradient_descent* gd,
+        cuv::tensor<float,cuv::dev_memory_space>* alldata,
+        unsigned int bs,
+        unsigned int epoch)
+{
+    if(epoch % 100 != 0)
+        return;
+    std::ofstream os("features.dump");
+    dumper dmp(ae->encoded());
+    dmp.before_batch.connect(boost::bind(load_batch,ae,alldata,bs,_2));
+    dmp.current_batch_num.connect(alldata->shape(0)/ll::constant(bs));
+    dmp.dump(os);
+
+    // after dumping data (with swiper obj of dumper), repair swiper obj of gradient descent!
+    gd->repair_swiper();
+}
+
 int main(int argc, char **argv)
 {
     cuv::initCUDA(2);
@@ -606,9 +625,12 @@ int main(int argc, char **argv)
 
     Op::value_type alldata = bs==0 ? ds.val_data : ds.train_data;
     gradient_descent gd(ae.m_loss,0,params,0.05f,-0.00000f);
-    gd.after_epoch.connect(boost::bind(&auto_encoder::print_loss, &ae, _1));
-    gd.after_epoch.connect(boost::bind(&auto_encoder::reset_loss, &ae));
-    gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&normalizer,fa,fb,ds.image_size,ds.channels,_1));
+    gd.after_epoch.connect(0,boost::bind(&auto_encoder::print_loss, &ae, _1));
+    gd.after_epoch.connect(0,boost::bind(&auto_encoder::reset_loss, &ae));
+    gd.after_epoch.connect(0,boost::bind(visualize_filters,&ae,&normalizer,fa,fb,ds.image_size,ds.channels,_1));
+
+    gd.after_epoch.connect(1,boost::bind(dump_features,&ae,&gd,&alldata,bs,_1));
+
     gd.before_batch.connect(boost::bind(load_batch,&ae,&alldata,bs,_2));
     gd.after_batch.connect(boost::bind(&auto_encoder::acc_loss, &ae));
     gd.current_batch_num.connect(ds.train_data.shape(0)/ll::constant(bs));
