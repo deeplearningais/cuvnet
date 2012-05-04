@@ -466,14 +466,24 @@ class auto_encoder_rel : public auto_encoder{
                 }
                 m_reg_sink = sink("contractive loss", m_reg_loss);
             } 
-            if(1){
-                float gamma = 1.0f;
-                op_ptr m_sparse_loss = mean(make_shared<BernoulliKullbackLeibler>(
-                            0.1f,
-                            (sum(m_enc,0)/(float)bs)->result())); // soft L1-norm on hidden units
-                m_loss        = axpby(m_loss, gamma, m_sparse_loss);
+            if(0){
+                if (ft == FT_LOGISTIC || ft == FT_1MEXPMX){
+                    // this assumes that m_enc is a probability, so it must be between 0 and 1!
+                    float gamma = 1.0f;
+                    op_ptr m_sparse_loss = mean(make_shared<BernoulliKullbackLeibler>(
+                                0.10f,
+                                (sum(m_enc,0)/(float)bs)->result())); // soft L1-norm on hidden units
+                    m_loss        = axpby(m_loss, gamma, m_sparse_loss);
+                }else{
+                    // use mean squared loss, since m_enc is not a probability!
+                    float gamma = 1.0f;
+                    op_ptr m_sparse_loss = mean(m_enc); // soft L1-norm on hidden units
+                    //op_ptr m_sparse_loss = mean(
+                            //(sum(m_enc,0)/(float)bs)); // soft L1-norm on hidden units
+                    m_loss        = axpby(0.f,m_loss, gamma, m_sparse_loss);
+                }
             }
-            if(1){
+            if(0){
                 // L2-weight decay
                 m_loss = axpby(m_loss, 0.1f,sum(pow(m_weights_x,2.f)));
                 // L1-weight decay
