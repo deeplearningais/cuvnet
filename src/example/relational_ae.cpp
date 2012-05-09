@@ -178,13 +178,17 @@ class auto_encoder_rel : public auto_encoder{
                 orthogonalize_symmetric(w,true);
             }
 
-            if(!step2){
+            if(false && !step2){
                 // subtract filter means
                 cuv::reduce_to_row(mean, w, cuv::RF_ADD);
                 mean /= (float) w.shape(0);  // mean of each filter
                 cuv::apply_scalar_functor(mean, cuv::SF_NEGATE);
                 cuv::matrix_plus_row(w,mean);
             }
+
+            // we just need this for fade-in...
+            if(expected_size > 0.95f)
+                return;
 
             // enforce small variance (determined by running average)
             cuv::reduce_to_row(var, w, cuv::RF_ADD_SQUARED);
@@ -193,7 +197,7 @@ class auto_encoder_rel : public auto_encoder{
             if(expected_size < 0)
                 expected_size = f;
             else
-                expected_size += 0.01f * (f - expected_size);
+                expected_size += 0.05f * (f - expected_size);
             expected_size = std::min(1.f, expected_size);
             //std::cout << "expected_size:" << expected_size  << std::endl;
 
