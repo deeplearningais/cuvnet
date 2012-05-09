@@ -611,6 +611,17 @@ void dump_features(auto_encoder_rel* ae,
     gd->repair_swiper();
 }
 
+void dump_weights(auto_encoder_rel* ae, 
+        gradient_descent* gd,
+        cuv::tensor<float,cuv::dev_memory_space>* alldata,
+        unsigned int bs,
+        unsigned int epoch)
+{
+    if(epoch % 100 != 0)
+        return;
+    cuvnet::tofile<float>("weights_x.npy", ae->m_weights_x->data());
+}
+
 int main(int argc, char **argv)
 {
     cuv::initCUDA(2);
@@ -668,6 +679,7 @@ int main(int argc, char **argv)
     gd.after_epoch.connect(0,boost::bind(visualize_filters,&ae,&normalizer,fa,fb,ds.image_size,ds.channels,_1));
 
     gd.after_epoch.connect(1,boost::bind(dump_features,&ae,&gd,&alldata,bs,_1));
+    gd.after_epoch.connect(1,boost::bind(dump_weights, &ae,&gd,&alldata,bs,_1));
 
     gd.before_batch.connect(boost::bind(load_batch,&ae,&alldata,bs,_2));
     gd.after_batch.connect(boost::bind(&auto_encoder::acc_loss, &ae));
