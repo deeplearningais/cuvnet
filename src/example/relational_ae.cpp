@@ -481,6 +481,7 @@ class auto_encoder_rel : public auto_encoder{
                     else
                         m_reg_loss = m_reg_loss + tmp;
                 }
+                m_loss     = axpby(0.f, m_rec_loss, lambda/numcontr, m_reg_loss);
                 m_reg_sink = sink("contractive loss", m_reg_loss);
             } 
             if(0){
