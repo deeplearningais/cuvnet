@@ -630,14 +630,14 @@ int main(int argc, char **argv)
     natural_dataset ds_all("/home/local/datasets/natural_images");
     //cifar_dataset ds_all;
     //mnist_dataset ds_all("/home/local/datasets/MNIST");
-    pca_whitening normalizer(144,true,false, 0.01);
+    pca_whitening normalizer(100,true,false, 0.01);
     //zero_mean_unit_variance<> normalizer;
     randomizer().transform(ds_all.train_data, ds_all.train_labels);
     splitter ds_split(ds_all,2);
     dataset ds  = ds_split[0];
     ds.binary   = false;
 
-    unsigned int fa=12,fb=12,bs=64;
+    unsigned int fa=10,fb=10,bs=64;
     
     {   //-------------------------------------------------------------
         // pre-processing                                              +
@@ -667,8 +667,9 @@ int main(int argc, char **argv)
         // end preprocessing                                           /
         //-------------------------------------------------------------
     }
+    normalizer.write_params("pca_whitening");
         //auto_encoder_rel(unsigned int bs  , unsigned int inp1, unsigned int hl, unsigned int factorsize, bool binary, float noise=0.0f, float lambda=0.0f)
-    auto_encoder_rel ae(bs, ds.train_data.shape(1), 72, fa*fb, ds.binary, 0.0f, 0.10f);
+    auto_encoder_rel ae(bs, ds.train_data.shape(1), 50, fa*fb, ds.binary, 0.0f, 0.10f);
 
     std::vector<Op*> params = ae.unsupervised_params();
 
