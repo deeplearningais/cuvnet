@@ -24,6 +24,7 @@ LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -fno-strict-aliasing")
 
 add_subdirectory(cuvnet)
+add_subdirectory(third_party)
 add_subdirectory(tools)
 add_subdirectory(example)
 add_subdirectory(test)
