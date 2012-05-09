@@ -34,6 +34,11 @@ namespace cuvnet
                     add_param(0,p0);
                     add_param(1,p1);
                 }
+                RowSelector(result_t& p0, result_t& p1, result_t& p2, int row=-1, bool copy=false):Op(3,3),m_row(row),m_random(m_row<0),m_copy(copy){ 
+                    add_param(0,p0);
+                    add_param(1,p1);
+                    add_param(2,p2);
+                }
 
                 void fprop(){
                     using namespace cuv;
