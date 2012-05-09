@@ -51,6 +51,8 @@ namespace cuvnet
     inline
         Op::op_ptr pow(Op::op_ptr x, float f)           { return boost::make_shared<Pow>(f, x->result()); }
     inline
+        Op::op_ptr abs(Op::op_ptr x, float eps=0.0001f) { return sqrt(square(x)+eps); }
+    inline
         Op::op_ptr exp(float f, Op::op_ptr x)           { return boost::make_shared<Exp>(f, x->result()); }
     inline
         Op::op_ptr prod(Op::op_ptr x, Op::op_ptr y, char tx='n', char ty='n') { return boost::make_shared<Prod>(x->result(), y->result(), tx, ty); }
