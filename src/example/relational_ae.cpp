@@ -384,19 +384,29 @@ class auto_encoder_rel : public auto_encoder{
 
             op_ptr x_ = prod(corruptx, m_weights_x);
 
+            float norm = 2.f;
+
             bool use_same_input_twice = true;
             op_ptr y_, xsq;
             if(use_same_input_twice){
                 y_ = x_;
-                xsq = square(x_);
+                bool norm_is_natural = fabs((int)(norm)-norm) < 0.001f;
+                bool norm_is_even    = norm_is_natural && (((int)norm)%2 == 0);
+                std::cout << "norm:" << norm  << std::endl;
+                std::cout << "norm_is_natural:" << norm_is_natural << std::endl;
+                std::cout << "norm_is_even:" << norm_is_even << std::endl;
+                if(norm_is_even)     xsq = pow(x_, norm);
+                else if(norm == 1.f) xsq = abs(x_);
+                else                 xsq = pow(abs(x_), norm);
             }else{
                 y_ = prod(corrupty, m_weights_x);
                 xsq = x_*y_;
             }
 
-            enum functype {FT_TANH, FT_LOGISTIC, FT_SQRT, FT_1MEXPMX} ft = FT_SQRT;
+            enum functype {FT_TANH, FT_LOGISTIC, FT_NORM, FT_1MEXPMX, FT_ABS} ft = FT_NORM;
 
             op_ptr m_enc_lin = mat_plus_vec( prod(xsq, m_weights_h), m_bias_h, 1);
+            //op_ptr m_enc_lin = prod(xsq, m_weights_h);
 
             switch(ft){
                 case FT_TANH: m_enc     = tanh(m_enc_lin);
@@ -404,8 +414,11 @@ class auto_encoder_rel : public auto_encoder{
                 case FT_LOGISTIC:
                     m_enc     = logistic(m_enc_lin);
                     break;
-                case FT_SQRT:
-                    m_enc     = sqrt(m_enc_lin+0.001f);
+                case FT_NORM:
+                    m_enc     = pow(m_enc_lin+0.001f, 1.f/norm);
+                    break;
+                case FT_ABS:
+                    m_enc     = sqrt(square(m_enc_lin)+0.00001);
                     break;
                 case FT_1MEXPMX:
                     m_enc     = 1-exp(-1.f,m_enc_lin);
@@ -437,17 +450,21 @@ class auto_encoder_rel : public auto_encoder{
                         case FT_TANH: 
                             rs   = row_select(xsq,m_enc);
                             encr = result(rs,1);
-                            h2_  = (1.f-square(encr));  // tanh
+                            h2_  = 1.f-square(encr);  // tanh
                             break;
                         case FT_LOGISTIC:
                             rs   = row_select(xsq,m_enc); 
                             encr = result(rs,1);
                             h2_  = encr*(1.f-encr); // logistic
                             break;
-                        case FT_SQRT:
-                            rs   = row_select(xsq,m_enc); 
+                        case FT_NORM:
+                            rs   = row_select(xsq,m_enc_lin); 
                             encr = result(rs,1);
-                            h2_  = 0.5f * pow(encr+0.01f,-1.f); // 1/2  1/sqrt(x), where m_enc=sqrt(x)
+                            h2_  = (1.f/norm) * pow(encr+0.001f, 1.f/norm - 1.f); // 1/2  1/sqrt(x), where m_enc=sqrt(x)
+                            break;
+                        case FT_ABS:
+                            rs   = row_select(xsq, m_enc_lin, m_enc); 
+                            h2_  = result(rs, 1) * pow(result(rs, 2), -1.f); // x * 1/sqrt(x^2), where m_enc=sqrt(x^2)
                             break;
                         case FT_1MEXPMX:
                             rs   = row_select(xsq,m_enc_lin); 
