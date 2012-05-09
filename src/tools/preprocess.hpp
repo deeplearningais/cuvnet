@@ -16,6 +16,7 @@
 #include <boost/numeric/bindings/lapack/syev.hpp>
 #include <boost/numeric/bindings/traits/ublas_matrix.hpp>
 #include <boost/numeric/bindings/traits/ublas_vector.hpp> 
+#include "matwrite.hpp"
 
 #include "argsort.hpp"
 namespace cuvnet
@@ -213,7 +214,7 @@ namespace cuvnet
                 m_diag = ublas::diagonal_matrix<real> (m_n_components);
                 if(m_whiten)
                     for(int i=0;i<m_n_components; i++)
-                        m_diag(i,i) = 1.0/sqrt(lambda(idx[i])+m_epsilon);
+                        m_diag(i,i) = 1.0/std::sqrt(lambda(idx[i])+m_epsilon);
                 else
                     for(int i=0;i<m_n_components; i++)
                         m_diag(i,i) = 1.f;
@@ -266,6 +267,11 @@ namespace cuvnet
                 if(!nomean)
                     m_zm.reverse_transform(data);
                 res = data;
+            }
+            void write_params(const std::string& basefn){
+                tofile(basefn+"-mean.npy", m_zm.m_mean);
+                tofile(basefn+"-rot-trans.npy", m_rot_trans);
+                tofile(basefn+"-rot-revrs.npy", m_rot_revrs);
             }
 
             inline
