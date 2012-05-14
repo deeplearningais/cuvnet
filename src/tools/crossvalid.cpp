@@ -54,6 +54,7 @@ namespace cuvnet
 				m_ptr->fit();
 				m_ptr->switch_dataset(s,CM_VALID);
 				m_perf += m_ptr->predict();
+                std::cout << "X-val error:" << m_perf/(s+1)  << std::endl;
 				m_ptr->reset_params();
 			}
 			m_perf /= m_ptr->n_splits();
@@ -62,6 +63,7 @@ namespace cuvnet
             m_ptr->fit();
             m_ptr->switch_dataset(0,CM_TEST);
             m_test_perf = m_ptr->predict();
+            std::cout << "Test error:" << m_test_perf << std::endl;
 		}
 
 		void crossvalidation_queue::dispatch(boost::shared_ptr<crossvalidatable> p, const mongo::BSONObj& desc){
