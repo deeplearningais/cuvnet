@@ -156,16 +156,16 @@ class pretrained_mlp_trainer
                     gd.after_batch.connect(boost::bind(&auto_encoder::acc_loss,&m_aes->get(l)));
                     gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
 
-                    if(m_sdl.can_earlystop()) {
+                    if(m_sdl.get_current_cv_mode() != CM_TRAINALL) {
                         // we can only use early stopping when validation data is given
                         //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
                         gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.001f, 3);
-                        gd.before_validation_epoch.connect(boost::bind(&auto_encoder::reset_loss, &m_aes->get(l)));
-                        gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
-                        gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
-                        gd.after_validation_epoch.connect(1, boost::bind(&sdl_t::after_validation_epoch, &m_sdl));
-                        gd.after_validation_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
-                        gd.after_validation_epoch.connect(0, boost::bind(&auto_encoder::log_loss, &m_aes->get(l), _1));
+                        gd.before_early_stopping_epoch.connect(boost::bind(&auto_encoder::reset_loss, &m_aes->get(l)));
+                        gd.before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
+                        gd.before_early_stopping_epoch.connect(boost::bind(&pretrained_mlp_trainer::early_stopping_epoch,this,true));
+                        gd.after_early_stopping_epoch.connect(1, boost::bind(&sdl_t::after_early_stopping_epoch, &m_sdl));
+                        gd.after_early_stopping_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::early_stopping_epoch,this,false));
+                        gd.after_early_stopping_epoch.connect(0, boost::bind(&auto_encoder::log_loss, &m_aes->get(l), _1));
                         gd.minibatch_learning(1000);
                         m_aes->get(l).s_epochs(gd.rounds()); // remember number of iterations until optimum
                     } else {
@@ -194,16 +194,16 @@ class pretrained_mlp_trainer
                 gd.after_batch.connect(boost::bind(&auto_enc_stack::acc_loss,m_aes.get()));
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
 
-                if(m_sdl.can_earlystop()) {
+                if(m_sdl.get_current_cv_mode() != CM_TRAINALL) {
                     // we can only use early stopping when validation data is given
                     //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
                     gd.setup_early_stopping(boost::bind(&auto_enc_stack::perf,m_aes.get()), 5, 0.0001f, 3);
-                    gd.before_validation_epoch.connect(boost::bind(&auto_enc_stack::reset_loss, m_aes.get()));
-                    gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
-                    gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
-                    gd.after_validation_epoch.connect(1, boost::bind(&sdl_t::after_validation_epoch, &m_sdl));
-                    gd.after_validation_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
-                    gd.after_validation_epoch.connect(0, boost::bind(&auto_enc_stack::log_loss, m_aes.get(), _1));
+                    gd.before_early_stopping_epoch.connect(boost::bind(&auto_enc_stack::reset_loss, m_aes.get()));
+                    gd.before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
+                    gd.before_early_stopping_epoch.connect(boost::bind(&pretrained_mlp_trainer::early_stopping_epoch,this,true));
+                    gd.after_early_stopping_epoch.connect(1, boost::bind(&sdl_t::after_early_stopping_epoch, &m_sdl));
+                    gd.after_early_stopping_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::early_stopping_epoch,this,false));
+                    gd.after_early_stopping_epoch.connect(0, boost::bind(&auto_enc_stack::log_loss, m_aes.get(), _1));
                     gd.minibatch_learning(10000);
                     m_aes->s_epochs(gd.rounds()); // remember number of iterations until optimum
                 } else {
@@ -235,18 +235,18 @@ class pretrained_mlp_trainer
                 gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_class_err,m_mlp.get()));
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
 
-                if(m_sdl.can_earlystop()) {
+                if(m_sdl.get_current_cv_mode() != CM_TRAINALL) {
                     //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
                     //if(m_sdl.get_current_cv_mode() == CM_TRAINALL)
                         //gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, -1.f, 2); // this will probably never fail.
                     //else
                         gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, 0.0000f, 4);
-                    gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
-                    gd.before_validation_epoch.connect(boost::bind(&sdl_t::before_validation_epoch,&m_sdl));
-                    gd.before_validation_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
-                    gd.after_validation_epoch.connect(1, boost::bind(&sdl_t::after_validation_epoch,&m_sdl));
-                    gd.after_validation_epoch.connect(0,boost::bind(&pretrained_mlp::log_loss, m_mlp.get(), _1));
-                    gd.after_validation_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
+                    gd.before_early_stopping_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
+                    gd.before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
+                    gd.before_early_stopping_epoch.connect(boost::bind(&pretrained_mlp_trainer::early_stopping_epoch,this,true));
+                    gd.after_early_stopping_epoch.connect(1, boost::bind(&sdl_t::after_early_stopping_epoch,&m_sdl));
+                    gd.after_early_stopping_epoch.connect(0,boost::bind(&pretrained_mlp::log_loss, m_mlp.get(), _1));
+                    gd.after_early_stopping_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::early_stopping_epoch,this,false));
                     gd.minibatch_learning(1000);
                     m_mlp->s_epochs(gd.rounds()); // remember number of iterations until optimum
                 } else {
@@ -255,6 +255,10 @@ class pretrained_mlp_trainer
                 }
                 param_logging("after_sup_finetune", params);
             }
+        }
+        void early_stopping_epoch(bool b){
+            g_worker->log(BSON("who"<<"trainer"<<"topic"<<"early_stopping"<<"earlystop_mode"<<b));
+            g_worker->checkpoint();
         }
         void validation_epoch(bool b){
             g_worker->log(BSON("who"<<"trainer"<<"topic"<<"validation"<<"validation_mode"<<b));
