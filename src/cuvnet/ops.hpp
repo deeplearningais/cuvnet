@@ -44,6 +44,8 @@ namespace cuvnet
     inline
         Op::op_ptr operator-(Op::op_ptr x)              { return boost::make_shared<Axpby>(x->result(), x->result(), 0.f,-1.f); }
     inline
+        Op::op_ptr atan2(Op::op_ptr y, Op::op_ptr x)    { return boost::make_shared<Atan2>(y->result(), x->result()); }
+    inline
         Op::op_ptr log(Op::op_ptr x)                    { return boost::make_shared<Log>(x->result()); }
     inline
         Op::op_ptr square(Op::op_ptr x)                 { return boost::make_shared<Pow>(2.f, x->result()); }

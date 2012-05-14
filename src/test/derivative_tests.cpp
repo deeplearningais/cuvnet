@@ -72,6 +72,18 @@ TEST(derivative_test, derivative_test_tanh){
     ptr_t func                    = boost::make_shared<Tanh>(inp->result());
     derivative_tester(*func);
 }
+TEST(derivative_test, derivative_test_sin){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+    ptr_t func                    = boost::make_shared<Sin>(inp->result());
+    derivative_tester(*func);
+}
+TEST(derivative_test, derivative_test_cos){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+    ptr_t func                    = boost::make_shared<Cos>(inp->result());
+    derivative_tester(*func);
+}
 
 TEST(derivative_test, derivative_test_add_scalar){
 	typedef boost::shared_ptr<Op> ptr_t;
@@ -98,6 +110,13 @@ TEST(derivative_test, derivative_test_multiply){
     boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
     boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
     ptr_t func                     = boost::make_shared<Multiply>(inp0->result(), inp1->result());
+    derivative_tester(*func);
+}
+TEST(derivative_test, derivative_test_atan2){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[5], "y");
+    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[5], "x");
+    ptr_t func                     = boost::make_shared<Atan2>(inp0->result(), inp1->result());
     derivative_tester(*func);
 }
 TEST(derivative_test, derivative_test_neg_cross_entropy_logistic){
