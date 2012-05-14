@@ -105,7 +105,7 @@ class pretrained_mlp_trainer
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
                 gd.minibatch_learning(1,0,0); // 1 epoch
                 return m_mlp->perf();
-            }else /*if(m_unsupervised_finetune)*/{
+            }else if(m_unsupervised_finetune){
                 std::vector<Op*> params;
                 gradient_descent gd(m_aes->combined_rec_loss(),0,params, 0.0f,0.00000f);
                 gd.before_epoch.connect(boost::bind(&auto_enc_stack::reset_loss, m_aes.get()));
@@ -115,9 +115,9 @@ class pretrained_mlp_trainer
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
                 gd.minibatch_learning(1,0,0); // 1 epoch
                 return m_aes->perf();
-            }/*else{*/
+            }else{
                 //cuvAssert(false);
-            /*}*/
+            }
             return -2.f;
         }
         void param_logging(std::string desc, std::vector<Op*> ops){
@@ -238,7 +238,7 @@ class pretrained_mlp_trainer
 
                 if(m_sdl.get_current_cv_mode() != CM_TRAINALL) {
                     //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
-                    gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, 0.00001f, 2);
+                    gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, 0.00001f, 6); // fail 6 times to improve
                     gd.before_early_stopping_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
                     gd.before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
                     gd.before_early_stopping_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
@@ -305,15 +305,17 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         boost::shared_ptr<crossvalidatable> p(new pretrained_mlp_trainer());
         std::cout <<"generating new sample"<<std::endl;
 
-        //unsigned int n_layers = 1+3*drand48();
-        unsigned int n_layers = 2;
+        unsigned int n_layers = 1+3*drand48();
+        //unsigned int n_layers = 2;
 
         float mlp_lr  = log_uniform(0.01, 0.2);
         float aes_lr0  = log_uniform(0.01, 0.2);
+        float aes_wd0  = log_uniform(0.000001, 0.001);
         //float mlp_lr  = 0.1;
         //float aes_lr0  = 0.1;
         std::vector<float> lambda(n_layers);
         std::vector<float> aes_lr(n_layers);
+        std::vector<float> aes_wd(n_layers);
         std::vector<float> noise(n_layers);
         std::vector<int  > size(n_layers);
         std::vector<bool > twolayer(n_layers);
@@ -326,34 +328,30 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         {
             lambda[i] = lambda0;
             aes_lr[i] = aes_lr0;
+            aes_wd[i] = 0.0;
             noise[i]  = 0.0;
             size[i]   = 
-                (i==0 ? 512 : 81 );
+                //(i==0 ? 512 : 81 );
                 //512;
-                //int(pow(28+drand48()*8,2));
+                (int) (50 * 10 * log_uniform(0.1,1.0)); // [50, 500]
                 //((i==0) ? 5*30 : 15);// hidden0: 4*message plus message, hidden1: only message
             twolayer[i] = (i<n_layers-1);
         }
 
         std::string uuid = boost::lexical_cast<std::string>(boost::uuids::uuid(boost::uuids::random_generator()()));
-        for (int idx0 = 0; idx0 < 3; ++idx0)
+        for (int idx0 = 0; idx0 < 2; ++idx0)
         {
             mongo::BSONObjBuilder bob;
             bob << "uuid" << uuid;
-            bob << "dataset" << "natural";
-            bob << "bs"      << 16;
-            bob << "nsplits" << 1;
+            bob << "dataset" << "mnist_rot";
+            bob << "bs"      << 64;
+            bob << "nsplits" << 5;
             bob << "mlp_lr"  << mlp_lr;
             bob << "mlp_wd"  << 0.0;
 
             bob << "pretrain" << (drand48()>0.1f);
-            bob << "ufinetune" << true;
-            bob << "sfinetune" << false;
-
-            if(idx0 == 2){
-                n_layers = 1;
-                size[0] = size[1]; // skip 1st layer
-            }
+            bob << "ufinetune" << false;
+            bob << "sfinetune" << true;
 
             mongo::BSONArrayBuilder stack;
             for (unsigned int i = 0; i < n_layers; ++i)
@@ -361,7 +359,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
                 stack << BSON(
                         "lambda"   << lambda[i]   <<
                         "lr"       << aes_lr[i]   <<
-                        "wd"       << 0.0   <<
+                        "wd"       << aes_wd[i]   <<
                         "noise"    << noise[i]    <<
                         "size"     << size[i]     <<
                         // exactly same settings, but w/ and w/o twolayer
@@ -445,7 +443,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    const std::string hc_db = "test.twolayer_ae_natural";
+    const std::string hc_db = "test.deep_mnist_rot";
     boost::asio::io_service io;
     if(std::string("hub") == argv[1]){
         cv::crossvalidation_queue q("131.220.7.92",hc_db);
