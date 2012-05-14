@@ -27,7 +27,7 @@ namespace cuvnet
             float            m_learnrate; ///< learnrate for weight updates
             float            m_learnrate_decay; ///< factor by which lr is multiplied after each epoch
             float            m_weightdecay; ///< weight decay for weight updates
-            unsigned int     m_rounds;    ///< number of rounds until optimum on validation set was attained
+            unsigned int     m_rounds;    ///< number of rounds until optimum on early-stopping set was attained
             std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >    m_best_perf_params; ///< copies of parameters for current best performance
             swiper           m_swipe;    ///< does fprop and bprop for us
         public:
@@ -40,10 +40,10 @@ namespace cuvnet
             /// triggered after executing a batch
             boost::signal<void(unsigned int,unsigned int)> after_batch;
 
-            /// triggered when starting a validation epoch. Should return number of batches in validation set
-            boost::signal<void(unsigned int)> before_validation_epoch;
-            /// triggered after finishing a validation epoch
-            boost::signal<void(unsigned int)> after_validation_epoch;
+            /// triggered when starting a early-stopping epoch. Should return number of batches in early-stopping set
+            boost::signal<void(unsigned int)> before_early_stopping_epoch;
+            /// triggered after finishing a early-stopping epoch
+            boost::signal<void(unsigned int)> after_early_stopping_epoch;
 
             /// should return current number of batches
             boost::signal<unsigned int(void)> current_batch_num;
@@ -81,10 +81,10 @@ namespace cuvnet
             void early_stop_test(unsigned int every, float thresh, unsigned int maxfails, unsigned int current_epoch){
                 if(current_epoch%every!=0)
                     return;
-                validation_epoch(current_epoch);
+                unsigned int n_batches = early_stopping_epoch(current_epoch);
                 float perf = m_performance();
                 if(perf < m_best_perf){
-                    std::cout << " * validation: "<< perf<<std::endl;
+                    std::cout << " * early-stopping("<<n_batches<<" batches): "<< perf<<std::endl;
                     // save the (now best) parameters
                     for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
                         Input* p = dynamic_cast<Input*>(*it);
@@ -93,7 +93,7 @@ namespace cuvnet
                     }
                 }
                 else
-                    std::cout << " - validation: "<< perf<<std::endl;
+                    std::cout << " - early-stopping("<<n_batches<<" batches): "<< perf<<std::endl;
                 if(perf <= m_best_perf-thresh){ // improve by at least thresh
                     m_best_perf = perf;
                     m_failed_improvement_rounds = 0;
@@ -135,21 +135,31 @@ namespace cuvnet
             virtual void update_weights(){
                 for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++){
                     cuvAssert(&((*it)->result()->delta.cdata()));
-                    cuv::learn_step_weight_decay( ((Input*)*it)->data(), (*it)->result()->delta.cdata(), -m_learnrate, m_weightdecay);
+                    Input* inp = (Input*) *it;
+
+                    float lr = m_learnrate;
+                    //if(inp->name().find("_wh")!=std::string::npos)
+                        //lr /= 10.f;
+                    //std::cout << inp->name()<<" delta: "<< cuv::norm2(inp->result()->delta.cdata())<< std::endl;[> cursor <]
+                    //std::cout << inp->name()<<" value: "<< cuv::norm2(inp->data())<< std::endl;[> cursor <]
+                    cuv::learn_step_weight_decay( inp->data(), inp->result()->delta.cdata(), -lr, m_weightdecay);
                 }
             }
             /**
-             * runs a validation epoch
+             * runs an early-stopping epoch
+             *
+             * @return number of early-stopping batches
              */
-            void validation_epoch(unsigned int current_epoch){
-                before_validation_epoch(current_epoch);
+            unsigned int early_stopping_epoch(unsigned int current_epoch){
+                before_early_stopping_epoch(current_epoch);
                 unsigned int n_batches = current_batch_num();
                 for (unsigned int  batch = 0; batch < n_batches; ++batch) {
                     before_batch(current_epoch, batch);
                     m_swipe.fprop(); // fprop /only/
                     after_batch(current_epoch, batch);
                 }
-                after_validation_epoch(current_epoch);
+                after_early_stopping_epoch(current_epoch);
+                return n_batches;
             }
             /**
              * Does minibatch training.
@@ -175,6 +185,7 @@ namespace cuvnet
                         if(randomize)
                             std::random_shuffle(batchids.begin(),batchids.end());
                         before_epoch(epoch);
+
                         for (unsigned int  batch = 0; batch < n_batches; ++batch) {
                             before_batch(epoch, batchids[batch]);
                             m_swipe.fprop();
