@@ -20,6 +20,14 @@ namespace cuvnet
                 Pow(float exponent, result_t& p0):Op(1,1), m_exponent(exponent){
                     add_param(0,p0);
                 }
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
+                    if(m_exponent == 0.5f)
+                        desc.label = "sqrt (x)";
+                    else if(m_exponent == 2.f)
+                        desc.label = "x^2";
+                    else
+                        desc.label = "pow (x," + boost::lexical_cast<std::string>(m_exponent) + ")";
+                }
 
                 void fprop(){
                     using namespace cuv;

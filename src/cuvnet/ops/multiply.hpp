@@ -23,6 +23,9 @@ namespace cuvnet
                          add_param(0,p0);
                          add_param(1,p1);
                      }
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
+                    desc.label = "x * y";
+                }
 
                 void fprop(){
                     using namespace cuv;

@@ -30,6 +30,17 @@ namespace cuvnet
                          add_param(1,p1);
                      }
 
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
+                    if( m_fact_a == 1.f && m_fact_b == 1.f)
+                        desc.label = "x + y";
+                    else if( m_fact_a == -1.f && m_fact_b == 1.f)
+                        desc.label = "y - x";
+                    else if( m_fact_a == 1.f && m_fact_b == -1.f)
+                        desc.label = "x - y";
+                    else
+                        desc.label = boost::str(boost::format("%2.3f x + %2.3f y")%m_fact_a%m_fact_b);
+                }
+
                 void fprop(){
                     using namespace cuv;
                     param_t::element_type&  p0 = *m_params[0];

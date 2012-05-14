@@ -2,6 +2,7 @@
 #     define __MULT_SCALAR_HPP__
 
 #include <cuvnet/op.hpp>
+#include <boost/format.hpp>
 
 namespace cuvnet
 {
@@ -39,6 +40,10 @@ namespace cuvnet
             {
                 add_param(0,mat);
             }
+
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
+                    desc.label = boost::str(boost::format("%2.3f x")%m_scalar);
+                }
 
                 void fprop(){
                     using namespace cuv;
