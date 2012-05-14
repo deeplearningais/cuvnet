@@ -53,14 +53,14 @@ namespace cuvnet
             case CM_TRAINALL:
                 data   = m_splits.get_ds().train_data;
                 labels = m_splits.get_ds().train_labels;
-                //vdata   = ds.test_data;    // for testing overfitting during trainall
-                //vlabels = ds.test_labels;  // do not use in real learning!
                 break;
             case CM_TRAIN:
                 data    = ds.train_data;
                 labels  = ds.train_labels;
-                vdata   = ds.val_data;      // for early stopping!
-                vlabels = ds.val_labels;    // for early stopping!
+                // do not use validation set for early stopping,
+                // results in underestimating generalization error!
+                //vdata   = ds.val_data;      // for early stopping!
+                //vlabels = ds.val_labels;    // for early stopping!
                 break;
             case CM_VALID:
                 data   = ds.val_data;
@@ -93,6 +93,11 @@ namespace cuvnet
         m_bs                 = o["bs"].Int();
         std::string ds       = o["dataset"].String();
         unsigned int nsplits = o["nsplits"].Int();
+        if(o.hasField("es_frac"))
+            // early stopping fraction
+            m_early_stopping_frac = o["es_frac"].Double();
+        else
+            m_early_stopping_frac = 0.1f;
         if(0);
         else if (ds == "mnist"){
             dataset dsall = mnist_dataset("/home/local/datasets/MNIST");
@@ -170,30 +175,48 @@ namespace cuvnet
     template<class StorageSpace>
     cuv::tensor<float, StorageSpace> 
     SimpleDatasetLearner<StorageSpace>::get_data_batch(unsigned int batch){
-        cuv::tensor<float,StorageSpace>& data = m_in_validation_mode ? m_current_vdata : m_current_data;
+        cuv::tensor<float,StorageSpace>& data = m_current_data;
+        if(!m_in_early_stopping)
+            batch += m_early_stopping_frac * data.shape(0)/m_bs;
         return data[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
     }
     template<class StorageSpace>
     cuv::tensor<float, StorageSpace> 
     SimpleDatasetLearner<StorageSpace>::get_label_batch(unsigned int batch){
-        cuv::tensor<float,StorageSpace>& labl = m_in_validation_mode ? m_current_vlabels : m_current_labels;
+        cuv::tensor<float,StorageSpace>& labl = m_current_labels;
+        if(!m_in_early_stopping)
+            batch += m_early_stopping_frac * labl.shape(0)/m_bs;
         return labl[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
     }
 
     template<class StorageSpace>
     void
-    SimpleDatasetLearner<StorageSpace>::before_validation_epoch(){ m_in_validation_mode = true; }
+    SimpleDatasetLearner<StorageSpace>::before_early_stopping_epoch(){ 
+        m_in_early_stopping = true; 
+    }
 
     template<class StorageSpace>
     void
-    SimpleDatasetLearner<StorageSpace>::after_validation_epoch(){ m_in_validation_mode = false; }
+    SimpleDatasetLearner<StorageSpace>::after_early_stopping_epoch(){ 
+        m_in_early_stopping = false; 
+    }
 
     template<class StorageSpace>
     unsigned int
     SimpleDatasetLearner<StorageSpace>::n_batches()const{ 
-        return  m_in_validation_mode ?
-            m_current_vdata.shape(0)/m_bs :
-            m_current_data.shape(0)/m_bs;
+        return  m_in_early_stopping 
+            ?  (     m_early_stopping_frac  * m_current_data.shape(0)) / m_bs
+            :  ((1.f-m_early_stopping_frac) * m_current_data.shape(0)) / m_bs;
+    }
+
+    template<class StorageSpace>
+    bool 
+    SimpleDatasetLearner<StorageSpace>::can_earlystop()const{ 
+        float f = m_early_stopping_frac * m_current_data.shape(0);
+
+        return f >= m_bs  // enough data for a earlystopping eval
+            &&   // and enough data for regular learning
+            (m_current_data.shape(0) - f) >= m_bs;
     }
 
     template class SimpleDatasetLearner<cuv::dev_memory_space>;
