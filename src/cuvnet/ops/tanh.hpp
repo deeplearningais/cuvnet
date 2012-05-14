@@ -209,11 +209,16 @@ namespace cuvnet
                     result_t::element_type& r0 = *m_results[0];
 
                     const value_type& inp = p0.value.cdata();           // original
-                    value_type&      outp = p0.value.data_onlyshape();  // if detached, only allocate same size storage
+                    
+                    if(r0.can_overwrite_directly()){
+                        value_type& oav = p0.overwrite_or_add_value();
+                        apply_scalar_functor( oav, inp, SF_SIGM);
+                    }else{
+                        value_type& outp = p0.value.data_onlyshape();  // if detached, only allocate same size storage
+                        apply_scalar_functor( outp, inp, SF_SIGM);
+                        r0.push(p0.value);      // 'copy' a newly created matrix
+                    }
 
-                    apply_scalar_functor( outp, inp, SF_SIGM);
-
-                    r0.push(p0.value);      // 'copy' a newly created matrix
                     if(!p0.need_derivative)
                         p0.value.reset(); // forget it
                 }
@@ -223,16 +228,22 @@ namespace cuvnet
                     result_t::element_type& r0 = *m_results[0];
                     assert(p0.need_derivative);
 
-                    value_type& delta = r0.delta.data(); // this is the error from above
+                    const value_type& delta = r0.delta.cdata(); // this is the error from above
                     if(m_bprop_identity){
                         p0.push(r0.delta);
                     }else{
                         const value_type& out = p0.value.cdata(); // this is the value we changed in fprop
-                        value_type& res       = p0.value.data_onlyshape(); // try to overwrite this
 
-                        apply_scalar_functor(res,out,SF_DSIGM);
-                        res  *=  delta;
-                        p0.push(p0.value);
+                        if(p0.can_overwrite_directly()){
+                            value_type& oav = p0.overwrite_or_add_value();
+                            apply_scalar_functor(oav,out,SF_DSIGM);
+                            oav *= delta;
+                        }else{
+                            value_type& res       = p0.value.data_onlyshape(); // try to overwrite this
+                            apply_scalar_functor(res,out,SF_DSIGM);
+                            res  *=  delta;
+                            p0.push(p0.value);
+                        }
                         p0.value.reset();
                     }
                     r0.delta.reset();
