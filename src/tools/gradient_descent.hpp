@@ -78,11 +78,19 @@ namespace cuvnet
             boost::function<float(void)> m_performance;
             float                        m_best_perf;
             unsigned int                 m_failed_improvement_rounds;
+
+            /// this, multiplied by thresh parameter of early_stop_test 
+            /// will give minimum improvement required for (not) early stopping
+            float                        m_initial_performance; 
+
             void early_stop_test(unsigned int every, float thresh, unsigned int maxfails, unsigned int current_epoch){
                 if(current_epoch%every!=0)
                     return;
                 unsigned int n_batches = early_stopping_epoch(current_epoch);
                 float perf = m_performance();
+                if(current_epoch == 0)
+                    m_initial_performance = perf;
+
                 if(perf < m_best_perf){
                     std::cout << " * early-stopping("<<n_batches<<" batches): "<< perf<<std::endl;
                     // save the (now best) parameters
@@ -94,7 +102,7 @@ namespace cuvnet
                 }
                 else
                     std::cout << " - early-stopping("<<n_batches<<" batches): "<< perf<<std::endl;
-                if(perf <= m_best_perf-thresh){ // improve by at least thresh
+                if(perf <= m_best_perf - m_initial_performance * thresh){ // improve by at least thresh
                     m_best_perf = perf;
                     m_failed_improvement_rounds = 0;
                 }else{
@@ -126,7 +134,7 @@ namespace cuvnet
             template<class T>
             void setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails){
                 m_performance = performance;
-                after_epoch.connect(boost::bind(&gradient_descent::early_stop_test,this,every_nth_epoch, thresh, maxfails, _1));
+                before_epoch.connect(boost::bind(&gradient_descent::early_stop_test,this,every_nth_epoch, thresh, maxfails, _1));
             }
 
             /**
@@ -184,7 +192,7 @@ namespace cuvnet
                                 batchids.push_back(i);
                         if(randomize)
                             std::random_shuffle(batchids.begin(),batchids.end());
-                        before_epoch(epoch);
+                        before_epoch(epoch); // may run early stopping
 
                         for (unsigned int  batch = 0; batch < n_batches; ++batch) {
                             before_batch(epoch, batchids[batch]);
