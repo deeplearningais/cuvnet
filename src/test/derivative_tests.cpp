@@ -330,7 +330,7 @@ TEST(derivative_test, derivative_test_convolve){
     unsigned int nFiltPix  = 3;
     unsigned int nFilt     = 16; 
 
-    unsigned int nResPix   = nImgPix-nFiltPix+1;
+    //unsigned int nResPix   = nImgPix-nFiltPix+1;
 
     {
 	    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[nImgChan][nImgPix*nImgPix][nImg]);
