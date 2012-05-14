@@ -113,7 +113,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
             if(current_op()==o){
                 // create node with debug info in label
                 os << opstr << "_dbg_result"
-                    << " [ fontsize=16, label=\"";
+                    << " [ fontsize=26, label=\"";
                 if(r->result_uses.size()>0){
                     if(r->result_uses[0].lock()->value.ptr()){
                         os<<"Result:\\n";
