@@ -12,6 +12,7 @@
 #include <cuvnet/ops/noiser.hpp>
 #include <cuvnet/ops/sum.hpp>
 #include <cuvnet/ops/multiply.hpp>
+#include <cuvnet/ops/atan2.hpp>
 #include <cuvnet/ops/sum_mat_to_vec.hpp>
 #include <cuvnet/ops/add_scalar.hpp>
 #include <cuvnet/ops/mult_scalar.hpp>
@@ -29,6 +30,8 @@ namespace cuvnet
         Op::op_ptr operator*(Op::op_ptr x, Op::op_ptr y){ return boost::make_shared<Multiply>(x->result(), y->result()); }
     inline
         Op::op_ptr operator+(Op::op_ptr x, Op::op_ptr y){ return boost::make_shared<Axpby>(x->result(), y->result(), 1.f,1.f); }
+    inline
+        Op::op_ptr operator-(Op::op_ptr x, Op::op_ptr y){ return boost::make_shared<Axpby>(x->result(), y->result(), 1.f,-1.f); }
     inline
         Op::op_ptr operator+(Op::op_ptr x, float f)     { return boost::make_shared<AddScalar>(x->result(), f); }
     inline
@@ -63,6 +66,10 @@ namespace cuvnet
         boost::shared_ptr<Sink> sink(Op::op_ptr x, unsigned int res=0){ return boost::make_shared<Sink>(x->result(res)); }
     inline
         boost::shared_ptr<Sink> sink(const std::string& name, Op::op_ptr x, unsigned int res=0){ return boost::make_shared<Sink>(name, x->result(res)); }
+    inline
+        Op::op_ptr sin(Op::op_ptr x)                    { return boost::make_shared<Sin>(x->result()); }
+    inline
+        Op::op_ptr cos(Op::op_ptr x)                    { return boost::make_shared<Cos>(x->result()); }
     inline
         Op::op_ptr tanh(Op::op_ptr x)                   { return boost::make_shared<Tanh>(x->result()); }
     inline
