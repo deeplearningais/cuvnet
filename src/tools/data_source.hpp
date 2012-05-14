@@ -21,7 +21,7 @@ namespace cuvnet
             void scan(const std::string& path, bool recursive);
         public:
             folder_loader(const std::string& path, bool recursive);
-            void get(std::vector<cuv::tensor<float,cuv::host_memory_space> >& res, const unsigned int n, preprocessor* pp);
+            void get(std::vector<cuv::tensor<float,cuv::host_memory_space> >& res, const unsigned int n, preprocessor<cuv::host_memory_space>* pp);
     };
     
 }

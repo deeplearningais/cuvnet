@@ -24,8 +24,8 @@ struct loop{
     typedef std::vector<cuv::tensor<float,cuv::host_memory_space> > res_t;
     folder_loader&   m_this;
     res_t&           m_res;
-    preprocessor*    m_pp;
-    loop(folder_loader* fl, res_t& r, preprocessor* pp):m_this(*fl),m_res(r),m_pp(pp){}
+    cuvnet::preprocessor<cuv::host_memory_space>*    m_pp;
+    loop(folder_loader* fl, res_t& r, cuvnet::preprocessor<cuv::host_memory_space>* pp):m_this(*fl),m_res(r),m_pp(pp){}
     void operator()(const tbb::blocked_range<unsigned int>& r)const;
 };
 
@@ -83,12 +83,13 @@ loop::operator()(const tbb::blocked_range<unsigned int>& r)const{
             std::ifstream is(fd.name);
             is.read(&fd.content[0], fd.size);
         }
-        m_pp->process_filestring(m_res[i], &fd.content[0],fd.size);
+        // TODO: make this work again!
+        //m_pp->process_filestring(m_res[i], &fd.content[0],fd.size);
     }
 };
 
 void
-folder_loader::get(std::vector<cuv::tensor<float,cuv::host_memory_space> >& res, const unsigned int n, preprocessor* pp){
+folder_loader::get(std::vector<cuv::tensor<float,cuv::host_memory_space> >& res, const unsigned int n, cuvnet::preprocessor<cuv::host_memory_space>* pp){
     res.resize(n);
     //timeval begin, end;
     //gettimeofday(&begin,NULL);

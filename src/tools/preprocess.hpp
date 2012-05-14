@@ -31,7 +31,29 @@ namespace cuvnet
     }
 
     template<class M=cuv::host_memory_space>
-    class zero_sample_mean{
+    class preprocessor{
+        public:
+            virtual void fit(const cuv::tensor<float,M>& train)=0;
+            virtual void transform(cuv::tensor<float,M>& data)=0;
+            virtual void reverse_transform(cuv::tensor<float,M>& data)=0;
+            void fit_transform(cuv::tensor<float,M>& data){
+                fit(data); transform(data);
+            }
+            virtual void write_params(const std::string& basefn){}
+    };
+
+    template<class M=cuv::host_memory_space>
+    class identity_preprocessor
+    : public preprocessor<M>
+    {
+        public:
+            void fit(const cuv::tensor<float,M>& train){};
+            void transform(cuv::tensor<float,M>& data){};
+            void reverse_transform(cuv::tensor<float,M>& data){};
+    };
+
+    template<class M=cuv::host_memory_space>
+    class zero_sample_mean : public preprocessor<M> {
         public:
         public:
             void fit(const cuv::tensor<float,M>& train){
@@ -45,14 +67,10 @@ namespace cuvnet
             void reverse_transform(cuv::tensor<float,M>& data){
                 throw std::runtime_error("zero_sample_mean cannot be inverted");
             }
-            void fit_transform(cuv::tensor<float,M>& data){
-                fit(data); transform(data);
-            }
     };
 
     template<class M=cuv::host_memory_space>
-    class log_transformer{
-        public:
+    class log_transformer : public preprocessor<M> {
         public:
             void fit(const cuv::tensor<float,M>& train){
             }
@@ -62,13 +80,10 @@ namespace cuvnet
             void reverse_transform(cuv::tensor<float,M>& data){
                 cuv::apply_scalar_functor(data,cuv::SF_EXP); 
             }
-            void fit_transform(cuv::tensor<float,M>& data){
-                fit(data); transform(data);
-            }
     };
 
     template<class M=cuv::host_memory_space>
-    class zero_mean_unit_variance{
+    class zero_mean_unit_variance : public preprocessor<M>{
         public:
             cuv::tensor<float, M> m_mean;
             cuv::tensor<float, M> m_std;
@@ -98,7 +113,7 @@ namespace cuvnet
                 if(m_unitvar)
                     cuv::matrix_divide_row(data,m_std);
             }
-            void reverse_transform(cuv::tensor<float,M>& data, bool b=false){
+            void reverse_transform(cuv::tensor<float,M>& data){
                 using namespace cuv; // for operator-
                 tensor<float,M> tmp(m_mean.shape());
                 apply_scalar_functor(tmp,m_mean,SF_NEGATE);
@@ -106,13 +121,10 @@ namespace cuvnet
                     matrix_times_row(data,m_std);
                 matrix_plus_row(data, tmp);
             }
-            void fit_transform(cuv::tensor<float,M>& data){
-                fit(data); transform(data);
-            }
     };
 
     template<class M=cuv::host_memory_space>
-    class global_min_max_normalize{
+    class global_min_max_normalize : public preprocessor<M> {
         private:
             float m_min, m_max;
             float m_add, m_fact;
@@ -134,12 +146,9 @@ namespace cuvnet
                 data += m_add;
                 data /= m_fact;
             }
-            void fit_transform(cuv::tensor<float,M>& data){
-                fit(data); transform(data);
-            }
     };
 
-    class pca_whitening{
+    class pca_whitening : public preprocessor<cuv::host_memory_space> {
         private:
             int m_n_components;
             zero_mean_unit_variance <cuv::host_memory_space> m_zm;
@@ -258,10 +267,10 @@ namespace cuvnet
                 cuv::prod( res, data, m_rot_trans );
                 data = res;
             }
-            void fit_transform(cuv::tensor<float,cuv::host_memory_space>& data){
-                fit(data); transform(data);
+            void reverse_transform(cuv::tensor<float,cuv::host_memory_space>& res){
+                reverse_transform(res, true);
             }
-            void reverse_transform(cuv::tensor<float,cuv::host_memory_space>& res, bool nomean=false){
+            void reverse_transform(cuv::tensor<float,cuv::host_memory_space>& res, bool nomean){
                 cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[res.shape(0)][m_rot_revrs.shape(1)]);
                 cuv::prod( data, res, m_rot_revrs);
                 if(!nomean)
@@ -280,13 +289,13 @@ namespace cuvnet
                 const cuv::tensor<float,cuv::host_memory_space>& rrot(){return m_rot_revrs;};
     };
 
-    class preprocessor{
-        public:
-            virtual void process_filestring(cuv::tensor<float,cuv::host_memory_space>& dst, const char* buf, size_t n)=0;
-    };
+    //class preprocessor{
+    //    public:
+    //        virtual void process_filestring(cuv::tensor<float,cuv::host_memory_space>& dst, const char* buf, size_t n)=0;
+    //};
 
     class patch_extractor
-    : public preprocessor
+    //: public preprocessor
     {
         private:
             unsigned int m_s0, m_s1;
