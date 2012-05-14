@@ -2,6 +2,7 @@
 #     define __OP_AXPBY_HPP__
 
 #include <cuvnet/op.hpp>
+#include <boost/format.hpp>
 
 namespace cuvnet
 {
