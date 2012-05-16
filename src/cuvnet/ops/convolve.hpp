@@ -33,6 +33,13 @@ namespace cuvnet
                 unsigned int m_partial_sum;
             public:
                 Convolve() :Op(2,1){} // for serialization
+
+                /**
+                 * constructor.
+                 *
+                 * @param images nChannels x nPixels x nImages
+                 * @param filters nFiltChannels x nFiltPix x nFilt
+                 */
                 Convolve(result_t& images, result_t& filters)
                     :Op(2,1)
                     ,m_nGroups(1)
@@ -48,15 +55,40 @@ namespace cuvnet
                     param_t::element_type&  p1 = *m_params[1];
                     result_t::element_type& r0 = *m_results[0];
                     cuvAssert(p0.value.cdata().is_c_contiguous());
-                    if(r0.can_overwrite_directly()){
+
+                    bool filtSizeOK = (r0.shape[0] % 16) == 0;
+
+                    if(filtSizeOK && r0.can_overwrite_directly()){
                         convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), 0,1,m_nGroups);
-                    }else if(r0.can_add_directly()){
+                    }else if(filtSizeOK && r0.can_add_directly()){
                         convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), 0,1,m_nGroups, 1.f,1.f);
                     }else{
                         // reallocate *sigh*
-                        value_ptr v(new value_type(r0.shape));
-                        convolve2d(*v, p0.value.cdata(), p1.value.cdata(), 0,1,m_nGroups);
-                        r0.push(v);
+                        if(filtSizeOK){
+                            value_ptr v(new value_type(r0.shape));
+                            convolve2d(*v, p0.value.cdata(), p1.value.cdata(), 0,1,m_nGroups);
+                            r0.push(v);
+                        }else{
+                            // Alex' code has some serious restrictions; the one hurting me most
+                            // is about the number of output maps (n%16==0).
+                            // I'll emulate a less restricted version at some expense here
+                            // by creating larger arrays if necessary>
+                            unsigned int nFiltReal = r0.shape[0];
+                            unsigned int nFiltTmp  = 16 * ceil(nFiltReal / 16.);                            // create intermediate representation of the outputs
+                            value_type v(extents[nFiltTmp][r0.shape[1]][r0.shape[2]]);
+
+                            // create intermediate copy of weights
+                            value_type w(extents[p1.shape[0]][p1.shape[1]][nFiltTmp]);
+                            w = 0.f;
+                            //w[indices[index_range()][index_range()][index_range(0,nFiltTmp)]] = p1.value.cdata().copy();
+                            tensor_view<float, cuv::dev_memory_space> wview(w,
+                                    indices[index_range()][index_range()][index_range(0,nFiltReal)]);
+                            wview = p1.value.cdata();
+
+                            convolve2d(v, p0.value.cdata(), w, 0,1,m_nGroups);
+                            value_ptr vp(new value_type(v[indices[index_range(0,nFiltReal)][index_range()][index_range()]]));
+                            r0.push(vp);
+                        }
                     }
                     if(!p0.need_derivative && !p1.need_derivative)
                     {
@@ -80,45 +112,92 @@ namespace cuvnet
                     assert(p0.need_derivative || p1.need_derivative);
                     cuvAssert(r0.delta.cdata().is_c_contiguous());
 
+                    // Alex' code has some serious restrictions; the one hurting me most
+                    // is about the number of output maps (n%16==0).
+                    // I'll emulate a less restricted version at some expense here
+                    // by creating larger arrays if necessary>
+                    bool filtSizeOK = (r0.shape[0] % 16) == 0;
+                    unsigned int nFiltReal = r0.shape[0];
+                    unsigned int nFiltTmp  = 16 * ceil(nFiltReal / 16.);                            // create intermediate representation of the outputs
+                    boost::scoped_ptr<value_type> tmp_r0delta;
+                    boost::scoped_ptr<value_type> tmp_w;
+                    boost::scoped_ptr<value_type> tmp_dw;
+
+                    if(!filtSizeOK){
+                        // create intermediate copy of deltas
+                        tmp_r0delta.reset(new value_type(extents[nFiltTmp][r0.shape[1]][r0.shape[2]]));
+                        {
+                            *tmp_r0delta = 0.f;
+                            (*tmp_r0delta)[indices[index_range(0,nFiltReal)][index_range()][index_range()]] = r0.delta.cdata();
+                        }
+
+                        // create intermediate copy of weights
+                        tmp_w.reset(new value_type(extents[p1.shape[0]][p1.shape[1]][nFiltTmp]));
+                        {
+                            *tmp_w = 0.f;
+                            (*tmp_w)[indices[index_range()][index_range()][index_range(0,nFiltReal)]] = p1.value.cdata().copy();
+                        }
+
+                        // create intermediate representation of filter derivative
+                        tmp_dw.reset(new value_type(extents[p1.shape[0]][p1.shape[1]][nFiltTmp]));
+                    }
+
                     if(p1.need_derivative){
-                        // calculate this first, then we don't need activations
+                        // calculate p1 first, then we don't need activations
                         // anymore and can overwrite them. They are usually
-                        // larger, so better in this order.
+                        // larger than the weights, so it should be better in this order.
                         const value_type& delta = r0.delta.cdata();
                         const value_type& img   = p0.value.cdata();
-                        if(p1.can_overwrite_directly()){
-                            if(IsSame<value_type::memory_space_type, dev_memory_space>::Result::value)
+                        if(filtSizeOK && p1.can_overwrite_directly()){
+                            if(filtSizeOK)
                                 d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, 0, 1, m_nGroups,m_partial_sum);
+                            else
+                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, 0, 1, m_nGroups,m_partial_sum);
                         }
-                        else if(p1.can_add_directly()){
-                            if(IsSame<value_type::memory_space_type, dev_memory_space>::Result::value)
+                        else if(filtSizeOK && p1.can_add_directly()){
+                            if(filtSizeOK)
                                 d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, 0, 1, m_nGroups,m_partial_sum, 1.f,1.f);
+                            else
+                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, 0, 1, m_nGroups,m_partial_sum, 1.f,1.f);
                         }
                         else{
-                            // try overwriting filter values (which does not work, but at least we get the shape)
-                            value_ptr ptr(new value_type(p1.shape));
-                            value_type& dflt = *ptr;
-                            if(IsSame<value_type::memory_space_type, dev_memory_space>::Result::value)
+                            if(filtSizeOK){
+                                value_ptr ptr(new value_type(p1.shape));
+                                value_type& dflt = *ptr;
                                 d_conv2d_dfilt(dflt,delta,img, 0, 1, m_nGroups,m_partial_sum);
-                            p1.push(ptr);
+                                p1.push(ptr);
+                            }else{
+                                value_type& dflt = *tmp_dw;
+                                d_conv2d_dfilt(dflt,*tmp_r0delta,img, 0, 1, m_nGroups,m_partial_sum);
+                                value_ptr ptr(new value_type((*tmp_dw)[indices[index_range()][index_range()][index_range(0,nFiltReal)]].copy()));
+                                p1.push(ptr);
+                            }
                         }
                     }
                     if(p0.need_derivative){
                         // derivative w.r.t. images
                         const value_type& delta = r0.delta.cdata();
                         const value_type& flt   = p1.value.cdata();
-                        if(p0.can_overwrite_directly()){
+                        if(filtSizeOK && p0.can_overwrite_directly()){
                             d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, 0, 1, m_nGroups);
                         }
-                        else if (p0.can_add_directly()){
+                        else if (filtSizeOK && p0.can_add_directly()){
                             d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, 0, 1, m_nGroups,  1.f,1.f);
                         }
                         else{
-                            value_ptr ptr = p0.value;
-                            p0.value.reset();       // try to overwrite input activations
-                            value_type& v = ptr.data_onlyshape();
-                            d_conv2d_dimg(v, delta, flt, 0,1,m_nGroups);
-                            p0.push(ptr);
+                            if(filtSizeOK){
+                                value_ptr ptr = p0.value;
+                                p0.value.reset();       // try to overwrite input activations
+                                value_type& v = ptr.data_onlyshape();
+                                d_conv2d_dimg(v, delta, flt, 0,1,m_nGroups);
+                                p0.push(ptr);
+                            }else{
+                                value_ptr ptr = p0.value;
+                                p0.value.reset();       // try to overwrite input activations
+                                value_type& v = ptr.data_onlyshape();
+                                d_conv2d_dimg(v, *tmp_r0delta, *tmp_w, 0,1,m_nGroups);
+                                p0.push(ptr);
+                            }
                         }
                     }
                     r0.delta.reset();
@@ -133,8 +212,8 @@ namespace cuvnet
                     assert(m_params[0]->shape.size()==3);
                     assert(m_params[1]->shape.size()==3);
                     std::vector<unsigned int> dst(3);
-                    std::vector<unsigned int> img = m_params[0]->shape;
-                    std::vector<unsigned int> flt = m_params[1]->shape;
+                    const std::vector<unsigned int>& img = m_params[0]->shape;
+                    const std::vector<unsigned int>& flt = m_params[1]->shape;
                     unsigned int nFilt    = flt[2];
                     unsigned int nImgPixX = sqrt(img[1]);
                     assert(nImgPixX*nImgPixX==img[1]);
@@ -142,7 +221,7 @@ namespace cuvnet
                     assert(nFltPixX*nFltPixX==flt[1]);
                     dst[0] = nFilt;
 #define _7848SQR(X) ((X)*(X));
-                    dst[1] = _7848SQR(nImgPixX+1-nFltPixX);
+                    dst[1] = _7848SQR( nImgPixX+1-nFltPixX );
                     dst[2] = img[2];
                     m_results[0]->shape = dst;
                 }
@@ -335,7 +414,7 @@ namespace cuvnet
 
                 void _determine_shapes(){
                     assert(m_params[0]->shape.size()==3);
-                    std::vector<unsigned int> img = m_params[0]->shape;
+                    const std::vector<unsigned int>& img = m_params[0]->shape;
                     std::vector<unsigned int> dst(3);
                     dst[0] = img[1];
                     dst[1] = img[2];

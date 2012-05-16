@@ -321,23 +321,50 @@ TEST(derivative_test, derivative_test_convolve){
 	typedef boost::shared_ptr<Op> ptr_t;
 
     using namespace cuv::alex_conv;
-    unsigned int nImgChan = 1;      // must be divisible by nGroups
-    unsigned int nImgPix  = 16;
-    unsigned int nImg     = 1;
-    unsigned int nGroups  = 1;      // must be divisible by 2 ??
-
-    unsigned int nFiltChan = nImgChan/nGroups;
-    unsigned int nFiltPix  = 3;
-    unsigned int nFilt     = 16; 
-
-    //unsigned int nResPix   = nImgPix-nFiltPix+1;
+    {
+        unsigned int nImgChan = 1;      // must be divisible by nGroups
+        unsigned int nImgPix  = 16;
+        unsigned int nImg     = 1;
+        unsigned int nGroups  = 1;      // must be divisible by 2 ??
+    
+        unsigned int nFiltChan = nImgChan/nGroups;
+        unsigned int nFiltPix  = 3;
+        unsigned int nFilt     = 16; 
+    
+        //unsigned int nResPix   = nImgPix-nFiltPix+1;
+    
+        {
+            boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[nImgChan][nImgPix*nImgPix][nImg], "inputs");
+            boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[nFiltChan][nFiltPix*nFiltPix][nFilt], "weights");
+            ptr_t func                       = boost::make_shared<Convolve>(inp0->result(), inp1->result());
+    
+            derivative_tester(*func);
+        }
+    }
 
     {
-	    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[nImgChan][nImgPix*nImgPix][nImg]);
-	    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[nFiltChan][nFiltPix*nFiltPix][nFilt]);
-	    ptr_t func		           = boost::make_shared<Convolve>(inp0->result(), inp1->result());
-
-	    derivative_tester(*func);
+        // reconstruction of auto-encoder... go from many "images" to one "filter".
+        // this does not work in a straight-forward way, since alex' convs only
+        // support n*16 outputs.
+        // the version used here will use (temporarily) more memory and will be slower
+        // (than a hypothetical "optimal" version)
+        unsigned int nImgChan = 1;      // must be divisible by nGroups
+        unsigned int nImgPix  = 16;
+        unsigned int nImg     = 16;
+        unsigned int nGroups  = 1;      // must be divisible by 2 ??
+    
+        unsigned int nFiltChan = nImgChan/nGroups;
+        unsigned int nFiltPix  = 3;
+        unsigned int nFilt     = 1; 
+    
+        //unsigned int nResPix   = nImgPix-nFiltPix+1;
+        {
+            boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[nImgChan][nImgPix*nImgPix][nImg],"inputs");
+            boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[nFiltChan][nFiltPix*nFiltPix][nFilt],"weights");
+            ptr_t func                       = boost::make_shared<Convolve>(inp0->result(), inp1->result());
+    
+            derivative_tester(*func,0,true);
+        }
     }
 }
 
