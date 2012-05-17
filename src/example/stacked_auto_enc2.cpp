@@ -332,8 +332,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             noise[i]  = 0.0;
             size[i]   = 
                 //(i==0 ? 512 : 81 );
-                //512;
-                (int) (50 * 10 * log_uniform(0.1,1.0)); // [50, 500]
+                500 + (int) (uniform(0,1500)); // [150, 1500]
                 //((i==0) ? 5*30 : 15);// hidden0: 4*message plus message, hidden1: only message
             twolayer[i] = (i<n_layers-1);
         }
@@ -363,7 +362,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
                         "noise"    << noise[i]    <<
                         "size"     << size[i]     <<
                         // exactly same settings, but w/ and w/o twolayer
-                        "twolayer" << ((idx0==0) ? true : false)
+                        "twolayer" << ((idx0==0 && i < n_layers-1) ? true : false)
                         );
             }
             bob << "stack"<<stack.arr();
@@ -477,7 +476,7 @@ int main(int argc, char **argv)
         cv::crossvalidation_worker w("131.220.7.92","test.dev");
 
         boost::asio::deadline_timer dt(io, boost::posix_time::seconds(1));
-        dt.async_wait(boost::bind(generate_and_test_models_test, &dt, &io, &q));
+        dt.async_wait(boost::bind(generate_and_test_models_random, &dt, &io, &q));
         q.m_hub.clear_all();
 
         q.m_hub.reg(io,1); // checks for timeouts
