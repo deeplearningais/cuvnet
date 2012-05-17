@@ -14,12 +14,12 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
 
             private:
-                bool m_row_vec;
+                unsigned int m_axis;
             public:
                 SumMatToVec() :   Op(1,1){} // for serialization
-                SumMatToVec(result_t& mat, bool row)
+                SumMatToVec(result_t& mat, unsigned int axis)
                     :   Op(1,1)
-                      , m_row_vec(row)
+                      , m_axis(axis)
             {
                 add_param(0,mat);
             }
@@ -29,16 +29,16 @@ namespace cuvnet
                     param_t::element_type&  p0 = *m_params[0];
                     result_t::element_type& r0 = *m_results[0];
                     if(r0.can_overwrite_directly()){
-                        if(m_row_vec) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata());
+                        if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata());
                         else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata());
                     }
                     else if(r0.can_add_directly()){
-                        if(m_row_vec) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD,1.f,1.f);
+                        if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD,1.f,1.f);
                         else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD,1.f,1.f);
                     }else{
                         // reallocate *sigh*
                         value_ptr v(new value_type(r0.shape));
-                        if(m_row_vec) cuv::reduce_to_row(*v, p0.value.cdata());
+                        if(m_axis!=0) cuv::reduce_to_row(*v, p0.value.cdata());
                         else          cuv::reduce_to_col(*v, p0.value.cdata());
                         r0.push(v);
                     }
@@ -53,25 +53,23 @@ namespace cuvnet
                     assert(p0.need_derivative);
                     if(p0.can_overwrite_directly()){
                         p0.overwrite_or_add_value().data() = 0.f;
-                        if(m_row_vec) matrix_plus_row(*p0.overwrite_or_add_value(), r0.delta.cdata());
+                        if(m_axis!=0) matrix_plus_row(*p0.overwrite_or_add_value(), r0.delta.cdata());
                         else          matrix_plus_col(*p0.overwrite_or_add_value(), r0.delta.cdata());
                     }else if(p0.can_add_directly()){
-                        if(m_row_vec) matrix_plus_row(*p0.overwrite_or_add_value(), r0.delta.cdata());
+                        if(m_axis!=0) matrix_plus_row(*p0.overwrite_or_add_value(), r0.delta.cdata());
                         else          matrix_plus_col(*p0.overwrite_or_add_value(), r0.delta.cdata());
                     }else{
                         value_ptr v(new value_type(p0.shape));
                         *v = 0.f;
-                        if(m_row_vec) matrix_plus_row(*v, r0.delta.cdata());
+                        if(m_axis!=0) matrix_plus_row(*v, r0.delta.cdata());
                         else          matrix_plus_col(*v, r0.delta.cdata());
                         p0.push(v);
                     }
                 }
                 void _determine_shapes(){
-                    assert(m_params[0]->shape.size()==2);
-                    if(m_row_vec)
-                        m_results[0]->shape = std::vector<unsigned int>(1,m_params[0]->shape[1]);
-                    else
-                        m_results[0]->shape = std::vector<unsigned int>(1,m_params[0]->shape[0]);
+                    assert(m_params[0]->shape.size()>=2);
+                    assert(m_axis == 0 || m_axis == m_params[0]->shape.size()-1);
+                    m_results[0]->shape = std::vector<unsigned int>(1,m_params[0]->shape[m_axis]);
                 }
 
             private:
@@ -79,7 +77,7 @@ namespace cuvnet
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
-                        ar & m_row_vec;
+                        ar & m_axis;
                     }
     };
 }
