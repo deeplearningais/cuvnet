@@ -48,7 +48,7 @@ class auto_encoder {
                 return mean( pow( axpby(input, -1.f, decode), 2.f));
             else         // cross-entropy
             {
-                return mean( sum(neg_log_cross_entropy_of_logistic(input,decode),1));
+                return mean( neg_log_cross_entropy_of_logistic(input,decode));
             }
         }
 
