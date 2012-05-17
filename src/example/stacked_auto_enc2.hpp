@@ -202,8 +202,8 @@ class auto_encoder_1l : public auto_encoder{
             }
             else if(lambda>0.f) { // contractive AE
                 m_contractive_loss =
-                    sum(sum(pow(m_enc*(1.f-m_enc),2.f),0)
-                            * sum(pow(m_weights,2.f),0));
+                    sum(      sum_to_vec(pow(m_enc*(1.f-m_enc),2.f),1)
+                            * sum_to_vec(pow(m_weights,2.f),1));
                 m_loss        = axpby(m_rec_loss, lambda/(float)bs  , m_contractive_loss);
                 m_reg_sink    = sink("contractive loss",m_contractive_loss);
                 m_rec_sink    = sink("reconstruction loss", m_rec_loss);
@@ -407,7 +407,7 @@ class auto_encoder_2l : public auto_encoder{
                     op_ptr h1_ = h1r*(1.f-h1r);
                     op_ptr h2_ = h2r*(1.f-h2r);
 
-                    op_ptr tmp = sum( sum(pow(prod(mat_times_vec(m_weights1,h1_,1), m_weights2),2.f),0)*pow(h2_,2.f));
+                    op_ptr tmp = sum( sum_to_vec(pow(prod(mat_times_vec(m_weights1,h1_,1), m_weights2),2.f),1)*pow(h2_,2.f));
                     if(!m_contractive_loss) 
                         m_contractive_loss = tmp;
                     else
