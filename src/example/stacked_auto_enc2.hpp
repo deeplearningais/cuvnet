@@ -186,7 +186,7 @@ class auto_encoder_1l : public auto_encoder{
             if( binary && noise>0.f) corrupt =       zero_out(m_input,noise);
             if(!binary && noise>0.f) corrupt = add_rnd_normal(m_input,noise);
             if(binary) corrupt = corrupt + -0.5f; // [-.5,.5]
-            m_enc    = tanh(mat_plus_vec(
+            m_enc    = logistic(mat_plus_vec(
                         prod( corrupt, m_weights)
                         ,m_bias_h,1));
             m_decode = decode(m_enc);
@@ -386,7 +386,7 @@ class auto_encoder_2l : public auto_encoder{
             if(binary) corrupt = corrupt + -0.5f; // [-.5,.5]
 
             op_ptr h1  = tanh( mat_plus_vec( prod( corrupt, m_weights1) ,m_bias_h1a,1));
-            op_ptr h2  = tanh( mat_plus_vec( prod( h1     , m_weights2) ,m_bias_h2 ,1));
+            op_ptr h2  = logistic( mat_plus_vec( prod( h1     , m_weights2) ,m_bias_h2 ,1));
             m_enc      = h2;
             m_decode   = decode(m_enc);
             m_dec_sink = sink("decoded", m_decode);
@@ -399,6 +399,7 @@ class auto_encoder_2l : public auto_encoder{
             }
             else if(lambda>0.f) { // contractive AE
                 unsigned int num_contr = bs/8;
+                //unsigned int num_contr = 1;
                 for(unsigned int i=0;i<num_contr;i++){
                     op_ptr rs  = row_select(h1,h2); // select same (random) row in h1 and h2
                     op_ptr h1r = result(rs,0);
