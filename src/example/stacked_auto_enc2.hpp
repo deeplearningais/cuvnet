@@ -168,10 +168,10 @@ class auto_encoder_1l : public auto_encoder{
             // initialize weights and biases
             float wnorm = m_weights->data().shape(0)
                 +         m_weights->data().shape(1);
-            float diff = 4.f*std::sqrt(6.f/wnorm);
+            float diff = std::sqrt(6.f/wnorm);
             cuv::fill_rnd_uniform(m_weights->data());
-            m_weights->data() *= 2*diff;
-            m_weights->data() -=   diff;
+            m_weights->data() *= diff*2.f;
+            m_weights->data() -= diff;
             m_bias_h->data()   = 0.f;
             m_bias_y->data()   = 0.f;
         }
@@ -185,7 +185,8 @@ class auto_encoder_1l : public auto_encoder{
             Op::op_ptr corrupt               = m_input;
             if( binary && noise>0.f) corrupt =       zero_out(m_input,noise);
             if(!binary && noise>0.f) corrupt = add_rnd_normal(m_input,noise);
-            m_enc    = logistic(mat_plus_vec(
+            if(binary) corrupt = corrupt + -0.5f; // [-.5,.5]
+            m_enc    = tanh(mat_plus_vec(
                         prod( corrupt, m_weights)
                         ,m_bias_h,1));
             m_decode = decode(m_enc);
@@ -251,7 +252,7 @@ class auto_encoder_2l : public auto_encoder{
             return tmp; };
 
         op_ptr decode(op_ptr& encoded){
-            op_ptr h1b = logistic(mat_plus_vec( prod( encoded, m_weights2, 'n','t') ,m_bias_h1b,1));
+            op_ptr h1b = tanh(mat_plus_vec( prod( encoded, m_weights2, 'n','t') ,m_bias_h1b,1));
             op_ptr y   = mat_plus_vec( prod( h1b, m_weights1, 'n', 't'), m_bias_y, 1);
             return y;
         }
@@ -347,7 +348,7 @@ class auto_encoder_2l : public auto_encoder{
             {
                 float wnorm = m_weights1->data().shape(0)
                     +         m_weights1->data().shape(1);
-                float diff = 4.f*std::sqrt(6.f/wnorm);
+                float diff = std::sqrt(6.f/wnorm);
                 cuv::fill_rnd_uniform(m_weights1->data());
                 m_weights1->data() *= 2*diff;
                 m_weights1->data() -=   diff;
@@ -356,7 +357,7 @@ class auto_encoder_2l : public auto_encoder{
             {
                 float wnorm = m_weights2->data().shape(0)
                     +         m_weights2->data().shape(1);
-                float diff = 4.f*std::sqrt(6.f/wnorm);
+                float diff = std::sqrt(6.f/wnorm);
                 cuv::fill_rnd_uniform(m_weights2->data());
                 m_weights2->data() *= 2*diff;
                 m_weights2->data() -=   diff;
@@ -382,9 +383,10 @@ class auto_encoder_2l : public auto_encoder{
             Op::op_ptr corrupt               = m_input;
             if( binary && noise>0.f) corrupt =       zero_out(m_input,noise);
             if(!binary && noise>0.f) corrupt = add_rnd_normal(m_input,noise);
+            if(binary) corrupt = corrupt + -0.5f; // [-.5,.5]
 
-            op_ptr h1  = logistic( mat_plus_vec( prod( corrupt, m_weights1) ,m_bias_h1a,1));
-            op_ptr h2  = logistic( mat_plus_vec( prod( h1     , m_weights2) ,m_bias_h2 ,1));
+            op_ptr h1  = tanh( mat_plus_vec( prod( corrupt, m_weights1) ,m_bias_h1a,1));
+            op_ptr h2  = tanh( mat_plus_vec( prod( h1     , m_weights2) ,m_bias_h2 ,1));
             m_enc      = h2;
             m_decode   = decode(m_enc);
             m_dec_sink = sink("decoded", m_decode);
