@@ -210,7 +210,9 @@ namespace cuvnet
 
                     const value_type& inp = p0.value.cdata();           // original
                     
-                    if(r0.can_overwrite_directly()){
+                    if(!p0.need_derivative && r0.can_overwrite_directly()){
+                        // if we need p0.derivative, we must overwrite p0.value, since we need it for bprop
+                        // --> go to else{}
                         value_type& oav = r0.overwrite_or_add_value();
                         apply_scalar_functor( oav, inp, SF_SIGM);
                     }else{
