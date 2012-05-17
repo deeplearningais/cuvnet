@@ -31,6 +31,7 @@ namespace cuvnet
             private:
                 unsigned int m_nGroups;
                 unsigned int m_partial_sum;
+                unsigned int m_padding;
             public:
                 Convolve() :Op(2,1){} // for serialization
 
@@ -40,10 +41,11 @@ namespace cuvnet
                  * @param images nChannels x nPixels x nImages
                  * @param filters nFiltChannels x nFiltPix x nFilt
                  */
-                Convolve(result_t& images, result_t& filters)
+                Convolve(result_t& images, result_t& filters, bool padding)
                     :Op(2,1)
                     ,m_nGroups(1)
                     ,m_partial_sum(1)
+                    ,m_padding(padding)
                 {
                     add_param(0,images);
                     add_param(1,filters);
@@ -59,14 +61,14 @@ namespace cuvnet
                     bool filtSizeOK = (r0.shape[0] % 16) == 0;
 
                     if(filtSizeOK && r0.can_overwrite_directly()){
-                        convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), 0,1,m_nGroups);
+                        convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_padding,1,m_nGroups);
                     }else if(filtSizeOK && r0.can_add_directly()){
-                        convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), 0,1,m_nGroups, 1.f,1.f);
+                        convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_padding,1,m_nGroups, 1.f,1.f);
                     }else{
                         // reallocate *sigh*
                         if(filtSizeOK){
                             value_ptr v(new value_type(r0.shape));
-                            convolve2d(*v, p0.value.cdata(), p1.value.cdata(), 0,1,m_nGroups);
+                            convolve2d(*v, p0.value.cdata(), p1.value.cdata(), m_padding,1,m_nGroups);
                             r0.push(v);
                         }else{
                             // Alex' code has some serious restrictions; the one hurting me most
@@ -85,7 +87,7 @@ namespace cuvnet
                                     indices[index_range()][index_range()][index_range(0,nFiltReal)]);
                             wview = p1.value.cdata();
 
-                            convolve2d(v, p0.value.cdata(), w, 0,1,m_nGroups);
+                            convolve2d(v, p0.value.cdata(), w, m_padding,1,m_nGroups);
                             value_ptr vp(new value_type(v[indices[index_range(0,nFiltReal)][index_range()][index_range()]]));
                             r0.push(vp);
                         }
@@ -150,25 +152,25 @@ namespace cuvnet
                         const value_type& img   = p0.value.cdata();
                         if(filtSizeOK && p1.can_overwrite_directly()){
                             if(filtSizeOK)
-                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, 0, 1, m_nGroups,m_partial_sum);
+                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding, 1, m_nGroups,m_partial_sum);
                             else
-                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, 0, 1, m_nGroups,m_partial_sum);
+                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding, 1, m_nGroups,m_partial_sum);
                         }
                         else if(filtSizeOK && p1.can_add_directly()){
                             if(filtSizeOK)
-                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, 0, 1, m_nGroups,m_partial_sum, 1.f,1.f);
+                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding, 1, m_nGroups,m_partial_sum, 1.f,1.f);
                             else
-                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, 0, 1, m_nGroups,m_partial_sum, 1.f,1.f);
+                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding, 1, m_nGroups,m_partial_sum, 1.f,1.f);
                         }
                         else{
                             if(filtSizeOK){
                                 value_ptr ptr(new value_type(p1.shape));
                                 value_type& dflt = *ptr;
-                                d_conv2d_dfilt(dflt,delta,img, 0, 1, m_nGroups,m_partial_sum);
+                                d_conv2d_dfilt(dflt,delta,img, m_padding, 1, m_nGroups,m_partial_sum);
                                 p1.push(ptr);
                             }else{
                                 value_type& dflt = *tmp_dw;
-                                d_conv2d_dfilt(dflt,*tmp_r0delta,img, 0, 1, m_nGroups,m_partial_sum);
+                                d_conv2d_dfilt(dflt,*tmp_r0delta,img, m_padding, 1, m_nGroups,m_partial_sum);
                                 value_ptr ptr(new value_type((*tmp_dw)[indices[index_range()][index_range()][index_range(0,nFiltReal)]].copy()));
                                 p1.push(ptr);
                             }
@@ -179,23 +181,23 @@ namespace cuvnet
                         const value_type& delta = r0.delta.cdata();
                         const value_type& flt   = p1.value.cdata();
                         if(filtSizeOK && p0.can_overwrite_directly()){
-                            d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, 0, 1, m_nGroups);
+                            d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_padding, 1, m_nGroups);
                         }
                         else if (filtSizeOK && p0.can_add_directly()){
-                            d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, 0, 1, m_nGroups,  1.f,1.f);
+                            d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_padding, 1, m_nGroups,  1.f,1.f);
                         }
                         else{
                             if(filtSizeOK){
                                 value_ptr ptr = p0.value;
                                 p0.value.reset();       // try to overwrite input activations
                                 value_type& v = ptr.data_onlyshape();
-                                d_conv2d_dimg(v, delta, flt, 0,1,m_nGroups);
+                                d_conv2d_dimg(v, delta, flt, m_padding,1,m_nGroups);
                                 p0.push(ptr);
                             }else{
                                 value_ptr ptr = p0.value;
                                 p0.value.reset();       // try to overwrite input activations
                                 value_type& v = ptr.data_onlyshape();
-                                d_conv2d_dimg(v, *tmp_r0delta, *tmp_w, 0,1,m_nGroups);
+                                d_conv2d_dimg(v, *tmp_r0delta, *tmp_w, m_padding,1,m_nGroups);
                                 p0.push(ptr);
                             }
                         }
@@ -209,6 +211,8 @@ namespace cuvnet
                      *  img       (nImgChan, nImgPix, nImg)
                      *  filter    (nFiltChan, nFiltPix, nFilt)
                      */
+
+
                     assert(m_params[0]->shape.size()==3);
                     assert(m_params[1]->shape.size()==3);
                     std::vector<unsigned int> dst(3);
@@ -219,9 +223,17 @@ namespace cuvnet
                     assert(nImgPixX*nImgPixX==img[1]);
                     unsigned int nFltPixX = sqrt(flt[1]);
                     assert(nFltPixX*nFltPixX==flt[1]);
-                    dst[0] = nFilt;
+
+                    if(m_padding)
+                        m_padding = nFltPixX/2; // assume nFltPixX%2==1
+
 #define _7848SQR(X) ((X)*(X));
-                    dst[1] = _7848SQR( nImgPixX+1-nFltPixX );
+                    unsigned int nOutPixX = m_padding 
+                        ? nImgPixX 
+                        : _7848SQR(nImgPixX+1-nFltPixX);
+
+                    dst[0] = nFilt;
+                    dst[1] = nOutPixX;
                     dst[2] = img[2];
                     m_results[0]->shape = dst;
                 }
@@ -419,6 +431,74 @@ namespace cuvnet
                     dst[0] = img[1];
                     dst[1] = img[2];
                     dst[2] = img[0];
+                    m_results[0]->shape = dst;
+                }
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                    }
+        };
+
+    /**
+     * Does the opposite of ReorderForConv
+     */
+    class ReorderFromConv
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+            public:
+                ReorderFromConv() :Op(1,1){} // for serialization
+                ReorderFromConv(result_t& images)
+                    :Op(1,1)
+                {
+                    add_param(0,images);
+                }
+                void fprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    if(r0.can_overwrite_directly()){
+                        reorder_from_conv(*r0.overwrite_or_add_value(), p0.value.cdata());
+                    }else{
+                        value_ptr v(new value_type(r0.shape));
+                        reorder_from_conv(*v, p0.value.cdata());
+                        r0.push(v);
+                    }
+                    p0.value.reset();
+                }
+                void bprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    assert(p0.need_derivative);
+
+                    if(p0.can_overwrite_directly()){
+                        reorder_for_conv(*p0.overwrite_or_add_value(),r0.delta.cdata());
+                    }else{
+                        value_ptr v(new value_type(p0.shape));
+                        reorder_for_conv(*v,r0.delta.cdata());
+                        p0.push(v);
+                    }
+                    r0.delta.reset();
+                }
+
+                void _determine_shapes(){
+                    assert(m_params[0]->shape.size()==3);
+                    const std::vector<unsigned int>& img = m_params[0]->shape;
+                    std::vector<unsigned int> dst(3);
+                    dst[0] = img[2];
+                    dst[1] = img[0];
+                    dst[2] = img[1];
                     m_results[0]->shape = dst;
                 }
 
