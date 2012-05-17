@@ -85,8 +85,18 @@ void define_graphviz_node_visitor::preorder(Op* o){
         if(m_seen.find(p.get())==m_seen.end()){
             m_seen[p.get()] = pstr;
             std::string nd = p->need_derivative ? "green" : "white";
+
+            std::string shape;
+            if(p->shape.size()){
+                shape = " (";
+                for(unsigned int i=0;i<p->shape.size();i++){
+                    shape += boost::lexical_cast<std::string>(p->shape[i]) + ((i==p->shape.size()-1) ? " " : ", ");
+                }
+                shape += ")";
+            }
+
             os << pstr
-                << " [ style=filled, fillcolor="<<nd<<", fontsize=6, margin=\"0,0\", width=0.01, label=\"" << p->param_number << "\", shape=circle ] ;"<<std::endl;
+                << " [ style=filled, fillcolor="<<nd<<", fontsize=6, margin=\"0,0\", width=0.01, label=\"" << p->param_number << shape<< "\", shape=circle ] ;"<<std::endl;
             // connect to op
             os << "edge [style=solid,dir=none,weight=100] "<<pstr<<" -> "<<opstr<<";"<<std::endl;
 
