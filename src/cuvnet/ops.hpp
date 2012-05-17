@@ -91,17 +91,19 @@ namespace cuvnet
     inline
         Op::op_ptr sum(Op::op_ptr x)                    { return boost::make_shared<Sum>(x->result()); }
     inline
-        Op::op_ptr sum(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<SumMatToVec>(x->result(), ax==0?true:false ); }
+        Op::op_ptr sum_to_vec(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<SumMatToVec>(x->result(), ax ); }
     inline
         Op::op_ptr mean(Op::op_ptr x)                   { return boost::make_shared<Mean>(x->result()); }
     inline
-        Op::op_ptr mat_plus_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax) { return boost::make_shared<MatPlusVec>(x->result(),v->result(), ax==0?false:true); }
+        Op::op_ptr mat_plus_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax) { return boost::make_shared<MatPlusVec>(x->result(),v->result(), ax); }
     inline
-        Op::op_ptr mat_times_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax) { return boost::make_shared<MatTimesVec>(x->result(),v->result(), ax==0?false:true); }
+        Op::op_ptr mat_times_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax) { return boost::make_shared<MatTimesVec>(x->result(),v->result(), ax); }
     inline
-        Op::op_ptr convolve(Op::op_ptr img, Op::op_ptr flt) { return boost::make_shared<Convolve>(img->result(),flt->result()); }
+        Op::op_ptr convolve(Op::op_ptr img, Op::op_ptr flt, bool padding=false) { return boost::make_shared<Convolve>(img->result(),flt->result(), padding); }
     inline
         Op::op_ptr reorder_for_conv(Op::op_ptr img) { return boost::make_shared<ReorderForConv>(img->result()); }
+    inline
+        Op::op_ptr reorder_from_conv(Op::op_ptr img) { return boost::make_shared<ReorderForConv>(img->result()); }
     inline
         Op::op_ptr flatten(Op::op_ptr img, unsigned int outdim=1) { return boost::make_shared<Flatten>(img->result(),outdim); }
     inline
