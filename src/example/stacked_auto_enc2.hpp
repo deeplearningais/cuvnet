@@ -48,7 +48,7 @@ class auto_encoder {
                 return mean( pow( axpby(input, -1.f, decode), 2.f));
             else         // cross-entropy
             {
-                return mean( neg_log_cross_entropy_of_logistic(input,decode));
+                return mean( sum_to_vec(neg_log_cross_entropy_of_logistic(input,decode),1));
             }
         }
 
@@ -64,8 +64,9 @@ class auto_encoder {
             s_total_loss = acc_t();
         }
         virtual
-        void log_loss(unsigned int epoch) {
-            g_worker->log(BSON("who"<<"AE"<<"epoch"<<epoch<<"perf"<<acc::mean(s_total_loss)<<"reg"<<acc::mean(s_reg_loss)<<"rec"<<acc::mean(s_rec_loss)));
+        void log_loss(const char* what, unsigned int epoch) {
+            //std::cout << BSON("epoch"<<epoch<<"perf"<<acc::mean(s_total_loss)<<"reg"<<acc::mean(s_reg_loss)<<"rec"<<acc::mean(s_rec_loss))<<std::endl;
+            g_worker->log(BSON("who"<<"AE"<<"epoch"<<epoch<<"type"<<what<<"perf"<<acc::mean(s_total_loss)<<"reg"<<acc::mean(s_reg_loss)<<"rec"<<acc::mean(s_rec_loss)));
             g_worker->checkpoint();
         }
         float perf() {
@@ -288,8 +289,8 @@ class auto_encoder_2l : public auto_encoder{
             cuv::matrix_divide_row(w, r);
         }
         virtual
-        void log_loss(unsigned int epoch) {
-            auto_encoder::log_loss(epoch);
+        void log_loss(const char* what, unsigned int epoch) {
+            auto_encoder::log_loss(what, epoch);
         }
 
         /**
@@ -517,8 +518,8 @@ struct auto_enc_stack {
             }
             return m_combined_loss;
         }
-        void log_loss(unsigned int epoch) {
-            g_worker->log(BSON("who"<<"AES"<<"epoch"<<epoch<<"perf"<<acc::mean(s_combined_loss)));
+        void log_loss(const char* what, unsigned int epoch) {
+            g_worker->log(BSON("who"<<"AES"<<"epoch"<<epoch<<"type"<<what<<"perf"<<acc::mean(s_combined_loss)));
             g_worker->checkpoint();
         }
         void acc_loss() {

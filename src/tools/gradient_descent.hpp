@@ -134,7 +134,7 @@ namespace cuvnet
             template<class T>
             void setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails){
                 m_performance = performance;
-                before_epoch.connect(boost::bind(&gradient_descent::early_stop_test,this,every_nth_epoch, thresh, maxfails, _1));
+                before_epoch.connect(boost::bind(&gradient_descent::early_stop_test,this,every_nth_epoch, thresh, maxfails, _1), boost::signals::at_front);
             }
 
             /**
@@ -176,14 +176,20 @@ namespace cuvnet
              * \c before_batch, \c after_batch are executed as needed.
              *
              * @param n_epochs            how many epochs to run
-             * @param n_batches_per_epoch how many batches there are in one epoch
+             * @param n_max_secs          maximum duration (seconds)
              * @param update_every        after how many batches to update weights (set to 0 for `once per epoch'). Defaults to 1.
              * @param randomize           whether to randomize batches (default: true)
              */
-            void minibatch_learning(const unsigned int n_epochs, unsigned int update_every=1, bool randomize=true){
+            void minibatch_learning(const unsigned int n_epochs, unsigned long int n_max_secs=3600, unsigned int update_every=1, bool randomize=true){
                 try{
                     std::vector<unsigned int> batchids;
+                    unsigned long int t_start = time(NULL);
                     for (unsigned int epoch = 0; epoch < n_epochs; ++epoch) {
+                        // stop if time limit is exceeded
+                        if(time(NULL) - t_start > n_max_secs) {
+                            std::cout << "Minibatch Learning Timeout ("<<(time(NULL)-t_start)<<"s)" << std::endl;/* cursor */
+                            break;
+                        }
                         unsigned int n_batches =  current_batch_num();
                         if(update_every==0)
                             update_every = n_batches;
@@ -217,9 +223,13 @@ namespace cuvnet
              * are executed as needed.
              *
              * @param n_epochs            how many epochs to run
+             * @param n_max_secs          maximum duration (seconds)
              */
-            void batch_learning(const unsigned int n_epochs){
+            void batch_learning(const unsigned int n_epochs, unsigned long int n_max_secs){
+                unsigned long int t_start = time(NULL);
                 for (unsigned int epoch = 0; epoch < n_epochs; ++epoch) {
+                    if(time(NULL) - t_start > n_max_secs)
+                        break;
                     before_epoch(epoch);
                     m_swipe.fprop();
                     m_swipe.bprop();
