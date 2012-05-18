@@ -59,9 +59,9 @@ struct pretrained_mlp {
         void reset_loss() {
             m_loss_sum = m_class_err = m_class_err_cnt = m_loss_sum_cnt = 0;
         }
-        void log_loss(unsigned int epoch) {
+        void log_loss(const char* what, unsigned int epoch) {
             mongo::BSONObjBuilder bob;
-            bob<<"who"<<"mlp"<<"epoch"<<epoch;
+            bob<<"who"<<"mlp"<<"epoch"<<epoch<<"type"<<what;
             if(m_loss_sum_cnt && m_class_err_cnt){
                 bob<<"loss"<<m_loss_sum/m_loss_sum_cnt;
             }
