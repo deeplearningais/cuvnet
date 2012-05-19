@@ -178,7 +178,7 @@ class pretrained_mlp_trainer
                         m_aes->get(l).s_epochs(gd.rounds()); // remember number of iterations until optimum
                     } else {
                         std::cout << "TRAINALL phase: aes"<<l<<" avg_epochs="<<m_aes->get(l).avg_epochs()<<std::endl;
-                        gd.minibatch_learning(m_aes->get(l).avg_epochs(),m_pretraining_t); // TRAINALL phase. Use as many as in previous runs
+                        gd.minibatch_learning(m_aes->get(l).avg_epochs()); // TRAINALL phase. Use as many as in previous runs
                     }
                     param_logging("after_pretrain", params);
                 }
@@ -216,7 +216,7 @@ class pretrained_mlp_trainer
                     m_aes->s_epochs(gd.rounds()); // remember number of iterations until optimum
                 } else {
                     std::cout << "TRAINALL phase: aes unsupervised finetuning; avg_epochs="<<m_aes->avg_epochs()<<std::endl;
-                    gd.minibatch_learning(m_aes->avg_epochs(),m_unsupervised_finetune_t); // TRAINALL phase. Use as many as in previous runs
+                    gd.minibatch_learning(m_aes->avg_epochs()); // TRAINALL phase. Use as many as in previous runs
                 }
 
                 param_logging("after_unsup_finetune", params);
@@ -256,7 +256,7 @@ class pretrained_mlp_trainer
                     m_mlp->s_epochs(gd.rounds()); // remember number of iterations until optimum
                 } else {
                     std::cout << "TRAINALL phase: mlp avg_epochs="<<m_mlp->avg_epochs()<<std::endl;
-                    gd.minibatch_learning(m_mlp->avg_epochs(),m_finetune_t); // TRAINALL phase. use as many iterations as in previous runs
+                    gd.minibatch_learning(m_mlp->avg_epochs()); // TRAINALL phase. use as many iterations as in previous runs
                 }
                 param_logging("after_sup_finetune", params);
             }
@@ -319,8 +319,8 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         if(non_greedy)
             n_layers *= 2;
 
-        float mlp_lr  = log_uniform(0.01, 0.2);
-        float aes_lr0  = log_uniform(0.01, 0.2);
+        float mlp_lr  = log_uniform(0.05, 0.4);
+        float aes_lr0  = log_uniform(0.01, 0.1);
         float aes_wd0  = log_uniform(0.000001, 0.001);
 
         //float mlp_lr  = 0.1;
@@ -333,7 +333,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         std::vector<bool > twolayer(n_layers);
 
 
-        float lambda0 = log_uniform(0.0001, 1.0);
+        float lambda0 = log_uniform(0.00001, 1.5);
         //if(drand48()<0.1)
         //    lambda0 = 0.f;
 
@@ -343,7 +343,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             aes_lr[i] = aes_lr0;
             aes_wd[i] = 0.0;
             noise[i]  = 0.0;
-            size[i]   = (int) (uniform(250,768));
+            size[i]   = (int) (uniform(350,1000));
             if(i%2==1 && non_greedy)
                 size[i-1] = size[i]*2; // double size of intermediate layer
             twolayer[i] = non_greedy;
@@ -358,7 +358,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         bob << "mlp_lr"  << mlp_lr;
         bob << "mlp_wd"  << 0.0;
 
-        bob << "pretrain" << (drand48()>0.1f);
+        bob << "pretrain" << (drand48()>0.02f);
         bob << "ufinetune" << false;
         bob << "sfinetune" << true;
 
