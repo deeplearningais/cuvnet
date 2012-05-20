@@ -406,8 +406,9 @@ class auto_encoder_2l : public auto_encoder{
                     op_ptr h1r = result(rs,0);
                     op_ptr h2r = result(rs,1);
 
-                    op_ptr h1_ = h1r*(1.f-h1r);
-                    op_ptr h2_ = h2r*(1.f-h2r);
+                    //op_ptr h1_ = h1r*(1.f-h1r);
+                    op_ptr h1_ = (1.f-pow(h1r,2.f));// tanh
+                    op_ptr h2_ = h2r*(1.f-h2r); // logistic
 
                     op_ptr tmp = sum( sum_to_vec(pow(prod(mat_times_vec(m_weights1,h1_,1), m_weights2),2.f),1)*pow(h2_,2.f));
                     if(!m_contractive_loss) 
