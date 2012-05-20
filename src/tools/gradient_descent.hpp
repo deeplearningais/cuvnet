@@ -109,6 +109,14 @@ namespace cuvnet
                     m_failed_improvement_rounds++;
                 }
                 if(m_failed_improvement_rounds>maxfails){
+                    load_best_params();
+
+                    throw no_improvement_stop();
+                }
+                // save the number of rounds until minimum was attained
+                m_rounds = current_epoch - m_failed_improvement_rounds*every;
+            }
+            void load_best_params(){
                     // load the best parameters again
                     for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
                         Input* p = dynamic_cast<Input*>(*it);
@@ -119,11 +127,6 @@ namespace cuvnet
                              p->data() = m_best_perf_params[*it];
                     }
 
-                    // save the number of rounds until minimum was attained
-                    m_rounds = current_epoch - m_failed_improvement_rounds*every;
-                    throw no_improvement_stop();
-                }
-                m_rounds = current_epoch;
             }
             /**
              * set up early stopping
@@ -188,6 +191,7 @@ namespace cuvnet
                         // stop if time limit is exceeded
                         if(time(NULL) - t_start > n_max_secs) {
                             std::cout << "Minibatch Learning Timeout ("<<(time(NULL)-t_start)<<"s)" << std::endl;/* cursor */
+                            load_best_params();
                             break;
                         }
                         unsigned int n_batches =  current_batch_num();
