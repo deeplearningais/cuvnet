@@ -244,7 +244,8 @@ class pretrained_mlp_trainer
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
 
                 //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
-                gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 5, 0.00001f, 6); // fail 6 times to improve
+                int every = (m_sdl.get_current_cv_mode() == CM_TRAINALL)  ? 1 : 5;
+                gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), every, 0.00000f, 6); // fail 6 times to improve
                 gd.before_early_stopping_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
                 gd.before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
                 gd.before_early_stopping_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));
