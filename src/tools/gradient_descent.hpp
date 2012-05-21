@@ -293,10 +293,11 @@ namespace cuvnet
                     for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
                         Input* p = dynamic_cast<Input*>(*it);
                         cuvAssert(p);
-                        std::cout << "...loading best `"<<p->name()<<"'"<<std::endl;
                         std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >::iterator mit = m_best_perf_params.find(*it);
-                        if(mit != m_best_perf_params.end())
-                             p->data() = m_best_perf_params[*it];
+                        if(mit != m_best_perf_params.end()) {
+                            std::cout << "...loading best `"<<p->name()<<"'"<<std::endl;
+                            p->data() = m_best_perf_params[*it];
+                        }
                     }
 
             }
