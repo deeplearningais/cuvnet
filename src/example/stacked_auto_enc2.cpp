@@ -263,7 +263,8 @@ class pretrained_mlp_trainer
                     gd.after_early_stopping_epoch.connect(0,boost::bind(&pretrained_mlp::log_loss, m_mlp.get(),"earlystopping", _1));
                     gd.after_early_stopping_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
                 }else{
-                    gd.setup_convergence_stopping(boost::bind(&pretrained_mlp::perf, m_mlp.get()), 0.0001f);
+                    // convergence checking on class error is instable --> use real loss here!
+                    gd.setup_convergence_stopping(boost::bind(&pretrained_mlp::perf_loss, m_mlp.get()), 0.0001f);
                 }
 
 
