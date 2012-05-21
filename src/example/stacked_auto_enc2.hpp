@@ -526,7 +526,8 @@ struct auto_enc_stack {
         void acc_loss() {
             s_combined_loss((float)m_loss_sink->cdata()[0]);
 
-            if(m_aes[0]->binary()){
+            if(false && m_aes[0]->binary()){
+                // this is CLASSIFICATION error (LDPC experiments in ICANN paper)
                 matrix out(m_out_sink->cdata().shape());
                 matrix& in = boost::dynamic_pointer_cast<Input>(m_aes[0]->input_op())->data();
                 cuv::apply_binary_functor(out,m_out_sink->cdata(),in,cuv::BF_SUBTRACT);
@@ -540,8 +541,8 @@ struct auto_enc_stack {
             }
         }
         float perf() {
-            if(m_aes[0]->binary()){
-                // classification loss(!)
+            if(false && m_aes[0]->binary()){
+                // this is CLASSIFICATION error (LDPC experiments in ICANN paper)
                 return acc::mean(s_class_err);
             }
             return acc::mean(s_combined_loss);
