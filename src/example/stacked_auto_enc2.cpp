@@ -104,23 +104,23 @@ class pretrained_mlp_trainer
             // "learning" with learnrate 0 and no weight updates
             if(m_finetune){
                 std::vector<Op*> params;
-                gradient_descent gd(m_mlp->output(),0,params,0.0f,0.0f);
-                gd.before_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
-                gd.after_epoch.connect(boost::bind(&pretrained_mlp::log_loss, m_mlp.get(),"predict",_1));
+                m_mlp->reset_loss();
+                gradient_descent gd(m_mlp->loss(),0,params,0.0f,0.0f);
                 gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_supervised,this,_2));
                 gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_class_err,m_mlp.get()));
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
                 gd.minibatch_learning(1,INT_MAX,0,0); // 1 epoch, unlimited time
+                m_mlp->log_loss("predict",0);
                 return m_mlp->perf();
             }else if(m_unsupervised_finetune){
                 std::vector<Op*> params;
                 gradient_descent gd(m_aes->combined_rec_loss(),0,params, 0.0f,0.00000f);
-                gd.before_epoch.connect(boost::bind(&auto_enc_stack::reset_loss, m_aes.get()));
-                gd.after_epoch.connect(boost::bind(&auto_enc_stack::log_loss, m_aes.get(), "predict",_1));
+                m_aes->reset_loss();
                 gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_unsupervised,this,_2));
                 gd.after_batch.connect(boost::bind(&auto_enc_stack::acc_loss,m_aes.get()));
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
                 gd.minibatch_learning(1,INT_MAX,0,0); // 1 epoch, unlimited time
+                m_aes.get()->log_loss("predict",0);
                 return m_aes->perf();
             }else{
                 //cuvAssert(false);
