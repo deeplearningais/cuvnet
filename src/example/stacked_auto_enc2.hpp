@@ -170,6 +170,7 @@ class auto_encoder_1l : public auto_encoder{
             float wnorm = m_weights->data().shape(0)
                 +         m_weights->data().shape(1);
             float diff = std::sqrt(6.f/wnorm);
+            diff *= 4.f; // for logistic activation function "only"
             cuv::fill_rnd_uniform(m_weights->data());
             m_weights->data() *= diff*2.f;
             m_weights->data() -= diff;
@@ -253,7 +254,7 @@ class auto_encoder_2l : public auto_encoder{
             return tmp; };
 
         op_ptr decode(op_ptr& encoded){
-            op_ptr h1b = tanh(mat_plus_vec( prod( encoded, m_weights2, 'n','t') ,m_bias_h1b,1));
+            op_ptr h1b = logistic(mat_plus_vec( prod( encoded, m_weights2, 'n','t') ,m_bias_h1b,1));
             op_ptr y   = mat_plus_vec( prod( h1b, m_weights1, 'n', 't'), m_bias_y, 1);
             return y;
         }
@@ -350,6 +351,7 @@ class auto_encoder_2l : public auto_encoder{
                 float wnorm = m_weights1->data().shape(0)
                     +         m_weights1->data().shape(1);
                 float diff = std::sqrt(6.f/wnorm);
+                diff *= 4.f; // for logistic activation function "only"
                 cuv::fill_rnd_uniform(m_weights1->data());
                 m_weights1->data() *= 2*diff;
                 m_weights1->data() -=   diff;
@@ -359,6 +361,7 @@ class auto_encoder_2l : public auto_encoder{
                 float wnorm = m_weights2->data().shape(0)
                     +         m_weights2->data().shape(1);
                 float diff = std::sqrt(6.f/wnorm);
+                diff *= 4.f; // for logistic activation function "only"
                 cuv::fill_rnd_uniform(m_weights2->data());
                 m_weights2->data() *= 2*diff;
                 m_weights2->data() -=   diff;
@@ -386,7 +389,7 @@ class auto_encoder_2l : public auto_encoder{
             if(!binary && noise>0.f) corrupt = add_rnd_normal(m_input,noise);
             if(binary) corrupt = corrupt + -0.5f; // [-.5,.5]
 
-            op_ptr h1  = tanh( mat_plus_vec( prod( corrupt, m_weights1) ,m_bias_h1a,1));
+            op_ptr h1  = logistic( mat_plus_vec( prod( corrupt, m_weights1) ,m_bias_h1a,1));
             op_ptr h2  = logistic( mat_plus_vec( prod( h1     , m_weights2) ,m_bias_h2 ,1));
             m_enc      = h2;
             m_decode   = decode(m_enc);
@@ -406,8 +409,8 @@ class auto_encoder_2l : public auto_encoder{
                     op_ptr h1r = result(rs,0);
                     op_ptr h2r = result(rs,1);
 
-                    //op_ptr h1_ = h1r*(1.f-h1r);
-                    op_ptr h1_ = (1.f-pow(h1r,2.f));// tanh
+                    //op_ptr h1_ = (1.f-pow(h1r,2.f));// tanh
+                    op_ptr h1_ = h1r*(1.f-h1r); // logistic
                     op_ptr h2_ = h2r*(1.f-h2r); // logistic
 
                     op_ptr tmp = sum( sum_to_vec(pow(prod(mat_times_vec(m_weights1,h1_,1), m_weights2),2.f),1)*pow(h2_,2.f));
