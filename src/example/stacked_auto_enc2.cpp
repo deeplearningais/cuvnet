@@ -252,6 +252,7 @@ class pretrained_mlp_trainer
                 gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_class_err,m_mlp.get()));
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
 
+                m_sdl.set_early_stopping_frac(0.1666f);
                 if(m_sdl.can_earlystop()){
                     //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
                     int every = (m_sdl.get_current_cv_mode() == CM_TRAINALL)  ? 1 : 5;
@@ -275,6 +276,7 @@ class pretrained_mlp_trainer
                     std::cout << "TRAINALL phase: mlp avg_epochs="<<m_mlp->avg_epochs()<<std::endl;
                     gd.minibatch_learning(1000,m_finetune_t);
                 }
+                m_sdl.set_early_stopping_frac(0.f);
                 param_logging("after_sup_finetune", params);
             }
         }
