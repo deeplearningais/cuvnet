@@ -13,6 +13,7 @@ namespace cuvnet
 {
 
     class no_improvement_stop : public std::exception {};
+    class convergence_stop : public std::exception {};
     /**
      * does vanilla gradient descent: a loop over epochs and a weight update with a
      * learning rate/weight decay afterwards
@@ -30,6 +31,7 @@ namespace cuvnet
             unsigned int     m_rounds;    ///< number of rounds until optimum on early-stopping set was attained
             std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >    m_best_perf_params; ///< copies of parameters for current best performance
             swiper           m_swipe;    ///< does fprop and bprop for us
+            bool             m_convergence_checking; ///< true if convergence checks are applied
         public:
             /// triggered before an epoch starts. Should return number of batches!
             boost::signal<void(unsigned int)> before_epoch;
@@ -48,8 +50,11 @@ namespace cuvnet
             /// should return current number of batches
             boost::signal<unsigned int(void)> current_batch_num;
 
+            /// @return number of epochs we've run to obtain the minimum
             unsigned int rounds()const{ return m_rounds; }
 
+            /// repair the swiper, e.g. after using another swiper on the loss
+            /// to dump parameters to a file
             void repair_swiper(){
                 m_swipe = swiper(*m_loss, m_result, m_params);
             }
@@ -65,7 +70,7 @@ namespace cuvnet
              */
             gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.1f, float weightdecay=0.0f)
                 :m_loss(op), m_result(result), m_params(params), m_learnrate(learnrate), m_learnrate_decay(1.f), m_weightdecay(weightdecay)
-                ,m_swipe(*op,result,params)
+                ,m_swipe(*op,result,params), m_convergence_checking(false)
                 ,m_best_perf(std::numeric_limits<float>::infinity()), m_failed_improvement_rounds(0)
             { 
             }
@@ -75,64 +80,27 @@ namespace cuvnet
              */
             virtual ~gradient_descent(){}
 
-            boost::function<float(void)> m_performance;
-            float                        m_best_perf;
-            unsigned int                 m_failed_improvement_rounds;
+            /// should yield current performance
+            boost::function<float(void)> m_performance; 
+            /// smallest value of loss
+            float                        m_best_perf;   
+            /// number of consecutive times we failed to find significant improvement
+            unsigned int                 m_failed_improvement_rounds; 
 
             /// this, multiplied by thresh parameter of early_stop_test 
             /// will give minimum improvement required for (not) early stopping
             float                        m_initial_performance; 
 
-            void early_stop_test(unsigned int every, float thresh, unsigned int maxfails, unsigned int current_epoch){
-                if(current_epoch%every!=0)
-                    return;
-                unsigned int n_batches = early_stopping_epoch(current_epoch);
-                float perf = m_performance();
-                if(current_epoch == 0)
-                    m_initial_performance = perf;
+            /// last performance value (for convergence checking)
+            float                        m_last_perf;
 
-                if(perf < m_best_perf){
-                    std::cout << " * early-stopping("<<n_batches<<" batches): "<< perf<<std::endl;
-                    // save the (now best) parameters
-                    for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
-                        Input* p = dynamic_cast<Input*>(*it);
-                        cuvAssert(p);
-                        m_best_perf_params[*it] = p->data();
-                    }
-                }
-                else
-                    std::cout << " - early-stopping("<<n_batches<<" batches): "<< perf<<std::endl;
-                if(perf <= m_best_perf - m_initial_performance * thresh){ // improve by at least thresh
-                    m_best_perf = perf;
-                    m_failed_improvement_rounds = 0;
-                }else{
-                    m_failed_improvement_rounds++;
-                }
-                if(m_failed_improvement_rounds>maxfails){
-                    load_best_params();
-
-                    throw no_improvement_stop();
-                }
-                // save the number of rounds until minimum was attained
-                m_rounds = current_epoch - m_failed_improvement_rounds*every;
-            }
-            void load_best_params(){
-                    // load the best parameters again
-                    for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
-                        Input* p = dynamic_cast<Input*>(*it);
-                        cuvAssert(p);
-                        std::cout << "...loading best `"<<p->name()<<"'"<<std::endl;
-                        std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >::iterator mit = m_best_perf_params.find(*it);
-                        if(mit != m_best_perf_params.end())
-                             p->data() = m_best_perf_params[*it];
-                    }
-
-            }
             /**
              * set up early stopping
              *
              * @param performance a function which determines how good we are after an epoch
-             * @param performance
+             * @param every_nth_epoch run this check every n epochs
+             * @param thresh stop when improvement is less than this much times initial value
+             * @param maxfails stop when thresh was not achieved for maxfails checks
              */
             template<class T>
             void setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails){
@@ -141,37 +109,19 @@ namespace cuvnet
             }
 
             /**
-             * this function should update all weights using backpropagated deltas
-             */
-            virtual void update_weights(){
-                for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++){
-                    cuvAssert(&((*it)->result()->delta.cdata()));
-                    Input* inp = (Input*) *it;
-
-                    float lr = m_learnrate;
-                    //if(inp->name().find("_wh")!=std::string::npos)
-                        //lr /= 10.f;
-                    //std::cout << inp->name()<<" delta: "<< cuv::norm2(inp->result()->delta.cdata())<< std::endl;[> cursor <]
-                    //std::cout << inp->name()<<" value: "<< cuv::norm2(inp->data())<< std::endl;[> cursor <]
-                    cuv::learn_step_weight_decay( inp->data(), inp->result()->delta.cdata(), -lr, m_weightdecay);
-                }
-            }
-            /**
-             * runs an early-stopping epoch
+             * set up stopping by convergence check
              *
-             * @return number of early-stopping batches
+             * @param performance a function which determines how good we are after an epoch
+             * @param thresh stop when improvement is less than this much times initial value
              */
-            unsigned int early_stopping_epoch(unsigned int current_epoch){
-                before_early_stopping_epoch(current_epoch);
-                unsigned int n_batches = current_batch_num();
-                for (unsigned int  batch = 0; batch < n_batches; ++batch) {
-                    before_batch(current_epoch, batch);
-                    m_swipe.fprop(); // fprop /only/
-                    after_batch(current_epoch, batch);
-                }
-                after_early_stopping_epoch(current_epoch);
-                return n_batches;
+            template<class T>
+            void setup_convergence_stopping(T performance, float thresh){
+                m_performance = performance;
+                m_convergence_checking = true;
+                after_epoch.connect(boost::bind(&gradient_descent::convergence_test,this, thresh, _1), boost::signals::at_front);
             }
+
+
             /**
              * Does minibatch training.
              *
@@ -197,7 +147,7 @@ namespace cuvnet
                         unsigned int n_batches =  current_batch_num();
                         if(update_every==0)
                             update_every = n_batches;
-                        if(n_batches!=batchids.size())
+                        if(n_batches != batchids.size())
                             for(unsigned int i=0;i<n_batches;i++)
                                 batchids.push_back(i);
                         if(randomize)
@@ -207,16 +157,21 @@ namespace cuvnet
                         for (unsigned int  batch = 0; batch < n_batches; ++batch) {
                             before_batch(epoch, batchids[batch]);
                             m_swipe.fprop();
-                            m_swipe.bprop();
-                            if((batch+1)%update_every == 0)
-                                // TODO: accumulation does not work, currently delta is always overwritten!
-                                update_weights(); 
+                            if(m_learnrate && !(m_convergence_checking && epoch==0)){
+                                // this is not an evaluation pass, we're actually supposed to do work ;)
+                                m_swipe.bprop();
+                                if((batch+1)%update_every == 0)
+                                    // TODO: accumulation does not work, currently delta is always overwritten!
+                                    update_weights(); 
+                            }
                             after_batch(epoch, batchids[batch]);
                         }
                         after_epoch(epoch);
                         m_learnrate *= m_learnrate_decay;
                     }
                 }catch(no_improvement_stop){
+                    ; // done.
+                }catch(convergence_stop){
                     ; // done.
                 }
             }
@@ -248,6 +203,133 @@ namespace cuvnet
              */
             void decay_learnrate(float fact=0.98){
                 m_learnrate_decay = fact;
+            }
+            
+        private:
+            /**
+             * this function should update all weights using backpropagated deltas
+             */
+            virtual void update_weights(){
+                for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++){
+                    cuvAssert(&((*it)->result()->delta.cdata()));
+                    Input* inp = (Input*) *it;
+
+                    float lr = m_learnrate;
+                    //if(inp->name().find("_wh")!=std::string::npos)
+                        //lr /= 10.f;
+                    //std::cout << inp->name()<<" delta: "<< cuv::norm2(inp->result()->delta.cdata())<< std::endl;[> cursor <]
+                    //std::cout << inp->name()<<" value: "<< cuv::norm2(inp->data())<< std::endl;[> cursor <]
+                    cuv::learn_step_weight_decay( inp->data(), inp->result()->delta.cdata(), -lr, m_weightdecay);
+                }
+            }
+            /**
+             * run an early-stopping test
+             *
+             * this function is called in the before_epoch hook.
+             * Call @see setup_early_stopping to set it up.
+             *
+             * @param every   called every n-th epoch
+             * @param thresh  stops when performance improvements are
+             *                persistently lower than thresh times initial performance
+             * @param maxfails stop when `thresh' is not attained for this many epochs
+             * @param current_epoch number of current epoch
+             */
+            void early_stop_test(unsigned int every, float thresh, unsigned int maxfails, unsigned int current_epoch){
+                if(current_epoch%every!=0)
+                    return;
+
+                // this does the actual work, it runs fprop on all ES batches
+                unsigned int n_batches = early_stopping_epoch(current_epoch);
+
+                // determine how good we've been (usually set to some perf()
+                // function of the construct you're trying to minimize)
+                float perf = m_performance();
+
+                if(current_epoch == 0)
+                    m_initial_performance = perf;
+
+                // save params if we could improve
+                if(perf < m_best_perf){
+                    std::cout << " * early-stopping(epoch "<<current_epoch<<", "<<n_batches<<" batches): "<< perf<<std::endl;
+                    save_current_params();  // save the (now best) parameters
+                }
+                else
+                    std::cout << " - early-stopping(epoch "<<current_epoch<<", "<<n_batches<<" batches): "<< perf<<std::endl;
+
+                // stop learning if we failed to get significant improvements
+                if(perf < m_best_perf - m_initial_performance * thresh){ 
+                    // improved by more than thresh
+                    m_best_perf = perf;
+                    m_failed_improvement_rounds = 0;
+                }else{
+                    m_failed_improvement_rounds++;
+                }
+                if(m_failed_improvement_rounds>maxfails){
+                    load_best_params();
+                    throw no_improvement_stop();
+                }
+                // remember the number of rounds until minimum was attained
+                m_rounds = current_epoch - m_failed_improvement_rounds*every;
+            }
+            /**
+             * save the current parameters (on host) for retrieval
+             * e.g. if the performance becomes worse
+             */
+            void save_current_params(){
+                    for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
+                        Input* p = dynamic_cast<Input*>(*it);
+                        cuvAssert(p);
+                        m_best_perf_params[*it] = p->data();
+                    }
+            }
+            /**
+             * load the saved parameters back into the function
+             */
+            void load_best_params(){
+                    // load the best parameters again
+                    for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
+                        Input* p = dynamic_cast<Input*>(*it);
+                        cuvAssert(p);
+                        std::cout << "...loading best `"<<p->name()<<"'"<<std::endl;
+                        std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >::iterator mit = m_best_perf_params.find(*it);
+                        if(mit != m_best_perf_params.end())
+                             p->data() = m_best_perf_params[*it];
+                    }
+
+            }
+            /**
+             * test for convergence. 
+             * use @see setup_convergence_stopping to use this function.
+             */
+            void convergence_test(float thresh, unsigned int current_epoch){
+                float perf = m_performance();
+                if(current_epoch == 0){
+                    m_initial_performance = perf;
+                    m_last_perf = perf;
+                    return;
+                }
+                std::cout << "\r epoch: "<<current_epoch<<":  "<<perf<<" ("<<(m_last_perf-perf)/(thresh*m_initial_performance)<<")                  " << std::flush;
+                if(m_last_perf - perf < thresh * m_initial_performance){
+                    std::cout << std::endl << "Stopping due to convergence after "<<current_epoch<<" epochs, perf: "<< perf << std::endl;
+                    throw convergence_stop();
+                }
+                m_last_perf = perf;
+            }
+            /**
+             * runs an early-stopping epoch
+             *
+             * @return number of early-stopping batches
+             */
+            unsigned int early_stopping_epoch(unsigned int current_epoch){
+                before_early_stopping_epoch(current_epoch);
+                unsigned int n_batches = current_batch_num();
+                for (unsigned int  batch = 0; batch < n_batches; ++batch) {
+                    before_batch(current_epoch, batch);
+                    m_swipe.fprop(); // fprop /only/
+                    after_batch(current_epoch, batch);
+                }
+                after_early_stopping_epoch(current_epoch);
+                return n_batches;
             }
     };
     /**
