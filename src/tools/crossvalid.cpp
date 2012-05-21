@@ -59,6 +59,12 @@ namespace cuvnet
 			}
 			m_perf /= m_ptr->n_splits();
 
+            // test last model on TEST w/o retraining
+            m_ptr->switch_dataset(0,CM_TEST);
+            m_test_perf0 = m_ptr->predict();
+            std::cout << "Test0 error:" << m_test_perf0 << std::endl;
+
+            // retrain on TRAINALL (incl. VAL) and test on TEST
             m_ptr->switch_dataset(0,CM_TRAINALL);
             m_ptr->fit();
             m_ptr->switch_dataset(0,CM_TEST);
@@ -85,6 +91,7 @@ namespace cuvnet
 			:mdbq::Client(url,prefix){
 				g_worker = this;
 			}
+
 		void crossvalidation_worker::handle_task(const mongo::BSONObj& task){
 			namespace bar = boost::archive;
 			std::cout << "Handling task..."<<std::endl;
@@ -102,7 +109,7 @@ namespace cuvnet
 				p->constructFromBSON(task["conf"].Obj());
 				all_splits_evaluator ase(p);
 				ase();
-				this->finish(BSON("perf"<<ase.perf()<<"test_perf"<<ase.test_perf()));
+				this->finish(BSON("perf"<<ase.perf()<<"test_perf"<<ase.test_perf()<<"test_perf0"<<ase.test_perf0()));
 			}
 		}
 	}

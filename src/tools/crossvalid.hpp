@@ -67,11 +67,19 @@ namespace cuvnet
 				all_splits_evaluator(boost::shared_ptr<crossvalidatable> p);
 				void operator()();
 
+                /// @return the average CV performance
 				inline float perf()const{return m_perf;}
+
+                /// @return the test performance after training on TRAINVAL
 				inline float test_perf()const{return m_test_perf;}
+
+                /// @return the test performance of last CV model (only really
+                ///useful if only one TRAIN/VAL split is used)
+				inline float test_perf0()const{return m_test_perf0;}
 			private:
-				float m_perf;
-				float m_test_perf;
+				float m_perf;       ///< VAL performance after training on TRAIN
+                float m_test_perf0; ///< test performance of model trained only on TRAIN
+				float m_test_perf;  ///< test performance after training on TRAINVAL
 				boost::shared_ptr<crossvalidatable> m_ptr;
 		};
 
