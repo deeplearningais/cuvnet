@@ -53,6 +53,9 @@ struct pretrained_mlp {
             m_class_err     += m_out_sink->cdata().shape(0) - cuv::count(a1-a2,0);
             m_class_err_cnt += m_out_sink->cdata().shape(0);
         }
+        float perf_loss(){
+            return m_loss_sum / m_loss_sum_cnt;
+        }
         float perf() {
             return m_class_err/m_class_err_cnt;
         }
