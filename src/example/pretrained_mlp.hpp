@@ -113,12 +113,8 @@ struct pretrained_mlp {
             }
         /// initialize weights and biases
         void reset_weights() {
-            float wnorm = m_weights->data().shape(0)
-                +         m_weights->data().shape(1);
-            float diff = 4.f*std::sqrt(6.f/wnorm);
-            cuv::fill_rnd_uniform(m_weights->data());
-            m_weights->data() *= 2*diff;
-            m_weights->data() -=   diff;
+            // this is logistic regression, no symmetrie breaking required!
+            m_weights->data() =   0.f;
             m_bias->data()   = 0.f;
             m_bias->data()   = 0.f;
         }
