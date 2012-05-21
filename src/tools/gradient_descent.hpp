@@ -147,9 +147,12 @@ namespace cuvnet
                         unsigned int n_batches =  current_batch_num();
                         if(update_every==0)
                             update_every = n_batches;
-                        if(n_batches != batchids.size())
+                        if(n_batches != batchids.size()){
+                            batchids.clear();
+                            batchids.resize(n_batches);
                             for(unsigned int i=0;i<n_batches;i++)
-                                batchids.push_back(i);
+                                batchids[i] = i;
+                        }
                         if(randomize)
                             std::random_shuffle(batchids.begin(),batchids.end());
                         before_epoch(epoch); // may run early stopping
