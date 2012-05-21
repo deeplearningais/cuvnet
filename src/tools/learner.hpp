@@ -20,7 +20,7 @@ namespace cuvnet
      * - before_epoch (reset performance data)
      * - after_epoch (log performance data)
      * - reset_params
-     * - fit
+     * - fit (train model)
      * - perf (get performance data)
      */
     template<class StorageSpace>

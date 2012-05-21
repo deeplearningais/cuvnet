@@ -177,7 +177,7 @@ namespace cuvnet
     SimpleDatasetLearner<StorageSpace>::get_data_batch(unsigned int batch){
         cuv::tensor<float,StorageSpace>& data = m_current_data;
         if(!m_in_early_stopping)
-            batch += m_early_stopping_frac * data.shape(0)/m_bs;
+            batch += (m_early_stopping_frac * data.shape(0))/m_bs;
         return data[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
     }
     template<class StorageSpace>
@@ -185,7 +185,7 @@ namespace cuvnet
     SimpleDatasetLearner<StorageSpace>::get_label_batch(unsigned int batch){
         cuv::tensor<float,StorageSpace>& labl = m_current_labels;
         if(!m_in_early_stopping)
-            batch += m_early_stopping_frac * labl.shape(0)/m_bs;
+            batch += (m_early_stopping_frac * labl.shape(0))/m_bs;
         return labl[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
     }
 
