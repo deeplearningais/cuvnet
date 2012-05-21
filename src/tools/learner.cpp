@@ -98,6 +98,7 @@ namespace cuvnet
             m_early_stopping_frac = o["es_frac"].Double();
         else
             m_early_stopping_frac = 0.1f;
+        m_in_early_stopping = false;
         if(0);
         else if (ds == "mnist"){
             dataset dsall = mnist_dataset("/home/local/datasets/MNIST");
