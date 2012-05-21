@@ -56,6 +56,15 @@ namespace cuvnet
             void constructFromBSON(const mongo::BSONObj& o);
 
             /**
+             * set a new value for early stopping fraction
+             *
+             * @param new early stopping fraction
+             */
+            void set_early_stopping_frac(float es_frac){
+                m_early_stopping_frac = es_frac;
+            }
+
+            /**
              * switch to a split and a cross-validation mode
              */
             void switch_dataset(unsigned int split, cv_mode mode);
