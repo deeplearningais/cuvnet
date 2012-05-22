@@ -331,19 +331,29 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         boost::shared_ptr<crossvalidatable> p(new pretrained_mlp_trainer());
         std::cout <<"generating new sample"<<std::endl;
 
-        unsigned int n_layers = 1 + 3*drand48(); // up to 3 layers
-        //unsigned int n_layers = 2;
         bool non_greedy = drand48() > 0.5f;
+        float mlp_lr    = uniform(0.05, 0.4);
+        float aes_lr0   = uniform(0.01, 0.1);
+        float aes_wd0   = log_uniform(0.000001, 0.001);
+        float lambda0   = uniform(0.0001, 0.15);
+        int bs          = 16;  // compromise between Salah's 1 (pretraining), 20 (finetuning)
 
+        static bool first = true;
+        if(first){
+            // these are the params used by Salah (plus, bs=1 for pretraining, bs=20 for finetuning...)
+            bs         = 1;
+            non_greedy = false;
+            mlp_lr     = 0.20f;
+            aes_lr0    = 0.08f;
+            lambda0    = 0.06f;
+
+            first = false;
+        }
+
+        //unsigned int n_layers = 1 + 2*drand48(); // up to 2 layers
+        unsigned int n_layers = 1;
         if(non_greedy)
             n_layers *= 2;
-
-        float mlp_lr  = log_uniform(0.05, 0.4);
-        float aes_lr0  = log_uniform(0.01, 0.1);
-        float aes_wd0  = log_uniform(0.000001, 0.001);
-
-        //float mlp_lr  = 0.1;
-        //float aes_lr0  = 0.1;
         std::vector<float> lambda(n_layers);
         std::vector<float> aes_lr(n_layers);
         std::vector<float> aes_wd(n_layers);
@@ -352,19 +362,15 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         std::vector<bool > twolayer(n_layers);
 
 
-        float lambda0 = log_uniform(0.00001, 1.5);
-        //if(drand48()<0.1)
-        //    lambda0 = 0.f;
-
         for (unsigned int i = 0; i < n_layers; ++i)
         {
             lambda[i] = lambda0;
             aes_lr[i] = aes_lr0;
             aes_wd[i] = 0.0;
             noise[i]  = 0.0;
-            size[i]   = (int) (uniform(350,1000));
+            size[i]   = 1024; //(int) (uniform(350,1000));
             if(i%2==1 && non_greedy)
-                size[i-1] = size[i]*2; // double size of intermediate layer
+                size[i-1] = size[i] + (size[i]*drand48()); // from 0.5 to 1.5 times input size
             twolayer[i] = non_greedy;
         }
 
@@ -372,7 +378,8 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         mongo::BSONObjBuilder bob;
         bob << "uuid" << uuid;
         bob << "dataset" << "mnist_rot";
-        bob << "bs"      << 64;
+        bob << "es_frac" << 0.0; // use 2000 of 12000 for early stopping
+        bob << "bs"      << bs;  
         bob << "nsplits" << 1;
         bob << "mlp_lr"  << mlp_lr;
         bob << "mlp_wd"  << 0.0;
@@ -381,9 +388,9 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         bob << "ufinetune" << false;
         bob << "sfinetune" << true;
 
-        bob << "pretrain_t" << 20*60;  // 20 minutes
+        bob << "pretrain_t" << (non_greedy ? 40*60 : 20*60);  // 20 minutes
         bob << "ufinetune_t" << 20*60; // 20 minutes
-        bob << "sfinetune_t" << 20*60; // 20 minutes
+        bob << "sfinetune_t" << 40*60; // 1h
 
         mongo::BSONArrayBuilder stack;
         for (unsigned int i = 0; i < n_layers; ++i)
@@ -474,7 +481,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    const std::string hc_db = "test.deep_mnist_rot3";
+    const std::string hc_db = "test.deep_mnist_rot4";
     boost::asio::io_service io;
     if(std::string("hub") == argv[1]){
         cv::crossvalidation_queue q("131.220.7.92",hc_db);
