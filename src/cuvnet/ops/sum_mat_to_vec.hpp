@@ -2,6 +2,7 @@
 #     define __OP_SUM_MAT_TO_VEC_HPP__
 
 #include <cuvnet/op.hpp>
+#include <numeric>
 namespace cuvnet
 {
     class SumMatToVec
@@ -15,11 +16,13 @@ namespace cuvnet
 
             private:
                 unsigned int m_axis;
+                bool m_identity;
             public:
                 SumMatToVec() :   Op(1,1){} // for serialization
                 SumMatToVec(result_t& mat, unsigned int axis)
                     :   Op(1,1)
                       , m_axis(axis)
+                      , m_identity(false)
             {
                 add_param(0,mat);
             }
@@ -28,6 +31,10 @@ namespace cuvnet
                     using namespace cuv;
                     param_t::element_type&  p0 = *m_params[0];
                     result_t::element_type& r0 = *m_results[0];
+                    if(m_identity){
+                        r0.push(p0.value);
+                        return;
+                    }
                     if(r0.can_overwrite_directly()){
                         if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata());
                         else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata());
@@ -49,6 +56,11 @@ namespace cuvnet
                     param_t::element_type&  p0 = *m_params[0];
                     result_t::element_type& r0 = *m_results[0];
 
+                    if(m_identity){
+                        p0.push(r0.delta);
+                        return;
+                    }
+
                     // TODO: cuv: add factOld, factNew to matrix_plus_col, matrix_times_col!!
                     assert(p0.need_derivative);
                     if(p0.can_overwrite_directly()){
@@ -69,7 +81,14 @@ namespace cuvnet
                 void _determine_shapes(){
                     assert(m_params[0]->shape.size()>=2);
                     assert(m_axis == 0 || m_axis == m_params[0]->shape.size()-1);
+                    unsigned int all
+                        = std::accumulate(
+                                m_params[0]->shape.begin(),
+                                m_params[0]->shape.end(),
+                                1,std::multiplies<unsigned int>());
                     m_results[0]->shape = std::vector<unsigned int>(1,m_params[0]->shape[m_axis]);
+                    if(all / m_params[0]->shape[m_axis] == 1)
+                        m_identity = true;
                 }
 
             private:
@@ -78,6 +97,7 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_axis;
+                        ar & m_identity;
                     }
     };
 }
