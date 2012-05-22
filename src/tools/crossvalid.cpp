@@ -50,7 +50,7 @@ namespace cuvnet
 			m_test_perf  = 0.f;
 		}
 		void all_splits_evaluator::operator()(){
-			std::cout << "processing "<<m_ptr->n_splits()<<" splits"<<std::endl;
+			std::cout << "Cross-Validation of "<<m_ptr->n_splits()<<" splits"<<std::endl;
 			for (unsigned int s = 0; s < m_ptr->n_splits(); ++s)
 			{
                 std::cout << "processing split "<<s<<std::endl;
