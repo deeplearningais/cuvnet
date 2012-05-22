@@ -45,27 +45,27 @@ struct auto_encoder{
                 ,m_bias_y,1);
 
         if(!binary)  // squared loss
-            m_rec_loss = mean( pow( axpby(m_input, -1.f, m_decode), 2.f)); 
+            m_rec_loss = mean( sum_to_vec(pow( axpby(m_input, -1.f, m_decode), 2.f), 0)); 
         else         // cross-entropy
-            m_rec_loss = mean( sum(neg_log_cross_entropy_of_logistic(m_input,m_decode),1));
-        m_out         = make_shared<Sink>(m_rec_loss->result()); // reconstruction error
-        m_reconstruct = make_shared<Sink>(m_decode->result());   // for visualization of reconstructed images
-        //m_corrupt = make_shared<Sink>(corrupt->result());      // for visualization of corrupted     images
+            m_rec_loss = mean( sum_to_vec(neg_log_cross_entropy_of_logistic(m_input,m_decode),0));
+        m_out         = sink(m_rec_loss); // reconstruction error
+        m_reconstruct = sink(m_decode);   // for visualization of reconstructed images
         
         m_loss = m_rec_loss;
 
         if(lambda>0.f){ 
             // contractive AE
             m_contractive_loss = 
-                sum(sum(pow(m_enc*(1.f-m_enc),2.f),0) 
-                        * sum(pow(m_weights,2.f),0));
+                sum(sum_to_vec(pow(m_enc*(1.f-m_enc),2.f),1) 
+                        * sum_to_vec(pow(m_weights,2.f),1));
             m_loss        = axpby(m_loss, lambda/(float)inp0, m_contractive_loss);
         }
         if(gamma>0.f){
-            // penalize deviation from target average activation
+            // penalize deviation from target average activation 
+            // (sparse AE, needs large batch size)
             m_sparse_loss = mean(make_shared<BernoulliKullbackLeibler>(
                         0.01f,
-                        (sum(m_enc,0)/(float)inp0)->result())); // soft L1-norm on hidden units
+                        (sum_to_vec(m_enc,1)/(float)inp0)->result())); // soft L1-norm on hidden units
             m_loss        = axpby(m_loss, gamma, m_sparse_loss);
         }
 

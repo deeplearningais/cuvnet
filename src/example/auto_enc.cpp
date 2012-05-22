@@ -177,12 +177,7 @@ int main(int argc, char **argv)
     gd.before_batch.connect(boost::bind(load_batch,&ae,&alldata,bs,_2));
     gd.after_batch.connect(boost::bind(&auto_encoder::acc_loss, &ae));
     gd.current_batch_num.connect(ds.train_data.shape(0)/ll::constant(bs));
-    if(bs==0){
-        ae.input()= alldata;
-        alldata.dealloc();
-        gd.batch_learning(3200);
-    }
-    else      gd.minibatch_learning(6000);
+    gd.minibatch_learning(6000, 10*60); // 10 minutes maximum
     
     return 0;
 }
