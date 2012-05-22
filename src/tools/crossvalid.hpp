@@ -40,6 +40,10 @@ namespace cuvnet
 			virtual void reset_params()=0;
 			/// return the number of requested splits
 			virtual unsigned int n_splits()=0;
+
+            /// should return true if retrain for fit is required
+            /// @return true
+            virtual bool refit_for_test()const;
 	};
 
 	namespace cv{

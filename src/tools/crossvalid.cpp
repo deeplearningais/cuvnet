@@ -27,6 +27,10 @@ namespace cuvnet
 		m_io_service.run(); 
 	}
 
+    bool crossvalidatable::refit_for_test()const{
+        return true;
+    }
+
 	namespace cv{
 		one_split_evaluator::one_split_evaluator(unsigned int split, boost::shared_ptr<crossvalidatable> p){
 			m_split = split;
@@ -55,23 +59,25 @@ namespace cuvnet
 				m_ptr->switch_dataset(s,CM_VALID);
 				m_perf += m_ptr->predict();
                 std::cout << "X-val error:" << m_perf/(s+1)  << std::endl;
-                if(s!=m_ptr->n_splits()-1)
+                if(m_ptr->refit_for_test())
                     m_ptr->reset_params();
 			}
 			m_perf /= m_ptr->n_splits();
 
-            // test last model on TEST w/o retraining
-            m_ptr->switch_dataset(0,CM_TEST);
-            m_test_perf0 = m_ptr->predict();
-            std::cout << "Test0 error:" << m_test_perf0 << std::endl;
-
-            // retrain on TRAINALL (incl. VAL) and test on TEST
-            m_ptr->reset_params();
-            m_ptr->switch_dataset(0,CM_TRAINALL);
-            m_ptr->fit();
-            m_ptr->switch_dataset(0,CM_TEST);
-            m_test_perf = m_ptr->predict();
-            std::cout << "Test error:" << m_test_perf << std::endl;
+            if(m_ptr->refit_for_test()){
+                // retrain on TRAINALL (incl. VAL) and test on TEST
+                m_ptr->reset_params();
+                m_ptr->switch_dataset(0,CM_TRAINALL);
+                m_ptr->fit();
+                m_ptr->switch_dataset(0,CM_TEST);
+                m_test_perf = m_ptr->predict();
+                std::cout << "Test error:" << m_test_perf << std::endl;
+            }else{
+                // test last model on TEST w/o retraining
+                m_ptr->switch_dataset(0,CM_TEST);
+                m_test_perf0 = m_ptr->predict();
+                std::cout << "Test0 error:" << m_test_perf0 << std::endl;
+            }
 		}
 
 		void crossvalidation_queue::dispatch(boost::shared_ptr<crossvalidatable> p, const mongo::BSONObj& desc){
