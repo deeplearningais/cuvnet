@@ -27,6 +27,18 @@ namespace cuvnet
                 add_param(0,mat);
             }
 
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
+                    if(m_identity){
+                        desc.label = "reduce to vec (optimized out)";
+                        return;
+                    }
+                    if(m_axis == 0)
+                        desc.label = "reduce->col";
+                    else if(m_axis == 1)
+                        desc.label = "reduce->row";
+                    else 
+                        desc.label = "reduce->" + boost::lexical_cast<std::string>(m_axis);
+                }
                 void fprop(){
                     using namespace cuv;
                     param_t::element_type&  p0 = *m_params[0];
