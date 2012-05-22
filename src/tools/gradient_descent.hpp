@@ -14,6 +14,8 @@ namespace cuvnet
 
     class no_improvement_stop : public std::exception {};
     class convergence_stop : public std::exception {};
+    class max_iter_stop : public std::exception {};
+    class timeout_stop  : public std::exception {};
     /**
      * does vanilla gradient descent: a loop over epochs and a weight update with a
      * learning rate/weight decay afterwards
@@ -28,10 +30,12 @@ namespace cuvnet
             float            m_learnrate; ///< learnrate for weight updates
             float            m_learnrate_decay; ///< factor by which lr is multiplied after each epoch
             float            m_weightdecay; ///< weight decay for weight updates
-            unsigned int     m_rounds;    ///< number of rounds until optimum on early-stopping set was attained
+            unsigned long int  m_epoch;    ///< number of rounds until optimum on early-stopping set was attained
             std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >    m_best_perf_params; ///< copies of parameters for current best performance
+            unsigned int     m_epoch_of_saved_params; ///< stores the time of the saved params
             swiper           m_swipe;    ///< does fprop and bprop for us
             bool             m_convergence_checking; ///< true if convergence checks are applied
+            unsigned int     m_patience; ///< maximum number of epochs to run
         public:
             /// triggered before an epoch starts. Should return number of batches!
             boost::signal<void(unsigned int)> before_epoch;
@@ -51,7 +55,7 @@ namespace cuvnet
             boost::signal<unsigned int(void)> current_batch_num;
 
             /// @return number of epochs we've run to obtain the minimum
-            unsigned int rounds()const{ return m_rounds; }
+            unsigned int iters()const{ return m_epoch; }
 
             /// repair the swiper, e.g. after using another swiper on the loss
             /// to dump parameters to a file
@@ -70,8 +74,10 @@ namespace cuvnet
              */
             gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.1f, float weightdecay=0.0f)
                 :m_loss(op), m_result(result), m_params(params), m_learnrate(learnrate), m_learnrate_decay(1.f), m_weightdecay(weightdecay)
+                , m_epoch(0), m_epoch_of_saved_params(0)
                 ,m_swipe(*op,result,params), m_convergence_checking(false)
-                ,m_best_perf(std::numeric_limits<float>::infinity()), m_failed_improvement_rounds(0)
+                 , m_patience(4)
+                ,m_best_perf(std::numeric_limits<float>::infinity())
             { 
             }
 
@@ -84,8 +90,6 @@ namespace cuvnet
             boost::function<float(void)> m_performance; 
             /// smallest value of loss
             float                        m_best_perf;   
-            /// number of consecutive times we failed to find significant improvement
-            unsigned int                 m_failed_improvement_rounds; 
 
             /// this, multiplied by thresh parameter of early_stop_test 
             /// will give minimum improvement required for (not) early stopping
@@ -100,12 +104,12 @@ namespace cuvnet
              * @param performance a function which determines how good we are after an epoch
              * @param every_nth_epoch run this check every n epochs
              * @param thresh stop when improvement is less than this much times initial value
-             * @param maxfails stop when thresh was not achieved for maxfails checks
+             * @param patience_increase prolong training by this much if significant improvement found (e.g. 2 doubles training time)
              */
             template<class T>
-            void setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails){
+            void setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, float patience_increase){
                 m_performance = performance;
-                before_epoch.connect(boost::bind(&gradient_descent::early_stop_test,this,every_nth_epoch, thresh, maxfails, _1), boost::signals::at_front);
+                before_epoch.connect(boost::bind(&gradient_descent::early_stop_test,this,every_nth_epoch, thresh, patience_increase, _1), boost::signals::at_front);
             }
 
             /**
@@ -128,55 +132,68 @@ namespace cuvnet
              * The signals \c before_epoch, \c after_epoch, 
              * \c before_batch, \c after_batch are executed as needed.
              *
-             * @param n_epochs            how many epochs to run
+             * @param n_iters             how many batch presentations
              * @param n_max_secs          maximum duration (seconds)
              * @param update_every        after how many batches to update weights (set to 0 for `once per epoch'). Defaults to 1.
              * @param randomize           whether to randomize batches (default: true)
              */
-            void minibatch_learning(const unsigned int n_epochs, unsigned long int n_max_secs=3600, unsigned int update_every=1, bool randomize=true){
+            void minibatch_learning(const unsigned int n_iters, unsigned long int n_max_secs=3600, unsigned int update_every=1, bool randomize=true){
+                unsigned int n_batches = current_batch_num();
+                if(update_every==0)
+                    update_every = n_batches;
+                std::vector<unsigned int> batchids;
+                {   // prepare batch id vector
+                    batchids.resize(n_batches);
+                    for(unsigned int i=0;i<n_batches;i++)
+                        batchids[i] = i;
+                }
+                unsigned long int iter = 0;
                 try{
-                    std::vector<unsigned int> batchids;
                     unsigned long int t_start = time(NULL);
-                    for (unsigned int epoch = 0; epoch < n_epochs; ++epoch) {
+                    for (m_epoch = 0; ; ++m_epoch) {
                         // stop if time limit is exceeded
                         if(time(NULL) - t_start > n_max_secs) {
                             std::cout << "Minibatch Learning Timeout ("<<(time(NULL)-t_start)<<"s)" << std::endl;/* cursor */
-                            load_best_params();
-                            break;
-                        }
-                        unsigned int n_batches =  current_batch_num();
-                        if(update_every==0)
-                            update_every = n_batches;
-                        if(n_batches != batchids.size()){
-                            batchids.clear();
-                            batchids.resize(n_batches);
-                            for(unsigned int i=0;i<n_batches;i++)
-                                batchids[i] = i;
+                            throw timeout_stop();
                         }
                         if(randomize)
                             std::random_shuffle(batchids.begin(),batchids.end());
-                        before_epoch(epoch); // may run early stopping
+
+                        before_epoch(m_epoch); // may run early stopping
 
                         for (unsigned int  batch = 0; batch < n_batches; ++batch) {
-                            before_batch(epoch, batchids[batch]);
-                            m_swipe.fprop();
-                            if(m_learnrate && !(m_convergence_checking && epoch==0)){
+
+                            if(iter++ >= n_iters)
+                                throw max_iter_stop();
+
+                            before_batch(m_epoch, batchids[batch]); // should load data into inputs
+
+                            m_swipe.fprop();  // forward pass
+
+                            if(m_learnrate && !(m_convergence_checking && m_epoch==0)){
                                 // this is not an evaluation pass, we're actually supposed to do work ;)
-                                m_swipe.bprop();
-                                if((batch+1)%update_every == 0)
+                                
+                                m_swipe.bprop(); // backward pass
+
+                                if((iter+1)%update_every == 0)
                                     // TODO: accumulation does not work, currently delta is always overwritten!
                                     update_weights(); 
                             }
-                            after_batch(epoch, batchids[batch]);
+
+                            after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
                         }
-                        after_epoch(epoch);
+                        after_epoch(m_epoch); // should log error etc
+
                         m_learnrate *= m_learnrate_decay;
                     }
+                }catch(timeout_stop){
                 }catch(no_improvement_stop){
-                    ; // done.
                 }catch(convergence_stop){
-                    ; // done.
+                }catch(max_iter_stop){
                 }
+
+                load_best_params();    // may also restore m_epoch
+                m_epoch *= n_batches; // number of batch presentations
             }
             /**
              * Does batch training.
@@ -232,12 +249,11 @@ namespace cuvnet
              * Call @see setup_early_stopping to set it up.
              *
              * @param every   called every n-th epoch
-             * @param thresh  stops when performance improvements are
-             *                persistently lower than thresh times initial performance
-             * @param maxfails stop when `thresh' is not attained for this many epochs
+             * @param thresh  determines "significant" performance improvements, i.e. 0.995
+             * @param patience_increase prolong training by this much if significant improvement found (e.g. 2 doubles training time)
              * @param current_epoch number of current epoch
              */
-            void early_stop_test(unsigned int every, float thresh, unsigned int maxfails, unsigned int current_epoch){
+            void early_stop_test(unsigned int every, float thresh, float patience_increase, unsigned int current_epoch){
                 if(current_epoch%every!=0)
                     return;
 
@@ -253,26 +269,26 @@ namespace cuvnet
 
                 // save params if we could improve
                 if(perf < m_best_perf){
-                    std::cout << " * early-stopping(epoch "<<current_epoch<<", "<<n_batches<<" batches): "<< perf<<std::endl;
+                    std::cout << " * early-stopping(epoch "<<current_epoch<<" < "<<m_patience<<", "<<n_batches<<" batches): "<< perf<<std::endl;
                     save_current_params();  // save the (now best) parameters
                 }
                 else
-                    std::cout << " - early-stopping(epoch "<<current_epoch<<", "<<n_batches<<" batches): "<< perf<<std::endl;
+                    std::cout << " - early-stopping(epoch "<<current_epoch<<" < "<<m_patience<<", "<<n_batches<<" batches): "<< perf<<std::endl;
 
-                // stop learning if we failed to get significant improvements
-                if(perf < m_best_perf - m_initial_performance * thresh){ 
-                    // improved by more than thresh
+                if(perf < m_best_perf) {
+                    // we got a new top score
+                    if(perf < thresh * m_best_perf){ 
+                        // improved by more than thresh
+                        m_patience = std::max((float)m_patience, (float)current_epoch * patience_increase);
+                    }
                     m_best_perf = perf;
-                    m_failed_improvement_rounds = 0;
-                }else{
-                    m_failed_improvement_rounds++;
                 }
-                if(m_failed_improvement_rounds>maxfails){
+
+                if(m_patience <= current_epoch){
+                    // stop learning if we failed to get significant improvements
                     load_best_params();
                     throw no_improvement_stop();
                 }
-                // remember the number of rounds until minimum was attained
-                m_rounds = current_epoch - m_failed_improvement_rounds*every;
             }
             /**
              * save the current parameters (on host) for retrieval
@@ -284,12 +300,14 @@ namespace cuvnet
                         cuvAssert(p);
                         m_best_perf_params[*it] = p->data();
                     }
+                    m_epoch_of_saved_params = m_epoch;
             }
             /**
              * load the saved parameters back into the function
              */
             void load_best_params(){
                     // load the best parameters again
+                    bool did_load_something = false;
                     for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
                         Input* p = dynamic_cast<Input*>(*it);
                         cuvAssert(p);
@@ -297,9 +315,11 @@ namespace cuvnet
                         if(mit != m_best_perf_params.end()) {
                             std::cout << "...loading best `"<<p->name()<<"'"<<std::endl;
                             p->data() = m_best_perf_params[*it];
+                            did_load_something = true;
                         }
                     }
-
+                    if(did_load_something)
+                        m_epoch = m_epoch_of_saved_params;
             }
             /**
              * test for convergence. 

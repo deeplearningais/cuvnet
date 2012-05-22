@@ -28,12 +28,12 @@ struct pretrained_mlp {
         float m_loss_sum, m_class_err;
         unsigned int m_loss_sum_cnt, m_class_err_cnt;
     public:
-        acc_t    s_epochs;
+        acc_t    s_iters; // iterations this was trained for
 
-        unsigned int    avg_epochs()  { 
-            if(acc::count(s_epochs)==0)
+        unsigned int    avg_iters()  { 
+            if(acc::count(s_iters)==0)
                 return 0;
-            return acc::mean(s_epochs); 
+            return acc::mean(s_iters); 
         }
         input_ptr      weights()  { return m_weights; }
         input_ptr      bias   ()  { return m_bias; }

@@ -31,7 +31,7 @@ class auto_encoder {
         bool m_binary; ///< if true, use logistic loss
 
     public:
-        acc_t s_epochs;   ///< how many epochs this was trained for
+        acc_t s_iters;   ///< how many epochs this was trained for
         virtual std::vector<Op*>   supervised_params()=0;
         virtual std::vector<Op*> unsupervised_params()=0;
         virtual matrix& input()=0;
@@ -53,10 +53,10 @@ class auto_encoder {
         }
 
         virtual void acc_loss()=0;
-        unsigned int    avg_epochs()  { 
-            if(acc::count(s_epochs)==0) 
+        unsigned int    avg_iters()  { 
+            if(acc::count(s_iters)==0) 
                 return 0;
-            return acc::mean(s_epochs); 
+            return acc::mean(s_iters); 
         }
         void reset_loss() {
             s_rec_loss = acc_t();
@@ -65,7 +65,7 @@ class auto_encoder {
         }
         virtual
         void log_loss(const char* what, unsigned int epoch) {
-            //std::cout << BSON("epoch"<<epoch<<"perf"<<acc::mean(s_total_loss)<<"reg"<<acc::mean(s_reg_loss)<<"rec"<<acc::mean(s_rec_loss))<<std::endl;
+            std::cout << "\r"<<BSON("epoch"<<epoch<<"perf"<<acc::mean(s_total_loss)<<"reg"<<acc::mean(s_reg_loss)<<"rec"<<acc::mean(s_rec_loss))<<std::flush;
             g_worker->log(BSON("who"<<"AE"<<"epoch"<<epoch<<"type"<<what<<"perf"<<acc::mean(s_total_loss)<<"reg"<<acc::mean(s_reg_loss)<<"rec"<<acc::mean(s_rec_loss)));
             g_worker->checkpoint();
         }
@@ -445,7 +445,7 @@ struct auto_enc_stack {
         acc_t  s_combined_loss; ///< statistics for combined loss
         acc_t  s_class_err; ///< classification error
     public:
-        acc_t  s_epochs;
+        acc_t  s_iters;
         /**
          * construct an auto-encoder stack
          *
@@ -523,6 +523,7 @@ struct auto_enc_stack {
             return m_combined_loss;
         }
         void log_loss(const char* what, unsigned int epoch) {
+            std::cout << "\r"<<BSON("epoch"<<epoch<<"perf"<<acc::mean(s_combined_loss))<<std::flush;
             g_worker->log(BSON("who"<<"AES"<<"epoch"<<epoch<<"type"<<what<<"perf"<<acc::mean(s_combined_loss)));
             g_worker->checkpoint();
         }
@@ -554,9 +555,9 @@ struct auto_enc_stack {
             s_combined_loss = acc_t();
             s_class_err     = acc_t();
         }
-        unsigned int    avg_epochs()  { 
-            if(acc::count(s_epochs)==0) 
+        unsigned int    avg_iters()  { 
+            if(acc::count(s_iters)==0) 
                 return 0;
-            return acc::mean(s_epochs); 
+            return acc::mean(s_iters); 
         }
 };
