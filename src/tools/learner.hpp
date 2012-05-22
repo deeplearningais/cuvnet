@@ -101,6 +101,9 @@ namespace cuvnet
 
             /// @returns whether early stopping can be used
             bool can_earlystop()const;
+
+			/// set the batchsize
+			inline void set_batchsize(unsigned int bs){m_bs=bs;}
     };
 
 }

@@ -63,6 +63,7 @@ class auto_encoder {
             s_reg_loss = acc_t();
             s_total_loss = acc_t();
         }
+        virtual void set_batchsize(unsigned int bs)=0;
         virtual
         void log_loss(const char* what, unsigned int epoch) {
             std::cout << "\r"<<BSON("epoch"<<epoch<<"perf"<<acc::mean(s_total_loss)<<"reg"<<acc::mean(s_reg_loss)<<"rec"<<acc::mean(s_rec_loss))<<std::flush;
@@ -107,6 +108,11 @@ class auto_encoder_1l : public auto_encoder{
             std::vector<Op*> tmp; tmp += m_weights.get(), m_bias_h.get(), m_bias_y.get(); 
             return tmp; 
         };
+        void set_batchsize(unsigned int bs){
+            Input* inp = dynamic_cast<Input*>(m_input.get());
+            cuvAssert(inp);
+            inp->data().resize(cuv::extents[bs][inp->data().shape(1)]);
+        }
 
         matrix&       input() {
             return boost::dynamic_pointer_cast<Input>(m_input)->data();
@@ -259,6 +265,11 @@ class auto_encoder_2l : public auto_encoder{
             return y;
         }
 
+        void set_batchsize(unsigned int bs){
+            Input* inp = dynamic_cast<Input*>(m_input.get());
+            cuvAssert(inp);
+            inp->data().resize(cuv::extents[bs][inp->data().shape(1)]);
+        }
         matrix&       input() {
             return boost::dynamic_pointer_cast<Input>(m_input)->data();
         }
@@ -481,6 +492,12 @@ struct auto_enc_stack {
                     i+=1;
                 }
             }
+        }
+        /**
+         * change the batch size
+         */
+        void set_batchsize(unsigned int bs){
+            m_aes.front()->set_batchsize(bs);
         }
         /**
          * get a specific auto encoder

@@ -41,6 +41,8 @@ class pretrained_mlp_trainer
         float              m_mlp_lr; ///< learning rates of stacked MLP
         bool               m_pretraining; ///< whether pretraining is requested
         bool               m_finetune; ///< whether finetuning is requested
+        int                m_bs; ///< batch size during pretraining
+        int                m_finetune_bs; ///< batch size during finetuning
         bool               m_unsupervised_finetune; ///< whether finetuning is requested
         unsigned int m_pretraining_t; ///< max time for pretraining (secs)
         unsigned int m_finetune_t; ///< max time for finetuning (secs)
@@ -52,6 +54,11 @@ class pretrained_mlp_trainer
             void serialize(Archive& ar, const unsigned int version) {
                 ar & boost::serialization::base_object<crossvalidatable>(*this);
             }
+        void set_batchsize(unsigned int bs){
+            std::cout << "changing bs:" << bs << std::endl;
+            m_sdl.set_batchsize(bs); // mainly changes n_batches()
+            m_aes->set_batchsize(bs);
+        }
     public:
         void constructFromBSON(const mongo::BSONObj& o)
         {
@@ -90,6 +97,9 @@ class pretrained_mlp_trainer
             m_pretraining = o["pretrain"].Bool();
             m_finetune    = o["sfinetune"].Bool();
             m_unsupervised_finetune    = o["ufinetune"].Bool();
+
+            m_bs          = o["bs"].Int();
+            m_finetune_bs = o["finetune_bs"].Int();
 
             m_pretraining_t            = o.hasField("pretrain_t") ? o["pretrain_t"].Int() : 20*60;
             m_finetune_t               = o.hasField("sfinetune_t") ? o["sfinetune_t"].Int() : 20*60;
@@ -159,6 +169,7 @@ class pretrained_mlp_trainer
             if(m_pretraining) {
                 for(unsigned int l=0; l<m_aes->size(); l++) {
                     std::cout <<".pretraining layer "<<l<<std::endl;
+                    this->set_batchsize(m_bs);
                     g_worker->log(BSON("who"<<"trainer"<<"topic"<<"layer_change"<<"layer"<<l));
                     std::vector<Op*> params = m_aes->get(l).unsupervised_params();
 
@@ -196,6 +207,7 @@ class pretrained_mlp_trainer
             ////////////////////////////////////////////////////////////
             if(m_unsupervised_finetune){
                 std::cout <<".unsupervised finetuning"<<std::endl;
+                this->set_batchsize(m_finetune_bs);
                 std::vector<Op*> params;
                 for(unsigned int l=0; l<m_aes->size(); l++) // derive w.r.t. /all/ parameters except output bias of AEs
                 {
@@ -238,7 +250,9 @@ class pretrained_mlp_trainer
             ////////////////////////////////////////////////////////////
             if(m_finetune){
                 std::cout <<".supervised finetuning"<<std::endl;
+                this->set_batchsize(m_finetune_bs);
                 std::vector<Op*> params;
+
                 for(unsigned int l=0; l<m_aes->size(); l++) // derive w.r.t. /all/ parameters except output bias of AEs
                 {
                     std::vector<Op*> tmp = m_aes->get(l).supervised_params();
@@ -336,12 +350,14 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         float aes_lr0   = uniform(0.01, 0.1);
         float aes_wd0   = log_uniform(0.000001, 0.001);
         float lambda0   = uniform(0.0001, 0.15);
-        int bs          = 16;  // compromise between Salah's 1 (pretraining), 20 (finetuning)
+        int bs          = (int)uniform(1,32);  // compromise between Salah's 1 (pretraining), 20 (finetuning)
+        int finetune_bs = (int)uniform(1,32);
 
         static bool first = true;
         if(first){
-            // these are the params used by Salah (plus, bs=1 for pretraining, bs=20 for finetuning...)
-            bs         = 1;
+            // these are the params used by Salah 
+            bs          = 1;
+            finetune_bs = 20;
             non_greedy = false;
             mlp_lr     = 0.20f;
             aes_lr0    = 0.08f;
@@ -380,6 +396,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         bob << "dataset" << "mnist_rot";
         bob << "es_frac" << 0.0; // use 2000 of 12000 for early stopping
         bob << "bs"      << bs;  
+        bob << "finetune_bs"      << finetune_bs;  
         bob << "nsplits" << 1;
         bob << "mlp_lr"  << mlp_lr;
         bob << "mlp_wd"  << 0.0;
