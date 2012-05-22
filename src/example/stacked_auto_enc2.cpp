@@ -144,6 +144,10 @@ class pretrained_mlp_trainer
             //bob.appendBinData("data", cpy.size()*sizeof(float), mongo::BinDataGeneral, (const char*)cpy.ptr());
             g_worker->log((char*)cpy.ptr(), cpy.size()*sizeof(float), bob.obj());
         }
+        /// @overload
+        bool refit_for_test()const{
+            return m_sdl.n_splits()>1;
+        }
         /**
          * train the given auto_encoder stack and the mlp
          */
@@ -164,7 +168,7 @@ class pretrained_mlp_trainer
                     gd.after_batch.connect(boost::bind(&auto_encoder::acc_loss,&m_aes->get(l)));
                     gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
 
-                    if(m_sdl.can_earlystop()){
+                    if(false && m_sdl.can_earlystop()){
                         //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
                         gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.001f, 3);
                         gd.before_early_stopping_epoch.connect(boost::bind(&auto_encoder::reset_loss, &m_aes->get(l)));
@@ -173,16 +177,16 @@ class pretrained_mlp_trainer
                         gd.after_early_stopping_epoch.connect(0, boost::bind(&auto_encoder::log_loss, &m_aes->get(l), "earlystopping", _1));
                         gd.after_early_stopping_epoch.connect(1, boost::bind(&sdl_t::after_early_stopping_epoch, &m_sdl));
                         gd.after_early_stopping_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
-                    }else{
+                    }else if(false){
                         gd.setup_convergence_stopping(boost::bind(&auto_encoder::perf, &m_aes->get(l)), 0.0001f);
                     }
 
                     if(m_sdl.get_current_cv_mode() != CM_TRAINALL) {
-                        gd.minibatch_learning(1000, m_pretraining_t);
+                        gd.minibatch_learning(100, m_pretraining_t);
                         m_aes->get(l).s_epochs(gd.rounds()); // remember number of iterations until optimum
                     } else {
                         std::cout << "TRAINALL phase: aes"<<l<<" avg_epochs="<<m_aes->get(l).avg_epochs()<<std::endl;
-                        gd.minibatch_learning(1000, m_pretraining_t); // TRAINALL phase. Use as many as in previous runs
+                        gd.minibatch_learning(100, m_pretraining_t); // TRAINALL phase. Use as many as in previous runs
                     }
                     param_logging("after_pretrain", params);
                 }
@@ -255,7 +259,7 @@ class pretrained_mlp_trainer
                 m_sdl.set_early_stopping_frac(0.1666f);
                 if(m_sdl.can_earlystop()){
                     //setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, unsigned int maxfails)
-                    int every = (m_sdl.get_current_cv_mode() == CM_TRAINALL)  ? 1 : 5;
+                    int every = 2;
                     gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), every, 0.00000f, 6); // fail 6 times to improve
                     gd.before_early_stopping_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
                     gd.before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
