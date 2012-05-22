@@ -508,8 +508,10 @@ int main(int argc, char **argv)
     }
     if(std::string("test") == argv[1]){
         cuvAssert(argc==3);
-        cuv::initCUDA(boost::lexical_cast<int>(argv[2]));
-        cuv::initialize_mersenne_twister_seeds(time(NULL));
+        if(cuv::IsSame<matrix::memory_space_type,cuv::dev_memory_space>::Result::value){
+            cuv::initCUDA(boost::lexical_cast<int>(argv[2]));
+            cuv::initialize_mersenne_twister_seeds(time(NULL));
+        }
 
         cv::crossvalidation_queue q("131.220.7.92","test.dev");
         cv::crossvalidation_worker w("131.220.7.92","test.dev");
