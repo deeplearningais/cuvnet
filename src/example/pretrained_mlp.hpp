@@ -46,12 +46,15 @@ struct pretrained_mlp {
             m_loss_sum_cnt++;
         }
         void acc_class_err() {
-            cuv::tensor<int,Op::value_type::memory_space_type> a1 ( m_out_sink->cdata().shape(0) );
-            cuv::tensor<int,Op::value_type::memory_space_type> a2 ( m_targets->data().shape(0) );
+            int batch_size = m_out_sink->cdata().shape(0);
+            cuv::tensor<int,Op::value_type::memory_space_type> a1 ( batch_size );
+            cuv::tensor<int,Op::value_type::memory_space_type> a2 ( batch_size );
             cuv::reduce_to_col(a1, m_out_sink->cdata(),cuv::RF_ARGMAX);
             cuv::reduce_to_col(a2, m_targets->data(),cuv::RF_ARGMAX);
-            m_class_err     += m_out_sink->cdata().shape(0) - cuv::count(a1-a2,0);
-            m_class_err_cnt += m_out_sink->cdata().shape(0);
+            int n_correct    = cuv::count(a1-a2,0);
+            cuvAssert(n_correct <= batch_size);
+            m_class_err     += batch_size - n_correct;
+            m_class_err_cnt += batch_size;
         }
         float perf_loss(){
             return m_loss_sum / m_loss_sum_cnt;
