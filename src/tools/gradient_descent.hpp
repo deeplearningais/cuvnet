@@ -267,16 +267,14 @@ namespace cuvnet
                 if(current_epoch == 0)
                     m_initial_performance = perf;
 
-                // save params if we could improve
-                if(perf < m_best_perf){
+                if(perf < m_best_perf)
                     std::cout << " * early-stopping(epoch "<<current_epoch<<" < "<<m_patience<<", "<<n_batches<<" batches): "<< perf<<std::endl;
-                    save_current_params();  // save the (now best) parameters
-                }
                 else
                     std::cout << " - early-stopping(epoch "<<current_epoch<<" < "<<m_patience<<", "<<n_batches<<" batches): "<< perf<<std::endl;
 
                 if(perf < m_best_perf) {
-                    // we got a new top score
+                    // save the (now best) parameters
+                    save_current_params();  
                     if(perf < thresh * m_best_perf){ 
                         // improved by more than thresh
                         m_patience = std::max((float)m_patience, (float)current_epoch * patience_increase);
