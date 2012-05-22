@@ -402,7 +402,7 @@ class auto_encoder_2l : public auto_encoder{
                 m_reg_sink         = sink("weight decay loss", m_contractive_loss);
             }
             else if(lambda>0.f) { // contractive AE
-                unsigned int num_contr = bs/16;
+                unsigned int num_contr = std::max(1u,bs/16);
                 //unsigned int num_contr = 1;
                 for(unsigned int i=0;i<num_contr;i++){
                     op_ptr rs  = row_select(h1,h2); // select same (random) row in h1 and h2
