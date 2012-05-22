@@ -45,6 +45,7 @@ namespace cuvnet
                     result_t::element_type& r0 = *m_results[0];
                     if(m_identity){
                         r0.push(p0.value);
+                        p0.value.reset();
                         return;
                     }
                     if(r0.can_overwrite_directly()){
@@ -70,6 +71,7 @@ namespace cuvnet
 
                     if(m_identity){
                         p0.push(r0.delta);
+                        r0.delta.reset();
                         return;
                     }
 
