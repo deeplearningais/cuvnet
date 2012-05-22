@@ -45,10 +45,10 @@ class auto_encoder {
 
         op_ptr reconstruction_loss(op_ptr& input, op_ptr& decode){
             if(!m_binary)  // squared loss
-                return mean( pow( axpby(input, -1.f, decode), 2.f));
+                return mean( sum_to_vec(pow(axpby(input, -1.f, decode), 2.f), 0) );
             else         // cross-entropy
             {
-                return mean( sum_to_vec(neg_log_cross_entropy_of_logistic(input,decode),1));
+                return mean( sum_to_vec(neg_log_cross_entropy_of_logistic(input,decode),0));
             }
         }
 

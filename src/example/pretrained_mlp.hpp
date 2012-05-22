@@ -104,7 +104,7 @@ struct pretrained_mlp {
                 if(softmax) // multinomial logistic regression
                     m_loss = mean(multinomial_logistic_loss(m_output, m_targets,1));
                 else        // mean squared error
-                    m_loss = mean(pow(axpby(-1.f,m_targets,m_output),2.f));
+                    m_loss = mean(sum_to_vec(pow(axpby(-1.f,m_targets,m_output),2.f),0));
                 if(wd>0.f)
                     m_loss = axpby(m_loss,wd,mean(pow(m_weights,2.f)));
                 m_loss_sink = sink("MLP loss",m_loss);
