@@ -57,10 +57,8 @@ namespace cuvnet
             case CM_TRAIN:
                 data    = ds.train_data;
                 labels  = ds.train_labels;
-                // do not use validation set for early stopping,
-                // results in underestimating generalization error!
-                //vdata   = ds.val_data;      // for early stopping!
-                //vlabels = ds.val_labels;    // for early stopping!
+                vdata   = ds.val_data;      // for early stopping!
+                vlabels = ds.val_labels;    // for early stopping!
                 break;
             case CM_VALID:
                 data   = ds.val_data;
@@ -176,18 +174,26 @@ namespace cuvnet
     template<class StorageSpace>
     cuv::tensor<float, StorageSpace> 
     SimpleDatasetLearner<StorageSpace>::get_data_batch(unsigned int batch){
-        cuv::tensor<float,StorageSpace>& data = m_current_data;
-        if(!m_in_early_stopping)
-            batch += (m_early_stopping_frac * data.shape(0))/m_bs;
+        cuv::tensor<float,StorageSpace>& data = m_in_early_stopping ? m_current_vdata : m_current_data;
         return data[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
+        /*
+         *cuv::tensor<float,StorageSpace>& data = m_current_data;
+         *if(!m_in_early_stopping)
+         *    batch += (m_early_stopping_frac * data.shape(0))/m_bs;
+         *return data[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
+         */
     }
     template<class StorageSpace>
     cuv::tensor<float, StorageSpace> 
     SimpleDatasetLearner<StorageSpace>::get_label_batch(unsigned int batch){
-        cuv::tensor<float,StorageSpace>& labl = m_current_labels;
-        if(!m_in_early_stopping)
-            batch += (m_early_stopping_frac * labl.shape(0))/m_bs;
+        cuv::tensor<float,StorageSpace>& labl = m_in_early_stopping ? m_current_vlabels : m_current_labels;
         return labl[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
+        /*
+         *cuv::tensor<float,StorageSpace>& labl = m_current_labels;
+         *if(!m_in_early_stopping)
+         *    batch += (m_early_stopping_frac * labl.shape(0))/m_bs;
+         *return labl[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
+         */
     }
 
     template<class StorageSpace>
@@ -205,19 +211,29 @@ namespace cuvnet
     template<class StorageSpace>
     unsigned int
     SimpleDatasetLearner<StorageSpace>::n_batches()const{ 
-        return  m_in_early_stopping 
-            ?  (     m_early_stopping_frac  * m_current_data.shape(0)) / m_bs
-            :  ((1.f-m_early_stopping_frac) * m_current_data.shape(0)) / m_bs;
+        if(m_in_early_stopping){
+            return m_current_vdata.shape(0)/m_bs;
+        }else{
+            return m_current_data.shape(0)/m_bs;
+        }
+        /*
+         *return  m_in_early_stopping 
+         *    ?  (     m_early_stopping_frac  * m_current_data.shape(0)) / m_bs
+         *    :  ((1.f-m_early_stopping_frac) * m_current_data.shape(0)) / m_bs;
+         */
     }
 
     template<class StorageSpace>
     bool 
     SimpleDatasetLearner<StorageSpace>::can_earlystop()const{ 
-        float f = m_early_stopping_frac * m_current_data.shape(0);
-
-        return f >= m_bs  // enough data for a earlystopping eval
-            &&   // and enough data for regular learning
-            (m_current_data.shape(0) - f) >= m_bs;
+        return m_current_vdata.ptr();
+/*
+ *        float f = m_early_stopping_frac * m_current_data.shape(0);
+ *
+ *        return f >= m_bs  // enough data for a earlystopping eval
+ *            &&   // and enough data for regular learning
+ *            (m_current_data.shape(0) - f) >= m_bs;
+ */
     }
 
     template class SimpleDatasetLearner<cuv::dev_memory_space>;
