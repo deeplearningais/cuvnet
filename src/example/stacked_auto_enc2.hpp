@@ -187,7 +187,7 @@ class auto_encoder_1l : public auto_encoder{
             Op::op_ptr corrupt               = m_input;
             if( binary && noise>0.f) corrupt =       zero_out(m_input,noise);
             if(!binary && noise>0.f) corrupt = add_rnd_normal(m_input,noise);
-            if(binary) corrupt = corrupt + -0.5f; // [-.5,.5]
+            //if(binary) corrupt = corrupt + -0.5f; // [-.5,.5]
             m_enc    = logistic(mat_plus_vec(
                         prod( corrupt, m_weights)
                         ,m_bias_h,1));
@@ -387,7 +387,7 @@ class auto_encoder_2l : public auto_encoder{
             Op::op_ptr corrupt               = m_input;
             if( binary && noise>0.f) corrupt =       zero_out(m_input,noise);
             if(!binary && noise>0.f) corrupt = add_rnd_normal(m_input,noise);
-            if(binary) corrupt = corrupt + -0.5f; // [-.5,.5]
+            //if(binary) corrupt = corrupt + -0.5f; // [-.5,.5]
 
             op_ptr h1  = logistic( mat_plus_vec( prod( corrupt, m_weights1) ,m_bias_h1a,1));
             op_ptr h2  = logistic( mat_plus_vec( prod( h1     , m_weights2) ,m_bias_h2 ,1));
