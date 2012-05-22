@@ -31,6 +31,8 @@ namespace cuvnet
                 typedef Op::value_ptr     value_ptr;
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
+            private:
+                bool m_identity;
 
             public:
                 Sum(){} /// for serialization
@@ -38,11 +40,17 @@ namespace cuvnet
                     add_param(0,p0);
                     m_results[0]->delta           = value_ptr(new value_type(cuv::extents[1]));
                     m_results[0]->delta.data()[0] = 1.f;
+                    m_identity = false;
                 }
                 void fprop(){
                     using namespace cuv;
                     param_t::element_type&  p0 = *m_params[0];
                     result_t::element_type& r0 = *m_results[0];
+                    if(m_identity) {
+                        r0.push(p0.value);
+                        p0.value.reset();
+                        return;
+                    }
 
 //#ifndef CUVNET_PRECISE_SUM
 #if 1
@@ -67,6 +75,11 @@ namespace cuvnet
                     using namespace cuv;
                     param_t::element_type&  p0 = *m_params[0];
                     result_t::element_type& r0 = *m_results[0];
+                    if(m_identity){
+                        p0.push(r0.delta);
+                        r0.delta.reset();
+                        return;
+                    }
 
                     if(p0.can_overwrite_directly()){
                         value_ptr& v = p0.overwrite_or_add_value();
@@ -88,12 +101,18 @@ namespace cuvnet
                 void _determine_shapes(){
                     m_results[0]->shape.resize(1);
                     m_results[0]->shape[0] = 1;
+
+                    std::vector<unsigned int>& v = m_params[0]->shape;
+                    unsigned int s = std::accumulate(v.begin(),v.end(),1,std::multiplies<unsigned int>());
+                    if(s==1)
+                        m_identity = true;
                 }
             private:
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_identity;
                     }
         };
 
@@ -110,6 +129,7 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
             private:
                 float m_div;
+                bool  m_identity;
 
             public:
                 Mean(){} /// for serialization
@@ -117,11 +137,17 @@ namespace cuvnet
                     add_param(0,p0);
                     m_results[0]->delta           = value_ptr(new value_type(cuv::extents[1]));
                     m_results[0]->delta.data()[0] = 1.f;
+                    m_identity = false;
                 }
                 void fprop(){
                     using namespace cuv;
                     param_t::element_type&  p0 = *m_params[0];
                     result_t::element_type& r0 = *m_results[0];
+                    if(m_identity) {
+                        r0.push(p0.value);
+                        p0.value.reset();
+                        return;
+                    }
 
                     float mean = cuv::mean(p0.value.cdata());
                     if(r0.can_overwrite_directly()){
@@ -141,6 +167,11 @@ namespace cuvnet
                     using namespace cuv;
                     param_t::element_type&  p0 = *m_params[0];
                     result_t::element_type& r0 = *m_results[0];
+                    if(m_identity){
+                        p0.push(r0.delta);
+                        r0.delta.reset();
+                        return;
+                    }
 
                     if(p0.can_overwrite_directly()){
                         value_ptr& v = p0.overwrite_or_add_value();
@@ -163,13 +194,18 @@ namespace cuvnet
                     m_results[0]->shape.resize(1);
                     m_results[0]->shape[0] = 1;
                     std::vector<unsigned int>& v = m_params[0]->shape;
-                    m_div = 1.f / std::accumulate(v.begin(),v.end(),1,std::multiplies<unsigned int>());
+                    unsigned int s = std::accumulate(v.begin(),v.end(),1,std::multiplies<unsigned int>());
+                    m_div = 1.f / s;
+                    
+                    if(s==1)
+                        m_identity = true;
                 }
             private:
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_identity;
                     }
         };
 
