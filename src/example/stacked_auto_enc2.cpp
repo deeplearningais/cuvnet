@@ -105,7 +105,7 @@ class pretrained_mlp_trainer
             if(m_finetune){
                 std::vector<Op*> params;
                 m_mlp->reset_loss();
-                gradient_descent gd(m_mlp->loss(),0,params,0.0f,0.0f);
+                gradient_descent gd(m_mlp->output(),0,params,0.0f,0.0f);
                 gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_supervised,this,_2));
                 gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_class_err,m_mlp.get()));
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
