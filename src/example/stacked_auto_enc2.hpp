@@ -433,7 +433,7 @@ class auto_encoder_2l : public auto_encoder{
                 }
                 //op_ptr J      = mat_times_vec(prod(mat_times_vec(m_weights1,h2_,1), m_weights2),h1_,0);
                 //m_contractive_loss = sum( pow(J, 2.f) );
-                m_loss        = axpby(m_rec_loss, lambda/num_contr, m_contractive_loss);
+                m_loss        = axpby(m_rec_loss, bs * lambda / num_contr, m_contractive_loss);
                 m_reg_sink    = sink("contractive loss", m_contractive_loss);
             } else{
                 m_loss        = m_rec_loss; // no change
