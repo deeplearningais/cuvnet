@@ -335,6 +335,12 @@ double uniform(double vmin, double vmax){
     r += vmin;
     return r;
 }
+template<class T>
+T choose(const std::vector<T>& t){
+    unsigned int l = t.size();
+    double r = drand48() * l;
+    return t[r];
+}
 
 void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asio::io_service* io, cv::crossvalidation_queue* q) {
     size_t n_open     = q->m_hub.get_n_open();
