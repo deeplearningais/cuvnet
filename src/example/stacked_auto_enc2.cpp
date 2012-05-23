@@ -353,15 +353,15 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
 
         bool non_greedy = drand48() > 0.5f;
         float mlp_lr    = uniform(0.05, 0.4);
-        float aes_lr0   = uniform(0.01, 0.1);
-        float aes_wd0   = log_uniform(0.000001, 0.001);
+        float aes_lr0   = uniform(0.01, 0.15);
+        //float aes_wd0   = log_uniform(0.000001, 0.001);
         float lambda0   = uniform(0.0001, 0.15);
-        int bs          = (int)uniform(1,32);  // compromise between Salah's 1 (pretraining), 20 (finetuning)
-        int finetune_bs = (int)uniform(1,32);
+        int bs          = choose<int>(list_of(1)(4)(8)(16)(32));  // compromise between Salah's 1 (pretraining), 20 (finetuning)
+        int finetune_bs = choose<int>(list_of(1)(4)(8)(16)(32));
 
         static bool first = true;
         if(first){
-            // these are the params used by Salah 
+            // these are the params used by Salah  on MNIST (standard)
             bs          = 1;
             finetune_bs = 20;
             non_greedy = false;
@@ -407,13 +407,17 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         bob << "mlp_lr"  << mlp_lr;
         bob << "mlp_wd"  << 0.0;
 
+        // mark that in this code version, 2L-contractive lambdas are multiplied by bs
+        // to make the value range comparable to 1L-contractive lambdas
+        // this is used in the visualization script
+        bob << "dont-rewrite-l" << true; 
+
         bob << "pretrain" << (drand48()>0.02f);
         bob << "ufinetune" << false;
         bob << "sfinetune" << true;
 
-        bob << "pretrain_t" << (non_greedy ? 40*60 : 20*60);  // 20 minutes
-        bob << "ufinetune_t" << 20*60; // 20 minutes
-        bob << "sfinetune_t" << 40*60; // 1h
+        bob << "pretrain_t" <<  40*60; // seconds
+        bob << "sfinetune_t" << 40*60; // seconds
 
         mongo::BSONArrayBuilder stack;
         for (unsigned int i = 0; i < n_layers; ++i)
