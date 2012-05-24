@@ -11,7 +11,7 @@
 #include <boost/numeric/bindings/traits/ublas_vector.hpp> 
 
 #include "orthonormalization.hpp"
-#include <magma.h>
+//#include <magma.h>
 
 // shorthands
 typedef float real;
@@ -156,12 +156,12 @@ void orthonormalize_gramschmidt(cuv::tensor<float, cuv::dev_memory_space>& m, bo
 
 
 // m is row-major matrix here, but sgeqrf needs column-major
-    magma_int_t info;
-    cuv::tensor<float,cuv::host_memory_space> tau(std::min(m.shape(0),m.shape(1)));
-    int NB = magma_get_sgeqrf_nb(m.shape(1));
-    cuv::tensor<float,cuv::dev_memory_space> work(tau.shape(0)*2 + (m.shape(0)+31)/32*32*NB);
-    magma_sgeqrf_gpu(m.shape(1), m.shape(0), m.ptr(), m.shape(1), tau.ptr(),work.ptr(), &info);
-    cuvAssert(info==0);
+    //magma_int_t info;
+    //cuv::tensor<float,cuv::host_memory_space> tau(std::min(m.shape(0),m.shape(1)));
+    //int NB = magma_get_sgeqrf_nb(m.shape(1));
+    //cuv::tensor<float,cuv::dev_memory_space> work(tau.shape(0)*2 + (m.shape(0)+31)/32*32*NB);
+    //magma_sgeqrf_gpu(m.shape(1), m.shape(0), m.ptr(), m.shape(1), tau.ptr(),work.ptr(), &info);
+    //cuvAssert(info==0);
 
 /*
  *magma_int_t magma_sorgqr_gpu    (   
@@ -176,9 +176,9 @@ void orthonormalize_gramschmidt(cuv::tensor<float, cuv::dev_memory_space>& m, bo
  *        magma_int_t *   info 
  *    )       
  */
-    magma_sorgqr_gpu(m.shape(1),m.shape(0),m.shape(0), m.ptr(), m.shape(1), tau.ptr(), work.ptr(),NB,&info);
-    cuvAssert(info==0);
+    //magma_sorgqr_gpu(m.shape(1),m.shape(0),m.shape(0), m.ptr(), m.shape(1), tau.ptr(), work.ptr(),NB,&info);
+    //cuvAssert(info==0);
 
-    if(columns)
-        m = trans___o16n(m);
+    //if(columns)
+        //m = trans___o16n(m);
 }
