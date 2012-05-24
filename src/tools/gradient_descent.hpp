@@ -132,12 +132,12 @@ namespace cuvnet
              * The signals \c before_epoch, \c after_epoch, 
              * \c before_batch, \c after_batch are executed as needed.
              *
-             * @param n_iters             how many batch presentations
+             * @param n_max_epochs        maximum number of epochs
              * @param n_max_secs          maximum duration (seconds)
              * @param update_every        after how many batches to update weights (set to 0 for `once per epoch'). Defaults to 1.
              * @param randomize           whether to randomize batches (default: true)
              */
-            void minibatch_learning(const unsigned int n_iters, unsigned long int n_max_secs=3600, unsigned int update_every=1, bool randomize=true){
+            void minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs=3600, unsigned int update_every=1, bool randomize=true){
                 unsigned int n_batches = current_batch_num();
                 if(update_every==0)
                     update_every = n_batches;
@@ -151,6 +151,11 @@ namespace cuvnet
                 try{
                     unsigned long int t_start = time(NULL);
                     for (m_epoch = 0; ; ++m_epoch) {
+
+                        // stop if epoch limit is exceeded
+                        if(m_epoch >= n_max_epochs)
+                            throw max_iter_stop();
+
                         // stop if time limit is exceeded
                         if(time(NULL) - t_start > n_max_secs) {
                             std::cout << "Minibatch Learning Timeout ("<<(time(NULL)-t_start)<<"s)" << std::endl;/* cursor */
@@ -162,9 +167,6 @@ namespace cuvnet
                         before_epoch(m_epoch); // may run early stopping
 
                         for (unsigned int  batch = 0; batch < n_batches; ++batch) {
-
-                            if(iter++ >= n_iters)
-                                throw max_iter_stop();
 
                             before_batch(m_epoch, batchids[batch]); // should load data into inputs
 
@@ -193,7 +195,7 @@ namespace cuvnet
                 }
 
                 load_best_params();    // may also restore m_epoch
-                m_epoch *= n_batches; // number of batch presentations
+                //m_epoch *= n_batches; // number of batch presentations
             }
             /**
              * Does batch training.
