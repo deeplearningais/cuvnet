@@ -3,7 +3,7 @@
 sub start_client{
     my $cmd = shift;
     my $gpu = shift;
-    return 0 == system(qq{tmux new-window 'while [ 1 -eq 1 ] ; do ./src/examples/$cmd client $gpu ; sleep 10 ; done '});
+    return 0 == system(qq{tmux new-window 'while [ 1 -eq 1 ] ; do ./src/example/$cmd client $gpu ; sleep 10 ; done '});
 }
 
 sub git_pull{
