@@ -60,6 +60,8 @@ struct pretrained_mlp {
             return m_loss_sum / m_loss_sum_cnt;
         }
         float perf() {
+            cuvAssert(m_class_err_cnt > 0);
+            cuvAssert(m_class_err >= 0);
             return m_class_err/m_class_err_cnt;
         }
         void reset_loss() {
