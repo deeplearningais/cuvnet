@@ -41,6 +41,9 @@ namespace cuvnet
 			/// return the number of requested splits
 			virtual unsigned int n_splits()=0;
 
+			/// return minimum on VAL before retraining for TEST is performed
+			virtual float refit_thresh()const;
+
             /// should return true if retrain for fit is required
             /// @return true
             virtual bool refit_for_test()const;

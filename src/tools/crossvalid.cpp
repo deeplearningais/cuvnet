@@ -30,6 +30,9 @@ namespace cuvnet
     bool crossvalidatable::refit_for_test()const{
         return true;
     }
+    float crossvalidatable::refit_thresh()const{
+        return INT_MAX;
+    }
 
 	namespace cv{
 		one_split_evaluator::one_split_evaluator(unsigned int split, boost::shared_ptr<crossvalidatable> p){
@@ -65,10 +68,12 @@ namespace cuvnet
 			m_perf /= m_ptr->n_splits();
 
             if(m_ptr->refit_for_test()){
-                // retrain on TRAINALL (incl. VAL) and test on TEST
-                m_ptr->reset_params();
-                m_ptr->switch_dataset(0,CM_TRAINALL);
-                m_ptr->fit();
+                if(m_perf < m_ptr->refit_thresh()){ // save time!
+                    // retrain on TRAINALL (incl. VAL) and test on TEST
+                    m_ptr->reset_params();
+                    m_ptr->switch_dataset(0,CM_TRAINALL);
+                    m_ptr->fit();
+                }
                 m_ptr->switch_dataset(0,CM_TEST);
                 m_test_perf = m_ptr->predict();
                 std::cout << "Test error:" << m_test_perf << std::endl;

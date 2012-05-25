@@ -44,6 +44,7 @@ class pretrained_mlp_trainer
         int                m_bs; ///< batch size during pretraining
         int                m_finetune_bs; ///< batch size during finetuning
         bool               m_unsupervised_finetune; ///< whether finetuning is requested
+        float              m_refit_thresh; ///< only refit for TEST when VAL perf below this
         unsigned int m_pretraining_t; ///< max time for pretraining (secs)
         unsigned int m_finetune_t; ///< max time for finetuning (secs)
         unsigned int m_unsupervised_finetune_t; ///< max time for unsup-finetuning (secs)
@@ -97,6 +98,11 @@ class pretrained_mlp_trainer
             m_pretraining = o["pretrain"].Bool();
             m_finetune    = o["sfinetune"].Bool();
             m_unsupervised_finetune    = o["ufinetune"].Bool();
+            if(o.hasField("refit_thresh")){
+                m_refit_thresh = o["refit_thresh"].Double();
+            }else{
+                m_refit_thresh = 0.12;
+            }
 
             m_bs          = o["bs"].Int();
             m_finetune_bs = o["finetune_bs"].Int();
@@ -158,6 +164,10 @@ class pretrained_mlp_trainer
         bool refit_for_test()const{
             //return m_sdl.n_splits()>1;
             return true;
+        }
+        /// @overload
+        float refit_thresh()const{
+            return m_refit_thresh;
         }
         /**
          * train the given auto_encoder stack and the mlp
