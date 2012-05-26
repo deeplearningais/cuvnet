@@ -62,8 +62,8 @@ namespace cuvnet
 				m_ptr->switch_dataset(s,CM_VALID);
 				m_perf += m_ptr->predict();
                 std::cout << "X-val error:" << m_perf/(s+1)  << std::endl;
-                if(m_ptr->refit_for_test())
-                    m_ptr->reset_params();
+                if(s < m_ptr->n_splits()-1)
+                    m_ptr->reset_params(); // otherwise taken care of below
 			}
 			m_perf /= m_ptr->n_splits();
 

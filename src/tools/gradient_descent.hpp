@@ -152,9 +152,6 @@ namespace cuvnet
                     unsigned long int t_start = time(NULL);
                     for (m_epoch = 0; ; ++m_epoch) {
 
-                        // stop if epoch limit is exceeded
-                        if(m_epoch >= n_max_epochs)
-                            throw max_iter_stop();
 
                         // stop if time limit is exceeded
                         if(time(NULL) - t_start > n_max_secs) {
@@ -167,6 +164,9 @@ namespace cuvnet
                         before_epoch(m_epoch); // may run early stopping
 
                         for (unsigned int  batch = 0; batch < n_batches; ++batch) {
+                            // stop if epoch limit is exceeded
+                            if(iter++ >= n_max_epochs)
+                                throw max_iter_stop();
 
                             before_batch(m_epoch, batchids[batch]); // should load data into inputs
 

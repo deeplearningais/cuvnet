@@ -125,7 +125,7 @@ class pretrained_mlp_trainer
                 gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_supervised,this,_2));
                 gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_class_err,m_mlp.get()));
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
-                gd.minibatch_learning(1,INT_MAX,0,0); // 1 epoch, unlimited time
+                gd.minibatch_learning(1 * m_sdl.n_batches(),INT_MAX,0,0); // 1 epoch, unlimited time
                 m_mlp->log_loss("predict",0);
                 return m_mlp->perf();
             }else if(m_unsupervised_finetune){
@@ -135,7 +135,7 @@ class pretrained_mlp_trainer
                 gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_unsupervised,this,_2));
                 gd.after_batch.connect(boost::bind(&auto_enc_stack::acc_loss,m_aes.get()));
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
-                gd.minibatch_learning(1,INT_MAX,0,0); // 1 epoch, unlimited time
+                gd.minibatch_learning(1 * m_sdl.n_batches(),INT_MAX,0,0); // 1 epoch, unlimited time
                 m_aes.get()->log_loss("predict",0);
                 return m_aes->perf();
             }else{
@@ -203,7 +203,7 @@ class pretrained_mlp_trainer
                     }
 
                     if(m_sdl.get_current_cv_mode() != CM_TRAINALL) {
-                        gd.minibatch_learning(100, m_pretraining_t);
+                        gd.minibatch_learning(100 * m_sdl.n_batches(), m_pretraining_t);
                         m_aes->get(l).s_iters(gd.iters()); // remember number of iterations until optimum
                     } else {
                         std::cout << "TRAINALL phase: aes"<<l<<" avg_iters="<<m_aes->get(l).avg_iters()<<std::endl;
@@ -294,7 +294,7 @@ class pretrained_mlp_trainer
 
 
                 if(m_sdl.get_current_cv_mode() != CM_TRAINALL) {
-                    gd.minibatch_learning(1000,m_finetune_t);
+                    gd.minibatch_learning(1000 * m_sdl.n_batches(),m_finetune_t);
                     m_mlp->s_iters(gd.iters()); // remember number of iterations until optimum
                 } else {
                     std::cout << "TRAINALL phase: mlp avg_iters="<<m_mlp->avg_iters()<<std::endl;
@@ -361,7 +361,8 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         boost::shared_ptr<crossvalidatable> p(new pretrained_mlp_trainer());
         std::cout <<"generating new sample"<<std::endl;
 
-        bool non_greedy = drand48() > 0.5f;
+        //bool non_greedy = drand48() > 0.5f;
+        bool non_greedy = true;
         float mlp_lr    = uniform(0.05, 0.4);
         float aes_lr0   = uniform(0.01, 0.15);
         //float aes_wd0   = log_uniform(0.000001, 0.001);
@@ -383,7 +384,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         }
 
         //unsigned int n_layers = 1 + 2*drand48(); // up to 2 layers
-        unsigned int n_layers = 1;
+        unsigned int n_layers = 2;
         if(non_greedy)
             n_layers *= 2;
         std::vector<float> lambda(n_layers);
@@ -402,7 +403,8 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
             noise[i]  = 0.0;
             size[i]   = 1024; //(int) (uniform(350,1000));
             if(i%2==1 && non_greedy)
-                size[i-1] = size[i] + (size[i]*drand48()); // from 0.5 to 1.5 times input size
+                //size[i-1] = size[i] + (size[i]*drand48()); // from 0.5 to 1.5 times input size
+                size[i-1] = size[i] + (size[i]*0.5); // from 0.5 to 1.5 times input size
             twolayer[i] = non_greedy;
         }
 
@@ -416,17 +418,13 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         bob << "nsplits" << 1;
         bob << "mlp_lr"  << mlp_lr;
         bob << "mlp_wd"  << 0.0;
-
-        // mark that in this code version, 2L-contractive lambdas are multiplied by bs
-        // to make the value range comparable to 1L-contractive lambdas
-        // this is used in the visualization script
-        bob << "dont-rewrite-l" << true; 
+        bob << "refit_thresh"  << 0.12; // only retrain if less than this on val
 
         bob << "pretrain" << (drand48()>0.02f);
         bob << "ufinetune" << false;
         bob << "sfinetune" << true;
 
-        bob << "pretrain_t" <<  40*60; // seconds
+        bob << "pretrain_t" <<  60*60; // seconds
         bob << "sfinetune_t" << 40*60; // seconds
 
         mongo::BSONArrayBuilder stack;
@@ -518,7 +516,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    const std::string hc_db = "test.deep_mnist_rot4";
+    const std::string hc_db = "test.deep_mnist_rot5";
     boost::asio::io_service io;
     if(std::string("hub") == argv[1]){
         cv::crossvalidation_queue q("131.220.7.92",hc_db);
@@ -526,8 +524,12 @@ int main(int argc, char **argv)
         std::string s;
         std::cin >> s;
         if(s=="yes"){
-            std::cout << "clearing....." << std::endl;
-            q.m_hub.clear_all();
+            std::cout << "Really ?????? `"<<hc_db<<"'? --> type `yes'" << std::endl;
+            std::cin >> s;
+            if(s == "yes") {
+                std::cout << "clearing....." << std::endl;
+                q.m_hub.clear_all();
+            }
         }
         boost::asio::deadline_timer dt(io, boost::posix_time::seconds(1));
         dt.async_wait(boost::bind(generate_and_test_models_random, &dt, &io, &q));
