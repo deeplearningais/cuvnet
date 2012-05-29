@@ -58,7 +58,8 @@ class pretrained_mlp_trainer
         void set_batchsize(unsigned int bs){
             std::cout << "changing bs:" << bs << std::endl;
             m_sdl.set_batchsize(bs); // mainly changes n_batches()
-            m_aes->set_batchsize(bs);
+            m_aes->set_batchsize(bs); // change size of inputs
+            m_mlp->set_batchsize(bs); // change size of inputs
         }
     public:
         void constructFromBSON(const mongo::BSONObj& o)

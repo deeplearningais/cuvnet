@@ -45,6 +45,14 @@ struct pretrained_mlp {
             m_loss_sum += m_loss_sink->cdata()[0];
             m_loss_sum_cnt++;
         }
+        void set_batchsize(unsigned int bs){
+            // do not change input size: it is typically not an Input instance.
+            {
+                Input* inp = dynamic_cast<Input*>(m_targets.get());
+                cuvAssert(inp);
+                inp->data().resize(cuv::extents[bs][inp->data().shape(1)]);
+            }
+        }
         void acc_class_err() {
             int batch_size = m_out_sink->cdata().shape(0);
             cuv::tensor<int,Op::value_type::memory_space_type> a1 ( batch_size );
