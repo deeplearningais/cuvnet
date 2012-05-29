@@ -36,7 +36,7 @@ namespace cuvnet
             swiper           m_swipe;    ///< does fprop and bprop for us
             bool             m_convergence_checking; ///< true if convergence checks are applied
             unsigned int     m_patience; ///< maximum number of epochs to run
-            unsigned int     m_convcheck_fails; ///< counts number of times convcheck failed
+            unsigned int     m_convcheck_patience; ///< max num of epochs to run
         public:
             /// triggered before an epoch starts. Should return number of batches!
             boost::signal<void(unsigned int)> before_epoch;
@@ -337,18 +337,16 @@ namespace cuvnet
                 if(current_epoch == 0){
                     m_initial_performance = perf;
                     m_last_perf = perf;
-                    m_convcheck_fails = 0;
+                    m_convcheck_patience = maxfail;
                     return;
                 }
                 if(perf < thresh * m_last_perf){
                     m_last_perf = perf;
-                    m_convcheck_fails = 0;
-                }else{
-                    m_convcheck_fails ++;
+                    m_convcheck_patience = max(m_convcheck_patience, 2*current_epoch);
                 }
 
                 std::cout << "\r epoch: "<<current_epoch<<":  "<<perf<<" (delta:"<<(perf - m_last_perf)<<")                  " << std::flush;
-                if(m_convcheck_fails >= maxfail){
+                if(current_epoch >= m_convcheck_patience){
                     std::cout << std::endl << "Stopping due to convergence after "<<current_epoch<<" epochs, perf: "<< perf << std::endl;
                     throw convergence_stop();
                 }
