@@ -342,7 +342,7 @@ namespace cuvnet
                 }
                 if(perf < thresh * m_last_perf){
                     m_last_perf = perf;
-                    m_convcheck_patience = max(m_convcheck_patience, 2*current_epoch);
+                    m_convcheck_patience = std::max(m_convcheck_patience, 2*current_epoch);
                 }
 
                 std::cout << "\r epoch: "<<current_epoch<<":  "<<perf<<" (delta:"<<(perf - m_last_perf)<<")                  " << std::flush;
