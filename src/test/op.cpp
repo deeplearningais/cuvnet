@@ -61,6 +61,17 @@ TEST(op_test,fprop_and_bprop){
     EXPECT_EQ(pow->result()->shape[0],10);
     EXPECT_EQ(pow->result()->shape[1],20);
 
+    // manually tell which results we need
+    inp->result(0)->need_result = true;
+    pow->need_result(true);
+    pow->result(0)->need_result = true;
+    
+    // manually tell which derivatives we need
+    inp->need_derivative(true);
+    pow->need_derivative(true);
+    pow->param()->need_derivative = true;
+
+
     inp->fprop();
     pow->fprop();
     out->fprop();

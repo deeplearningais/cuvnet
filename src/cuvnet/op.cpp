@@ -5,7 +5,10 @@ using namespace cuvnet;
 
 Op::Op(){}
 
-Op::Op(unsigned int n_params, unsigned int n_results){
+Op::Op(unsigned int n_params, unsigned int n_results)
+    :m_need_derivative(false)
+    ,m_need_result(false)
+{
     set_n_params(n_params);
     set_n_results(n_results);
 }
@@ -64,21 +67,32 @@ Op::add_param(unsigned int idx, result_t& p){
 }
 bool 
 Op::set_calculate_derivative(const std::vector<Op*>&l){
-	if(l.end() != std::find(l.begin(),l.end(), this)){
-		assert(m_params.size()==0); // this should be a "scalar"
-		return true;
-	}
+    if(m_params.size()==0){
+        if(l.end() != std::find(l.begin(),l.end(), this)){
+            // I'm in the list of ops w.r.t. which derivative is requested
+            this->need_derivative(true);
+            return true;
+        }
+        else{
+            this->need_derivative(false);
+            return false;
+        }
+    }
 	bool need_calc_derivative = false;
 	BOOST_FOREACH(param_t& p, m_params){
 		bool derive_wrt_p = false;
 		BOOST_FOREACH(Op::result_t& r, p->param_uses){
-            r->need_result = true;
 			derive_wrt_p |= r->get_op()->set_calculate_derivative(l);
 		}
 		p->need_derivative = derive_wrt_p;
+        p->determine_single_results();
+
 		need_calc_derivative |= derive_wrt_p;
 	}
-	m_need_derivative = need_calc_derivative;
+
+    // assumes this has been set to false initially!
+	m_need_derivative |= need_calc_derivative; 
+
 	return need_calc_derivative;
 }
 

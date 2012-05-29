@@ -19,6 +19,9 @@ namespace cuvnet
                 Sink(const std::string& name, result_t& p0):Op(1,1),m_name(name){ 
                     add_param(0,p0);
                 }
+                ///  A sink always pretends it wants the result
+                /// @overload
+                virtual bool need_result()const{return true;}
                 Sink(result_t& p0):Op(1,1){ 
                     add_param(0,p0);
                 }
@@ -51,11 +54,15 @@ namespace cuvnet
                 typedef Op::value_ptr     value_ptr;
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
+                unsigned int m_idx; /// for visualization only!
 
             public:
                 Pipe(){} /// for serialization
-                Pipe(result_t& p0):Op(1,1){ 
+                Pipe(result_t& p0, unsigned int idx):Op(1,1), m_idx(idx){ 
                     add_param(0,p0);
+                }
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
+                    desc.label = "Pipe " + boost::lexical_cast<std::string>(m_idx);
                 }
                 void fprop(){
                     using namespace cuv;
@@ -89,6 +96,7 @@ namespace cuvnet
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_idx;
                     }
         };
 

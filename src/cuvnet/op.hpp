@@ -27,6 +27,7 @@ namespace cuvnet
                 std::vector<param_t>  m_params;
                 std::vector<result_t> m_results;
                 bool                  m_need_derivative;
+                bool                  m_need_result;
 
             public:
                 /**
@@ -64,8 +65,10 @@ namespace cuvnet
                 inline unsigned int get_n_params(){ return m_params.size(); }
                 inline unsigned int get_n_results(){ return m_results.size(); }
                 void add_param(unsigned int idx, result_t& p);
-                inline bool need_derivative()const{return m_need_derivative;}
+                virtual bool need_derivative()const{return m_need_derivative;}
                 inline void need_derivative(bool b){m_need_derivative = b;}
+                virtual bool need_result()const{return m_need_result;}
+                inline void need_result(bool b){m_need_result = b;}
 
                 /**
                  * calculate recursively what needs to be calculated to
@@ -74,6 +77,7 @@ namespace cuvnet
                  * The results are stored in the function itself.
                  *
                  * @param l the list of parameters w.r.t. which this op is to be derived
+                 * @return whether this op needs to be calculated.
                  */
                 bool set_calculate_derivative(const std::vector<Op*>&l);
 
@@ -154,6 +158,18 @@ namespace cuvnet
                     std::string s = typeid(*this).name();
                     size_t n = s.find("cuvnet");
                     desc.label = desc.label + s.substr(n + 7);;
+                }
+
+                /**
+                 * clean up temporary data
+                 */
+                virtual void release_data(){
+                    BOOST_FOREACH(Op::param_t& r, m_params){
+                        r->value.reset();
+                    }
+                    BOOST_FOREACH(Op::result_t& r, m_results){
+                        r->delta.reset();
+                    }
                 }
 
                 private:

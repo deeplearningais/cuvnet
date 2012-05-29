@@ -48,6 +48,9 @@ namespace cuvnet
 
                 inline bool     derivable()const{return m_derivable;}
                 inline void set_derivable(bool b){m_derivable = b;}
+                virtual void release_data(){
+                    ; // keep data!
+                }
             private:
                 friend class boost::serialization::access;
                 template<class Archive>

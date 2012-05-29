@@ -37,24 +37,47 @@ namespace cuvnet
                 cow_ptr<T>                     value;
                 bool                           value_set;
                 unsigned int                   param_number;
+                typename std::vector<boost::shared_ptr<op_result<T> > >::iterator  m_single_result;
                 //cow_ptr<T>                     delta;
                 op_param():need_derivative(false),op(NULL),value_set(false){}
 
+                void determine_single_results(){
+                    m_single_result = param_uses.end();
+                    for(typename std::vector<boost::shared_ptr<op_result<T> > >::iterator it=param_uses.begin();
+                            it != param_uses.end();
+                            ++it){
+                        if(m_single_result != param_uses.end())
+                        {
+                            m_single_result = param_uses.end();
+                            return;
+                        }
+                        m_single_result = it;
+                    }
+                }
+
                 Op* get_op(){ return op; }
                 bool can_overwrite_directly()const{
-                    if(param_uses.size()!=1)
+                    if(m_single_result == param_uses.end())
                         return false;
-                    const op_result<T>& p = *use(0);
+                    const op_result<T>& p = **m_single_result;
                     if(p.delta_set) return false;
                     if(!p.delta)    return false;
                     if(!p.delta.unique())        return false;
-                    if(p.delta->shape()!=p.shape) return false;
+#ifndef NDEBUG
+                    cuvAssert(p.delta->shape() == p.shape);
+                    //if(p.delta->shape()!=p.shape) return false; 
+#endif
                     return true;
                 }
                 bool can_add_directly()const{
-                    if(param_uses.size()!=1)
+                    if(m_single_result == param_uses.end())
                         return false;
-                    const op_result<T>& p = *use(0);
+                    const op_result<T>& p = **m_single_result;
+                    if(!p.delta) return false;
+#ifndef NDEBUG
+                    cuvAssert(p.delta->effective_shape() == p.shape);
+                    //if(p.delta->shape()!=p.shape) return false; 
+#endif
                     if(p.delta_set) return true;
                     return false;
                 }
@@ -74,8 +97,9 @@ namespace cuvnet
                  *
                  */
                 cow_ptr<T>& overwrite_or_add_value(){
-                    use(0)->delta_set = true;
-                    return use(0)->delta;
+                    assert(m_single_result != param_uses.end());
+                    (*m_single_result)->delta_set = true;
+                    return (*m_single_result)->delta;
                 }
                 void push(const cow_ptr<T>& v){
                     //assert(!can_overwrite_directly());
@@ -83,13 +107,14 @@ namespace cuvnet
                     for (unsigned int i = 0; i < param_uses.size(); ++i)
                     {
                         op_result<T>& dst    = *use(i); 
+                        if(!dst.get_op()->need_derivative())
+                            continue;
                         if(dst.delta_set)
                             dst.delta.data() += v.cdata();
                         else{
                             dst.delta       = v;
                             dst.delta_set   = true;
                         }
-                        // TODO: may also push to result.deltas which are not required for derivative
                     }
                 }
                 private:

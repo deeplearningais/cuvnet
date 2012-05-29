@@ -1,6 +1,9 @@
 // vim:ts=4:sw=4:et:
 #ifndef __OP_RESULT_HPP__
 #     define __OP_RESULT_HPP__
+#include <boost/shared_ptr.hpp>
+#include <boost/weak_ptr.hpp>
+#include "cuvnet/smart_ptr.hpp"
 
 namespace cuvnet
 {
@@ -23,23 +26,45 @@ namespace cuvnet
                 cow_ptr<T>                     delta;
                 bool                           delta_set;
                 unsigned int                   result_number;
+                typename std::vector<boost::weak_ptr<op_param<T> > >::iterator m_single_result;
+
                 boost::shared_ptr<Op> get_op(){ return op; }
-                op_result():need_result(false),delta_set(false){}
-                bool want_result()const { return result_uses.size() > 0; }
+                op_result():need_result(false),delta_set(false),m_single_result(result_uses.end()){}
+                void determine_single_results(){
+                    m_single_result = result_uses.end();
+                    for(typename std::vector<boost::weak_ptr<op_param<T> > >::iterator it=result_uses.begin();
+                            it != result_uses.end();
+                            ++it){
+                        if(m_single_result != result_uses.end())
+                        {
+                            m_single_result = result_uses.end();
+                            return;
+                        }
+                        m_single_result = it;
+                    }
+                }
                 bool can_overwrite_directly()const{
-                    if(result_uses.size()!=1)
+                    if(m_single_result == result_uses.end())
                         return false;
-                    const op_param<T>& p = *use(0);
+                    const op_param<T>& p = * m_single_result->lock();
                     if(p.value_set) return false;
                     if(!p.value)    return false;
                     if(!p.value.unique())        return false;
-                    if(p.value->shape()!=p.shape) return false;
+#ifndef NDEBUG
+                    cuvAssert(p.value->shape() == p.shape);
+                    //if(p.value->shape()!=p.shape) return false;
+#endif
                     return true;
                 }
                 bool can_add_directly()const{
-                    if(result_uses.size()!=1)
+                    if(m_single_result == result_uses.end())
                         return false;
-                    const op_param<T>& p = *use(0);
+                    const op_param<T>& p = * m_single_result->lock();
+                    if(!p.value) return false;
+#ifndef NDEBUG
+                    cuvAssert(p.value->shape() == p.shape);
+                    //if(p.value->shape()!=p.shape) return false;
+#endif
                     if(p.value_set) return true;
                     return false;
                 }
@@ -61,8 +86,9 @@ namespace cuvnet
                  *
                  */
                 cow_ptr<T>& overwrite_or_add_value(){
-                    use(0)->value_set = true;
-                    return use(0)->value;
+                    assert(m_single_result != result_uses.end());
+                    m_single_result->lock()->value_set = true;
+                    return m_single_result->lock()->value;
                 }
                 void push(const cow_ptr<T>& v){
                     //assert(!can_overwrite_directly());
@@ -70,6 +96,8 @@ namespace cuvnet
                     for (unsigned int i = 0; i < result_uses.size(); ++i)
                     {
                         op_param<T>& dst    = *use(i);
+                        if(!dst.get_op()->need_result())
+                            continue;
                         if(dst.value_set)
                             *dst.value     += v.cdata();
                         else{

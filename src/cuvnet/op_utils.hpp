@@ -53,13 +53,11 @@ namespace cuvnet
             return true;
         }
         inline void preorder(Op* o){
-            if(dynamic_cast<Input*>(o))
-                return;
-            BOOST_FOREACH(Op::param_t& r, o->m_params){
-                r->value.reset();
-            }
+            o->release_data();
             BOOST_FOREACH(Op::result_t& r, o->m_results){
-                r->delta.reset();
+                for(unsigned int i=0;i<r->result_uses.size();i++){
+                    r->use(i)->get_op()->release_data();
+                }
             }
         }
     };
@@ -144,10 +142,15 @@ namespace cuvnet
             return true; 
         }
         inline void preorder(Op*o){
+            o->need_derivative(false);
+            o->need_result(false);
             for(unsigned int i=0;i<o->get_n_params();i++)
                 o->param(i)->need_derivative = false;
             for(unsigned int i=0;i<o->get_n_results();i++)
+            {
                 o->result(i)->need_result = false;
+                o->result(i)->get_op()->need_result(false);
+            }
         }
     };
 
@@ -193,21 +196,49 @@ namespace cuvnet
          * @param paramlist the list of parameters w.r.t. which do swipes
          */
         swiper(Op& op, int result, const param_collector_visitor::container_type& paramlist)
+            :m_op(&op)
         {
                 reset_needed_flags rnf;
-                op.visit(rnf,true); // also in results!
-                op.result(result)->need_result = true;
-                op.set_calculate_derivative(paramlist);
+                op.visit(rnf);
+
+                op.result(result)->need_result = true; // this is the final res we're interested in
+                op.need_result(true);                  // this is a bit redundant
+
                 op.visit(m_topo);
 
+                this->set_calculate_result();           // determine need_result
+                op.set_calculate_derivative(paramlist); // determine need_derivative
+
                 cleanup_temp_vars_visitor ctvv;
-                op.visit(ctvv,true); // also in results!
+                op.visit(ctvv); 
 
                 std::ofstream os("swiper-initial.dot");
                 write_graphviz(op, os, m_topo.plist );
                 op.visit(determine_shapes_visitor());
-
             }
+
+        void set_calculate_result(){
+            BOOST_REVERSE_FOREACH(Op* op, m_topo.plist){
+                BOOST_FOREACH(Op::result_t& r, op->m_results){
+                    r->determine_single_results();
+                    BOOST_FOREACH(boost::weak_ptr<detail::op_param<Op::value_type> >& p, r->result_uses) {
+                        if(p.lock()->get_op()->need_result())
+                            r->need_result = true;
+                        op->need_result(true);
+                    }
+                }
+            }
+        }
+        /**
+         * clean up temp vars
+         */
+        ~swiper(){
+            cleanup_temp_vars_visitor ctvv;
+            m_op->visit(ctvv,true);
+
+            reset_needed_flags rnf;
+            m_op->visit(rnf); 
+        }
         /**
          * does recursive forward pass on op
          */
@@ -221,6 +252,8 @@ namespace cuvnet
          * ouputs some stats of op results for debugging
          */
         void debug(unsigned int cnt, Op* o, bool results, bool params, const char* ident);
+        private:
+        Op* m_op;
     };
 
 }

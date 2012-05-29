@@ -26,36 +26,45 @@ void define_graphviz_node_visitor::preorder(Op* o){
 	detail::graphviz_node n;
 	n.shape = "box";
 	n.color = "black";
-    if(!o->need_derivative())
+    if(!o->need_result())
         n.fillcolor = "white";
+    else if(!o->need_derivative())
+        n.fillcolor = "gray40";
     else
         n.fillcolor = "gray70";
 	n.style = "filled";
-    //n.label += boost::lexical_cast<std::string>(o);
-    if(dynamic_cast<Input*>(o)){
-        // TODO: should check need_fprop, not need_bprop
-        //if(o->need_derivative())
-            //n.fillcolor = "goldenrod3";
-        //else
+    bool is_input = dynamic_cast<Input*>(o);
+    bool is_sink  = dynamic_cast<Sink*>(o);
+    Op* sink_prev = NULL;
+    if(is_input){
+        if(!o->need_result())
             n.fillcolor = "lemonchiffon1";
+        else if(!o->need_derivative())
+            n.fillcolor = "goldenrod1";
+        else
+            n.fillcolor = "goldenrod3";
 
         Op::value_ptr p = ((Input*)o)->data_ptr();
         if(!p);
         else{
             std::ostringstream ss;
             ss<<" (";
-            for(unsigned int i=0;i<p.cdata().ndim();i++)
+            for(int i=0;i<p.cdata().ndim();i++)
                 ss<<p.cdata().shape(i)<<",";
             ss<<")";
             n.label += ss.str();
         }
-    }else if(dynamic_cast<Sink*>(o)){
-        //if(o->need_derivative())
-            //n.fillcolor = "cadetblue";
-        //else
+    }else if(is_sink){
+        sink_prev = o->param(0)->use(0)->get_op().get();
+        if(sink_prev->need_result())
+            n.fillcolor = "cadetblue";
+        else
             n.fillcolor = "lightcyan";
     }
 	o->_graphviz_node_desc(n);
+#ifndef NDEBUG
+    n.label += " " + boost::lexical_cast<std::string>(o);
+#endif
 
 	if(m_mark_order.size()){
 		std::vector<Op*>::iterator it = std::find(m_mark_order.begin(),m_mark_order.end(),o);
@@ -84,7 +93,11 @@ void define_graphviz_node_visitor::preorder(Op* o){
         std::string pstr = opstr + "p" + boost::lexical_cast<std::string>(p->param_number);
         if(m_seen.find(p.get())==m_seen.end()){
             m_seen[p.get()] = pstr;
-            std::string nd = p->need_derivative ? "green" : "white";
+            std::string wd, nd = p->need_derivative ? "green" : "white";
+            if(!is_sink)
+                wd = boost::lexical_cast<std::string>(o->need_result() ? 4.0 : 0.5);
+            else
+                wd = boost::lexical_cast<std::string>(sink_prev->need_result() ? 4.0 : 0.5);
 
             std::string shape;
             if(p->shape.size()){
@@ -98,11 +111,11 @@ void define_graphviz_node_visitor::preorder(Op* o){
             os << pstr
                 << " [ style=filled, fillcolor="<<nd<<", fontsize=6, margin=\"0,0\", width=0.01, label=\"" << p->param_number << shape<< "\", shape=circle ] ;"<<std::endl;
             // connect to op
-            os << "edge [style=solid,dir=none,weight=100] "<<pstr<<" -> "<<opstr<<";"<<std::endl;
+            os << "edge [style=solid,dir=none,penwidth="<<wd<<",weight=100] "<<pstr<<" -> "<<opstr<<";"<<std::endl;
 
             std::string vstr = define_data_ptr(p->value);
             if(vstr.size())
-                os << "edge [style=dotted,dir=none,weight=10]" << pstr << " -> "<< vstr << "; "<<std::endl;
+                os << "edge [style=dotted,dir=none,penwidth=.5,weight=10]" << pstr << " -> "<< vstr << "; "<<std::endl;
         }
     }
     // define the results of op
@@ -111,14 +124,15 @@ void define_graphviz_node_visitor::preorder(Op* o){
         if(m_seen.find(r.get())==m_seen.end()){
             m_seen[r.get()] = rstr;
             std::string nd = r->need_result ? "gold1" : "white";
+            std::string wd = boost::lexical_cast<std::string>(r->need_result ? 4.0 : 0.5);
             os << opstr << "r"<<r->result_number
                 << " [ style=filled, fillcolor="<<nd<<", fontsize=6, margin=\"0,0\",width=0.01, label=\"" << r->result_number << "\", shape=circle ] ;"<<std::endl;
             // connect to op
-            os << "edge [style=solid,dir=none,weight=100] "<< opstr << " -> " << rstr <<";"<<std::endl;
+            os << "edge [style=solid,penwidth="<<wd<<",dir=none,weight=100] "<< opstr << " -> " << rstr <<";"<<std::endl;
 
             std::string vstr = define_data_ptr(r->delta);
             if(vstr.size())
-                os << "edge [style=dotted,dir=none,weight=10]" << rstr << " -> "<< vstr << "; "<<std::endl;
+                os << "edge [style=dotted,penwidth=.5,dir=none,weight=10]" << rstr << " -> "<< vstr << "; "<<std::endl;
 
             if(current_op()==o){
                 // create node with debug info in label
@@ -163,12 +177,22 @@ void define_graphviz_node_visitor::preorder(Op* o){
 }
 void define_graphviz_node_visitor::postorder(Op* o){
 	unsigned int cnt = 0;
+    bool is_sink  = dynamic_cast<Sink*>(o);
+    Op* sink_prev = NULL;
+    if(is_sink)
+        sink_prev = o->param(0)->use(0)->get_op().get();
+
 	BOOST_FOREACH(Op::param_t& p, o->m_params){
 		BOOST_FOREACH(Op::result_t& r, p->param_uses){
+            std::string wd;
+            if(!is_sink)
+                wd = boost::lexical_cast<std::string>(o->need_result() ? 4.0 : 0.5);
+            else
+                wd = boost::lexical_cast<std::string>(sink_prev->need_result() ? 4.0 : 0.5);
 			os << "edge [ "
                << "dir=forward,"
                << "style=solid,"
-               << "penwidth="+boost::lexical_cast<std::string>(r->need_result ? 2.0 : 0.5)+","
+               << "penwidth="<<wd<<","
                << "weight=1"
 				   //<< " headlabel=\""<<boost::lexical_cast<std::string>(cnt) << "\""
 			   <<" ]"<<std::endl;
@@ -203,10 +227,12 @@ void swiper::fprop(){
     unsigned int cnt=0;
 #endif
 	BOOST_FOREACH(Op* o, m_topo.plist){
-		o->fprop();
+        if(o->need_result()){
+            o->fprop();
 #if SWIPER_DEBUG
-        debug(cnt++,o,true,false,"fprop");
+            debug(cnt++,o,true,false,"fprop");
 #endif
+        }
 	}
 }
 void swiper::bprop(bool set_last_delta_to_one){
@@ -231,7 +257,7 @@ void swiper::bprop(bool set_last_delta_to_one){
 	BOOST_REVERSE_FOREACH(Op* o, m_topo.plist){
 		if(o->need_derivative()){
 #if SWIPER_DEBUG
-        debug(cnt++,o,true,false,"bprop");
+            debug(cnt++,o,true,false,"bprop");
 #endif
 			o->bprop();
         }

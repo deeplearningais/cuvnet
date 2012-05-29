@@ -19,7 +19,7 @@ using namespace cuvnet::derivative_testing;
 TEST(derivative_test, derivative_test_pipe){
    typedef boost::shared_ptr<Op> ptr_t;
    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
-   ptr_t func                    = boost::make_shared<Pipe>(inp->result());
+   ptr_t func                    = boost::make_shared<Pipe>(inp->result(),0);
    derivative_tester(*func);
 }
 TEST(derivative_test, derivative_test_row_select){
