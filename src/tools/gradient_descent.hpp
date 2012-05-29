@@ -36,6 +36,7 @@ namespace cuvnet
             swiper           m_swipe;    ///< does fprop and bprop for us
             bool             m_convergence_checking; ///< true if convergence checks are applied
             unsigned int     m_patience; ///< maximum number of epochs to run
+            unsigned int     m_convcheck_fails; ///< counts number of times convcheck failed
         public:
             /// triggered before an epoch starts. Should return number of batches!
             boost::signal<void(unsigned int)> before_epoch;
@@ -115,14 +116,20 @@ namespace cuvnet
             /**
              * set up stopping by convergence check
              *
+             * Stops when new value is more than thresh*best_value for max_fail epochs
+             *
+             * Tested on /training/ set, which should always improve, except
+             * for too large/too small learning rates.
+             *
              * @param performance a function which determines how good we are after an epoch
-             * @param thresh stop when improvement is less than this much times initial value
+             * @param thresh stop when new value is more than thresh*best_value
+             * @param maxfail stop when thresh was not attained for this many tries
              */
             template<class T>
-            void setup_convergence_stopping(T performance, float thresh){
+            void setup_convergence_stopping(T performance, float thresh, unsigned int maxfail){
                 m_performance = performance;
                 m_convergence_checking = true;
-                after_epoch.connect(boost::bind(&gradient_descent::convergence_test,this, thresh, _1), boost::signals::at_front);
+                after_epoch.connect(boost::bind(&gradient_descent::convergence_test,this, thresh, maxfail, _1), boost::signals::at_front);
             }
 
 
@@ -325,19 +332,26 @@ namespace cuvnet
              * test for convergence. 
              * use @see setup_convergence_stopping to use this function.
              */
-            void convergence_test(float thresh, unsigned int current_epoch){
+            void convergence_test(float thresh, unsigned int maxfail, unsigned int current_epoch){
                 float perf = m_performance();
                 if(current_epoch == 0){
                     m_initial_performance = perf;
                     m_last_perf = perf;
+                    m_convcheck_fails = 0;
                     return;
                 }
-                std::cout << "\r epoch: "<<current_epoch<<":  "<<perf<<" ("<<(m_last_perf-perf)/(thresh*m_initial_performance)<<")                  " << std::flush;
-                if(m_last_perf - perf < thresh * m_initial_performance){
+                if(m_last_perf < thresh * m_last_perf){
+                    m_last_perf = perf;
+                    m_convcheck_fails = 0;
+                }else{
+                    m_convcheck_fails ++;
+                }
+
+                std::cout << "\r epoch: "<<current_epoch<<":  "<<perf<<" (delta:"<<(perf - m_last_perf)<<")                  " << std::flush;
+                if(m_convcheck_fails >= maxfail){
                     std::cout << std::endl << "Stopping due to convergence after "<<current_epoch<<" epochs, perf: "<< perf << std::endl;
                     throw convergence_stop();
                 }
-                m_last_perf = perf;
             }
             /**
              * runs an early-stopping epoch

@@ -201,8 +201,8 @@ class pretrained_mlp_trainer
                         gd.after_early_stopping_epoch.connect(0, boost::bind(&auto_encoder::log_loss, &m_aes->get(l), "earlystopping", _1));
                         gd.after_early_stopping_epoch.connect(1, boost::bind(&sdl_t::after_early_stopping_epoch, &m_sdl));
                         gd.after_early_stopping_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
-                    }else if(false){
-                        gd.setup_convergence_stopping(boost::bind(&auto_encoder::perf, &m_aes->get(l)), 0.0001f);
+                    }else if(true){
+                        gd.setup_convergence_stopping(boost::bind(&auto_encoder::perf, &m_aes->get(l)), 0.995f, 3);
                     }
 
                     if(m_sdl.get_current_cv_mode() != CM_TRAINALL) {
@@ -244,7 +244,7 @@ class pretrained_mlp_trainer
                     gd.after_early_stopping_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
                     gd.after_early_stopping_epoch.connect(0, boost::bind(&auto_enc_stack::log_loss, m_aes.get(), "earlystopping", _1));
                 }else{
-                    gd.setup_convergence_stopping(boost::bind(&auto_enc_stack::perf, m_aes.get()), 0.0001f);
+                    gd.setup_convergence_stopping(boost::bind(&auto_enc_stack::perf, m_aes.get()), 0.995f,3);
                 }
 
 
@@ -292,7 +292,7 @@ class pretrained_mlp_trainer
                     gd.after_early_stopping_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
                 }else if(0){
                     // convergence checking on class error is instable --> use real loss here!
-                    gd.setup_convergence_stopping(boost::bind(&pretrained_mlp::perf_loss, m_mlp.get()), 0.0001f);
+                    gd.setup_convergence_stopping(boost::bind(&pretrained_mlp::perf_loss, m_mlp.get()), 0.995f, 3);
                 }
 
 
