@@ -152,21 +152,21 @@ namespace cuvnet
                     unsigned long int t_start = time(NULL);
                     for (m_epoch = 0; ; ++m_epoch) {
 
-
                         // stop if time limit is exceeded
                         if(time(NULL) - t_start > n_max_secs) {
                             std::cout << "Minibatch Learning Timeout ("<<(time(NULL)-t_start)<<"s)" << std::endl;/* cursor */
                             throw timeout_stop();
                         }
+                        // stop if epoch limit is exceeded
+                        if(iter++ >= n_max_epochs)
+                            throw max_iter_stop();
+
                         if(randomize)
                             std::random_shuffle(batchids.begin(),batchids.end());
 
                         before_epoch(m_epoch); // may run early stopping
 
                         for (unsigned int  batch = 0; batch < n_batches; ++batch) {
-                            // stop if epoch limit is exceeded
-                            if(iter++ >= n_max_epochs)
-                                throw max_iter_stop();
 
                             before_batch(m_epoch, batchids[batch]); // should load data into inputs
 

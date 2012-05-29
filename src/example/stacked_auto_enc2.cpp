@@ -206,7 +206,7 @@ class pretrained_mlp_trainer
                     }
 
                     if(m_sdl.get_current_cv_mode() != CM_TRAINALL) {
-                        gd.minibatch_learning(100 * m_sdl.n_batches(), m_pretraining_t);
+                        gd.minibatch_learning(m_pretraining_epochs, m_pretraining_t);
                         m_aes->get(l).s_iters(gd.iters()); // remember number of iterations until optimum
                     } else {
                         std::cout << "TRAINALL phase: aes"<<l<<" avg_iters="<<m_aes->get(l).avg_iters()<<std::endl;
@@ -249,7 +249,7 @@ class pretrained_mlp_trainer
 
 
                 if(m_sdl.get_current_cv_mode() != CM_TRAINALL) {
-                    gd.minibatch_learning(100,m_unsupervised_finetune_t);
+                    gd.minibatch_learning(m_pretraining_epochs,m_unsupervised_finetune_t);
                     m_aes->s_iters(gd.iters()); // remember number of iterations until optimum
                 } else {
                     std::cout << "TRAINALL phase: aes unsupervised finetuning; avg_iters="<<m_aes->avg_iters()<<std::endl;
@@ -297,7 +297,7 @@ class pretrained_mlp_trainer
 
 
                 if(m_sdl.get_current_cv_mode() != CM_TRAINALL) {
-                    gd.minibatch_learning(1000 * m_sdl.n_batches(),m_finetune_t);
+                    gd.minibatch_learning(1000,m_finetune_t);
                     m_mlp->s_iters(gd.iters()); // remember number of iterations until optimum
                 } else {
                     std::cout << "TRAINALL phase: mlp avg_iters="<<m_mlp->avg_iters()<<std::endl;
