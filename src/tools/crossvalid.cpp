@@ -51,6 +51,8 @@ namespace cuvnet
 		all_splits_evaluator::all_splits_evaluator(boost::shared_ptr<crossvalidatable> p){
 			m_ptr        = p;
 			m_test_perf  = 0.f;
+			m_test_perf0 = 0.f;
+            m_perf       = 0.f;
 		}
 		void all_splits_evaluator::operator()(){
 			std::cout << "Cross-Validation of "<<m_ptr->n_splits()<<" splits"<<std::endl;
