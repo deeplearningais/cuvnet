@@ -98,6 +98,10 @@ namespace cuvnet
                 add_param(0,mat);
             }
 
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
+                    desc.label = boost::str(boost::format("%2.3f - x")%m_scalar);
+                }
+
                 void fprop(){
                     using namespace cuv;
                     param_t::element_type&  p0 = *m_params[0];

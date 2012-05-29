@@ -40,6 +40,7 @@ class pretrained_mlp_trainer
         std::vector<float> m_aes_lr; ///< learning rates of stacked AE
         float              m_mlp_lr; ///< learning rates of stacked MLP
         bool               m_pretraining; ///< whether pretraining is requested
+        unsigned int       m_pretraining_epochs; ///< how many epochs pretraining is requested
         bool               m_finetune; ///< whether finetuning is requested
         int                m_bs; ///< batch size during pretraining
         int                m_finetune_bs; ///< batch size during finetuning
@@ -96,6 +97,7 @@ class pretrained_mlp_trainer
             m_mlp.reset(
                 new pretrained_mlp(m_aes->encoded(),10, true, o["mlp_wd"].Double())); // TODO: fixed number of 10 classes!!???
             m_mlp_lr = o["mlp_lr"].Double();
+            m_pretraining_epochs = o["pretrain_epochs"].Int();
             m_pretraining = o["pretrain"].Bool();
             m_finetune    = o["sfinetune"].Bool();
             m_unsupervised_finetune    = o["ufinetune"].Bool();
@@ -421,6 +423,7 @@ void generate_and_test_models_random(boost::asio::deadline_timer* dt, boost::asi
         bob << "mlp_wd"  << 0.0;
         bob << "refit_thresh"  << 0.12; // only retrain if less than this on val
 
+        bob << "pretrain_epochs" << 100;
         bob << "pretrain" << (drand48()>0.02f);
         bob << "ufinetune" << false;
         bob << "sfinetune" << true;
