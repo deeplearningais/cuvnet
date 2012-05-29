@@ -340,7 +340,7 @@ namespace cuvnet
                     m_convcheck_fails = 0;
                     return;
                 }
-                if(m_last_perf < thresh * m_last_perf){
+                if(perf < thresh * m_last_perf){
                     m_last_perf = perf;
                     m_convcheck_fails = 0;
                 }else{
