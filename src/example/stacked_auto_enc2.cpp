@@ -128,7 +128,7 @@ class pretrained_mlp_trainer
                 gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_supervised,this,_2));
                 gd.after_batch.connect(boost::bind(&pretrained_mlp::acc_class_err,m_mlp.get()));
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
-                gd.minibatch_learning(1 * m_sdl.n_batches(),INT_MAX,0,0); // 1 epoch, unlimited time
+                gd.minibatch_learning(1,INT_MAX,0,0); // 1 epoch, unlimited time
                 m_mlp->log_loss("predict",0);
                 return m_mlp->perf();
             }else if(m_unsupervised_finetune){
@@ -138,7 +138,7 @@ class pretrained_mlp_trainer
                 gd.before_batch.connect(boost::bind(&pretrained_mlp_trainer::load_batch_unsupervised,this,_2));
                 gd.after_batch.connect(boost::bind(&auto_enc_stack::acc_loss,m_aes.get()));
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
-                gd.minibatch_learning(1 * m_sdl.n_batches(),INT_MAX,0,0); // 1 epoch, unlimited time
+                gd.minibatch_learning(1,INT_MAX,0,0); // 1 epoch, unlimited time
                 m_aes.get()->log_loss("predict",0);
                 return m_aes->perf();
             }else{
