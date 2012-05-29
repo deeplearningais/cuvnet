@@ -212,9 +212,10 @@ namespace cuvnet
                 cleanup_temp_vars_visitor ctvv;
                 op.visit(ctvv); 
 
+                op.visit(determine_shapes_visitor());
+
                 std::ofstream os("swiper-initial.dot");
                 write_graphviz(op, os, m_topo.plist );
-                op.visit(determine_shapes_visitor());
             }
 
         void set_calculate_result(){

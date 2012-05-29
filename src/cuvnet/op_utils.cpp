@@ -29,7 +29,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
     if(!o->need_result())
         n.fillcolor = "white";
     else if(!o->need_derivative())
-        n.fillcolor = "gray40";
+        n.fillcolor = "gray90";
     else
         n.fillcolor = "gray70";
 	n.style = "filled";
