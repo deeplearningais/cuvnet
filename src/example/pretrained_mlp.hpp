@@ -44,6 +44,7 @@ struct pretrained_mlp {
         void acc_loss()     {
             m_loss_sum += m_loss_sink->cdata()[0];
             m_loss_sum_cnt++;
+            m_loss_sink->forget();
         }
         void set_batchsize(unsigned int bs){
             // do not change input size: it is typically not an Input instance.
