@@ -1,3 +1,4 @@
+#include <stdexcept>
 #include <boost/thread.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
@@ -123,8 +124,15 @@ namespace cuvnet
 
 				p->constructFromBSON(task["conf"].Obj());
 				all_splits_evaluator ase(p);
-				ase();
-				this->finish(BSON("perf"<<ase.perf()<<"test_perf"<<ase.test_perf()<<"test_perf0"<<ase.test_perf0()));
+                try{
+                    ase();
+                    this->finish(BSON("perf"<<ase.perf()<<"test_perf"<<ase.test_perf()<<"test_perf0"<<ase.test_perf0()));
+                }catch(mdbq::timeout_exception& e){
+                    this->finish(BSON("timeout_error"<<true), 0);
+                    throw;
+                }catch(std::runtime_error& e){
+                    this->finish(BSON("runtime_error"<<e.what()), 0);
+                }
 			}
 		}
 	}
