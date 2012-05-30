@@ -122,10 +122,15 @@ class auto_encoder_1l : public auto_encoder{
         }
         void acc_loss() {
             s_total_loss((float)m_loss_sink->cdata()[0]);
-            if(m_rec_sink)
+            m_loss_sink->forget();
+            if(m_rec_sink) {
                 s_rec_loss((float)m_rec_sink->cdata()[0]);
-            if(m_reg_sink)
+                m_rec_sink->forget();
+            }
+            if(m_reg_sink) {
                 s_reg_loss((float)m_reg_sink->cdata()[0]);
+                m_reg_sink->forget();
+            }
         }
         /**
          * this constructor gets the \e encoded output of another autoencoder as
@@ -278,10 +283,15 @@ class auto_encoder_2l : public auto_encoder{
         }
         void acc_loss() {
             s_total_loss((float)m_loss_sink->cdata()[0]);
-            if(m_rec_sink)
+            m_loss_sink->forget();
+            if(m_rec_sink) {
                 s_rec_loss((float)m_rec_sink->cdata()[0]);
-            if(m_reg_sink)
+                m_rec_sink->forget();
+            }
+            if(m_reg_sink) {
                 s_reg_loss((float)m_reg_sink->cdata()[0]);
+                m_reg_sink->forget();
+            }
 
             // TODO: only normalize columns when NOT in validation mode! (why, they should not differ that much in that case...)
             //normalize_columns(m_weights1->data(), m_expected_size[0]);
@@ -560,6 +570,8 @@ struct auto_enc_stack {
                 cuv::reduce_to_col(col,out);
                 s_class_err( 1.f - (float) cuv::count(col,0.f)/(float)out.shape(0) ); // average classification acc in batch
             }
+            m_loss_sink->forget();
+            m_out_sink->forget();
         }
         float perf() {
             if(false && m_aes[0]->binary()){

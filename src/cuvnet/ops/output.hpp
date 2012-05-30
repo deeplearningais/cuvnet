@@ -33,6 +33,16 @@ namespace cuvnet
                 //value_type&       data()      { return m_data; }
                 const value_type& cdata() const{ return m_params[0]->value.cdata(); }
 
+                /**
+                 * forget the stored value
+                 *
+                 * this may help during bprop, as it can be overwritten if only
+                 * a single copy remains now.
+                 */
+                void forget(){
+                    m_params[0]->value.reset();
+                }
+
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
                     desc.label = "Sink `" + m_name + "'";
                 }
