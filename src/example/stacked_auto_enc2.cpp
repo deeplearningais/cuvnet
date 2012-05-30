@@ -193,7 +193,8 @@ class pretrained_mlp_trainer
                     gd.after_batch.connect(boost::bind(&auto_encoder::acc_loss,&m_aes->get(l)));
                     gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
 
-                    if(false && m_sdl.can_earlystop()){
+                    bool in_trainall = m_sdl.get_current_cv_mode() == CM_TRAINALL;
+                    if(false && m_sdl.can_earlystop() && !in_trainall){
                         gd.setup_early_stopping(boost::bind(&auto_encoder::perf,&m_aes->get(l)), 5, 0.995f, 2);
                         gd.before_early_stopping_epoch.connect(boost::bind(&auto_encoder::reset_loss, &m_aes->get(l)));
                         gd.before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
@@ -201,7 +202,7 @@ class pretrained_mlp_trainer
                         gd.after_early_stopping_epoch.connect(0, boost::bind(&auto_encoder::log_loss, &m_aes->get(l), "earlystopping", _1));
                         gd.after_early_stopping_epoch.connect(1, boost::bind(&sdl_t::after_early_stopping_epoch, &m_sdl));
                         gd.after_early_stopping_epoch.connect(1, boost::bind(&pretrained_mlp_trainer::validation_epoch,this,false));
-                    }else if(true){
+                    }else if(true && !in_trainall){
                         gd.setup_convergence_stopping(boost::bind(&auto_encoder::perf, &m_aes->get(l)), 0.995f, 3);
                     }
 
