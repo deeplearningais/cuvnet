@@ -75,8 +75,8 @@ namespace cuvnet
             /// @return the current cv-mode
             inline unsigned int get_current_split(){ return m_current_split; }
 
-            void before_early_stopping_epoch(); /// sets m_in_validation_mode to true
-            void after_early_stopping_epoch();  /// sets m_in_validation_mode to false
+            void before_early_stopping_epoch(); ///< sets m_in_validation_mode to true
+            void after_early_stopping_epoch();  ///< sets m_in_validation_mode to false
             
             /// @return a view to the requested data batch 
             cuv::tensor<float, StorageSpace> get_data_batch(unsigned int batch);
