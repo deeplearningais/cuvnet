@@ -128,11 +128,13 @@ namespace cuvnet
                     ase();
                     this->finish(BSON("perf"<<ase.perf()<<"test_perf"<<ase.test_perf()<<"test_perf0"<<ase.test_perf0()));
                 }catch(mdbq::timeout_exception& e){
-                    this->finish(BSON("timeout_error"<<true), 0);
+                    // MDBQ already marked this as finished and failed!
                     throw;
                 }catch(std::runtime_error& e){
                     this->finish(BSON("runtime_error"<<e.what()), 0);
+                    throw;
                 }
+                throw std::runtime_error("finished successfully, but crashing to ensure memory is freed *cough*");
 			}
 		}
 	}
