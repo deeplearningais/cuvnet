@@ -100,7 +100,7 @@ namespace cuvnet
 					.append("task","cv_allsplits")
 					.append("conf",desc)
 					.appendBinData("cvable",s.size(),mongo::BinDataGeneral,s.c_str())
-					.obj(), 3600 * 10); // ten hours(??)
+					.obj(), 3600 * 24); // 24 hours(??)
 		}
 
 		crossvalidation_worker::crossvalidation_worker(const std::string& url, const std::string& prefix)
