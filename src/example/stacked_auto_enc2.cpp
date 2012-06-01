@@ -289,7 +289,7 @@ class pretrained_mlp_trainer
                 gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
 
                 if(m_sdl.can_earlystop()){
-                    gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 2, 0.995f, 2.f);
+                    gd.setup_early_stopping(boost::bind(&pretrained_mlp::perf,m_mlp.get()), 1, 0.995f, 2.f);
                     gd.before_early_stopping_epoch.connect(boost::bind(&pretrained_mlp::reset_loss,m_mlp.get()));
                     gd.before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
                     gd.before_early_stopping_epoch.connect(boost::bind(&pretrained_mlp_trainer::validation_epoch,this,true));

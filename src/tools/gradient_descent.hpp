@@ -64,6 +64,9 @@ namespace cuvnet
                 m_swipe = swiper(*m_loss, m_result, m_params);
             }
 
+            /// a vector containing all validation set results for smoothing
+            std::vector<float> m_val_perfs;
+
             /**
              * constructor
              * 
@@ -272,6 +275,17 @@ namespace cuvnet
                 // determine how good we've been (usually set to some perf()
                 // function of the construct you're trying to minimize)
                 float perf = m_performance();
+                m_val_perfs.push_back(perf);
+
+                const unsigned int box_filter_size = 3;
+                if(m_val_perfs.size() >= box_filter_size){
+                    perf = 0.f;
+                    for(unsigned int i = m_val_perfs.size()-box_filter_size;
+                            i < m_val_perfs.size(); 
+                            i++)
+                        perf += m_val_perfs[i];
+                    perf /= box_filter_size;
+                }
 
                 if(current_epoch == 0)
                     m_initial_performance = perf;
