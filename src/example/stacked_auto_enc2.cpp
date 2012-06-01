@@ -94,8 +94,13 @@ class pretrained_mlp_trainer
             m_aes.reset(
                 new auto_enc_stack(bs,dd,ar.size(),&layer_sizes[0], binary, 
                     &noise[0], &wd[0], &lambda[0], twolayer_ae));
+            int n_classes = 10;
+            if(o["dataset"].String() == "convex")
+                n_classes = 2;
+            if(o.hasField("nclass"))
+                n_classes = o["nclass"].Int();
             m_mlp.reset(
-                new pretrained_mlp(m_aes->encoded(),10, true, o["mlp_wd"].Double())); // TODO: fixed number of 10 classes!!???
+                new pretrained_mlp(m_aes->encoded(),n_classes, true, o["mlp_wd"].Double())); 
             m_mlp_lr = o["mlp_lr"].Double();
             m_pretraining_epochs = o["pretrain_epochs"].Int();
             m_pretraining = o["pretrain"].Bool();

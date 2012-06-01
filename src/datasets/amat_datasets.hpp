@@ -19,8 +19,11 @@ namespace cuvnet
 
 
 
-            train_labels.resize(cuv::extents[train_data.shape(0)][10]);
-            test_labels.resize(cuv::extents[test_data.shape(0)][10]);
+            unsigned int n_classes = 10;
+            if(zipfile.find("convex") != std::string::npos)
+                n_classes = 2;
+            train_labels.resize(cuv::extents[train_data.shape(0)][n_classes]);
+            test_labels.resize(cuv::extents[test_data.shape(0)][n_classes]);
             train_labels = 0.f;
             test_labels = 0.f;
             for (unsigned int i = 0; i < trainl.size(); ++i){
