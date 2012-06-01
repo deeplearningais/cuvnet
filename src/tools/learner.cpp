@@ -112,7 +112,7 @@ namespace cuvnet
             global_min_max_normalize<> normalizer(0,1);
             normalizer.fit_transform(dsall.train_data);
             normalizer.transform(dsall.test_data);
-            m_splits.init(dsall, nsplits);
+            m_splits.init(dsall, nsplits, 0.25); // trainval: 8000, train:6000, val: 2000
         }else if (ds == "mnist_rot"){
             dataset dsall = amat_dataset("/home/local/datasets/bengio/mnist_rotation_new.zip", "mnist_all_rotation_normalized_float_train_valid.amat","mnist_all_rotation_normalized_float_test.amat");
             dsall.binary = true; // Note: not all amat_datasets are binary!
