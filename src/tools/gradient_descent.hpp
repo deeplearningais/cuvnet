@@ -251,7 +251,10 @@ namespace cuvnet
                         //lr /= 10.f;
                     //std::cout << inp->name()<<" delta: "<< cuv::norm2(inp->result()->delta.cdata())<< std::endl;[> cursor <]
                     //std::cout << inp->name()<<" value: "<< cuv::norm2(inp->data())<< std::endl;[> cursor <]
-                    cuv::learn_step_weight_decay( inp->data(), inp->result()->delta.cdata(), -lr, m_weightdecay);
+
+                    // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
+                    //       we're changing the underlying object all cow_ptrs pointing to it!!!
+                    cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->result()->delta.cdata(), -lr, m_weightdecay);
                 }
             }
             /**
