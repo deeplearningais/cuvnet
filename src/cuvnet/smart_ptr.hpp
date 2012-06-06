@@ -65,7 +65,7 @@ namespace cuvnet
                     return *this;
                 }
 
-                size_t ptr(){ return (size_t) m_ptr.get(); }
+                T* ptr(){ return  m_ptr.get(); }
 
                 // const versions
                 const T&       data() const { return *m_ptr; }
