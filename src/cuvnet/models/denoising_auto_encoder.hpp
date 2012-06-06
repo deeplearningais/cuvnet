@@ -31,7 +31,7 @@ struct denoising_auto_encoder
      * @param noise if >0, add this much noise to input (type of noise depends on \c binary)
      * @param initialize if true, the model will be initialized (false only for derived classes)
      */
-    denoising_auto_encoder(op_ptr& input, unsigned int hidden_dim, bool binary, float noise, bool initialize=true)
+    denoising_auto_encoder(op_ptr input, unsigned int hidden_dim, bool binary, float noise, bool initialize=true)
     :simple_auto_encoder(input,hidden_dim,binary,false)
     ,m_noise(noise)
     {

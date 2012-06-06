@@ -51,7 +51,7 @@ class simple_auto_encoder
      * @param binary if true, assumes inputs are bernoulli distributed
      * @param initialize if true, the model will be initialized (false only for derived classes)
      */
-    simple_auto_encoder(op_ptr& input, unsigned int hidden_dim, bool binary, bool initialize=true)
+    simple_auto_encoder(op_ptr input, unsigned int hidden_dim, bool binary, bool initialize=true)
     :generic_auto_encoder(input,binary)
     {
         // ensure that we have shape information

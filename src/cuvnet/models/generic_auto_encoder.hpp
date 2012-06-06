@@ -119,7 +119,7 @@ class generic_auto_encoder {
          * @param input a function that generates the input of the auto encoder
          * @param binary if true, assume that input variables are bernoulli-distributed
          */
-        generic_auto_encoder(op_ptr& input, bool binary)
+        generic_auto_encoder(op_ptr input, bool binary)
             :m_input(input)
             ,m_binary(binary)
         {
