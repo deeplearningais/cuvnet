@@ -6,11 +6,16 @@
 /**
  * This is a straight-forward symmetric auto-encoder
  */
-struct denoising_auto_encoder 
-: public simple_auto_encoder
+template<class Regularizer>
+class denoising_auto_encoder 
+: public simple_auto_encoder<Regularizer>
 {
     /// how much noise to add to inputs
     float m_noise;
+
+    public:
+    typedef typename simple_auto_encoder<Regularizer>::op_ptr op_ptr;
+    using   typename simple_auto_encoder<Regularizer>::m_binary;
 
     /**
      * @overload
@@ -19,7 +24,7 @@ struct denoising_auto_encoder
         Op::op_ptr corrupt               = inp;
         if( m_binary && m_noise>0.f) corrupt =       zero_out(inp,m_noise);
         if(!m_binary && m_noise>0.f) corrupt = add_rnd_normal(inp,m_noise);
-        return simple_auto_encoder::encode(corrupt);
+        return simple_auto_encoder<Regularizer>::encode(corrupt);
     }
 
     /**
@@ -29,13 +34,15 @@ struct denoising_auto_encoder
      * @param hidden_dim the number of dimensions of the hidden layer
      * @param binary if true, assumes inputs are bernoulli distributed
      * @param noise if >0, add this much noise to input (type of noise depends on \c binary)
+     * @param reg strength of regularization (usually some small positive constant)
      * @param initialize if true, the model will be initialized (false only for derived classes)
      */
-    denoising_auto_encoder(op_ptr input, unsigned int hidden_dim, bool binary, float noise, bool initialize=true)
-    :simple_auto_encoder(input,hidden_dim,binary,false)
+    denoising_auto_encoder(op_ptr input, unsigned int hidden_dim, bool binary, float noise, float reg, bool initialize=true)
+    :generic_auto_encoder(input,binary)
+    ,simple_auto_encoder<Regularizer>(input,hidden_dim,binary,reg, false)
     ,m_noise(noise)
     {
-        if(initialize) init();
+        if(initialize) this->init(reg);
     }
 };
 

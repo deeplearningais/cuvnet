@@ -7,8 +7,10 @@
 /**
  * This is a straight-forward symmetric auto-encoder
  */
+template<class Regularizer>
 class simple_auto_encoder 
-: public generic_auto_encoder
+: virtual public generic_auto_encoder
+, public Regularizer
 {
     // these are the parametrs of the model
     boost::shared_ptr<Input>  m_weights, m_bias_h, m_bias_y;
@@ -49,10 +51,12 @@ class simple_auto_encoder
      * @param input the function that generates the input of the autoencoder
      * @param hidden_dim the number of dimensions of the hidden layer
      * @param binary if true, assumes inputs are bernoulli distributed
+     * @param reg strength of regularization (usually some small positive constant)
      * @param initialize if true, the model will be initialized (false only for derived classes)
      */
-    simple_auto_encoder(op_ptr input, unsigned int hidden_dim, bool binary, bool initialize=true)
+    simple_auto_encoder(op_ptr input, unsigned int hidden_dim, bool binary, float reg, bool initialize=true)
     :generic_auto_encoder(input,binary)
+    ,Regularizer(input,binary)
     {
         // ensure that we have shape information
         input->visit(determine_shapes_visitor()); 
@@ -62,7 +66,7 @@ class simple_auto_encoder
         m_bias_h.reset(new Input(cuv::extents[hidden_dim],            "bias_h"));
         m_bias_y.reset(new Input(cuv::extents[input_dim],             "bias_y"));
 
-        if(initialize) init();
+        if(initialize) init(reg);
     }
 
     /**
@@ -81,15 +85,32 @@ class simple_auto_encoder
     }
 };
 
-/*
- *template<class T>
- *class simple_auto_encoder_weight_decay
- *: public T{
- *
- *    virtual op_ptr regularize(){ return sum(pow(m_weights,2.f)); }
- *    
- *};
+/**
+ * this just implements a weight decay to be mixed into a simple auto encoder
  */
+class simple_auto_encoder_weight_decay
+: virtual public generic_auto_encoder
+{
+    public:
+        simple_auto_encoder_weight_decay(op_ptr input, bool binary)
+        : generic_auto_encoder(input,binary){}
+    /**
+     * L2 regularization of all two-dimensional parameter matrices 
+     */
+    virtual op_ptr regularize(){ 
+        op_ptr regloss;
+        BOOST_FOREACH(Op* op, unsupervised_params()){
+            if(dynamic_cast<Input*>(op)->data().ndim()==2){
+                op_ptr tmp = sum(pow(op->shared_from_this(),2.f)); 
+                if(!regloss)
+                    regloss = tmp;
+                else
+                    regloss = regloss + tmp;
+            }
+        }
+        return regloss;
+    }
+};
 
 
 #endif /* __SIMPLE_AUTO_ENCODER_HPP__ */

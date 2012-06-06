@@ -24,12 +24,12 @@ TEST_F(RandomNumberUsingTest, simple_ae_loss_derivative){
    boost::shared_ptr<Op>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
 
    {
-       simple_auto_encoder ae(inp, 4, true);
+       simple_auto_encoder<simple_auto_encoder_weight_decay> ae(inp, 4, true, 0.01f);
        derivative_tester(*ae.loss(),0,false,.01f, 0.f, 1.f); // generate inputs in interval 0,1
    }
 
    {
-       simple_auto_encoder ae(inp, 4, false);
+       simple_auto_encoder<simple_auto_encoder_weight_decay> ae(inp, 4, false, 0.01f);
        derivative_tester(*ae.loss(),0,false,.01f);
    }
 }
@@ -37,6 +37,6 @@ TEST_F(RandomNumberUsingTest, simple_ae_loss_derivative){
 TEST_F(RandomNumberUsingTest, denoising_ae_loss_derivative){
    boost::shared_ptr<Op>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
 
-   denoising_auto_encoder ae(inp, 4, true, 0.0f); // zero noise
+   denoising_auto_encoder<simple_auto_encoder_weight_decay> ae(inp, 4, true, 0.0f, 0.01f); // zero noise
    derivative_tester(*ae.loss());
 }

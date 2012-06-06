@@ -92,10 +92,8 @@ class generic_auto_encoder {
 
         /**
          * Regularizer.
-         *
-         * Defaults to nothing.
          */
-        virtual op_ptr regularize(){ return op_ptr(); }
+        virtual op_ptr regularize()=0;
 
         /**
          * Loss
@@ -163,7 +161,7 @@ class generic_auto_encoder {
                 m_loss = m_rec_loss;
             }else{
                 m_reg_loss_sink = sink(m_reg_loss);
-                m_loss          = axpby(m_loss, regularization_strength, m_reg_loss);
+                m_loss          = axpby(m_rec_loss, regularization_strength, m_reg_loss);
             }
 
             m_rec_loss_sink = sink(m_rec_loss);
