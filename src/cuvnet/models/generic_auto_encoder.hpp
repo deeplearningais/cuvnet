@@ -46,6 +46,7 @@ class generic_auto_encoder {
         sink_ptr m_reg_loss_sink; ///< keeps regularization loss value for accumulating using accumulate_loss()
         sink_ptr m_rec_loss_sink; ///< keeps reconstruction loss value for accumulating using accumulate_loss()
         sink_ptr m_loss_sink;     ///< keeps loss value for accumulating using accumulate_loss()
+        sink_ptr m_decoded_sink; ///< keeps decoder value
 
         bool m_binary; ///< if \c m_binary is true, use logistic loss
 
@@ -129,6 +130,12 @@ class generic_auto_encoder {
         bool binary()const{return m_binary;}
 
         /**
+         * @return the decoded sink
+         */
+        sink_ptr get_decoded(){return  m_decoded_sink;}
+    
+
+        /**
          * Determine the reconstruction loss.
          *
          * @param input a function that determines the input of the auto-encoder
@@ -154,25 +161,31 @@ class generic_auto_encoder {
         void init(float regularization_strength=0.0f){
             m_encoded   = encode(m_input);
             m_decoded   = decode(m_encoded);
+            m_decoded_sink = sink("decoder value", m_decoded);
             m_rec_loss  = reconstruction_loss(m_input, m_decoded);
             m_reg_loss  = regularize();
 
             if(!m_reg_loss || regularization_strength == 0.0f){
                 m_loss = m_rec_loss;
             }else{
-                m_reg_loss_sink = sink(m_reg_loss);
+                m_reg_loss_sink = sink("reg loss", m_reg_loss);
                 m_loss          = axpby(m_rec_loss, regularization_strength, m_reg_loss);
             }
 
-            m_rec_loss_sink = sink(m_rec_loss);
-            m_loss_sink     = sink(m_loss);
+            m_rec_loss_sink = sink("rec loss", m_rec_loss);
+            m_loss_sink     = sink("total loss",m_loss);
             reset_weights();
         }
 
         /**
          * Accumulate the loss (e.g. after processing one batch) statistics
          */
-        virtual void accumulate_loss(){ s_total_loss((float) m_loss_sink->cdata()[0]);}
+        virtual void accumulate_loss(){ 
+            s_total_loss((float) m_loss_sink->cdata()[0]);
+            s_rec_loss((float) m_rec_loss_sink->cdata()[0]);
+            if(m_reg_loss_sink)
+                s_reg_loss((float) m_reg_loss_sink->cdata()[0]);
+        }
 
         /**
          * Determine the number of iterations this model was trained for on average

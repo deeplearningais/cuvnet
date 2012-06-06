@@ -28,6 +28,10 @@ class simple_auto_encoder
                 prod( enc, m_weights, 'n','t')
                 ,m_bias_y,1);
     }
+/*
+ * @ returns weights
+ */
+    boost::shared_ptr<Input> get_weights(){return m_weights;} 
 
     /**
      * Determine the parameters learned during pre-training

@@ -23,9 +23,11 @@
 #include <datasets/splitter.hpp>
 
 #include "auto_enc.hpp"
+#include "cuvnet/models/simple_auto_encoder.hpp"
 
 using namespace boost::assign;
 namespace ll = boost::lambda;
+typedef simple_auto_encoder<simple_auto_encoder_weight_decay> ae_type;
 
 matrix trans(matrix& m){
     matrix mt(m.shape(1),m.shape(0));
@@ -33,17 +35,17 @@ matrix trans(matrix& m){
     return mt;
 }
 
-
 void load_batch(
-        auto_encoder* ae,
+        boost::shared_ptr<Input> input,
         cuv::tensor<float,cuv::dev_memory_space>* data,
         unsigned int bs, unsigned int batch){
     //std::cout <<"."<<std::flush;
-    ae->input() = (*data)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
+    input->data() = (*data)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
 }
 
+
 //void visualize_filters(auto_encoder* ae, pca_whitening* normalizer, int fa,int fb, int image_size, int channels, unsigned int epoch){
-void visualize_filters(auto_encoder* ae, pca_whitening* normalizer, int fa,int fb, int image_size, int channels, unsigned int epoch){
+void visualize_filters(ae_type* ae, pca_whitening* normalizer, int fa,int fb, int image_size, int channels, boost::shared_ptr<Input> input, unsigned int epoch){
     if(epoch%300 != 0)
         return;
     {
@@ -51,7 +53,7 @@ void visualize_filters(auto_encoder* ae, pca_whitening* normalizer, int fa,int f
         // show the resulting filters
         //unsigned int n_rec = (bs>0) ? sqrt(bs) : 6;
         //cuv::libs::cimg::show(arrange_filters(ae.m_reconstruct->cdata(),'n', n_rec,n_rec, image_size,channels), "input");
-        cuv::tensor<float,cuv::host_memory_space>  w = trans(ae->m_weights->data());
+        cuv::tensor<float,cuv::host_memory_space>  w = trans(ae->get_weights()->data());
         std::cout << "Weight dims: "<<w.shape(0)<<", "<<w.shape(1)<<std::endl;
         auto wvis = arrange_filters(w, 'n', fa, fb, (int)sqrt(w.shape(1)),channels,false);
         cuv::libs::cimg::save(wvis, base+"nb.png");
@@ -66,7 +68,7 @@ void visualize_filters(auto_encoder* ae, pca_whitening* normalizer, int fa,int f
 
     {
         std::string base = (boost::format("recons-%06d-")%epoch).str();
-        cuv::tensor<float,cuv::host_memory_space> w = ae->m_reconstruct->cdata().copy();
+        cuv::tensor<float,cuv::host_memory_space> w = ae->get_decoded()->cdata().copy();
         fa = sqrt(w.shape(0));
         fb = sqrt(w.shape(0));
         auto wvis = arrange_filters(w, 'n', fa, fb, (int)sqrt(w.shape(1)),channels,false);
@@ -82,7 +84,7 @@ void visualize_filters(auto_encoder* ae, pca_whitening* normalizer, int fa,int f
 
     {
         std::string base = (boost::format("input-%06d-")%epoch).str();
-        cuv::tensor<float,cuv::host_memory_space> w = ae->m_input->data().copy();
+        cuv::tensor<float,cuv::host_memory_space> w = input->data().copy();
         fa = sqrt(w.shape(0));
         fb = sqrt(w.shape(0));
         auto wvis = arrange_filters(w, 'n', fa, fb, (int)sqrt(w.shape(1)),channels,false);
@@ -101,15 +103,6 @@ int main(int argc, char **argv)
 {
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
-    {   // check auto-encoder derivatives
-        auto_encoder ae(2,4,2,false,0.0f,0.2f,10.f);
-        derivative_tester_verbose(*ae.m_enc,0);
-        derivative_tester_verbose(*ae.m_decode,0);
-        derivative_tester_verbose(*ae.m_rec_loss,0);
-        if(ae.m_contractive_loss.get()){
-            derivative_tester_verbose(*ae.m_contractive_loss,0);
-        }
-    }
 
     //mnist_dataset ds_all("/home/local/datasets/MNIST");
     natural_dataset ds_all("/home/local/datasets/natural_images");
@@ -153,29 +146,21 @@ int main(int argc, char **argv)
         // end preprocessing                                           /
         //-------------------------------------------------------------
     }
+
+    boost::shared_ptr<Input> input(
+            new Input(cuv::extents[bs][ds.train_data.shape(1)],"input")); 
+    ae_type ae(input, fa*fb, ds.binary, 0.001f); // creates simple autoencoder
     
-    
-    std::cout << "train_data dim: "<<ds.train_data.shape(1)<<std::endl;
-    std::cout << "train_data max: "<<cuv::maximum(ds.train_data)<<std::endl;
-    std::cout << "train_data min: "<<cuv::minimum(ds.train_data)<<std::endl;
-    std::cout << "train_data mean: "<<cuv::mean(ds.train_data)<<std::endl;
-    std::cout << "train_data var : "<<cuv::var(ds.train_data)<<std::endl;
 
-
-    auto_encoder ae(bs==0?ds.val_data.shape(0):bs,
-            ds.train_data.shape(1), fa*fb, 
-            ds.binary, 0.0f, 0.000000f, 100.0f); // CIFAR: lambda=0.05, MNIST lambda=1.0
-
-    std::vector<Op*> params;
-    params += ae.m_weights.get(), ae.m_bias_y.get(), ae.m_bias_h.get();
+    std::vector<Op*> params = ae.unsupervised_params();
 
     Op::value_type alldata = bs==0 ? ds.val_data : ds.train_data;
-    gradient_descent gd(ae.m_loss,0,params,0.1f,-0.00001f);
-    gd.after_epoch.connect(boost::bind(&auto_encoder::print_loss, &ae, _1));
-    gd.after_epoch.connect(boost::bind(&auto_encoder::reset_loss, &ae));
-    gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&normalizer,fa,fb,ds.image_size,ds.channels,_1));
-    gd.before_batch.connect(boost::bind(load_batch,&ae,&alldata,bs,_2));
-    gd.after_batch.connect(boost::bind(&auto_encoder::acc_loss, &ae));
+    gradient_descent gd(ae.loss(),0,params,0.001f);
+    gd.after_epoch.connect(boost::bind(&ae_type::log_loss, &ae, "hello", _1));
+    gd.before_epoch.connect(boost::bind(&ae_type::reset_loss, &ae));
+    gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&normalizer,fa,fb,ds.image_size,ds.channels, input,_1));
+    gd.before_batch.connect(boost::bind(load_batch,input,&alldata,bs,_2));
+    gd.after_batch.connect(boost::bind(&ae_type::accumulate_loss, &ae));
     gd.current_batch_num.connect(ds.train_data.shape(0)/ll::constant(bs));
     gd.minibatch_learning(6000, 10*60); // 10 minutes maximum
     
