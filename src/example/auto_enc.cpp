@@ -149,7 +149,8 @@ int main(int argc, char **argv)
 
     boost::shared_ptr<Input> input(
             new Input(cuv::extents[bs][ds.train_data.shape(1)],"input")); 
-    ae_type ae(input, fa*fb, ds.binary, 0.001f); // creates simple autoencoder
+    ae_type ae(fa*fb, ds.binary, 0.001f); // creates simple autoencoder
+    ae.init(input);
     
 
     std::vector<Op*> params = ae.unsupervised_params();
