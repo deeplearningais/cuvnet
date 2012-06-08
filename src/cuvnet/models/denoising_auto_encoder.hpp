@@ -30,19 +30,16 @@ class denoising_auto_encoder
     /**
      * constructor
      * 
-     * @param input the function that generates the input of the autoencoder
      * @param hidden_dim the number of dimensions of the hidden layer
      * @param binary if true, assumes inputs are bernoulli distributed
      * @param noise if >0, add this much noise to input (type of noise depends on \c binary)
      * @param reg strength of regularization (usually some small positive constant)
-     * @param initialize if true, the model will be initialized (false only for derived classes)
      */
-    denoising_auto_encoder(op_ptr input, unsigned int hidden_dim, bool binary, float noise, float reg, bool initialize=true)
-    :generic_auto_encoder(input,binary)
-    ,simple_auto_encoder<Regularizer>(input,hidden_dim,binary,reg, false)
+    denoising_auto_encoder(unsigned int hidden_dim, bool binary, float noise, float reg)
+    :generic_auto_encoder(binary)
+    ,simple_auto_encoder<Regularizer>(hidden_dim,binary,reg)
     ,m_noise(noise)
     {
-        if(initialize) this->init(reg);
     }
 };
 

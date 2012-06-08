@@ -35,7 +35,6 @@ class generic_auto_encoder {
         acc_t s_reg_loss;   ///< regularization loss
         acc_t s_total_loss; ///< total loss
 
-        op_ptr m_input;     ///< the inputs of the AE
         op_ptr m_encoded;   ///< the encoder function
         op_ptr m_decoded;   ///< the decoder function
 
@@ -118,9 +117,8 @@ class generic_auto_encoder {
          * @param input a function that generates the input of the auto encoder
          * @param binary if true, assume that input variables are bernoulli-distributed
          */
-        generic_auto_encoder(op_ptr input, bool binary)
-            :m_input(input)
-            ,m_binary(binary)
+        generic_auto_encoder(bool binary)
+            :m_binary(binary)
         {
         }
 
@@ -133,6 +131,11 @@ class generic_auto_encoder {
          * @return the decoded sink
          */
         sink_ptr get_decoded(){return  m_decoded_sink;}
+
+        /**
+         * @return the encoded representation
+         */
+        op_ptr get_encoded(){return  m_encoded;}
     
 
         /**
@@ -155,21 +158,23 @@ class generic_auto_encoder {
         /**
          * construct encoder, decoder and loss; initialize weights.
          *
-         * You should call this function at the end of the constructor of your
-         * derived class.
          */
-        void init(float regularization_strength=0.0f){
-            m_encoded   = encode(m_input);
+        virtual void init(op_ptr input, float regularization_strength=0.f){
+            m_encoded   = encode(input);
             m_decoded   = decode(m_encoded);
             m_decoded_sink = sink("decoder value", m_decoded);
-            m_rec_loss  = reconstruction_loss(m_input, m_decoded);
-            m_reg_loss  = regularize();
+            m_rec_loss  = reconstruction_loss(input, m_decoded);
 
-            if(!m_reg_loss || regularization_strength == 0.0f){
-                m_loss = m_rec_loss;
+            if(regularization_strength != 0.0f){
+                m_reg_loss  = regularize();
+                if(!m_reg_loss){
+                    m_loss = m_rec_loss;
+                }else{
+                    m_reg_loss_sink = sink("reg loss", m_reg_loss);
+                    m_loss          = axpby(m_rec_loss, regularization_strength, m_reg_loss);
+                }
             }else{
-                m_reg_loss_sink = sink("reg loss", m_reg_loss);
-                m_loss          = axpby(m_rec_loss, regularization_strength, m_reg_loss);
+                m_loss = m_rec_loss;
             }
 
             m_rec_loss_sink = sink("rec loss", m_rec_loss);

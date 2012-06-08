@@ -15,9 +15,24 @@ class simple_auto_encoder
     // these are the parametrs of the model
     boost::shared_ptr<Input>  m_weights, m_bias_h, m_bias_y;
 
+    unsigned int m_hidden_dim;
+
     public:
     /// \f$ h := \sigma ( x W + b_h ) \f$
     virtual op_ptr  encode(op_ptr& inp){
+        if(!m_weights){
+            inp->visit(determine_shapes_visitor()); 
+            unsigned int input_dim = inp->result()->shape[1];
+            
+            m_weights.reset(new Input(cuv::extents[input_dim][m_hidden_dim],"weights"));
+            m_bias_h.reset(new Input(cuv::extents[m_hidden_dim],            "bias_h"));
+            m_bias_y.reset(new Input(cuv::extents[input_dim],             "bias_y"));
+        }else{
+            inp->visit(determine_shapes_visitor()); 
+            unsigned int input_dim = inp->result()->shape[1];
+            cuvAssert(m_weights->data().shape(0)==input_dim);
+        }
+
         return logistic(mat_plus_vec(
                     prod( inp, m_weights)
                     ,m_bias_h,1));
@@ -28,9 +43,10 @@ class simple_auto_encoder
                 prod( enc, m_weights, 'n','t')
                 ,m_bias_y,1);
     }
-/*
- * @ returns weights
- */
+
+    /*
+     * @return weight matrix
+     */
     boost::shared_ptr<Input> get_weights(){return m_weights;} 
 
     /**
@@ -56,21 +72,12 @@ class simple_auto_encoder
      * @param hidden_dim the number of dimensions of the hidden layer
      * @param binary if true, assumes inputs are bernoulli distributed
      * @param reg strength of regularization (usually some small positive constant)
-     * @param initialize if true, the model will be initialized (false only for derived classes)
      */
-    simple_auto_encoder(op_ptr input, unsigned int hidden_dim, bool binary, float reg, bool initialize=true)
-    :generic_auto_encoder(input,binary)
-    ,Regularizer(input,binary)
+    simple_auto_encoder(unsigned int hidden_dim, bool binary, float reg)
+    :generic_auto_encoder(binary)
+    ,Regularizer(binary)
+    ,m_hidden_dim(hidden_dim)
     {
-        // ensure that we have shape information
-        input->visit(determine_shapes_visitor()); 
-        unsigned int input_dim = input->result()->shape[1];
-        
-        m_weights.reset(new Input(cuv::extents[input_dim][hidden_dim],"weights"));
-        m_bias_h.reset(new Input(cuv::extents[hidden_dim],            "bias_h"));
-        m_bias_y.reset(new Input(cuv::extents[input_dim],             "bias_y"));
-
-        if(initialize) init(reg);
     }
 
     /**
@@ -96,8 +103,8 @@ class simple_auto_encoder_weight_decay
 : virtual public generic_auto_encoder
 {
     public:
-        simple_auto_encoder_weight_decay(op_ptr input, bool binary)
-        : generic_auto_encoder(input,binary){}
+        simple_auto_encoder_weight_decay(bool binary)
+        : generic_auto_encoder(binary){}
     /**
      * L2 regularization of all two-dimensional parameter matrices 
      */
@@ -116,5 +123,21 @@ class simple_auto_encoder_weight_decay
     }
 };
 
+/**
+ * no regularization
+ */
+class simple_auto_encoder_no_regularization
+: virtual public generic_auto_encoder
+{
+    public:
+        simple_auto_encoder_no_regularization(bool binary)
+        : generic_auto_encoder(binary){}
+    /**
+     * no regularization
+     */
+    virtual op_ptr regularize(){ 
+        return op_ptr();
+    }
+};
 
 #endif /* __SIMPLE_AUTO_ENCODER_HPP__ */

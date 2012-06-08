@@ -7,6 +7,7 @@
 
 #include <cuvnet/models/simple_auto_encoder.hpp>
 #include <cuvnet/models/denoising_auto_encoder.hpp>
+#include <cuvnet/models/auto_encoder_stack.hpp>
 using namespace cuvnet::derivative_testing;
 
 class RandomNumberUsingTest : public ::testing::Test {
@@ -24,12 +25,14 @@ TEST_F(RandomNumberUsingTest, simple_ae_loss_derivative){
    boost::shared_ptr<Op>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
 
    {
-       simple_auto_encoder<simple_auto_encoder_weight_decay> ae(inp, 4, true, 0.01f);
+       simple_auto_encoder<simple_auto_encoder_weight_decay> ae(4, true, 0.01f);
+       ae.init(inp);
        derivative_tester(*ae.loss(),0,false,.01f, 0.f, 1.f); // generate inputs in interval 0,1
    }
 
    {
-       simple_auto_encoder<simple_auto_encoder_weight_decay> ae(inp, 4, false, 0.01f);
+       simple_auto_encoder<simple_auto_encoder_weight_decay> ae(4, false, 0.01f);
+       ae.init(inp);
        derivative_tester(*ae.loss(),0,false,.01f);
    }
 }
@@ -37,6 +40,21 @@ TEST_F(RandomNumberUsingTest, simple_ae_loss_derivative){
 TEST_F(RandomNumberUsingTest, denoising_ae_loss_derivative){
    boost::shared_ptr<Op>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
 
-   denoising_auto_encoder<simple_auto_encoder_weight_decay> ae(inp, 4, true, 0.0f, 0.01f); // zero noise
+   denoising_auto_encoder<simple_auto_encoder_weight_decay> ae(4, true, 0.0f, 0.01f); // zero noise
+   ae.init(inp);
+   derivative_tester(*ae.loss());
+}
+
+TEST_F(RandomNumberUsingTest, stack_derivative){
+   boost::shared_ptr<Op>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+
+   auto_encoder_stack<> ae(true); // zero noise
+
+   typedef denoising_auto_encoder<simple_auto_encoder_weight_decay> ae_type;
+   ae.add<ae_type>(4, true, 0.0f, 0.01f); 
+   ae.add<ae_type>(4, true, 0.0f, 0.01f);
+
+   ae.init(inp);
+
    derivative_tester(*ae.loss());
 }
