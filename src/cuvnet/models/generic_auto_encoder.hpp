@@ -243,6 +243,11 @@ class generic_auto_encoder {
         float perf() {
             return acc::mean(s_total_loss);
         }
+
+        /**
+         * (Virtual) dtor
+         */
+        ~generic_auto_encoder(){}
 };
 
 #endif /* __GENERIC_AUTO_ENCODER_HPP__ */
