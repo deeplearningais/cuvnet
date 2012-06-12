@@ -247,7 +247,7 @@ class generic_auto_encoder {
         /**
          * (Virtual) dtor
          */
-        ~generic_auto_encoder(){}
+        virtual ~generic_auto_encoder(){}
 };
 
 #endif /* __GENERIC_AUTO_ENCODER_HPP__ */
