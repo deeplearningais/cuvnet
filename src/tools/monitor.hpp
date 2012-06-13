@@ -1,7 +1,7 @@
 #ifndef __MONITOR_HPP__
 #     define __MONITOR_HPP__
 
-#include <vector>
+#include <map>
 #include <boost/ptr_container/ptr_vector.hpp>
 
 #include <boost/accumulators/accumulators.hpp>
@@ -56,7 +56,8 @@ namespace cuvnet
                 acc_t           scalar_stats;
             };
 
-            boost::ptr_vector<watchpoint> m_watchpoints;
+            boost::ptr_vector<watchpoint> m_watchpoints; ///< keeps all watchpoints 
+            std::map<std::string, watchpoint*> m_wpmap;  ///< access watchpoints by name
 
         public:
             /**
@@ -76,6 +77,7 @@ namespace cuvnet
              */
             monitor& add(watchpoint_type type, boost::shared_ptr<Op>& op, const std::string& name){
                 m_watchpoints.push_back(new watchpoint(type,op,name));
+                m_wpmap[name] = &m_watchpoints.back();
                 return *this;
             }
 
@@ -109,15 +111,39 @@ namespace cuvnet
                 m_epochs ++;
             }
 
+            /// @return the number of epochs this monitor has observed
+            inline unsigned int epochs()             const{ return m_epochs;              }
+
+            /// @return the number of batch presentations this monitor has observed
+            inline unsigned int batch_presentations()const{ return m_batch_presentations; }
+
+            /// return the mean of a named watchpoint 
+            float mean(const std::string& name){
+                std::map<std::string, watchpoint*>::iterator it 
+                    = m_wpmap.find(name);
+                if(it != m_wpmap.end())
+                    return boost::accumulators::mean(it->second->scalar_stats);
+                throw std::runtime_error("Unknown watchpoint `"+name+"'");
+            }
+
+            /// return the variance of a named watchpoint 
+            float var(const std::string& name){
+                std::map<std::string, watchpoint*>::iterator it 
+                    = m_wpmap.find(name);
+                if(it != m_wpmap.end())
+                    return boost::accumulators::variance(it->second->scalar_stats);
+                throw std::runtime_error("Unknown watchpoint `"+name+"'");
+            }
+
             /**
              * access a sink by a name
              * @return value of the first watchpoint with this name
              */
             const matrix& operator[](const std::string& name){
-                BOOST_FOREACH(watchpoint& p, m_watchpoints){
-                    if(p.name == name)
-                        return p.sink->cdata();
-                }
+                std::map<std::string, watchpoint*>::iterator it 
+                    = m_wpmap.find(name);
+                if(it != m_wpmap.end())
+                    return it->second->sink->cdata();
                 throw std::runtime_error("Unknown watchpoint `"+name+"'");
             }
 
