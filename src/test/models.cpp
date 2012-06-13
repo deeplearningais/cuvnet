@@ -8,6 +8,9 @@
 #include <cuvnet/models/simple_auto_encoder.hpp>
 #include <cuvnet/models/denoising_auto_encoder.hpp>
 #include <cuvnet/models/auto_encoder_stack.hpp>
+#include <cuvnet/models/generic_regression.hpp>
+
+
 using namespace cuvnet::derivative_testing;
 
 class RandomNumberUsingTest : public ::testing::Test {
@@ -58,3 +61,23 @@ TEST_F(RandomNumberUsingTest, stack_derivative){
 
    derivative_tester(*ae.loss());
 }
+
+
+TEST_F(RandomNumberUsingTest, logistic_reg_loss_derivative){
+   boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+   boost::shared_ptr<Input>  target = boost::make_shared<Input>(cuv::extents[3][5]);
+   target->set_derivable(false);
+
+   logistic_regression lg(inp, target); 
+   derivative_tester(*lg.loss(), 0, false, .01);
+}
+
+TEST_F(RandomNumberUsingTest, linear_reg_loss_derivative){
+   boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+   boost::shared_ptr<Input>  target = boost::make_shared<Input>(cuv::extents[3][5]);
+   target->set_derivable(false);
+
+   linear_regression lg(inp, target); 
+   derivative_tester(*lg.loss(), 0, false, .01);
+}
+
