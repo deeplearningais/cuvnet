@@ -9,9 +9,31 @@
 #include <cuvnet/models/denoising_auto_encoder.hpp>
 #include <cuvnet/models/auto_encoder_stack.hpp>
 #include <cuvnet/models/generic_regression.hpp>
+#include <tools/monitor.hpp>
 
 
 using namespace cuvnet::derivative_testing;
+
+TEST(Monitor, simple){
+    boost::shared_ptr<Input> inp(new Input(cuv::extents[3][5]));
+    boost::shared_ptr<Op> func(new Sum(inp->result()));
+    inp->data() = 1.f;
+
+    {
+        cuvnet::monitor mon;
+        EXPECT_EQ(0,func->result(0)->result_uses.size());
+        mon.add(monitor::WP_SCALAR_EPOCH_STATS, func, "sum");
+        EXPECT_EQ(1,func->result(0)->result_uses.size());
+    
+        swiper swp(*func,0,std::vector<Op*>());
+        swp.fprop();
+    
+        EXPECT_EQ(15, mon["sum"][0]);
+    }
+
+    // test destruction of sinks when monitor is destroyed
+    EXPECT_EQ(0,func->result(0)->result_uses.size());
+}
 
 class RandomNumberUsingTest : public ::testing::Test {
  protected:
