@@ -1,6 +1,7 @@
 #ifndef __OPS_HPP__
 #     define __OPS_HPP__
 
+#include <cmath>
 #include <cuvnet/ops/axpby.hpp>
 #include <cuvnet/ops/identity.hpp>
 #include <cuvnet/ops/input.hpp>
