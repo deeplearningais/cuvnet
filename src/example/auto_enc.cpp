@@ -21,8 +21,8 @@
 #include <datasets/natural.hpp>
 #include <datasets/amat_datasets.hpp>
 #include <datasets/splitter.hpp>
+#include <tools/monitor.hpp>
 
-#include "auto_enc.hpp"
 #include "cuvnet/models/simple_auto_encoder.hpp"
 
 using namespace boost::assign;
@@ -45,7 +45,7 @@ void load_batch(
 
 
 //void visualize_filters(auto_encoder* ae, pca_whitening* normalizer, int fa,int fb, int image_size, int channels, unsigned int epoch){
-void visualize_filters(ae_type* ae, pca_whitening* normalizer, int fa,int fb, int image_size, int channels, boost::shared_ptr<Input> input, unsigned int epoch){
+void visualize_filters(ae_type* ae, monitor* mon, pca_whitening* normalizer, int fa,int fb, int image_size, int channels, boost::shared_ptr<Input> input, unsigned int epoch){
     if(epoch%300 != 0)
         return;
     {
@@ -68,7 +68,7 @@ void visualize_filters(ae_type* ae, pca_whitening* normalizer, int fa,int fb, in
 
     {
         std::string base = (boost::format("recons-%06d-")%epoch).str();
-        cuv::tensor<float,cuv::host_memory_space> w = ae->get_decoded()->cdata().copy();
+        cuv::tensor<float,cuv::host_memory_space> w = (*mon)["decoded"].copy();
         fa = sqrt(w.shape(0));
         fb = sqrt(w.shape(0));
         auto wvis = arrange_filters(w, 'n', fa, fb, (int)sqrt(w.shape(1)),channels,false);
@@ -155,13 +155,15 @@ int main(int argc, char **argv)
 
     std::vector<Op*> params = ae.unsupervised_params();
 
+    monitor mon(true); // verbose
+    mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.loss(),        "total loss");
+    mon.add(monitor::WP_SINK,               ae.get_decoded(), "decoded");
+
     Op::value_type alldata = bs==0 ? ds.val_data : ds.train_data;
     gradient_descent gd(ae.loss(),0,params,0.001f);
-    gd.after_epoch.connect(boost::bind(&ae_type::log_loss, &ae, "hello", _1));
-    gd.before_epoch.connect(boost::bind(&ae_type::reset_loss, &ae));
-    gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&normalizer,fa,fb,ds.image_size,ds.channels, input,_1));
+    gd.register_monitor(mon);
+    gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,&normalizer,fa,fb,ds.image_size,ds.channels, input,_1));
     gd.before_batch.connect(boost::bind(load_batch,input,&alldata,bs,_2));
-    gd.after_batch.connect(boost::bind(&ae_type::accumulate_loss, &ae));
     gd.current_batch_num.connect(ds.train_data.shape(0)/ll::constant(bs));
     gd.minibatch_learning(6000, 10*60); // 10 minutes maximum
     

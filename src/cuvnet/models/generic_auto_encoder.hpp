@@ -1,17 +1,11 @@
 #ifndef __GENERIC_AUTO_ENCODER_HPP__
 #     define __GENERIC_AUTO_ENCODER_HPP__
 
-#include <boost/accumulators/accumulators.hpp>
-#include <boost/accumulators/statistics/stats.hpp>
-#include <boost/accumulators/statistics/mean.hpp>
-#include <boost/accumulators/statistics/variance.hpp>
-
 #include <cuv.hpp>
 
 #include <cuvnet/ops.hpp>
 
 using namespace cuvnet;
-namespace acc=boost::accumulators;
 
 
 /**
@@ -19,22 +13,12 @@ namespace acc=boost::accumulators;
  */
 class generic_auto_encoder {
     public:
-        /// this type is used for accumulating the results during learning
-        typedef
-            acc::accumulator_set<double,
-            acc::stats<acc::tag::mean, acc::tag::variance(acc::lazy) > > acc_t;
-
         /** 
          * this is the type of a `function', e.g. the output or the loss of
          * the autoencoder
          */
         typedef boost::shared_ptr<Op>     op_ptr;
-        typedef boost::shared_ptr<Sink>   sink_ptr;
     protected:
-        acc_t s_rec_loss;   ///< reconstruction loss
-        acc_t s_reg_loss;   ///< regularization loss
-        acc_t s_total_loss; ///< total loss
-
         op_ptr m_encoded;   ///< the encoder function
         op_ptr m_decoded;   ///< the decoder function
 
@@ -42,19 +26,9 @@ class generic_auto_encoder {
         op_ptr m_rec_loss;  ///< reconstruction loss
         op_ptr m_loss;      ///< the total loss of the autoencoder
 
-        sink_ptr m_reg_loss_sink; ///< keeps regularization loss value for accumulating using accumulate_loss()
-        sink_ptr m_rec_loss_sink; ///< keeps reconstruction loss value for accumulating using accumulate_loss()
-        sink_ptr m_loss_sink;     ///< keeps loss value for accumulating using accumulate_loss()
-        sink_ptr m_decoded_sink; ///< keeps decoder value
-
         bool m_binary; ///< if \c m_binary is true, use logistic loss
 
     public:
-        /** 
-         * remembers how many epochs this was trained for, e.g. for training on
-         * the trainval set
-         */
-        acc_t s_iters;       
 
         /**
          * Determine the parameters to be learned during unsupervised training.
@@ -128,14 +102,14 @@ class generic_auto_encoder {
         bool binary()const{return m_binary;}
 
         /**
-         * @return the decoded sink
-         */
-        sink_ptr get_decoded(){return  m_decoded_sink;}
-
-        /**
          * @return the encoded representation
          */
-        op_ptr get_encoded(){return  m_encoded;}
+        op_ptr& get_encoded(){return  m_encoded;}
+
+        /**
+         * @return the decoded representation
+         */
+        op_ptr& get_decoded(){return  m_decoded;}
     
 
         /**
@@ -162,7 +136,6 @@ class generic_auto_encoder {
         virtual void init(op_ptr input, float regularization_strength=0.f){
             m_encoded   = encode(input);
             m_decoded   = decode(m_encoded);
-            m_decoded_sink = sink("decoder value", m_decoded);
             m_rec_loss  = reconstruction_loss(input, m_decoded);
 
             if(regularization_strength != 0.0f){
@@ -170,50 +143,14 @@ class generic_auto_encoder {
                 if(!m_reg_loss){
                     m_loss = m_rec_loss;
                 }else{
-                    m_reg_loss_sink = sink("reg loss", m_reg_loss);
                     m_loss          = axpby(m_rec_loss, regularization_strength, m_reg_loss);
                 }
             }else{
                 m_loss = m_rec_loss;
             }
-
-            m_rec_loss_sink = sink("rec loss", m_rec_loss);
-            m_loss_sink     = sink("total loss",m_loss);
             reset_weights();
         }
 
-        /**
-         * Accumulate the loss (e.g. after processing one batch) statistics
-         */
-        virtual void accumulate_loss(){ 
-            s_total_loss((float) m_loss_sink->cdata()[0]);
-            s_rec_loss((float) m_rec_loss_sink->cdata()[0]);
-            if(m_reg_loss_sink)
-                s_reg_loss((float) m_reg_loss_sink->cdata()[0]);
-        }
-
-        /**
-         * Determine the number of iterations this model was trained for on average
-         * This can be used to use the same number of iterations during
-         * learning on the train+validation set as on training only when early
-         * stopping was used during crossvalidation
-         *
-         * @return number of epochs
-         */
-        unsigned int    avg_iters()  { 
-            if(acc::count(s_iters)==0) 
-                return 0;
-            return acc::mean(s_iters); 
-        }
-
-        /**
-         * Reset the loss values (to be called after an epoch)
-         */
-        void reset_loss() {
-            s_rec_loss   = acc_t();
-            s_reg_loss   = acc_t();
-            s_total_loss = acc_t();
-        }
 
         /**
          * Set the batch size to a new value
@@ -223,26 +160,6 @@ class generic_auto_encoder {
          * @param bs the new batchsize
          */
         virtual void set_batchsize(unsigned int bs){};
-
-        /**
-         * log the process to stdout
-         *
-         * @param what a identifier
-         * @param epoch current epoch number
-         */
-        virtual
-        void log_loss(const char* what, unsigned int epoch) {
-            std::cout << "\r"<<"epoch "<<epoch<<", perf "<<acc::mean(s_total_loss)<<", reg "<<acc::mean(s_reg_loss)<<", rec "<<acc::mean(s_rec_loss)<<std::flush;
-        }
-
-        /**
-         * Current performance measure (average over epoch)
-         *
-         * @return average loss over epoch
-         */
-        float perf() {
-            return acc::mean(s_total_loss);
-        }
 
         /**
          * (Virtual) dtor

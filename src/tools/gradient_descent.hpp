@@ -236,6 +236,19 @@ namespace cuvnet
             void decay_learnrate(float fact=0.98){
                 m_learnrate_decay = fact;
             }
+
+            /**
+             * register a monitor, which needs to provide methods
+             * after_epoch, after_batch and before_epoch.
+             *
+             * @param m a monitor object
+             */
+        template<class M>
+            void register_monitor(M& m){
+                after_epoch.connect( boost::bind(&M::after_epoch,&m));
+                after_batch.connect( boost::bind(&M::after_batch,&m));
+                before_epoch.connect(boost::bind(&M::before_epoch,&m));
+            }
             
         private:
             /**
@@ -384,6 +397,7 @@ namespace cuvnet
                 after_early_stopping_epoch(current_epoch);
                 return n_batches;
             }
+            
     };
     /**
      * does rprop gradient descent
@@ -431,6 +445,7 @@ namespace cuvnet
                 cuv::rprop((dynamic_cast<Input*>(*it))->data(), dW, m_old_dw[i], m_learnrates[i], m_weightdecay, 0.0000000f);
             }
         }
+
     };
 }
 
