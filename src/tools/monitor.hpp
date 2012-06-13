@@ -117,22 +117,23 @@ namespace cuvnet
             /// @return the number of batch presentations this monitor has observed
             inline unsigned int batch_presentations()const{ return m_batch_presentations; }
 
-            /// return the mean of a named watchpoint 
-            float mean(const std::string& name){
+            /// get a watchpoint by name
+            watchpoint& get(const std::string& name){
                 std::map<std::string, watchpoint*>::iterator it 
                     = m_wpmap.find(name);
                 if(it != m_wpmap.end())
-                    return boost::accumulators::mean(it->second->scalar_stats);
+                    return *it->second;
                 throw std::runtime_error("Unknown watchpoint `"+name+"'");
+            }
+
+            /// return the mean of a named watchpoint 
+            float mean(const std::string& name){
+                return boost::accumulators::mean(get(name).scalar_stats);
             }
 
             /// return the variance of a named watchpoint 
             float var(const std::string& name){
-                std::map<std::string, watchpoint*>::iterator it 
-                    = m_wpmap.find(name);
-                if(it != m_wpmap.end())
-                    return boost::accumulators::variance(it->second->scalar_stats);
-                throw std::runtime_error("Unknown watchpoint `"+name+"'");
+                return boost::accumulators::variance(get(name).scalar_stats);
             }
 
             /**
@@ -140,11 +141,7 @@ namespace cuvnet
              * @return value of the first watchpoint with this name
              */
             const matrix& operator[](const std::string& name){
-                std::map<std::string, watchpoint*>::iterator it 
-                    = m_wpmap.find(name);
-                if(it != m_wpmap.end())
-                    return it->second->sink->cdata();
-                throw std::runtime_error("Unknown watchpoint `"+name+"'");
+                return get(name).sink->cdata();
             }
 
             /**
