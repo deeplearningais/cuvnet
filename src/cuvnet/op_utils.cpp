@@ -223,15 +223,19 @@ void swiper::fprop(){
 			}
 		}
 	}
-#if SWIPER_DEBUG
     unsigned int cnt=0;
-#endif
 	BOOST_FOREACH(Op* o, m_topo.plist){
         if(o->need_result()){
+            if(false){
+                detail::graphviz_node n;
+                o->_graphviz_node_desc(n);
+                std::cout << cnt << ". fprop: "<<n.label<<";"<<std::endl;
+            }
             o->fprop();
 #if SWIPER_DEBUG
-            debug(cnt++,o,true,false,"fprop");
+            debug(cnt,o,true,false,"fprop");
 #endif
+            cnt++;
         }
 	}
 }
