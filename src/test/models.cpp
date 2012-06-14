@@ -18,12 +18,12 @@ using namespace cuvnet::derivative_testing;
 TEST(Function, simple){
     boost::shared_ptr<Input> inp(new Input(cuv::extents[3][5]));
     boost::shared_ptr<Op> func(new Sum(inp->result()));
-    boost::shared_ptr<Sink> out(new Sink(func->result()));
-    swiper s(*func,0,std::vector<Op*>());
+    boost::shared_ptr<Sink> out(new Sink("out",func->result()));
+
+    cuvnet::function func2(out + 1, 0, "func2");
 
     inp->data() = 1.f;
-
-    cuvnet::function func2(out + 1);
+    swiper s(*func,0,std::vector<Op*>());
 
     s.fprop();
     EXPECT_EQ(15, out->cdata()[0]);
@@ -34,6 +34,14 @@ TEST(Function, simple){
 
     func2.evaluate();
     EXPECT_EQ(16, func2.result()[0]);
+
+    // now do a second sweep on the inputs, which should yield 30 now
+    s.fprop();
+    EXPECT_EQ(30, out->cdata()[0]);
+
+    // ...and recalculate the function, which should give us 31.
+    func2.evaluate();
+    EXPECT_EQ(31, func2.result()[0]);
 
 }
 TEST(Monitor, simple){
@@ -55,6 +63,35 @@ TEST(Monitor, simple){
 
     // test destruction of sinks when monitor is destroyed
     EXPECT_EQ(0,func->result(0)->result_uses.size());
+}
+
+TEST(Monitor, function){
+    boost::shared_ptr<Input> inp(new Input(cuv::extents[3][5]));
+    boost::shared_ptr<Op> func(new Sum(inp->result()));
+    boost::shared_ptr<Sink> out(new Sink("out",func->result()));
+
+    cuvnet::monitor mon;
+    mon.add(monitor::WP_FUNC_SINK, out+1, "func2");
+
+    inp->data() = 1.f;
+    swiper s(*func,0,std::vector<Op*>());
+
+    s.fprop();
+    EXPECT_EQ(15, out->cdata()[0]);
+
+    // change the input values, this should not affect the expected result
+    // since the value in the sink is reused
+    inp->data() = 2.f; 
+
+    EXPECT_EQ(16, mon["func2"][0]);
+
+    // now do a second sweep on the inputs, which should yield 30 now
+    s.fprop();
+    EXPECT_EQ(30, out->cdata()[0]);
+
+    // ...and recalculate the function, which should give us 31.
+    EXPECT_EQ(31, mon["func2"][0]);
+
 }
 
 class RandomNumberUsingTest : public ::testing::Test {
