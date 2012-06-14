@@ -10,6 +10,7 @@
 #include <boost/accumulators/statistics/variance.hpp>
 
 #include <cuvnet/ops/output.hpp>
+#include <tools/function.hpp>
 
 namespace cuvnet
 {
@@ -28,7 +29,9 @@ namespace cuvnet
             /// The monitor supports different types of watchpoints:
             enum watchpoint_type {
                 WP_SINK,                ///< simply create a sink which keeps the values 
-                WP_SCALAR_EPOCH_STATS  ///< keep stats over one epoch
+                WP_SCALAR_EPOCH_STATS, ///< keep stats over one epoch
+                WP_FUNC_SINK,                ///< a sink which needs to be evaluated first
+                WP_FUNC_SCALAR_EPOCH_STATS  ///< needs evaluation first, keeps stats over one epoch
             };
         private:
             /// counts the number of batches we've seen
@@ -46,10 +49,21 @@ namespace cuvnet
                  * @param result the number of the result of _op
                  */
                 watchpoint(watchpoint_type _t, boost::shared_ptr<Op> _op, const std::string& _name, unsigned int result=0)
-                    :type(_t),op(_op),name(_name),sink(new Sink(name,op->result(result)))
+                    :type(_t),op(_op),name(_name)
                 {
+                    switch(type){
+                        case WP_SINK:
+                        case WP_SCALAR_EPOCH_STATS:
+                            sink.reset(new Sink(name,op->result(result)));
+                            break;
+                        case WP_FUNC_SINK:
+                        case WP_FUNC_SCALAR_EPOCH_STATS:
+                            func.reset(op,result,name);
+                            break;
+                    }
                 }
                 watchpoint_type         type;
+                function                func;
                 boost::shared_ptr<Op>     op;
                 std::string             name;
                 boost::shared_ptr<Sink> sink;  ///< this sink is managed by the monitor itself
@@ -85,7 +99,7 @@ namespace cuvnet
              * @param op   the op to watch
              * @param name a name by which the watchpoint can be identified
              */
-            monitor& add(watchpoint_type type, boost::shared_ptr<Op>& op, const std::string& name){
+            monitor& add(watchpoint_type type, boost::shared_ptr<Op> op, const std::string& name){
                 m_watchpoints.push_back(new watchpoint(type,op,name));
                 m_wpmap[name] = m_watchpoints.back();
                 return *this;
@@ -104,6 +118,10 @@ namespace cuvnet
                         p->scalar_stats((float)p->sink->cdata()[0]);
                         p->sink->forget();
                     }
+                    if(p->type == WP_FUNC_SCALAR_EPOCH_STATS)
+                    {
+                        p->scalar_stats((float)p->func.evaluate()[0]);
+                    }
                 }
             }
 
@@ -111,6 +129,8 @@ namespace cuvnet
             void before_epoch(){
                 BOOST_FOREACH(watchpoint* p, m_watchpoints){
                     if(p->type == WP_SCALAR_EPOCH_STATS)
+                        p->scalar_stats = acc_t();
+                    if(p->type == WP_FUNC_SCALAR_EPOCH_STATS)
                         p->scalar_stats = acc_t();
                 }
                 
@@ -161,7 +181,15 @@ namespace cuvnet
              * @return value of the first watchpoint with this name
              */
             const matrix& operator[](const std::string& name){
-                return get(name).sink->cdata();
+                watchpoint& wp = get(name);
+                switch(wp.type){
+                    case WP_SINK:
+                    case WP_SCALAR_EPOCH_STATS:
+                        return wp.sink->cdata();
+                    case WP_FUNC_SINK:
+                    case WP_FUNC_SCALAR_EPOCH_STATS:
+                        return wp.func.evaluate();
+                }
             }
 
             /**
