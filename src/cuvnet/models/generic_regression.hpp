@@ -10,6 +10,8 @@
 
 #include <cuvnet/ops.hpp>
 
+namespace cuvnet
+{
 /*
  * This is the base class for regression. The loss function \f$ L( \hat{y}, y) \f$ is minimal when \f$ \hat{y} = y\f$. 
  */
@@ -22,13 +24,13 @@ class generic_regression
         typedef boost::shared_ptr<Op> op_ptr;
         typedef boost::shared_ptr<Input> input_ptr; 
     protected:
-       op_ptr m_est;      ///< \f$ \hat{y} = x W + b_y \f$
-
        op_ptr m_target;   ///< y
        op_ptr m_input;    ///< x 
        input_ptr m_weights;  ///< W 
        input_ptr m_bias;     ///< b_y
-        
+
+       op_ptr m_est;      ///< \f$ \hat{y} = x W + b_y \f$
+
     public: 
        
         /**
@@ -37,12 +39,10 @@ class generic_regression
          * @param input a function that generates the input
          * @param target a function that generates the target
          */
-        generic_regression(op_ptr input, op_ptr target):
-            m_input(input),
-            m_target(target)
+        generic_regression(op_ptr input, op_ptr target)
+            : m_input(input)
+            , m_target(target)
         {
-            m_est = estimator(input);
-
             // initialize the weights and bias 
             m_input->visit(determine_shapes_visitor()); 
             unsigned int input_dim = m_input->result()->shape[1]; 
@@ -51,11 +51,12 @@ class generic_regression
             m_weights.reset(new Input(cuv::extents[input_dim][m_target_dim],"weights"));
             m_bias.reset(new Input(cuv::extents[input_dim],             "bias"));
 
+            m_est      = estimator(input);
+
             // inits weights with random numbers,sets bias to zero
             reset_weights();
+
         }
-
-
 
         /**
          * initialize the weights with random numbers
@@ -150,6 +151,7 @@ class linear_regression:  public generic_regression{
 
 };
 
+}
 
 
 #endif /* __GENERIC_REGRESSION_HPP__ */
