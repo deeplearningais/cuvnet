@@ -71,9 +71,8 @@ class simple_auto_encoder
      * @param input the function that generates the input of the autoencoder
      * @param hidden_dim the number of dimensions of the hidden layer
      * @param binary if true, assumes inputs are bernoulli distributed
-     * @param reg strength of regularization (usually some small positive constant)
      */
-    simple_auto_encoder(unsigned int hidden_dim, bool binary, float reg)
+    simple_auto_encoder(unsigned int hidden_dim, bool binary)
     :generic_auto_encoder(binary)
     ,Regularizer(binary)
     ,m_hidden_dim(hidden_dim)
