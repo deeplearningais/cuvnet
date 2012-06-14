@@ -24,6 +24,7 @@
 #include <cuvnet/ops/convolve.hpp>
 #include <cuvnet/ops/reshape.hpp>
 #include <cuvnet/ops/row_selector.hpp>
+#include <cuvnet/ops/classification_error.hpp>
 
 namespace cuvnet
 {
@@ -128,5 +129,10 @@ namespace cuvnet
         Op::op_ptr row_select(Op::op_ptr p0, Op::op_ptr p1, Op::op_ptr p2, Op::op_ptr p3, int row=-1){ return boost::make_shared<RowSelector>(p0->result(), p1->result(), p2->result(), p3->result(), row); }
     inline 
         Op::op_ptr result(Op::op_ptr p0, unsigned int result=0){ return boost::make_shared<Pipe>(p0->result(result), result); }
+
+    inline
+        Op::op_ptr classification_loss(Op::op_ptr x, Op::op_ptr y){ return boost::make_shared<ClassificationLoss>(x->result(),y->result()); }
+    inline
+        Op::op_ptr classification_loss(boost::shared_ptr<Sink> x, Op::op_ptr y){ return boost::make_shared<ClassificationLoss>(x->result(),y->result()); }
 }
 #endif /* __OPS_HPP__ */
