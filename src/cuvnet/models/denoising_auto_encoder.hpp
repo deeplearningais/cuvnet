@@ -33,11 +33,10 @@ class denoising_auto_encoder
      * @param hidden_dim the number of dimensions of the hidden layer
      * @param binary if true, assumes inputs are bernoulli distributed
      * @param noise if >0, add this much noise to input (type of noise depends on \c binary)
-     * @param reg strength of regularization (usually some small positive constant)
      */
-    denoising_auto_encoder(unsigned int hidden_dim, bool binary, float noise, float reg)
+    denoising_auto_encoder(unsigned int hidden_dim, bool binary, float noise)
     :generic_auto_encoder(binary)
-    ,simple_auto_encoder<Regularizer>(hidden_dim,binary,reg)
+    ,simple_auto_encoder<Regularizer>(hidden_dim,binary)
     ,m_noise(noise)
     {
     }
