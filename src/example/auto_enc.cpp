@@ -159,11 +159,10 @@ int main(int argc, char **argv)
     mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.loss(),        "total loss");
     mon.add(monitor::WP_SINK,               ae.get_decoded(), "decoded");
 
-    Op::value_type alldata = bs==0 ? ds.val_data : ds.train_data;
     gradient_descent gd(ae.loss(),0,params,0.001f);
     gd.register_monitor(mon);
     gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,&normalizer,fa,fb,ds.image_size,ds.channels, input,_1));
-    gd.before_batch.connect(boost::bind(load_batch,input,&alldata,bs,_2));
+    gd.before_batch.connect(boost::bind(load_batch,input,&ds.train_data,bs,_2));
     gd.current_batch_num.connect(ds.train_data.shape(0)/ll::constant(bs));
     gd.minibatch_learning(6000, 10*60); // 10 minutes maximum
     
