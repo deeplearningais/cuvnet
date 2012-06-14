@@ -76,8 +76,8 @@ namespace cuvnet
             visited[o] = true;
 
             if(dynamic_cast<Sink*>(o)!=NULL) {
-                // we assume the sink has been calculated before, so treat it
-                // like an `Input'
+                // we assume the sink has been calculated in advance, so treat it
+                // like an `Input' and do not bother how its value is generated
                 plist.push_back(o);
                 return false;
             }
