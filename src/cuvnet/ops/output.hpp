@@ -26,7 +26,14 @@ namespace cuvnet
                     add_param(0,p0);
                 }
                 void fprop(){
-                    // simply do not reset the m_params[0] to keep the value
+                    
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+
+                    if(r0.result_uses.size() > 0)
+                        r0.push(p0.value);
+                    
+                    // also, do not reset the m_params[0] to keep the value
                 }
                 void bprop(){}
                 //void _determine_shapes(){ }

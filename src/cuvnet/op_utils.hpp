@@ -6,6 +6,7 @@
 #include <fstream>
 #include <cuvnet/op.hpp>
 #include <cuvnet/ops/input.hpp>
+#include <cuvnet/ops/output.hpp>
 
 namespace cuvnet
 {
@@ -73,6 +74,13 @@ namespace cuvnet
             if(visited.find(o)!=visited.end()) 
                 return false;
             visited[o] = true;
+
+            if(dynamic_cast<Sink*>(o)!=NULL) {
+                // we assume the sink has been calculated before, so treat it
+                // like an `Input'
+                plist.push_back(o);
+                return false;
+            }
             return true; // we can never reurn "false" here, since we might need this for the /forward/ pass.
         }
         inline void postorder(Op* o){
@@ -136,6 +144,8 @@ namespace cuvnet
     struct reset_needed_flags : public op_visitor_adaptor{
         std::map<Op*,bool> visited;
         inline bool discover(Op* o){
+            if(dynamic_cast<Sink*>(o)!=NULL)
+                return false;
             if(visited.find(o)!=visited.end()) 
                 return false;
             visited[o] = true;

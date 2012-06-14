@@ -217,6 +217,8 @@ void define_graphviz_node_visitor::postorder(Op* o){
 #define SWIPER_DEBUG 0
 void swiper::fprop(){
 	BOOST_FOREACH(Op* o, m_topo.plist){
+        if(dynamic_cast<Sink*>(o) != NULL) // do not reset sinks
+            continue;
 		BOOST_FOREACH(Op::result_t& r, o->m_results){
 			BOOST_FOREACH(Op::weak_param_t p, r->result_uses){
 				p.lock()->value_set = false;

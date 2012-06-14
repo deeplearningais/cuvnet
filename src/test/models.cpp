@@ -10,10 +10,32 @@
 #include <cuvnet/models/auto_encoder_stack.hpp>
 #include <cuvnet/models/generic_regression.hpp>
 #include <tools/monitor.hpp>
+#include <tools/function.hpp>
 
 
 using namespace cuvnet::derivative_testing;
 
+TEST(Function, simple){
+    boost::shared_ptr<Input> inp(new Input(cuv::extents[3][5]));
+    boost::shared_ptr<Op> func(new Sum(inp->result()));
+    boost::shared_ptr<Sink> out(new Sink(func->result()));
+    swiper s(*func,0,std::vector<Op*>());
+
+    inp->data() = 1.f;
+
+    cuvnet::function func2(out + 1);
+
+    s.fprop();
+    EXPECT_EQ(15, out->cdata()[0]);
+
+    // change the input values, this should not affect the expected result
+    // since the value in the sink is reused
+    inp->data() = 2.f; 
+
+    func2.evaluate();
+    EXPECT_EQ(16, func2.result()[0]);
+
+}
 TEST(Monitor, simple){
     boost::shared_ptr<Input> inp(new Input(cuv::extents[3][5]));
     boost::shared_ptr<Op> func(new Sum(inp->result()));
