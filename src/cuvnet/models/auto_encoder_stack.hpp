@@ -3,6 +3,7 @@
 
 #include "generic_auto_encoder.hpp"
 
+class simple_auto_encoder_no_regularization;
 template<class Regularizer=simple_auto_encoder_no_regularization>
 class auto_encoder_stack
 : virtual public generic_auto_encoder
