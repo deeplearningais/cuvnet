@@ -210,11 +210,11 @@ namespace cuvnet
             void simple_logging()const{
                 std::cout << "\r epoch "<<m_epochs<<": ";
                 BOOST_FOREACH(const watchpoint* p, m_watchpoints){
-                    if(p->type == WP_SCALAR_EPOCH_STATS){
+                    if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS){
                         std::cout << p->name<<"="<<mean(p->name)<<", ";
                     }
-                    std::cout << "           ";
                 }
+                std::cout << "           " << std::flush;
             }
     };
 }
