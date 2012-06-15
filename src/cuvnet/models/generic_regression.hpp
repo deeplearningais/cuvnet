@@ -24,11 +24,11 @@ class generic_regression
         typedef boost::shared_ptr<Op> op_ptr;
         typedef boost::shared_ptr<Input> input_ptr; 
     protected:
-       op_ptr m_target;   ///< y
        op_ptr m_input;    ///< x 
+       op_ptr m_target;   ///< y
        input_ptr m_weights;  ///< W 
        input_ptr m_bias;     ///< b_y
-
+       op_ptr m_loss;       ///< loss
        op_ptr m_est;      ///< \f$ \hat{y} = x W + b_y \f$
 
     public: 
@@ -49,13 +49,23 @@ class generic_regression
             m_target->visit(determine_shapes_visitor());
             unsigned int m_target_dim = target->result()->shape[1];  
             m_weights.reset(new Input(cuv::extents[input_dim][m_target_dim],"weights"));
-            m_bias.reset(new Input(cuv::extents[input_dim],             "bias"));
+            m_bias.reset(new Input(cuv::extents[m_target_dim],             "bias"));
 
             m_est      = estimator(input);
 
             // inits weights with random numbers,sets bias to zero
             reset_weights();
+            
+        }
 
+        /**
+         * gets the loss function, it initialize it if it is not already initialized 
+         * @return loss function
+         */
+        op_ptr get_loss(){
+            if(!m_loss)
+                m_loss = loss();
+            return m_loss;
         }
 
         /**
@@ -67,6 +77,12 @@ class generic_regression
             m_bias->data()   = 0.f;
         }
 
+        /**
+         * Determine the parameters 
+         */
+        virtual std::vector<Op*> params(){
+            return boost::assign::list_of(m_weights.get())(m_bias.get());
+        };
 
         /**
          * Destructor
@@ -93,12 +109,21 @@ class generic_regression
             return m_target;
         }
         
-        /**
-         * Loss function
-         *  @return a function that calculates the loss 
-         */
-       virtual op_ptr loss() = 0;
 
+        /**
+         * @return the classification error 
+         */
+        op_ptr classification_error(){
+            return classification_loss(m_est, m_target);
+        }
+
+       protected:
+
+       /**
+        * Loss function
+        *  @return a function that calculates the loss 
+        */
+       virtual op_ptr loss() = 0;
 };
 
 /**
@@ -116,6 +141,7 @@ class logistic_regression:  public generic_regression{
     logistic_regression(op_ptr input, op_ptr target): generic_regression(input, target){
     }
 
+    protected:
 
     /**
      * Loss function
@@ -140,6 +166,9 @@ class linear_regression:  public generic_regression{
       * @param target a function that generates the target
       */
     linear_regression(op_ptr input, op_ptr target): generic_regression(input, target){}
+   
+
+    protected:
     
     /**
      * Loss function
