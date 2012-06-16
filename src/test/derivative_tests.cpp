@@ -42,7 +42,7 @@ TEST(derivative_test, derivative_test_exp){
    typedef boost::shared_ptr<Op> ptr_t;
    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
    ptr_t exp                     = boost::make_shared<Exp>(2,inp->result());
-   derivative_tester(*exp);
+   derivative_tester(*exp,0,false,0.01);
 }
 TEST(derivative_test, derivative_test_abs){
    typedef boost::shared_ptr<Op> ptr_t;
@@ -133,7 +133,7 @@ TEST(derivative_test, bernoulli_kl){
         boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[5], "inp1");
         inp0->set_derivable(false);
         ptr_t func                     = boost::make_shared<BernoulliKullbackLeibler>(inp0->result(), inp1->result());
-        derivative_tester(*func);
+        derivative_tester(*func,0,false, .003, 0.1, 0.9);
     }
     {
         boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[5], "inp0");
@@ -210,7 +210,7 @@ TEST(derivative_test, derivative_test_prod){
 		ptr_t func0		       = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
 		ptr_t func1		       = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
 		ptr_t func 		       = boost::make_shared<Axpby>(func0->result(), func1->result(), 1.3,1.5);
-		derivative_tester(*func,0,true,0.03);
+		derivative_tester(*func,0,false,0.03);
 	}
 }
 

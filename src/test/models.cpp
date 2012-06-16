@@ -125,8 +125,8 @@ TEST_F(RandomNumberUsingTest, denoising_ae_loss_derivative){
    boost::shared_ptr<Op>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
 
    denoising_auto_encoder<simple_auto_encoder_weight_decay> ae(4, true, .0f); // zero noise
-   ae.init(inp, 0.01f);
-   derivative_tester(*ae.loss());
+   ae.init(inp, 0.00f);
+   derivative_tester(*ae.loss(),0,true,.01);
 }
 
 TEST_F(RandomNumberUsingTest, stack_derivative){
@@ -140,7 +140,7 @@ TEST_F(RandomNumberUsingTest, stack_derivative){
 
    ae.init(inp, 0.01f);
 
-   derivative_tester(*ae.loss());
+   derivative_tester(*ae.loss(), 0, true, .01);
 }
 
 TEST_F(RandomNumberUsingTest, linear_regression_derivative){
