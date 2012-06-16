@@ -268,7 +268,7 @@ namespace cuvnet
                 data = res;
             }
             void reverse_transform(cuv::tensor<float,cuv::host_memory_space>& res){
-                reverse_transform(res, true);
+                reverse_transform(res, false);
             }
             void reverse_transform(cuv::tensor<float,cuv::host_memory_space>& res, bool nomean){
                 cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[res.shape(0)][m_rot_revrs.shape(1)]);
