@@ -134,5 +134,12 @@ namespace cuvnet
         Op::op_ptr classification_loss(Op::op_ptr x, Op::op_ptr y){ return boost::make_shared<ClassificationLoss>(x->result(),y->result()); }
     inline
         Op::op_ptr classification_loss(boost::shared_ptr<Sink> x, Op::op_ptr y){ return boost::make_shared<ClassificationLoss>(x->result(),y->result()); }
+
+    inline 
+        Op::op_ptr add_to_param(Op::op_ptr dst, Op::op_ptr src, int param=0, int result=0){
+            dst->param(param)->param_uses.push_back(src->result(result));
+            src->result(result)->result_uses.push_back(dst->param(param));
+            return dst;
+        }
 }
 #endif /* __OPS_HPP__ */

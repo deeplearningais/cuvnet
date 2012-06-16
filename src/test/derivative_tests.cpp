@@ -236,6 +236,16 @@ TEST(derivative_test, derivative_test_xt1mx){
     derivative_tester(*func);
 }
 
+TEST(derivative_test, derivative_test_add_to_param){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+    ptr_t tmp0                     = boost::make_shared<Pow>(2.f, inp0->result());
+    ptr_t tmp1                     = boost::make_shared<Pow>(3.f, inp0->result());
+    ptr_t func                     = boost::make_shared<Sum>(tmp0->result());
+    add_to_param(func, tmp1);  // sum(  x^2+x^3 )
+    derivative_tester(*func);
+}
+
 TEST(derivative_test, derivative_test_softmax){
 	typedef boost::shared_ptr<Op> ptr_t;
     {
