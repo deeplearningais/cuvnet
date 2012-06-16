@@ -8,6 +8,7 @@
 #include <cuvnet/models/simple_auto_encoder.hpp>
 #include <cuvnet/models/denoising_auto_encoder.hpp>
 #include <cuvnet/models/auto_encoder_stack.hpp>
+#include <cuvnet/models/convolutional_auto_encoder.hpp>
 #include <cuvnet/models/generic_regression.hpp>
 #include <tools/monitor.hpp>
 #include <tools/function.hpp>
@@ -118,6 +119,25 @@ TEST_F(RandomNumberUsingTest, simple_ae_loss_derivative){
        simple_auto_encoder<simple_auto_encoder_weight_decay> ae(4, false);
        ae.init(inp, .01f);
        derivative_tester(*ae.loss(),0,false,.01f);
+   }
+}
+TEST_F(RandomNumberUsingTest, convolutional_auto_encoder_derivative ){
+    // nBatch x nChannels x nPixels
+   boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[2][2][6*6], "input");
+   //inp->set_derivable(false);
+
+   {
+       conv_auto_encoder<simple_auto_encoder_no_regularization> ae(false, 3, 2);
+       ae.init(inp);
+
+       std::cout << "-encoded" << std::endl;
+       derivative_tester(*ae.get_encoded(),0,true,.01f); // generate inputs in interval 0,1
+
+       std::cout << "-decoded" << std::endl;
+       derivative_tester(*ae.get_decoded(),0,true,.1f); // generate inputs in interval 0,1
+
+       std::cout << "-loss" << std::endl;
+       derivative_tester(*ae.loss(),0,true,.1f); // generate inputs in interval 0,1
    }
 }
 
