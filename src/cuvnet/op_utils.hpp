@@ -35,8 +35,12 @@ namespace cuvnet
         inline void preorder(Op* o){
             if(o->get_n_params()==0)
             {
-                if(((Input*)o)->derivable())
-                    plist.push_back(o);
+                // do not check for derivability.
+                // `derivable' was added for derivative_test(), which should
+                // not derive for certain parameters.
+                // however, it still needs to see them to /initialize/ them.
+                //if(((Input*)o)->derivable())
+                plist.push_back(o);
             }
         }
     };

@@ -1,4 +1,5 @@
 #include "derivative_test.hpp"
+#include <ext/functional>
 
 #include <cuvnet/op_utils.hpp>
 
@@ -47,6 +48,13 @@ namespace cuvnet{ namespace derivative_testing {
             return std::accumulate(v.begin(),v.end(),1u, std::multiplies<unsigned int>());
         }
 
+        template<class ArgumentType, class ResultType>
+        struct ptr_caster
+        : public std::unary_function<ArgumentType*, ResultType*>
+        {
+            ResultType* operator()(ArgumentType*s)const{ return (ResultType*)s; }
+        };
+
         void derivative_tester(Op& op, int result, bool verbose, double prec, float minv, float maxv){
             // assumption: op has only one result
             boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op.result(result));
@@ -70,9 +78,21 @@ namespace cuvnet{ namespace derivative_testing {
                 }
             }
 
-            swiper swipe(op, result, pcv.plist);
+            // find only those parameters which we can derive for
+            // (the others are needed since they need to be initialized above)
+            std::vector<Op*> derivable_params;
+            std::remove_copy_if(     // think of it as "copy except"
+                    pcv.plist.begin(), pcv.plist.end(),
+                    std::back_inserter(derivable_params), 
+                    std::not1( // not [  cast_to_input(op)->derivable()   ]
+                        __gnu_cxx::compose1(
+                            std::mem_fun( &Input::derivable ),
+                            ptr_caster<Op,Input>()))
+                    );
 
-            BOOST_FOREACH(Op* raw, pcv.plist){
+            swiper swipe(op, result, derivable_params);
+
+            BOOST_FOREACH(Op* raw, derivable_params){
                 Input* param = dynamic_cast<Input*>(raw);
                 EXPECT_TRUE(param!=NULL);
                 if(!param->derivable())
