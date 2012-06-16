@@ -2,6 +2,7 @@
 #include <ext/functional>
 
 #include <cuvnet/op_utils.hpp>
+#include <tools/matwrite.hpp>
 
 namespace cuvnet{ namespace derivative_testing {
 
@@ -97,11 +98,14 @@ namespace cuvnet{ namespace derivative_testing {
                 EXPECT_TRUE(param!=NULL);
                 if(!param->derivable())
                     continue;
-                if(verbose)
-                    std::cout << "...testing derivative w.r.t. "<<param->name()<<"..."<<std::endl;
                 unsigned int n_inputs  = param->data().size();
                 unsigned int n_outputs = prod(op.result(result)->shape);
                 matrix J(n_outputs, n_inputs); J = 0.f;
+                if(verbose)
+                {
+                std::cout << "...testing derivative w.r.t. "<<param->name()<<""<<std::endl;
+                std::cout << "   Jacobi dims: "<<n_outputs<<" x "<<n_inputs<<"..."<<std::endl;
+                }
                 for(unsigned int out=0;out<n_outputs;out++){
                     swipe.fprop();
                     set_delta_to_unit_vec(op,result,out);
@@ -139,10 +143,13 @@ namespace cuvnet{ namespace derivative_testing {
                 cuv::transpose(J_t,J_h); J_h.dealloc();
                 double maxdiff = cuv::maximum((J_t-Jh)*(J_t-Jh));    // squared(!) 
                 double prec_  = prec * prec;                       // square precision, too
-                if(verbose)
-                    std::cout << "...maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;
                 if(maxdiff>prec_){
-                    //PM(J_t); PM(Jh);
+                    std::cout << "   maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;
+                    std::cout << "   dumping Jacobi matrices: " << std::endl;
+                    std::cout << "   - analyticalJ.npy" << std::endl;
+                    std::cout << "   - finitediffJ.npy" << std::endl;
+                    tofile("analyticalJ.npy", Jh);
+                    tofile("finitediffJ.npy", J_t);
                 }
                 EXPECT_NEAR(maxdiff, 0.f, prec_ );
             }
