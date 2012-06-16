@@ -100,6 +100,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
                 wd = boost::lexical_cast<std::string>(sink_prev->need_result() ? 4.0 : 0.5);
 
             std::string shape;
+#ifndef NDEBUG
             if(p->shape.size()){
                 shape = " (";
                 for(unsigned int i=0;i<p->shape.size();i++){
@@ -107,6 +108,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
                 }
                 shape += ")";
             }
+#endif
 
             os << pstr
                 << " [ style=filled, fillcolor="<<nd<<", fontsize=6, margin=\"0,0\", width=0.01, label=\"" << p->param_number << shape<< "\", shape=circle ] ;"<<std::endl;
