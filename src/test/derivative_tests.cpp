@@ -161,6 +161,21 @@ TEST(derivative_test, derivative_test_sum_mat_to_vec){
         derivative_tester(*func);
     }
 }
+TEST(derivative_test, derivative_test_sum_mat_to_vec3d){
+	typedef boost::shared_ptr<Op> ptr_t;
+    {
+        std::cout << "axis=0" << std::endl;
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5][4]);
+        ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),0);
+        derivative_tester(*func);
+    }
+    {
+        std::cout << "axis=1" << std::endl;
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5][4]);
+        ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),2);
+        derivative_tester(*func);
+    }
+}
 /*
  * // does not make much sense to test this
  *TEST(derivative_test, derivative_test_noiser){
