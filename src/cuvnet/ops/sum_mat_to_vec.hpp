@@ -75,9 +75,9 @@ namespace cuvnet
                         return;
                     }
 
-                    // TODO: cuv: add factOld, factNew to matrix_plus_col, matrix_times_col!!
                     assert(p0.need_derivative);
                     if(p0.can_overwrite_directly()){
+                        // TODO: cuv: add factOld, factNew to matrix_plus_col, matrix_times_col!!
                         p0.overwrite_or_add_value().data() = 0.f;
                         if(m_axis!=0) matrix_plus_row(*p0.overwrite_or_add_value(), r0.delta.cdata());
                         else          matrix_plus_col(*p0.overwrite_or_add_value(), r0.delta.cdata());
