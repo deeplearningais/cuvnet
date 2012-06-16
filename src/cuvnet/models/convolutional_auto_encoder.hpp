@@ -27,17 +27,16 @@ class conv_auto_encoder
             m_weights1.reset(new Input(cuv::extents[m_n_channels][m_filter_size*m_filter_size][m_n_filters], "weights1"));
             m_weights2.reset(new Input(cuv::extents[m_n_filters][m_filter_size*m_filter_size][m_n_channels], "weights2"));
         }
-        //m_input = reorder__conv(inp);
+        m_input = reorder_for_conv(inp);
         return logistic(
                 convolve( 
-                    reorder_for_conv(m_input),
+                    m_input,
                     m_weights1,true)); 
 
     }
     /// \f$  h * W \f$
     virtual op_ptr  decode(op_ptr& enc){ 
-        return reorder_from_conv(
-                    convolve( enc, m_weights2, true));
+        return convolve( enc, m_weights2, true);
     }
 
     /**

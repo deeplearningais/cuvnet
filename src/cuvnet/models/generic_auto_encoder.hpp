@@ -19,6 +19,7 @@ class generic_auto_encoder {
          */
         typedef boost::shared_ptr<Op>     op_ptr;
     protected:
+        op_ptr m_input;     ///< the input of the auto-encoder (might be different from what is supplied in \c init())
         op_ptr m_encoded;   ///< the encoder function
         op_ptr m_decoded;   ///< the decoder function
 
@@ -134,9 +135,10 @@ class generic_auto_encoder {
          *
          */
         virtual void init(op_ptr input, float regularization_strength=0.f){
-            m_encoded   = encode(input);
+            m_input     = input;
+            m_encoded   = encode(m_input);
             m_decoded   = decode(m_encoded);
-            m_rec_loss  = reconstruction_loss(input, m_decoded);
+            m_rec_loss  = reconstruction_loss(m_input, m_decoded);
 
             if(regularization_strength != 0.0f){
                 m_reg_loss  = regularize();
