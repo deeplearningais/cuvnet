@@ -105,7 +105,7 @@ namespace cuvnet
     inline
         Op::op_ptr reorder_for_conv(Op::op_ptr img) { return boost::make_shared<ReorderForConv>(img->result()); }
     inline
-        Op::op_ptr reorder_from_conv(Op::op_ptr img) { return boost::make_shared<ReorderForConv>(img->result()); }
+        Op::op_ptr reorder_from_conv(Op::op_ptr img) { return boost::make_shared<ReorderFromConv>(img->result()); }
     inline
         Op::op_ptr flatten(Op::op_ptr img, unsigned int outdim=1) { return boost::make_shared<Flatten>(img->result(),outdim); }
     inline
