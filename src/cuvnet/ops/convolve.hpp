@@ -31,7 +31,7 @@ namespace cuvnet
             private:
                 unsigned int m_nGroups;
                 unsigned int m_partial_sum;
-                unsigned int m_padding;
+                int m_padding_start;
             public:
                 Convolve() :Op(2,1){} // for serialization
 
@@ -45,7 +45,7 @@ namespace cuvnet
                     :Op(2,1)
                     ,m_nGroups(1)
                     ,m_partial_sum(1)
-                    ,m_padding(padding)
+                    ,m_padding_start(padding)
                 {
                     add_param(0,images);
                     add_param(1,filters);
@@ -61,14 +61,14 @@ namespace cuvnet
                     bool filtSizeOK = (r0.shape[0] % 16) == 0;
 
                     if(filtSizeOK && r0.can_overwrite_directly()){
-                        convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_padding,1,m_nGroups);
+                        convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_padding_start,1,m_nGroups);
                     }else if(filtSizeOK && r0.can_add_directly()){
-                        convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_padding,1,m_nGroups, 1.f,1.f);
+                        convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_padding_start,1,m_nGroups, 1.f,1.f);
                     }else{
                         // reallocate *sigh*
                         if(filtSizeOK){
                             value_ptr v(new value_type(r0.shape));
-                            convolve2d(*v, p0.value.cdata(), p1.value.cdata(), m_padding,1,m_nGroups);
+                            convolve2d(*v, p0.value.cdata(), p1.value.cdata(), m_padding_start,1,m_nGroups);
                             r0.push(v);
                         }else{
                             // Alex' code has some serious restrictions; the one hurting me most
@@ -87,7 +87,7 @@ namespace cuvnet
                                     indices[index_range()][index_range()][index_range(0,nFiltReal)]);
                             wview = p1.value.cdata();
 
-                            convolve2d(v, p0.value.cdata(), w, m_padding,1,m_nGroups);
+                            convolve2d(v, p0.value.cdata(), w, m_padding_start,1,m_nGroups);
                             value_ptr vp(new value_type(v[indices[index_range(0,nFiltReal)][index_range()][index_range()]]));
                             r0.push(vp);
                         }
@@ -152,25 +152,28 @@ namespace cuvnet
                         const value_type& img   = p0.value.cdata();
                         if(filtSizeOK && p1.can_overwrite_directly()){
                             if(filtSizeOK)
-                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding, 1, m_nGroups,m_partial_sum);
+                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding_start, 1, m_nGroups,m_partial_sum);
                             else
-                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding, 1, m_nGroups,m_partial_sum);
+                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding_start, 1, m_nGroups,m_partial_sum);
                         }
                         else if(filtSizeOK && p1.can_add_directly()){
+                            *p1.overwrite_or_add_value() = 0.f;
                             if(filtSizeOK)
-                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding, 1, m_nGroups,m_partial_sum, 1.f,1.f);
+                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding_start, 1, m_nGroups,m_partial_sum, 1.f,1.f);
                             else
-                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding, 1, m_nGroups,m_partial_sum, 1.f,1.f);
+                                d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding_start, 1, m_nGroups,m_partial_sum, 1.f,1.f);
                         }
                         else{
                             if(filtSizeOK){
                                 value_ptr ptr(new value_type(p1.shape));
                                 value_type& dflt = *ptr;
-                                d_conv2d_dfilt(dflt,delta,img, m_padding, 1, m_nGroups,m_partial_sum);
+                                dflt = 0.f;
+                                d_conv2d_dfilt(dflt,delta,img, m_padding_start, 1, m_nGroups,m_partial_sum);
                                 p1.push(ptr);
                             }else{
                                 value_type& dflt = *tmp_dw;
-                                d_conv2d_dfilt(dflt,*tmp_r0delta,img, m_padding, 1, m_nGroups,m_partial_sum);
+                                dflt = 0.f;
+                                d_conv2d_dfilt(dflt,*tmp_r0delta,img, m_padding_start, 1, m_nGroups,m_partial_sum);
                                 value_ptr ptr(new value_type((*tmp_dw)[indices[index_range()][index_range()][index_range(0,nFiltReal)]].copy()));
                                 p1.push(ptr);
                             }
@@ -181,23 +184,23 @@ namespace cuvnet
                         const value_type& delta = r0.delta.cdata();
                         const value_type& flt   = p1.value.cdata();
                         if(filtSizeOK && p0.can_overwrite_directly()){
-                            d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_padding, 1, m_nGroups);
+                            d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_padding_start, 1, m_nGroups);
                         }
                         else if (filtSizeOK && p0.can_add_directly()){
-                            d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_padding, 1, m_nGroups,  1.f,1.f);
+                            d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_padding_start, 1, m_nGroups,  1.f,1.f);
                         }
                         else{
                             if(filtSizeOK){
                                 value_ptr ptr = p0.value;
                                 p0.value.reset();       // try to overwrite input activations
                                 value_type& v = ptr.data_onlyshape();
-                                d_conv2d_dimg(v, delta, flt, m_padding,1,m_nGroups);
+                                d_conv2d_dimg(v, delta, flt, m_padding_start,1,m_nGroups);
                                 p0.push(ptr);
                             }else{
                                 value_ptr ptr = p0.value;
                                 p0.value.reset();       // try to overwrite input activations
                                 value_type& v = ptr.data_onlyshape();
-                                d_conv2d_dimg(v, *tmp_r0delta, *tmp_w, m_padding,1,m_nGroups);
+                                d_conv2d_dimg(v, *tmp_r0delta, *tmp_w, m_padding_start,1,m_nGroups);
                                 p0.push(ptr);
                             }
                         }
@@ -224,12 +227,12 @@ namespace cuvnet
                     unsigned int nFltPixX = sqrt(flt[1]);
                     assert(nFltPixX*nFltPixX==flt[1]);
 
-                    if(m_padding)
-                        m_padding = nFltPixX/2; // assume nFltPixX%2==1
+                    if(m_padding_start)
+                        m_padding_start = -(int)nFltPixX/2; // assume nFltPixX%2==1
 
-#define _7848SQR(X) ((X)*(X));
-                    unsigned int nOutPixX = m_padding 
-                        ? nImgPixX 
+#define _7848SQR(X) ((X)*(X))
+                    unsigned int nOutPixX = m_padding_start 
+                        ? _7848SQR(nImgPixX)
                         : _7848SQR(nImgPixX+1-nFltPixX);
 
                     dst[0] = nFilt;
