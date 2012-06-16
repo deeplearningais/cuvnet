@@ -148,7 +148,7 @@ TEST_F(RandomNumberUsingTest, linear_regression_derivative){
    boost::shared_ptr<Input>  target = boost::make_shared<Input>(cuv::extents[3][5], "target");
 
    linear_regression lg(inp, target); 
-   derivative_tester(*lg.loss(), 0, false, .01);
+   derivative_tester(*lg.get_loss(), 0, false, .01);
 }
 
 TEST_F(RandomNumberUsingTest, logistic_regression_derivative){
@@ -157,7 +157,7 @@ TEST_F(RandomNumberUsingTest, logistic_regression_derivative){
    target->set_derivable(false); // cannot derive for target of logistic regression
 
    logistic_regression lg(inp, target); 
-   derivative_tester(*lg.loss(), 0, false, .03, 0.1, 0.9);
+   derivative_tester(*lg.get_loss(), 0, false, .03, 0.1, 0.9);
 }
 
 
