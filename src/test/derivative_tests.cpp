@@ -258,7 +258,7 @@ TEST(derivative_test, derivative_test_add_to_param){
     ptr_t tmp1                     = boost::make_shared<Pow>(3.f, inp0->result());
     ptr_t func                     = boost::make_shared<Sum>(tmp0->result());
     add_to_param(func, tmp1);  // sum(  x^2+x^3 )
-    derivative_tester(*func);
+    derivative_tester(*func, 0, false, 0.03f);
 }
 
 TEST(derivative_test, derivative_test_softmax){
