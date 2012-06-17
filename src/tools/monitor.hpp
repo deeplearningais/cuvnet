@@ -7,6 +7,8 @@
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/mean.hpp>
+#include <boost/accumulators/statistics/max.hpp>
+#include <boost/accumulators/statistics/min.hpp>
 #include <boost/accumulators/statistics/variance.hpp>
 
 #include <cuvnet/ops/output.hpp>
@@ -23,6 +25,8 @@ namespace cuvnet
         typedef
             boost::accumulators::accumulator_set<double,
                 boost::accumulators::stats<
+                    boost::accumulators::tag::min,
+                    boost::accumulators::tag::max,
                     boost::accumulators::tag::mean,
                     boost::accumulators::tag::variance(boost::accumulators::lazy) > > acc_t;
         public:
@@ -115,7 +119,14 @@ namespace cuvnet
                 BOOST_FOREACH(watchpoint* p, m_watchpoints){
                     if(p->type == WP_SCALAR_EPOCH_STATS)
                     {
-                        p->scalar_stats((float)p->sink->cdata()[0]);
+                        if(p->sink->cdata().size()==1)
+                            p->scalar_stats((float)p->sink->cdata()[0]);
+                        else {
+                            // TODO: need real stats, not this!
+                            p->scalar_stats(cuv::maximum(p->sink->cdata()));
+                            p->scalar_stats(cuv::mean(p->sink->cdata()));
+                            p->scalar_stats(cuv::minimum(p->sink->cdata()));
+                        }
                         p->sink->forget();
                     }
                     if(p->type == WP_FUNC_SCALAR_EPOCH_STATS)
