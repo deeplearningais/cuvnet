@@ -123,6 +123,11 @@ namespace cuvnet
             }
     };
 
+    /**
+     * Transforms the data between the min and max values. 
+     * The maximum element of the data will have after transfromation max value, 
+     * and minimum element of the data will have min value
+     */
     template<class M=cuv::host_memory_space>
     class global_min_max_normalize : public preprocessor<M> {
         private:
