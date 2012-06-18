@@ -141,19 +141,12 @@ int main(int argc, char **argv)
         // Osindero & Hinton: First log, then ZMUV, then ZCA.
         // remark: weird: higher order whitening paper (CVPR'05) also whitens
         // in log-space /after/ regular whitening, retaining the sign
-        zero_sample_mean<> n;
-        log_transformer<> n2;
-        zero_mean_unit_variance<> n3; 
-
-        n2.fit_transform(ds.train_data); // results pretty much in gaussian
-        n2.transform(ds.val_data);    // do the same to the validation set
-
-        n.fit_transform(ds.train_data); // subtract sample mean
-        n.transform(ds.val_data);
-
-        n3.fit_transform(ds.train_data); // normalize each feature to get to defined range
-        n3.transform(ds.val_data);    // do the same to the validation set
-        
+        preprocessing_pipeline pp;
+        pp  .add(new log_transformer<>())
+            .add(new zero_sample_mean<>())
+            .add(new zero_mean_unit_variance());
+        pp.fit_transform(ds.train_data); // normalize each feature to get to defined range
+        pp.transform(ds.val_data);    // do the same to the validation set
 
         normalizer.fit_transform(ds.train_data);
         normalizer.transform(ds.val_data);
