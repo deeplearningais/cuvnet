@@ -98,7 +98,11 @@ class conv_auto_encoder
         virtual void reset_weights()
         {
             // initialize weights and biases
-            float diff = 4.f*std::sqrt(6.f/(m_n_channels*m_filter_size*m_filter_size + m_n_filters*m_filter_size*m_filter_size));
+            //float diff = 4.f*std::sqrt(6.f/(m_n_channels*m_filter_size*m_filter_size + m_n_filters*m_filter_size*m_filter_size));
+            
+            // theano lenet tutorial style
+            float fan_in = m_n_channels * m_filter_size * m_filter_size;
+            float diff = std::sqrt(3.f/fan_in);
 
             cuv::fill_rnd_uniform(m_weights1->data());
             m_weights1->data() *= 2*diff;

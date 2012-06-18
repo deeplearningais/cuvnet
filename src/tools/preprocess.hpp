@@ -1,6 +1,8 @@
 #ifndef __CUVNET_PREPROCESS_HPP__
 #     define __CUVNET_PREPROCESS_HPP__
 
+#include<boost/foreach.hpp>
+
 #include<cuv/basics/tensor.hpp>
 #include<cuv/matrix_ops/matrix_ops.hpp>
 #include<cuv/tensor_ops/tensor_ops.hpp>
@@ -36,10 +38,43 @@ namespace cuvnet
             virtual void fit(const cuv::tensor<float,M>& train)=0;
             virtual void transform(cuv::tensor<float,M>& data)=0;
             virtual void reverse_transform(cuv::tensor<float,M>& data)=0;
-            void fit_transform(cuv::tensor<float,M>& data){
+            virtual void fit_transform(cuv::tensor<float,M>& data){
                 fit(data); transform(data);
             }
             virtual void write_params(const std::string& basefn){}
+    };
+
+    template<class M=cuv::host_memory_space>
+    class preprocessing_pipeline{
+        protected:
+            std::vector<boost::shared_ptr<preprocessor<M> > > m_pp;
+        public:
+            preprocessing_pipeline<M>& add(preprocessor<M>* pp){
+                m_pp.push_back(boost::shared_ptr<preprocessor<M> >(pp));
+                return *this;
+            }
+            virtual void fit(const cuv::tensor<float, M>& train){
+                cuv::tensor<float, M> cpy = train.copy();
+                for(auto it=m_pp.begin(); it!=m_pp.end(); it++){
+                    preprocessor<M>& pp = **it;
+                    pp.fit(cpy);
+                    if(it != m_pp.end()-1) // do not transform last instance
+                        pp.transform(cpy);
+                }
+            }
+            virtual void fit_transform(cuv::tensor<float, M>& train){
+                for(auto it=m_pp.begin(); it!=m_pp.end(); it++){
+                    preprocessor<M>& pp = **it;
+                    pp.fit(train);
+                    pp.transform(train);
+                }
+            }
+            virtual void transform(cuv::tensor<float, M>& val){
+                for(auto it=m_pp.begin(); it!=m_pp.end(); it++){
+                    preprocessor<M>& pp = **it;
+                    pp.transform(val);
+                }
+            }
     };
 
     template<class M=cuv::host_memory_space>

@@ -99,9 +99,7 @@ TEST(Monitor, function){
 class RandomNumberUsingTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-      if(cuv::IsSame<cuv::dev_memory_space, matrix::memory_space_type>::Result::value){
-          cuv::initialize_mersenne_twister_seeds();
-      }
+      // mersenne twister now initialized in Environment::SetUp, see main.cpp
   }
 };
 
