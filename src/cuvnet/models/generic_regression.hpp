@@ -19,7 +19,7 @@ class generic_regression
 {
     public:
         /** 
-         * this is the type of a `function', e.g. the output or the loss 
+         * this is the type of a `function', eg the output or the loss.
          */
         typedef boost::shared_ptr<Op> op_ptr;
         typedef boost::shared_ptr<Input> input_ptr; 
