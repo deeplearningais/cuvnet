@@ -9,7 +9,8 @@
 #include <cuvnet/models/denoising_auto_encoder.hpp>
 #include <cuvnet/models/auto_encoder_stack.hpp>
 #include <cuvnet/models/convolutional_auto_encoder.hpp>
-#include <cuvnet/models/generic_regression.hpp>
+#include <cuvnet/models/linear_regression.hpp>
+#include <cuvnet/models/logistic_regression.hpp>
 #include <tools/monitor.hpp>
 #include <tools/function.hpp>
 
