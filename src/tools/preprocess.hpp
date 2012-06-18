@@ -49,8 +49,9 @@ namespace cuvnet
         protected:
             std::vector<boost::shared_ptr<preprocessor<M> > > m_pp;
         public:
-            void add(preprocessor<M>* pp){
+            preprocessing_pipeline<M>& add(preprocessor<M>* pp){
                 m_pp.push_back(boost::shared_ptr<preprocessor<M> >(pp));
+                return *this;
             }
             virtual void fit(const cuv::tensor<float, M>& train){
                 cuv::tensor<float, M> cpy = train.copy();
