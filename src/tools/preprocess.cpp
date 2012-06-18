@@ -2,15 +2,6 @@
 #include <iostream>
 #include <fstream>
 
-#include <boost/lexical_cast.hpp>
-
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
-
-
-
-#include <tools/preprocess.hpp>
-
 void normalize_hog(cv::Mat& m, const unsigned int rows, const unsigned int cols, unsigned int steps){
     float* it    = m.ptr<float>();
     float* end   = it+rows*cols;

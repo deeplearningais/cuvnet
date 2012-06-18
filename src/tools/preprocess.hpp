@@ -7,17 +7,6 @@
 #include<cuv/matrix_ops/matrix_ops.hpp>
 #include<cuv/tensor_ops/tensor_ops.hpp>
 
-/// for PCA whitening
-#define BOOST_UBLAS_SHALLOW_ARRAY_ADAPTOR  1
-#include <boost/numeric/ublas/storage.hpp>
-#include <boost/numeric/ublas/matrix.hpp>
-#include <boost/numeric/ublas/banded.hpp>
-#include <boost/numeric/ublas/vector.hpp>
-#include <boost/numeric/ublas/io.hpp>
-#include <boost/numeric/ublas/matrix_proxy.hpp>
-#include <boost/numeric/bindings/lapack/syev.hpp>
-#include <boost/numeric/bindings/traits/ublas_matrix.hpp>
-#include <boost/numeric/bindings/traits/ublas_vector.hpp> 
 #include "matwrite.hpp"
 
 #include "argsort.hpp"
@@ -32,27 +21,48 @@ namespace cuvnet
         };
     }
 
+    /**
+     * Base class for pre-processing.
+     */
     template<class M=cuv::host_memory_space>
     class preprocessor{
         public:
+            /// should determine transformation parameters, but not change the parameters
             virtual void fit(const cuv::tensor<float,M>& train)=0;
+            /// transform the data using the parameters determined in \c fit()
             virtual void transform(cuv::tensor<float,M>& data)=0;
+            /// reverse transform (often this is not possible!)
             virtual void reverse_transform(cuv::tensor<float,M>& data)=0;
+            /// fit and transform (sometimes this is not just shorter, but also more efficient!)
             virtual void fit_transform(cuv::tensor<float,M>& data){
                 fit(data); transform(data);
             }
+            /// write the transformation parameters to a file
             virtual void write_params(const std::string& basefn){}
     };
 
+    /**
+     * Convenience class for performing multiple consecutive pre-processing steps.
+     */
     template<class M=cuv::host_memory_space>
     class preprocessing_pipeline{
         protected:
             std::vector<boost::shared_ptr<preprocessor<M> > > m_pp;
         public:
+
+            /// add an element to the pipe
             preprocessing_pipeline<M>& add(preprocessor<M>* pp){
                 m_pp.push_back(boost::shared_ptr<preprocessor<M> >(pp));
                 return *this;
             }
+            /**
+             * fit using all elements in the pipe.
+             *
+             * @note If you want to transform the training data as well, it is more
+             * efficient to call \c fit_transform() directly.
+             *
+             * @param train the data to be fitted
+             */
             virtual void fit(const cuv::tensor<float, M>& train){
                 cuv::tensor<float, M> cpy = train.copy();
                 for(auto it=m_pp.begin(); it!=m_pp.end(); it++){
@@ -62,6 +72,14 @@ namespace cuvnet
                         pp.transform(cpy);
                 }
             }
+            /**
+             * fit and transform using all elements in the pipe.
+             *
+             * @note If you want to transform the training data as well, it is more
+             * efficient to call \c fit_transform() directly.
+             *
+             * @param train the data to be fitted
+             */
             virtual void fit_transform(cuv::tensor<float, M>& train){
                 for(auto it=m_pp.begin(); it!=m_pp.end(); it++){
                     preprocessor<M>& pp = **it;
@@ -69,6 +87,10 @@ namespace cuvnet
                     pp.transform(train);
                 }
             }
+            /**
+             * transform according to the fitted parameters.
+             * @param val the data to be transformed
+             */
             virtual void transform(cuv::tensor<float, M>& val){
                 for(auto it=m_pp.begin(); it!=m_pp.end(); it++){
                     preprocessor<M>& pp = **it;
@@ -77,6 +99,9 @@ namespace cuvnet
             }
     };
 
+    /**
+     * Does nothing.
+     */
     template<class M=cuv::host_memory_space>
     class identity_preprocessor
     : public preprocessor<M>
@@ -87,36 +112,53 @@ namespace cuvnet
             void reverse_transform(cuv::tensor<float,M>& data){};
     };
 
+    /**
+     * Ensures that every sample (=row) has mean zero.
+     *
+     * This cannot be reversed, since the means are unknown.
+     */
     template<class M=cuv::host_memory_space>
     class zero_sample_mean : public preprocessor<M> {
         public:
         public:
+            /// @overload
             void fit(const cuv::tensor<float,M>& train){
             }
+            /// @overload
             void transform(cuv::tensor<float,M>& data){
                 cuv::tensor<float,M> c(cuv::extents[data.shape(0)]);
                 cuv::reduce_to_col(c,data,cuv::RF_ADD,-1.f,0.f); 
                 c/=(float)data.shape(1);
                 cuv::matrix_plus_col(data,c);
             }
+            /// @overload
             void reverse_transform(cuv::tensor<float,M>& data){
                 throw std::runtime_error("zero_sample_mean cannot be inverted");
             }
     };
 
+    /**
+     * Takes the logarithm of all values in the dataset.
+     */
     template<class M=cuv::host_memory_space>
     class log_transformer : public preprocessor<M> {
         public:
+            /// @overload
             void fit(const cuv::tensor<float,M>& train){
             }
+            /// @overload
             void transform(cuv::tensor<float,M>& data){
                 cuv::apply_scalar_functor(data,cuv::SF_LOG); 
             }
+            /// @overload
             void reverse_transform(cuv::tensor<float,M>& data){
                 cuv::apply_scalar_functor(data,cuv::SF_EXP); 
             }
     };
 
+    /**
+     * Ensures that each column (=variable) has zero mean and unit variance.
+     */
     template<class M=cuv::host_memory_space>
     class zero_mean_unit_variance : public preprocessor<M>{
         public:
@@ -124,7 +166,9 @@ namespace cuvnet
             cuv::tensor<float, M> m_std;
             bool m_unitvar;
         public:
+            /// @overload
             zero_mean_unit_variance(bool unitvar=true):m_unitvar(unitvar){}
+            /// @overload
             void fit(const cuv::tensor<float,M>& train){
                 using namespace cuv;
                 m_mean.resize(extents[train.shape(1)]);
@@ -143,11 +187,13 @@ namespace cuvnet
                 }
                 apply_scalar_functor(m_mean, SF_NEGATE);
             }
+            /// @overload
             void transform(cuv::tensor<float,M>& data){
                 cuv::matrix_plus_row(data,m_mean); // mean is negated already
                 if(m_unitvar)
                     cuv::matrix_divide_row(data,m_std);
             }
+            /// @overload
             void reverse_transform(cuv::tensor<float,M>& data){
                 using namespace cuv; // for operator-
                 tensor<float,M> tmp(m_mean.shape());
@@ -159,9 +205,7 @@ namespace cuvnet
     };
 
     /**
-     * Transforms the data between the min and max values. 
-     * The maximum element of the data will have after transfromation max value, 
-     * and minimum element of the data will have min value
+     * Transforms the data such that it is between given minimum and maximum values
      */
     template<class M=cuv::host_memory_space>
     class global_min_max_normalize : public preprocessor<M> {
@@ -169,7 +213,9 @@ namespace cuvnet
             float m_min, m_max;
             float m_add, m_fact;
         public:
+            /// @overload
             global_min_max_normalize(float min=0.f, float max=1.f):m_min(min),m_max(max){}
+            /// @overload
             void fit(const cuv::tensor<float,M>& train){
                 float xmin = cuv::minimum(train); // minimum
                 float xmax = cuv::maximum(train); // range
@@ -177,10 +223,12 @@ namespace cuvnet
                 m_fact = (m_max-m_min)/(xmax-xmin);
                 cuvAssert(xmax>xmin);
             }
+            /// @overload
             void transform(cuv::tensor<float,M>& data){
                 data *= m_fact;
                 data -= m_add;
             }
+            /// @overload
             void reverse_transform(cuv::tensor<float,M>& data){
                 using namespace cuv; // for operator-
                 data += m_add;
@@ -188,6 +236,9 @@ namespace cuvnet
             }
     };
 
+    /**
+     * PCA transformation, dimensionality reduction and ZCA whitening
+     */
     class pca_whitening : public preprocessor<cuv::host_memory_space> {
         private:
             int m_n_components;
@@ -197,18 +248,8 @@ namespace cuvnet
 
             // shorthands
             typedef float real;
-            typedef boost::numeric::ublas::shallow_array_adaptor<real>  ArrayAdaptor; 
-            typedef boost::numeric::ublas::matrix<real,boost::numeric::ublas::row_major,ArrayAdaptor>    adaptor_matrix; 
-            typedef boost::numeric::ublas::matrix_column<adaptor_matrix>    acolumn; 
-            typedef boost::numeric::ublas::matrix<real,boost::numeric::ublas::column_major> ubmatrix;
-            typedef boost::numeric::ublas::matrix_column<ubmatrix>            column; 
-            typedef boost::numeric::ublas::matrix_column<ubmatrix>            row; 
-            typedef boost::numeric::ublas::vector<real>                     vector;
-            typedef boost::numeric::ublas::scalar_vector<real>              scalar_vector;
-            typedef boost::numeric::ublas::range                            range;
 
             bool m_whiten, m_zca;
-            boost::numeric::ublas::diagonal_matrix<real> m_diag;
             float m_epsilon;
 
         public:
@@ -229,87 +270,21 @@ namespace cuvnet
                  ,m_zca(zca)
                  ,m_epsilon(epsilon)
                 {}
-            void fit(const cuv::tensor<float,cuv::host_memory_space>& train_){
-                namespace lapack = boost::numeric::bindings::lapack;
-                namespace ublas  = boost::numeric::ublas;
-                if(m_n_components<=0)
-                    m_n_components = train_.shape(1);
+            /// @overload
+            void fit(const cuv::tensor<float,cuv::host_memory_space>& train_);
 
-                // ------- determine covariance matrix ----------
-                //  subtract mean
-                cuv::tensor<float,cuv::host_memory_space> train = train_.copy();
-                m_zm.fit_transform(train);
-
-                // calculate covariance matrix
-                cuv::tensor<float,cuv::host_memory_space> cov(cuv::extents[train_.shape(1)][train_.shape(1)]);
-                cuv::prod(cov,train,train,'t','n');
-                cov /= (float)train.shape(0);
-
-                // create UBLAS adaptors 
-                unsigned int d2 = m_zca ? train.shape(1) : m_n_components;
-                m_rot_trans.resize(cuv::extents[train.shape(1)][d2]);
-                m_rot_revrs.resize(cuv::extents[d2][train.shape(1)]);
-                adaptor_matrix ucov       (train.shape(1),train.shape(1),ArrayAdaptor(cov.size(),const_cast<real*>(cov.ptr())));
-                adaptor_matrix rot_trans  (train.shape(1),d2,ArrayAdaptor(m_rot_trans.size(),const_cast<real*>(m_rot_trans.ptr())));
-                adaptor_matrix rot_revrs  (d2,train.shape(1),ArrayAdaptor(m_rot_revrs.size(),const_cast<real*>(m_rot_revrs.ptr())));
-
-                vector S(train.shape(1));
-                ubmatrix Eigv(ucov);
-                vector lambda(train.shape(1));
-                lapack::syev( 'V', 'L', Eigv, lambda, lapack::optimal_workspace() );
-                std::vector<unsigned int> idx = argsort(lambda.begin(), lambda.end(), std::greater<float>());
-
-                // calculate the cut-off Eigv and m_diag matrix 
-                m_diag = ublas::diagonal_matrix<real> (m_n_components);
-                if(m_whiten)
-                    for(int i=0;i<m_n_components; i++)
-                        m_diag(i,i) = 1.0/std::sqrt(lambda(idx[i])+m_epsilon);
-                else
-                    for(int i=0;i<m_n_components; i++)
-                        m_diag(i,i) = 1.f;
-
-                ubmatrix rot(train.shape(1), m_n_components);
-                for(int i=0;i<m_n_components;i++) 
-                    column(rot,i) = column(Eigv,idx[i]);
-
-                std::cout <<"w:"<<m_whiten<<" z:"<<m_zca<<" n:"<<m_n_components<<" s:"<<train_.shape(1)<<std::endl;
-                if(!m_whiten && m_zca && (unsigned int)m_n_components == train_.shape(1)){
-                    // don't do anything!
-                    ublas::noalias(rot_trans) = ublas::identity_matrix<float>(m_n_components);
-                    ublas::noalias(rot_revrs) = ublas::identity_matrix<float>(m_n_components);
-                }
-                else if(m_zca){
-                    // ZCA whitening:
-                    // Rot = rot * m_diag * rot'
-                    ubmatrix tmp = ublas::prod(rot, m_diag);
-                    ublas::noalias(rot_trans) = ublas::prod(tmp, ublas::trans(rot) );
-
-                    // invert
-                    for (int i = 0; i < m_n_components; ++i)
-                        m_diag(i,i) = 1.0/m_diag(i,i);
-                    tmp = ublas::prod(rot,m_diag);
-                    ublas::noalias(rot_revrs) = ublas::prod(tmp,ublas::trans(rot));
-                }
-                else{
-                    // PCA whitening:
-                    // Rot = rot * m_diag
-                    ublas::noalias(rot_trans) = ublas::prod(rot, m_diag);
-
-                    // invert
-                    for (int i = 0; i < m_n_components; ++i)
-                        m_diag(i,i) = 1.0/m_diag(i,i);
-                    ublas::noalias(rot_revrs) = ublas::prod(m_diag,ublas::trans(rot));
-                }
-            }
+            /// @overload
             void transform(cuv::tensor<float,cuv::host_memory_space>& data){
                 m_zm.transform(data);
                 cuv::tensor<float,cuv::host_memory_space> res(cuv::extents[data.shape(0)][m_rot_trans.shape(1)]);
                 cuv::prod( res, data, m_rot_trans );
                 data = res;
             }
+            /// @overload
             void reverse_transform(cuv::tensor<float,cuv::host_memory_space>& res){
                 reverse_transform(res, false);
             }
+            /// @overload
             void reverse_transform(cuv::tensor<float,cuv::host_memory_space>& res, bool nomean){
                 cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[res.shape(0)][m_rot_revrs.shape(1)]);
                 cuv::prod( data, res, m_rot_revrs);
@@ -317,6 +292,7 @@ namespace cuvnet
                     m_zm.reverse_transform(data);
                 res = data;
             }
+            /// @overload
             void write_params(const std::string& basefn){
                 tofile(basefn+"-mean.npy", m_zm.m_mean);
                 tofile(basefn+"-rot-trans.npy", m_rot_trans);
@@ -328,11 +304,6 @@ namespace cuvnet
             inline
                 const cuv::tensor<float,cuv::host_memory_space>& rrot(){return m_rot_revrs;};
     };
-
-    //class preprocessor{
-    //    public:
-    //        virtual void process_filestring(cuv::tensor<float,cuv::host_memory_space>& dst, const char* buf, size_t n)=0;
-    //};
 
     class patch_extractor
     //: public preprocessor
