@@ -33,7 +33,7 @@ class conv_auto_encoder
         virtual op_ptr  encode(op_ptr& inp){
             if(!m_weights1){
                 inp->visit(determine_shapes_visitor()); 
-                unsigned int m_n_channels = inp->result()->shape[1];
+                m_n_channels = inp->result()->shape[1];
 
                 m_weights1.reset(new Input(cuv::extents[m_n_channels][m_filter_size*m_filter_size][m_n_filters], "weights1"));
                 m_weights2.reset(new Input(cuv::extents[m_n_filters][m_filter_size*m_filter_size][m_n_channels], "weights2"));
