@@ -116,7 +116,7 @@ class generic_regression
          * @return the classification error 
          */
         op_ptr classification_error(){
-            return classification_loss(m_est, m_target);
+            return classification_loss(sink(m_est), m_target);
         }
 
        protected:
