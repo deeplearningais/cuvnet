@@ -1,5 +1,5 @@
-#ifndef __REGRESSION_HPP__
-#     define __REGRESSION_HPP__
+#ifndef __GENERIC_REGRESSION_HPP__
+#     define __GENERIC_REGRESSION_HPP__
 
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
@@ -100,7 +100,14 @@ class generic_regression
                 prod( input, m_weights)
                 ,m_bias,1);
         }
+        
 
+        /**
+         * @return the input
+         */
+        input_ptr get_weights(){
+            return m_weights;
+        }
         
         /**
          * @return the target
@@ -108,6 +115,7 @@ class generic_regression
         op_ptr get_target(){
             return m_target;
         }
+
         
 
         /**
@@ -126,59 +134,8 @@ class generic_regression
        virtual op_ptr loss() = 0;
 };
 
-/**
- * implements multinomial logistic regression \f[ L( \hat{y}, y) = - \frac{1}{N} \sum{i=1}{N} \sum{k=1}{K} (\hat{y_{n,k}} - ln(\sum_{j}e^{y_{n,j}})) \f] 
- */
-class logistic_regression:  public generic_regression{
-    public:
-    
-     /**
-      * Constructor
-      *
-      * @param input a function that generates the input 
-      * @param target a function that generates the target
-      */   
-    logistic_regression(op_ptr input, op_ptr target): generic_regression(input, target){
-    }
 
-    protected:
 
-    /**
-     * Loss function
-     *  @return a function that calculates the logistic loss 
-     */
-    op_ptr loss(){
-         return mean(multinomial_logistic_loss(get_estimator(), get_target(),1));
-    }
-
-};
-
-/**
- * implements mean square error loss \f$ L( \hat{y}, y) = \sum{i=1}{N} (\hat{y} - y)^2 \f$
- */
-class linear_regression:  public generic_regression{
-    public:
-
-     /**
-      * Constructor
-      *
-      * @param input a function that generates the input 
-      * @param target a function that generates the target
-      */
-    linear_regression(op_ptr input, op_ptr target): generic_regression(input, target){}
-   
-
-    protected:
-    
-    /**
-     * Loss function
-     *  @return a function that calculates the logistic loss 
-     */
-    op_ptr loss(){
-          return mean( sum_to_vec(pow(axpby(get_target(), -1.f, get_estimator()), 2.f), 0) );
-    }
-
-};
 
 }
 

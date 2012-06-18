@@ -33,15 +33,6 @@ using namespace boost::assign;
 using namespace cuvnet;
 namespace ll = boost::lambda;
 
-
-/// convenient transpose for a matrix (used in visualization only)
-matrix trans(matrix& m){
-    matrix mt(m.shape(1),m.shape(0));
-    cuv::transpose(mt,m);
-    return mt;
-}
-
-
 /**
  * load a batch from the dataset
  */
@@ -57,46 +48,19 @@ void load_batch(
 
 }
 
-/**
- * collects weights, inputs and decoded data from the network and plots it, and
- * writes the results to a file.
- *
- */
-void visualize_filters(logistic_regression* lr, monitor* mon, int fa,int fb, int image_size, int channels, boost::shared_ptr<Input> input, unsigned int epoch){
-    if(epoch%50 != 0)
-        return;
-    {
-        std::string base = (boost::format("weights-%06d-")%epoch).str();
-        cuv::tensor<float,cuv::host_memory_space>  w = trans(lr->get_weights()->data());
-        std::cout << "Weight dims: "<<w.shape(0)<<", "<<w.shape(1)<<std::endl;
-        auto wvis = arrange_filters(w, 'n', fa, fb, (int)sqrt(w.shape(1)),channels,false);
-        cuv::libs::cimg::save(wvis, base+"nb.png");
-        wvis      = arrange_filters(w, 'n', fa, fb, (int)sqrt(w.shape(1)),channels,true);
-        cuv::libs::cimg::save(wvis, base+"sb.png");
-    }
-    {
-        std::string base = (boost::format("input-%06d-")%epoch).str();
-        cuv::tensor<float,cuv::host_memory_space> w = input->data().copy();
-        fa = sqrt(w.shape(0));
-        fb = sqrt(w.shape(0));
-        auto wvis = arrange_filters(w, 'n', fa, fb, (int)sqrt(w.shape(1)),channels,false);
-        cuv::libs::cimg::save(wvis, base+"nb.png");
-        wvis      = arrange_filters(w, 'n', fa, fb, (int)sqrt(w.shape(1)),channels,true);
-        cuv::libs::cimg::save(wvis, base+"sb.png");
-    }
-}
 int main(int argc, char **argv)
 {
     // initialize cuv library   cuv::initCUDA(0);
+    cuv::initCUDA(0);
     cuv::initialize_mersenne_twister_seeds();
 
     // load the dataset
     mnist_dataset ds("/home/local/datasets/MNIST");
-   
+    
     // number of filters is fa*fb (fa and fb determine layout of plots printed
     //          in \c visualize_filters)
     // batch size is bs
-    unsigned int fa=2,fb=5,bs=64;
+    unsigned int fa=16,fb=8,bs=64;
 
     // makes the values between 0 and 1. Max element of the data will have value 1, and min element valaue 0.
     global_min_max_normalize<> n;
@@ -110,10 +74,20 @@ int main(int argc, char **argv)
     boost::shared_ptr<Input> target(
             new Input(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
 
-    // creates the logistic regression 
-    logistic_regression lr(input, target);
+    //creates stacked autoencoder with one simple autoencoder. has fa*fb number of hidden units
+    auto_encoder_stack<> ae_s(ds.binary);
+    typedef simple_auto_encoder<simple_auto_encoder_weight_decay> ae_type;
+    ae_s.add<ae_type>(fa*fb, ds.binary);
+    ae_s.init(input, 0.01f);
 
-    std::vector<Op*> params = lr.params();
+    // creates the logistic regression on the top of the stacked autoencoder
+    //linear_regression lr(ae_s.get_encoded(), target);
+    logistic_regression lr(ae_s.get_encoded(), target);
+
+    // puts the supervised parameters of the stacked autoencoder and logistic regression parameters in one vector
+    std::vector<Op*> params = ae_s.supervised_params();
+    std::vector<Op*> params_log = lr.params();
+    std::copy(params_log.begin(), params_log.end(), std::back_inserter(params));
 
     // create a verbose monitor, so we can see progress 
     // and register the decoded activations, so they can be displayed
@@ -138,9 +112,9 @@ int main(int argc, char **argv)
         
         // register the monitor so that it receives learning events
         gd.register_monitor(mon);
-
+        
         // after each epoch, run \c visualize_filters
-        gd.after_epoch.connect(boost::bind(visualize_filters,&lr,&mon,fa,fb,ds.image_size,ds.channels, input,_1));
+        //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&normalizer,fa,fb,ds.image_size,ds.channels, input,_1));
         
         // before each batch, load data into \c input
         gd.before_batch.connect(boost::bind(load_batch,input, target,&train_data, &train_labels, bs,_2));
@@ -174,8 +148,4 @@ int main(int argc, char **argv)
      
     return 0;
 }
-
-
-
-
 
