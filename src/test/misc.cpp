@@ -324,3 +324,20 @@ TEST(pca,reduced_zca){
             EXPECT_NEAR(data(i,j), data2(i,j),0.01f);
         }
 }
+
+TEST(pipeline, simple){
+    cuvnet::preprocessing_pipeline<> pp;
+    pp.add(new cuvnet::global_min_max_normalize<>());
+    pp.add(new cuvnet::zero_sample_mean<>());
+
+    cuv::tensor<float,cuv::host_memory_space> v(cuv::extents[2][2]);
+    v(0,0) = 0.f;
+    v(0,1) = 200.f;
+    v(1,0) = 0.f;
+    v(1,1) = 400.f;
+    pp.fit_transform(v);
+    EXPECT_NEAR(v(0,0), -0.25f, .01);
+    EXPECT_NEAR(v(0,1),  0.25f, .01);
+    EXPECT_NEAR(v(1,0), -0.5f, .01);
+    EXPECT_NEAR(v(1,1),  0.5f, .01);
+}
