@@ -1,13 +1,7 @@
 #ifndef __LINEAR_REGRESSION_HPP__
 #     define __LINEAR_REGRESSION_HPP__
 
-#include <boost/accumulators/accumulators.hpp>
-#include <boost/accumulators/statistics/stats.hpp>
-#include <boost/accumulators/statistics/mean.hpp>
-#include <boost/accumulators/statistics/variance.hpp>
 #include <cuvnet/models/generic_regression.hpp>
-#include <cuv.hpp>
-
 #include <cuvnet/ops.hpp>
 
 namespace cuvnet
