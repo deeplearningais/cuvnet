@@ -14,6 +14,7 @@
 #include <tools/crossvalid.hpp>
 #include <tools/learner.hpp>
 
+#include <datasets/randomizer.hpp>
 #include <tools/preprocess.hpp>
 #include <cuvnet/models/lenet.hpp>
 #include <tools/monitor.hpp>
@@ -54,6 +55,7 @@ int main(int argc, char **argv)
 
     // load the dataset
     mnist_dataset ds("/home/local/datasets/MNIST");
+    randomizer().transform(ds.train_data, ds.train_labels);
    
     // number of simultaneously processed items
     unsigned int bs=64;
