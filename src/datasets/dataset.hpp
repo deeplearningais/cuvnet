@@ -12,6 +12,11 @@ namespace cuvnet
         CM_TEST
     };
 
+    /**
+     * Generic 'simple' dataset which completely fits in RAM.
+     *
+     * @ingroup datasets
+     */
     class dataset
     {
         private:
@@ -23,17 +28,17 @@ namespace cuvnet
                         & train_labels & val_labels & test_labels;
                 }
         public:
-            cuv::tensor<float,cuv::host_memory_space> train_data;
-            cuv::tensor<float,cuv::host_memory_space> val_data;
-            cuv::tensor<float,cuv::host_memory_space> test_data;
+            cuv::tensor<float,cuv::host_memory_space> train_data; ///< contains the training data
+            cuv::tensor<float,cuv::host_memory_space> val_data; ///< contains the validation data
+            cuv::tensor<float,cuv::host_memory_space> test_data; ///< contains the test data
 
-            cuv::tensor<int,cuv::host_memory_space> train_labels;
-            cuv::tensor<int,cuv::host_memory_space> val_labels;
-            cuv::tensor<int,cuv::host_memory_space> test_labels;
+            cuv::tensor<int,cuv::host_memory_space> train_labels; ///< contains the training labels
+            cuv::tensor<int,cuv::host_memory_space> val_labels; ///< contains the validation labels
+            cuv::tensor<int,cuv::host_memory_space> test_labels; ///< contains the test labels
 
-            int channels;
-            int image_size;
-            bool binary;
+            int channels; ///< the number of channels, if the dataset contains images
+            int image_size; ///< the size of the images (width==height) if dataset contains images
+            bool binary; ///< if true, assume that the dataset contains Bernoulli-distributed data
     };
 
 

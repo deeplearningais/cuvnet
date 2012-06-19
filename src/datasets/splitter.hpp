@@ -7,6 +7,13 @@
 
 namespace cuvnet
 {
+    /**
+     * Split a dataset into multiple, smaller datasets.
+     *
+     * This is useful for validation, cross-validation, etc.
+     *
+     * @ingroup datasets
+     */
     class splitter 
     {
         private:
@@ -18,6 +25,12 @@ namespace cuvnet
             const dataset& get_ds()const{ return m_ds; }
             unsigned int size()const{return m_n_splits;}
             splitter() : m_n_splits(0) {}
+            /**
+             * ctor.
+             * @param ds the original dataset
+             * @param n_splits the number of required splits >=1
+             * @param val_frac if \c n_splits=1, this is the split used.
+             */
             splitter(dataset ds, unsigned int n_splits, float val_frac=0.16667)
                 :m_ds(ds)
                 ,m_n_splits(n_splits)
@@ -25,18 +38,39 @@ namespace cuvnet
             {
                 std::cout << "Splitting training_data into "<<n_splits<<" parts."<<std::endl;
             }
+            /**
+             * initialize (same as ctor with identical arguments).
+             * @param ds the original dataset
+             * @param n_splits the number of required splits >=1
+             * @param val_frac if \c n_splits=1, this is the split used.
+             */
             void init(dataset ds, unsigned int n_splits, float val_frac=0.16667){
                 m_ds = ds;
                 m_n_splits = n_splits;
                 m_val_frac = val_frac;
             }
+            /**
+             * Split according to given indicators.
+             *
+             * @param ds the original dataset
+             * @param indicators for each label in training set, indicate the id of the split
+             */
             void init(dataset ds, const cuv::tensor<int,cuv::host_memory_space>&  indicators){
                 m_ds = ds;
                 m_n_splits = cuv::maximum(indicators)+1; // +1 for label 0
                 m_val_frac = -1.f;                       // not needed
                 m_indicators = indicators;
             }
+            /**
+             * @return the number of splits as specified in ctor
+             */
 			unsigned int n_splits()const{return m_n_splits; }
+
+            /**
+             * if indicators were given in \c init, return the dataset corresponding to the given indicator.
+             *
+             * @param idx the indicator which we want to evaluate on, all others go to training set
+             */
             dataset get_split_indicators(int idx){
                 using namespace cuv;
                 unsigned int n_test = cuv::count(m_indicators, idx);
@@ -88,6 +122,11 @@ namespace cuvnet
 
                 return dst;
             }
+            /**
+             * get one split.
+             *
+             * @param idx all data marked with \c idx will be in validation set, all others in train.
+             */
             dataset operator[](unsigned int idx){ 
                 using namespace cuv;
                 cuvAssert(idx<m_n_splits);

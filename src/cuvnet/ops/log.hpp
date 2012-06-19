@@ -5,6 +5,11 @@
 
 namespace cuvnet
 {
+    /**
+     * Takes the logarithm of its inputs.
+     *
+     * @ingroup Ops
+     */
     class Log
         : public Op{
             public:

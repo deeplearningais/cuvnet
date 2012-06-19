@@ -5,6 +5,11 @@
 
 namespace cuvnet
 {
+    /**
+     * calculates the exponential function of its inputs (elementwise).
+     *
+     * @ingroup Ops
+     */
     class Exp
         : public Op{
             public:

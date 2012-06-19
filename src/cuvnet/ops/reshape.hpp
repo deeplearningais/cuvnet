@@ -21,6 +21,8 @@ namespace cuvnet
      * outdim=2), then we’ll have the same (2-1=1) leading dimensions (2,), and
      * the remaining dimensions are collapsed. So the output in this example
      * would have shape (2, 60).
+     *
+     * @ingroup Ops
      * 
      */
     class Flatten
@@ -105,6 +107,7 @@ namespace cuvnet
      * one component can be <0, which means that the shape there is deduced
      * from the input dimensions.
      * 
+     * @ingroup Ops
      */
     class Reshape
         : public Op{

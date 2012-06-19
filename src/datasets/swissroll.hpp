@@ -7,6 +7,14 @@
 
 namespace cuvnet
 {
+    /**
+     * classical swiss-roll dataset.
+     *
+     * There is a script \c swissroll.py in \c datasets/util that can be used to
+     * generate the required data file.
+     *
+     * @ingroup datasets
+     */
     struct swissroll_dataset : public dataset{
         swissroll_dataset(const std::string& path){
             namespace fs = boost::filesystem;

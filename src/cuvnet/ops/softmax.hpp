@@ -7,9 +7,11 @@
 namespace cuvnet
 {
     /**
-     * calculates negative cross-entropy of logistic (pointwise)
+     * calculates negative cross-entropy of logistic (pointwise).
      * 
      * \f$- x \log z - (1-x) \log(1-z)\f$, where \f$z = 1/(1-\exp(-y))\f$
+     *
+     * @ingroup Ops
      */
     class NegCrossEntropyOfLogistic
         : public Op{
@@ -131,9 +133,11 @@ namespace cuvnet
         };
     /**
      * calculates the elementwise KullbackLeibler-Divergence of two Bernoulli
-     * variables given by their means
+     * variables given by their means.
      * 
      * \f$ x\log (x/y) + (1-x)\log\frac{1-x}{1-y} \f$
+     *
+     * @ingroup Ops
      */
     class BernoulliKullbackLeibler
         : public Op{
@@ -275,7 +279,7 @@ namespace cuvnet
                     }
         };
     /**
-     * Softmax activation function
+     * Softmax activation function.
      *
      * \f[
      * f(x_i) = \frac{\exp(-x_i)}{\sum_j \exp(-x_j)}
@@ -283,6 +287,8 @@ namespace cuvnet
      *
      * where the sum over j is either over the rows or the columns of a
      * matrix, depending on the second parameter.
+     *
+     * @ingroup Ops
      */
     class Softmax
         : public Op{
@@ -364,7 +370,7 @@ namespace cuvnet
     };
 
     /**
-     * Multinomial logistic loss
+     * Multinomial logistic loss.
      *
      * For some dataset \f$D=(X,Y)\f$
      * \f[

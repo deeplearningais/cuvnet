@@ -5,6 +5,11 @@
 
 namespace cuvnet
 {
+    /**
+     * Calculates the absolute values of its inputs.
+     *
+     * \ingroup Ops
+     */
     class Abs
         : public Op{
             public:

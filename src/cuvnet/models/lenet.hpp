@@ -1,6 +1,7 @@
 #ifndef __LENET_HPP__
 #     define __LENET_HPP__
 
+#include <boost/assign.hpp>
 #include <cuvnet/ops.hpp>
 #include "logistic_regression.hpp"
 #include "linear_regression.hpp"
@@ -10,8 +11,24 @@ using boost::make_shared;
 
 
 /**
- * implements a convolutional neural network for classification
+ * Implements a convolutional neural network for classification as proposed by Yann LeCun.
  *
+ * The input for the network are 3-dimensional arrays, where
+ * the first dimension is the batch size, the second is the
+ * number of color channels, and the third is the number of
+ * pixels in one color channel. The images are square.
+ *
+ * The network consists of 
+ * - A first convolution of the image 
+ * - A first maximum-pooling operation
+ * - A second convolution of the image
+ * - A second maximum-pooling operation
+ * - A fully connected MLP-like hidden layer
+ * - A logistic regression module for classification.
+ *
+ * @example lenet.cpp
+ *
+ * @ingroup models
  */
 class lenet
 {

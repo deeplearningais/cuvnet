@@ -17,9 +17,14 @@
 namespace cuvnet
 {
     /**
-     * This class monitors a function during learning, e.g. statistics over
-     * certain function values like a loss. It also manages the sinks attached
-     * to a function.
+     * Monitors a function during learning, eg statistics over
+     * certain function values like a loss. 
+     *
+     * It also manages the \c Sinks attached to a \c function.
+     * This useful, if you want to dump or look at functions of intermediate
+     * results.
+     *
+     * @ingroup tools
      */
     class monitor{
         typedef

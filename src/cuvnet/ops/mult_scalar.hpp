@@ -7,13 +7,11 @@
 namespace cuvnet
 {
     /**
-     * fprop calculates 
+     * fprop calculates  \f$ f(x) = \alpha x\f$
      *
-     *  f(x) = a x
+     * for some scalar \f$\alpha\f$ and some input tensor \f$x\f$
      *
-     * for some scalar a and some input tensor x
-     *
-     * in bprop, calculate
+     * @ingroup Ops
      * 
      */
     class MultScalar

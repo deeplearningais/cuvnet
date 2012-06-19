@@ -5,6 +5,11 @@
 
 namespace cuvnet
 {
+    /**
+     * Applies hyperbolic tangent to its inputs (elementwise).
+     *
+     * @ingroup Ops
+     */
     class Tanh
         : public Op{
             public:
@@ -58,6 +63,12 @@ namespace cuvnet
                         ar & boost::serialization::base_object<Op>(*this);
                     }
         };
+
+    /**
+     * Applies sine to its inputs (elementwise).
+     *
+     * @ingroup Ops
+     */
     class Sin
         : public Op{
             public:
@@ -121,6 +132,11 @@ namespace cuvnet
                         ar & boost::serialization::base_object<Op>(*this);
                     }
         };
+    /**
+     * Applies cosine function to all its inputs (elementwise).
+     *
+     * @ingroup Ops
+     */
     class Cos
         : public Op{
             public:
@@ -186,6 +202,14 @@ namespace cuvnet
                         ar & boost::serialization::base_object<Op>(*this);
                     }
         };
+    
+    /**
+     * Applies logistic function to its inputs (elementwise).
+     *
+     * \f$f(x)=1/(1+\exp(-x))\f$
+     *
+     * @ingroup Ops
+     */
     class Logistic
         : public Op{
             public:

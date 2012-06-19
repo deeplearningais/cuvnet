@@ -7,6 +7,14 @@
 
 namespace cuvnet
 {
+    /**
+     * Classical van Hateren natural image patches dataset.
+     *
+     * There is a script \c extract_patches.py in the \c datasets/util directory that 
+     * extracts patches from the van Hateren database.
+     *
+     * @ingroup datasets
+     */
     struct natural_dataset : public dataset{
         natural_dataset(const std::string& path){
             namespace fs = boost::filesystem;

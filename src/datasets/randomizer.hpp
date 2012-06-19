@@ -5,6 +5,10 @@
 
 namespace cuvnet
 {
+    /**
+     * shuffle a dataset (training data and labels simultaneously).
+     * @ingroup preproc
+     */
     class randomizer 
     {
         public:

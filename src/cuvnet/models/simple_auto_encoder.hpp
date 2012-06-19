@@ -5,7 +5,10 @@
 #include "generic_auto_encoder.hpp"
 
 /**
- * This is a straight-forward symmetric auto-encoder
+ * This is a straight-forward symmetric auto-encoder.
+ *
+ * @example auto_enc.cpp
+ * @ingroup models
  */
 template<class Regularizer>
 class simple_auto_encoder 
@@ -44,7 +47,7 @@ class simple_auto_encoder
                 ,m_bias_y,1);
     }
 
-    /*
+    /**
      * @return weight matrix
      */
     boost::shared_ptr<Input> get_weights(){return m_weights;} 
@@ -96,7 +99,9 @@ class simple_auto_encoder
 };
 
 /**
- * this just implements a weight decay to be mixed into a simple auto encoder
+ * Implements a weight decay to be mixed into a simple auto encoder
+ *
+ * @ingroup models
  */
 class simple_auto_encoder_weight_decay
 : virtual public generic_auto_encoder
@@ -123,7 +128,9 @@ class simple_auto_encoder_weight_decay
 };
 
 /**
- * no regularization
+ * No regularization (mixin for auto-encoders).
+ *
+ * @ingroup models
  */
 class simple_auto_encoder_no_regularization
 : virtual public generic_auto_encoder

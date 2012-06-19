@@ -23,6 +23,7 @@ namespace cuvnet
 
     /**
      * Base class for pre-processing.
+     * @ingroup preproc
      */
     template<class M=cuv::host_memory_space>
     class preprocessor{
@@ -43,6 +44,7 @@ namespace cuvnet
 
     /**
      * Convenience class for performing multiple consecutive pre-processing steps.
+     * @ingroup preproc
      */
     template<class M=cuv::host_memory_space>
     class preprocessing_pipeline{
@@ -101,6 +103,7 @@ namespace cuvnet
 
     /**
      * Does nothing.
+     * @ingroup preproc
      */
     template<class M=cuv::host_memory_space>
     class identity_preprocessor
@@ -115,7 +118,8 @@ namespace cuvnet
     /**
      * Ensures that every sample (=row) has mean zero.
      *
-     * This cannot be reversed, since the means are unknown.
+     * This cannot be reversed, since the means are either not remembered or not known.
+     * @ingroup preproc
      */
     template<class M=cuv::host_memory_space>
     class zero_sample_mean : public preprocessor<M> {
@@ -139,6 +143,7 @@ namespace cuvnet
 
     /**
      * Takes the logarithm of all values in the dataset.
+     * @ingroup preproc
      */
     template<class M=cuv::host_memory_space>
     class log_transformer : public preprocessor<M> {
@@ -158,6 +163,7 @@ namespace cuvnet
 
     /**
      * Ensures that each column (=variable) has zero mean and unit variance.
+     * @ingroup preproc
      */
     template<class M=cuv::host_memory_space>
     class zero_mean_unit_variance : public preprocessor<M>{
@@ -206,6 +212,7 @@ namespace cuvnet
 
     /**
      * Transforms the data such that it is between given minimum and maximum values
+     * @ingroup preproc
      */
     template<class M=cuv::host_memory_space>
     class global_min_max_normalize : public preprocessor<M> {
@@ -238,6 +245,7 @@ namespace cuvnet
 
     /**
      * PCA transformation, dimensionality reduction and ZCA whitening
+     * @ingroup preproc
      */
     class pca_whitening : public preprocessor<cuv::host_memory_space> {
         private:

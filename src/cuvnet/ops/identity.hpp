@@ -3,6 +3,14 @@
 
 namespace cuvnet
 {
+    /**
+     * simply passes on its inputs to whoever wants it.
+     *
+     * This is mainly an example of how to write an \c Op, it is not really
+     * useful.
+     *
+     * @ingroup Ops
+     */
     class Identity 
         : public Op{
             public:

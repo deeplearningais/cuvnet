@@ -6,6 +6,10 @@
 
 namespace cuvnet
 {
+    /**
+     * MSRC descriptors (not available publically).
+     * @ingroup datasets
+     */
     struct msrc_desc_dataset : public dataset{
         cuv::tensor<int,cuv::host_memory_space> imagen; // image numbers (one for each descriptor in the training set)
 

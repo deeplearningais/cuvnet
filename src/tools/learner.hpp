@@ -11,7 +11,7 @@ namespace mongo
 namespace cuvnet
 {
     /**
-     * helper to learn on simple datasets that fit in RAM (MNIST, CIFAR, etc)
+     * helper to learn on simple datasets that fit in RAM (MNIST, CIFAR, etc).
      *
      * derived classes still need to imlpement:
      * - constructFromBSON (learner specific parts)
@@ -22,6 +22,8 @@ namespace cuvnet
      * - reset_params
      * - fit (train model)
      * - perf (get performance data)
+     *
+     *   @ingroup tools
      */
     template<class StorageSpace>
     class SimpleDatasetLearner

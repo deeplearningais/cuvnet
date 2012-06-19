@@ -4,6 +4,11 @@
 #include <cuvnet/op.hpp>
 namespace cuvnet
 {
+    /**
+     * Matrix product.
+     *
+     * @ingroup Ops
+     */
     class Prod
         : public Op{
             public:

@@ -7,7 +7,8 @@ namespace cuvnet
 {
 
     /**
-     * convolve a set of images using a set of filters 
+     * convolve a set of images using a set of filters.
+     *
      * This is the "neural net" type convolution, where filters are 3D and
      * results are summed over input channels.
      *
@@ -18,6 +19,8 @@ namespace cuvnet
      * while filters have shape
      *  
      *  nFiltChannels x nFiltPix x nFilt
+     *
+     *  @ingroup Ops
      *
      */
     class Convolve
@@ -251,6 +254,11 @@ namespace cuvnet
                     }
         };
 
+    /**
+     * Maximum pooling or subsampling of image regions.
+     *
+     * @ingroup Ops
+     */
     class LocalPooling
         : public Op{
             public:
@@ -379,6 +387,8 @@ namespace cuvnet
      * is quite cheap compared to convolution itself.
      * (less than 1% for large images)
      *
+     * @ingroup Ops
+     *
      */
     class ReorderForConv
         : public Op{
@@ -446,7 +456,9 @@ namespace cuvnet
         };
 
     /**
-     * Does the opposite of ReorderForConv
+     * Does the opposite of \c ReorderForConv.
+     *
+     * @ingroup Ops
      */
     class ReorderFromConv
         : public Op{

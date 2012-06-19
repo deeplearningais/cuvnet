@@ -4,6 +4,11 @@
 
 namespace cuvnet
 {
+    /**
+     * add noise to the inputs.
+     *
+     * @ingroup Ops
+     */
     class Noiser
         : public Op{
             public:

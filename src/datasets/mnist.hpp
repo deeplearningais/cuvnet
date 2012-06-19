@@ -6,6 +6,10 @@
 
 namespace cuvnet
 {
+    /**
+     * the classical MNIST dataset by Yann LeCun.
+     * @ingroup datasets
+     */
     struct mnist_dataset : public dataset{
         mnist_dataset(const std::string& path){
             std::cout << "Reading MNIST dataset..."<<std::flush;

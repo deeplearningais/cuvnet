@@ -5,6 +5,21 @@
 
 class simple_auto_encoder_no_regularization;
 template<class Regularizer=simple_auto_encoder_no_regularization>
+
+/**
+ * A stack of auto-encoders.
+ *
+ * Useful for deep learning, where (classically) multiple auto-encoders are
+ * chained, pre-trained and the top-level encoder is used as input for 
+ * \c logistic_regression.
+ *
+ * @example logistic_regression.cpp
+ *
+ * @see generic_auto_encoder 
+ * @see simple_auto_encoder
+ * @see denoising_auto_encoder
+ * @ingroup models
+ */
 class auto_encoder_stack
 : virtual public generic_auto_encoder
 , public Regularizer

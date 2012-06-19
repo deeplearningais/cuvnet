@@ -20,7 +20,10 @@ namespace cuvnet
         void operator()();
     };
 
-	/// to use crossvalidation, you need to dervie from this
+	/** 
+     * to use crossvalidation, you need to derive from this
+     * @ingroup learning
+     */
 	class crossvalidatable{
 		private:
         friend class boost::serialization::access;
@@ -49,10 +52,15 @@ namespace cuvnet
             virtual bool refit_for_test()const;
 	};
 
+    /**
+     * crossvalidation namespace
+     * @ingroup learning
+     */
 	namespace cv{
 
 		/**
 		 * evaluates exactly one split
+         * @ingroup learning
 		 */
 		struct one_split_evaluator{
 			public:
@@ -68,6 +76,7 @@ namespace cuvnet
 
 		/**
 		 * evaluates on all splits
+         * @ingroup learning
 		 */
 		struct all_splits_evaluator{
 			public:
@@ -92,6 +101,7 @@ namespace cuvnet
 
 		/**
 		 * Crossvalidation Queue
+         * @ingroup learning
 		 */
 		struct crossvalidation_queue{
 			mdbq::Hub m_hub;
@@ -101,6 +111,7 @@ namespace cuvnet
 
 		/**
 		 * Crossvalidation Worker
+         * @ingroup learning
 		 */
 		struct crossvalidation_worker
 		: mdbq::Client{

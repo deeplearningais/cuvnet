@@ -21,7 +21,8 @@ namespace cuvnet
             return result;
         }
     /**
-     * sums over all entries in p0
+     * Sums over all entries in its argument.
+     * @ingroup Ops
      */
     class Sum
         : public Op{
@@ -117,7 +118,9 @@ namespace cuvnet
         };
 
     /**
-     * mean over all entries in p0
+     * mean over all entries in its argument.
+     *
+     * @ingroup Ops
      */
     class Mean
         : public Op{

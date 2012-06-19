@@ -8,7 +8,14 @@ namespace cuvnet
 {
 
     /**
-     * calculates \f[ \frac{1}{N} \sum_{j=1}^N r_j = |argmax_i x_{ji} - argmax_i y_{ji}| \neq 0 \f]
+     * \brief calculates the classification loss for one-out-of-n codes.
+     *
+     * \f[ \frac{1}{N} \sum_{j=1}^N r_j = |\arg\max_i x_{ji} - \arg\max_i y_{ji}| \neq 0 \f].
+     *
+     * @note there is no derivative for defined for this operator. 
+     *       You can use \c linear_regression or \c logistic_regression.
+     *
+     * @ingroup Ops
      */
     class ClassificationLoss
         : public Op{

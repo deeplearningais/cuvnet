@@ -5,8 +5,12 @@
 namespace cuvnet
 {
     /**
-     * adds a vector to a matrix.
+     * adds a vector to a tensor.
      *
+     * Depending on the axis parameter, the vector must have the same length as
+     * the first or last dimension of the tensor.
+     *
+     * @ingroup Ops
      */
     class MatPlusVec
         : public Op{
@@ -119,6 +123,14 @@ namespace cuvnet
                     }
     };
 
+    /**
+     * Multiply a matrix with a vector.
+     *
+     * Depending on the axis parameter, the vector must have the same length as
+     * the first or last dimension of the tensor.
+     *
+     * @ingroup Ops
+     */
     class MatTimesVec
         : public Op{
             public:

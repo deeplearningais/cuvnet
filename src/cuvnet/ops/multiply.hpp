@@ -6,7 +6,9 @@
 namespace cuvnet
 {
     /**
-     * calculates pointwise X*Y, where X, Y denote tensors.
+     * calculates elementwise \f$X\cdot Y\f$, where \f$X\f$, \f$Y\f$ denote tensors.
+     *
+     * @ingroup Ops
      */
     class Multiply
         : public Op{

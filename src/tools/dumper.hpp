@@ -14,7 +14,10 @@ namespace cuvnet
 {
 
     /**
-     * processes data through a function and writes the outputs to a stream
+     * processes data through a function and writes the outputs to a stream.
+     *
+     * @deprecated
+     * @ingroup tools
      */
     struct dumper{
         public:

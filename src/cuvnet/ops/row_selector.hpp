@@ -6,10 +6,12 @@
 namespace cuvnet
 {
     /**
-     * select a row out of a matrix
+     * select a (random) row out of a matrix.
      *
-     * rows may be chosen randomly during fprop, if not supplied.
+     * Rows may be chosen randomly during fprop, if not supplied.
      * if multiple inputs are given, the same row is chosen for all of them.
+     *
+     * @ingroup Ops
      */
     class RowSelector
         : public Op{

@@ -5,6 +5,23 @@
 
 namespace cuvnet
 {
+    /**
+     * A sink can be used to reuse an intermediate value *after* a function has been evaluated.
+     *
+     * There are two main use-cases for this:
+     * - You want to access an intermediate result of a function and do not
+     *   want it to be overwritten or deleted for space-optimization.
+     * - You want to access the result of a function and do not want it to be
+     *   overwritten or deleted for space-optimization during backpro pagation.
+     * 
+     * A \c Sink has one output. This enables it to work like an \c Input to
+     * another function. Thus, you can evaluate a second function based on the
+     * intermediate result of a first function. An example is 
+     * \c logistic_regression, where the output of the predictor is used for
+     * the logistic loss *and* for the classification loss.
+     *
+     * @ingroup Ops
+     */
     class Sink
         : public Op{
             public:
@@ -63,6 +80,15 @@ namespace cuvnet
                     }
         };
 
+    /**
+     * Convenience op Has the \f$n\f$-th result of its input as its output.
+     *
+     * This makes it more convenient to pass the e.g. second output of an op on
+     * to another function, since most functions assume that the input has only
+     * one output.
+     *
+     * @ingroup Ops
+     */
     class Pipe
         : public Op{
             public:

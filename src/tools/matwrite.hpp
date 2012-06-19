@@ -4,6 +4,10 @@
 
 namespace cuvnet
 {
+    /**
+     * dump a tensor to a numpy array on disk for analysis in python.
+     * @ingroup tools
+     */
     template<class T>
     void tofile(const std::string& fn, const cuv::tensor<T,cuv::host_memory_space>& mat){
         std::vector<int> shape(mat.ndim());
@@ -20,6 +24,11 @@ namespace cuvnet
             throw std::runtime_error("unknown tensor type");
         }
     }
+    /**
+     * dump a tensor to a numpy array on disk for analysis in python.
+     * @overload
+     * @ingroup tools
+     */
     template<class T>
     void tofile(const std::string& fn, const cuv::tensor<T,cuv::dev_memory_space>& mat){
         cuv::tensor<T,cuv::host_memory_space> m = mat;

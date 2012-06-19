@@ -5,6 +5,11 @@
 
 namespace cuvnet
 {
+    /**
+     * Raises its input to the \f$n\f$-th power (elementwise).
+     *
+     * @ingroup Ops
+     */
     class Pow
         : public Op{
             public:

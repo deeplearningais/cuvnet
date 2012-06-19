@@ -1,13 +1,21 @@
 #ifndef __GENERIC_REGRESSION_HPP__
 #     define __GENERIC_REGRESSION_HPP__
 
+#include <boost/assign.hpp>
 #include <cuv.hpp>
 #include <cuvnet/ops.hpp>
 
 namespace cuvnet
 {
-/*
- * This is the base class for regression. The loss function \f$ L( \hat{y}, y) \f$ is minimal when \f$ \hat{y} = y\f$. 
+/**
+ * Abstract base class for regression. 
+ *
+ * The loss function \f$ L( \hat{y}, y) \f$ must be implemented by derived
+ * models and should be minimal when \f$ \hat{y} = y\f$. 
+ *
+ * @example logistic_regression.cpp
+ * @example mlp.cpp
+ * @ingroup models
  */
 class generic_regression 
 {

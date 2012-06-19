@@ -14,6 +14,33 @@
 
 namespace cuvnet
 {
+    /**
+     * The central (abstract) symbolic operator all others derive from.
+     *
+     * An Op has a tuple of parameters and a tuple of results.
+     * - In Op::fprop, it calculates the result of the function evaluation.
+     * - In Op::bprop, it determines the derivative of the output(s) to all
+     *   parameters which need it.
+     * - In Op::visit, recursive operations on functions can be performed using
+     *   visitors modeling \c op_visitor_adaptor.
+     *
+     *
+     * The \c Op can only exist as a \c boost::shared_ptr<Op>, since it makes
+     * use of \c shared_from_this(). The structure is circle-free (using weak
+     * pointers in one direction). When the \c Op is destroyed, it
+     * automatically detaches from all its results.
+     *
+     * A note on symbolic differentiation:
+     * The Op is completely symmetric regarding forward and backward propagation.
+     * In backward propagation the parameters act like the results in forward
+     * propagation.
+     *
+     * So, while each result can be used as a parameter in multiple other \c Ops,
+     * likewise, each parameter can be targeted by multiple results of other \c Ops.
+     * This always means 'distributing' in one direction and 'adding' in the other.
+     *
+     * @ingroup Ops
+     */
     class Op
         : public boost::enable_shared_from_this<Op>{
             public:

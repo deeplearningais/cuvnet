@@ -5,6 +5,19 @@
 
 namespace cuvnet
 {
+    /**
+     * A function with zero inputs and one output.
+     *
+     * Change the contained tensor to your likes to use this as an input to
+     * your function. For convenience, the inputs can have names, so you
+     * recognize them when dumping the function using \c write_graphviz.
+     *
+     * Some inputs are *parameters*. That is, they represent a weight matrix or
+     * a value that you want to optimize, e.g. using \c gradient_decent.
+     * Such parameters are not treated differently here than inputs.
+     *
+     * @ingroup Ops
+     */
     class Input
         : public Op{
             public:
@@ -26,7 +39,10 @@ namespace cuvnet
                 template<class T>
                     Input(const T& init, const std::string& name):Op(0,1), m_data(new value_type(init)), m_name(name),m_derivable(true){  }
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
-                    desc.label = "Input `" + m_name + "'";
+                    if(m_name.size())
+                        desc.label = m_name;
+                    else
+                        desc.label = "Input";
                 }
                 void fprop(){
                     m_results[0]->push(m_data);

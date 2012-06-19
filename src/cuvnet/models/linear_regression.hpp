@@ -8,7 +8,11 @@ namespace cuvnet
 {
 
 /**
- * implements mean square error loss \f$ L( \hat{y}, y) = \sum{i=1}{N} (\hat{y} - y)^2 \f$
+ * implements mean square error loss.
+ *
+ * \f$ L( \hat{y}, y) = \sum{i=1}{N} (\hat{y} - y)^2 \f$
+ *
+ * @ingroup models
  */
 class linear_regression:  public generic_regression{
     public:

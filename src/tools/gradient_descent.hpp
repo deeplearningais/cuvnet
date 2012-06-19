@@ -17,8 +17,9 @@ namespace cuvnet
     class max_iter_stop : public std::exception {};
     class timeout_stop  : public std::exception {};
     /**
-     * does vanilla gradient descent: a loop over epochs and a weight update with a
-     * learning rate/weight decay afterwards
+     * Does vanilla gradient descent: a loop over epochs and a weight update with a
+     * learning rate/weight decay afterwards.
+     * @ingroup learning
      */
     struct gradient_descent{
         public:
@@ -146,6 +147,8 @@ namespace cuvnet
              * @param n_max_secs          maximum duration (seconds)
              * @param update_every        after how many batches to update weights (set to 0 for `once per epoch'). Defaults to 1.
              * @param randomize           whether to randomize batches (default: true)
+             *
+             * \callgraph
              */
             void minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs=3600, unsigned int update_every=1, bool randomize=true){
                 unsigned int n_batches = current_batch_num();
@@ -404,6 +407,9 @@ namespace cuvnet
      *
      * also allocates and manages variables for learning rates
      * and old gradients for each parameter.
+     *
+     * @ingroup learning
+     * @warning this is in bad shape currently
      */
     struct rprop_gradient_descent
     : public gradient_descent

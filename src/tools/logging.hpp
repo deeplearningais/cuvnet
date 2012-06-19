@@ -7,6 +7,11 @@
 
 namespace cuvnet
 {
+    /**
+     * loggs data to mongodb.
+     * @deprecated
+     * @ingroup tools
+     */
 	class Logger{
 		public:
 			/**

@@ -9,7 +9,10 @@ using namespace cuvnet;
 
 
 /**
- * this is the base class for various versions of the auto-encoder
+ * Base class for various versions of the auto-encoder.
+ *
+ * @example auto_enc.cpp
+ * @ingroup models
  */
 class generic_auto_encoder {
     public:

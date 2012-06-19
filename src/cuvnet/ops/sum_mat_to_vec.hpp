@@ -5,6 +5,15 @@
 #include <numeric>
 namespace cuvnet
 {
+    /**
+     * Sum all entries up to the specified dimension.
+     *
+     * E.g. a (3,4,5)-sized input summed to dimension 0 results in a
+     * 1-dimensional vector with size (3).
+     *
+     * @ingroup Ops
+     *
+     */
     class SumMatToVec
         : public Op{
             public:

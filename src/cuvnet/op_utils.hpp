@@ -12,7 +12,9 @@ namespace cuvnet
 {
     /**
      * helper class to create visitors (you can derive from this so
-     * that you e.g. only need to implement one method)
+     * that you eg only need to implement one method).
+     *
+     * @ingroup op_visitors
      */
     struct op_visitor_adaptor{
         inline bool discover(Op* o)const{ return true; }
@@ -21,6 +23,7 @@ namespace cuvnet
     };
     /**
      * collect all no-input ops in a list
+     * @ingroup op_visitors
      */
     struct param_collector_visitor : public op_visitor_adaptor{
         typedef std::vector<Op*> container_type;
@@ -46,6 +49,7 @@ namespace cuvnet
     };
     /** 
      * cleanup unused data 
+     * @ingroup op_visitors
      */
     struct cleanup_temp_vars_visitor : public op_visitor_adaptor{
         typedef std::vector<Op*> container_type;
@@ -68,6 +72,7 @@ namespace cuvnet
     };
     /**
      * collect all ops in a list in topological order
+     * @ingroup op_visitors
      */
     struct toposort_visitor : public op_visitor_adaptor{
         typedef std::vector<Op*> container_type;
@@ -94,6 +99,7 @@ namespace cuvnet
 
     /**
      * determine shapes recursively
+     * @ingroup op_visitors
      */
     struct determine_shapes_visitor :public op_visitor_adaptor{
         determine_shapes_visitor(){}
@@ -110,6 +116,7 @@ namespace cuvnet
 
     /**
      * reset the `delta_set' flag before a bprop-pass
+     * @ingroup op_visitors
      */
     struct reset_delta_set_flag : public op_visitor_adaptor{
         inline void preorder(Op*o)const{
@@ -127,6 +134,7 @@ namespace cuvnet
     };
     /**
      * reset the `value_set' flag before a fprop-pass
+     * @ingroup op_visitors
      */
     struct reset_value_set_flag : public op_visitor_adaptor{
         inline void preorder(Op*o)const{
@@ -144,6 +152,7 @@ namespace cuvnet
     };
     /**
      * set need_derivative and need_result to false
+     * @ingroup op_visitors
      */
     struct reset_needed_flags : public op_visitor_adaptor{
         std::map<Op*,bool> visited;
@@ -168,6 +177,12 @@ namespace cuvnet
         }
     };
 
+    /**
+     * Dump a symbolic function to a graphviz DOT file.
+     *
+     * very good for debugging and visualizing the models that you created.
+     * @ingroup op_visitors
+     */
     struct define_graphviz_node_visitor : public op_visitor_adaptor{
         std::ostream& os;
         std::vector<Op*> m_mark_order;
@@ -188,17 +203,27 @@ namespace cuvnet
         inline void current_op(Op*o){m_current_op = o;}
         inline Op* current_op()const{return m_current_op;}
     };
+
+    /**
+     * Dump a symbolic function to a graphviz DOT file.
+     * @ingroup op_visitors
+     */
     void write_graphviz(Op& op, std::ostream& os);
+    /**
+     * Dump a symbolic function to a graphviz DOT file.
+     * @ingroup op_visitors
+     */
     void write_graphviz(Op& op, std::ostream& os, std::vector<Op*>&, Op* current=NULL);
 
     /**
-     * does a recursive forward/backward pass w.r.t. 
-     * requested parameters.
+     * @brief does a recursive forward/backward pass w.r.t. requested parameters.
      *
      * To do passes, the structure of the operator is
      * sorted topologically once (in the constructor).
      * Consecutive calles should therefore be done with
      * the same `swiper' object.
+     *
+     * @ingroup op_visitors
      */
     struct swiper{
         toposort_visitor m_topo;
@@ -232,6 +257,9 @@ namespace cuvnet
                 write_graphviz(op, os, m_topo.plist );
             }
 
+        /**
+         * determine which results need to be calculated.
+         */
         void set_calculate_result(){
             BOOST_REVERSE_FOREACH(Op* op, m_topo.plist){
                 BOOST_FOREACH(Op::result_t& r, op->m_results){

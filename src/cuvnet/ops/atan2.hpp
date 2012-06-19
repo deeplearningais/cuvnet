@@ -7,6 +7,8 @@ namespace cuvnet
 {
     /**
      * calculates pointwise atan2(Y, X), where X, Y are tensors
+     *
+     * @ingroup Ops
      */
     class Atan2
         : public Op{

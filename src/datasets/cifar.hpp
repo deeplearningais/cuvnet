@@ -7,6 +7,10 @@
 namespace cuvnet
 {
 
+    /**
+     * Access to the CIFAR-10 dataset by Alex Krizhevsky.
+     * @ingroup datasets
+     */
     struct cifar_dataset : dataset
     {
         cifar_dataset(){

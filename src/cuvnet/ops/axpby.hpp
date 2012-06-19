@@ -7,8 +7,10 @@
 namespace cuvnet
 {
     /**
-     * calculates alpha * X + beta * Y, where
-     * alpha, beta are scalar values and X, Y denote tensors.
+     * calculates \f$ \alpha * X + \beta * Y\f$, where
+     * \f$\alpha\f$, \f$\beta\f$ are scalar values and \f$X\f$, \f$Y\f$ denote tensors.
+     *
+     * @ingroup Ops
      */
     class Axpby
         : public Op{

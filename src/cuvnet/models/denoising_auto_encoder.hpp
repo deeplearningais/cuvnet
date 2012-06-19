@@ -4,7 +4,11 @@
 #include "simple_auto_encoder.hpp"
 
 /**
- * This is a straight-forward symmetric auto-encoder
+ * This is a straight-forward symmetric auto-encoder.
+ *
+ * @example auto_enc.cpp
+ *
+ * @ingroup models
  */
 template<class Regularizer>
 class denoising_auto_encoder 

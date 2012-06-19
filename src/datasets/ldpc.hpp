@@ -7,6 +7,14 @@
 
 namespace cuvnet
 {
+    /**
+     * contains the low-density parity check-code dataset.
+     *
+     * There is an \c ldpc.cpp file in \c datasets/util that generates the
+     * required dataset file.
+     * 
+     * @ingroup datasets
+     */
     struct ldpc_dataset : public dataset{
         ldpc_dataset(const std::string& path){
             namespace fs = boost::filesystem;

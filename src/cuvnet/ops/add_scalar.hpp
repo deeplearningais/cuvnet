@@ -5,6 +5,10 @@
 #include <boost/format.hpp>
 namespace cuvnet
 {
+    /**
+     * Adds a scalar to its inputs.
+     * @ingroup Ops
+     */
     class AddScalar
         : public Op{
             public:
@@ -72,6 +76,11 @@ namespace cuvnet
                     }
     };
 
+    /**
+     * Subtracts inputs from a scalar.
+     *
+     * @ingroup Ops
+     */
     class SubtractFromScalar
         : public Op{
             public:
