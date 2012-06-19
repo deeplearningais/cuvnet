@@ -16,12 +16,15 @@ using boost::make_shared;
 class lenet
 {
     typedef boost::shared_ptr<Op> op_ptr;
-    typedef logistic_regression regression_type;
+    typedef boost::shared_ptr<Input> input_ptr;
+    //typedef logistic_regression regression_type;
+    typedef linear_regression regression_type;
     protected:
-        boost::shared_ptr<Input> m_conv1_weights;
-        boost::shared_ptr<Input> m_conv2_weights;
-        boost::shared_ptr<Input> m_weights3;
-        boost::shared_ptr<Input> m_bias1, m_bias2, m_bias3;
+        input_ptr m_conv1_weights;
+        input_ptr m_conv2_weights;
+        input_ptr m_weights3;
+        input_ptr m_bias1, m_bias2, m_bias3;
+
         boost::shared_ptr<regression_type> m_logreg;
 
         unsigned int m_n_channels;
@@ -41,10 +44,6 @@ class lenet
             int n_pix_x    = std::sqrt(n_pix);
             int n_pix_x2   = (n_pix_x  - m_filter_size1 / 2 - 1)/2;
             int n_pix_x3   = (n_pix_x2 - m_filter_size2 / 2 - 1)/2;
-            std::cout << "n_pix:" << n_pix << std::endl;
-            std::cout << "n_pix_x:" << n_pix_x <<std::endl;
-            std::cout << "n_pix_x2:" << n_pix_x2 << std::endl;
-            std::cout << "n_pix_x3:" << n_pix_x3 << std::endl;
 
             m_conv1_weights.reset(new Input(cuv::extents[m_n_channels][m_filter_size1*m_filter_size1][m_n_filters1], "conv_weights1"));
             m_conv2_weights.reset(new Input(cuv::extents[m_n_filters1][m_filter_size2*m_filter_size2][m_n_filters2], "conv_weights2"));
@@ -102,12 +101,8 @@ class lenet
             return params;
         };
 
-        op_ptr classification_error(){
-            return m_logreg->classification_error();
-        }
-        op_ptr get_loss(){
-            return m_logreg->get_loss();
-        }
+        op_ptr classification_error(){ return m_logreg->classification_error(); }
+        op_ptr get_loss(){ return m_logreg->get_loss(); }
 
         /**
          * constructor
@@ -135,18 +130,14 @@ class lenet
                 cuv::fill_rnd_uniform(m_conv1_weights->data());
                 m_conv1_weights->data() *= 2*diff;
                 m_conv1_weights->data() -=   diff;
-            }
-
-            {
+            } {
                 float fan_in = m_n_filters1 * m_filter_size2 * m_filter_size2;
                 float diff = std::sqrt(3.f/fan_in);
     
                 cuv::fill_rnd_uniform(m_conv2_weights->data());
                 m_conv2_weights->data() *= 2*diff;
                 m_conv2_weights->data() -=   diff;
-            }
-
-            {
+            } {
                 float wnorm = m_weights3->data().shape(0)
                     +         m_weights3->data().shape(1);
                 float diff = std::sqrt(6.f/wnorm);
