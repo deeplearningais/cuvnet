@@ -29,7 +29,9 @@
 namespace cuvnet
 {
     /// @addtogroup convenience_funcs
+    /// Convenience functions for combining Ops to create more complex Ops.
     /// @{
+    
     /// construct a Multiply object
     inline
         Op::op_ptr operator*(Op::op_ptr x, Op::op_ptr y){ return boost::make_shared<Multiply>(x->result(), y->result()); }
