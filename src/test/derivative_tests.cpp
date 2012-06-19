@@ -493,6 +493,13 @@ TEST(derivative_test, derivative_test_reshape){
     }
     {
         boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3]);
+        ptr_t rshp                     = boost::make_shared<Reshape>(inp0->result(), cuv::extents[3][-1]);
+        ptr_t func                    = boost::make_shared<Pow>(2,rshp->result());
+
+        derivative_tester(*func);
+    }
+    {
+        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3]);
         ptr_t func                       = boost::make_shared<Reshape>(inp0->result(), cuv::extents[8*3][-1]);
 
         func->visit(determine_shapes_visitor());
