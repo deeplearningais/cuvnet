@@ -26,6 +26,18 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++0x -Wall")
 SET(CPACK_DEBIAN_PACKAGE_DEPENDS    "libboost-dev (>= 1.40.0), cuv" )
 INCLUDE(CPack)
 
+FIND_PACKAGE(Doxygen)
+IF(DOXYGEN_FOUND)
+	CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/doc/Doxyfile.in ${CMAKE_BINARY_DIR}/docs/Doxyfile)
+	ADD_CUSTOM_COMMAND(
+		DEPENDS ${CMAKE_BINARY_DIR}/docs/Doxyfile
+		OUTPUT  ${CMAKE_BINARY_DIR}/docs/html/index.html
+		COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_BINARY_DIR}/docs/Doxyfile
+		WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+		)
+    ADD_CUSTOM_TARGET(doc DEPENDS ${CMAKE_BINARY_DIR}/docs/html/index.html ${CMAKE_BINARY_DIR}/docs/Doxyfile)
+ENDIF(DOXYGEN_FOUND)
+
 ENABLE_TESTING()
 add_subdirectory(src)
 
