@@ -63,6 +63,7 @@ int main(int argc, char **argv)
     // makes the values between 0 and 1. Max element of the data will have value 1, and min element valaue 0.
     global_min_max_normalize<> n;
     n.fit_transform(ds.train_data);
+    n.transform(ds.test_data);
 
     // an \c Input is a function with 0 parameters and 1 output.
     // here we only need to specify the shape of the input and target correctly
