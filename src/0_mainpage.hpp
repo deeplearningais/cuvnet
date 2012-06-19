@@ -42,12 +42,43 @@
  *   possible and avoids copies using copy-on-write)
  * - Tools for learning (datasets, preprocessing, gradient descent,
  *   cross-validation, ...)
+ * - Fast convolutions curtesy of Alex Krizhevsky (much faster than Theano's)
  *
- * @section contact  Contact
+ * @section motivation Motivation
  *
- * We are eager to help you getting started with cuvnet and improve the library continuously!
- * If you have any questions, feel free to contact Hannes Schulz (schulz at ais dot uni-bonn dot de).
- * You can find the website of our group at http://www.ais.uni-bonn.de/deep_learning/index.html.
+ * A motivating example is e.g. the construction of a convolutional LeNet-type
+ * classifier network from almost scratch (taken from \c cuvnet/models/lenet.hpp):
+ @code
+    hl1 =
+        local_pool(
+                tanh(
+                    mat_plus_vec(
+                        convolve( 
+                            reorder_for_conv(inputs),
+                            m_conv1_weights, false),
+                        m_bias1, 0)),
+                cuv::alex_conv::PT_MAX); 
+
+    hl2 = 
+        local_pool(
+                tanh(
+                    mat_plus_vec(
+                        convolve( 
+                            hl1,
+                            m_conv2_weights, false),
+                        m_bias2, 0)),
+                cuv::alex_conv::PT_MAX); 
+    hl2 = reorder_from_conv(hl2);
+    hl2 = reshape(hl2, cuv::extents[batchsize][-1]);
+    hl3 =
+        tanh(
+        mat_plus_vec(
+            prod(hl2, m_weights3),
+            m_bias3,1));
+
+    loss = boost::make_shared<regression_type>(hl3, target)->loss();
+
+@endcode
  *
  * @section compiling Compiling
  *
@@ -60,6 +91,13 @@
  * $ make -j
  * $ ./src/test/cuvnet_test  # run tests
  * @endcode
+ *
+ *
+ * @section contact  Contact
+ *
+ * We are eager to help you getting started with cuvnet and improve the library continuously!
+ * If you have any questions, feel free to contact Hannes Schulz (schulz at ais dot uni-bonn dot de).
+ * You can find the website of our group at http://www.ais.uni-bonn.de/deep_learning/index.html.
  *
  */
 
