@@ -13,6 +13,7 @@
 
 namespace cuvnet
 {
+    class swiper;
     namespace derivative_testing
     {
 
@@ -22,6 +23,13 @@ namespace cuvnet
         void set_delta_to_unit_vec(Op& o, unsigned int result, unsigned int i);
 
         unsigned int prod(const std::vector<unsigned int>& v);
+
+        /**
+         * ensure that a function does not have a state
+         * by executing it twice in succession
+         * and checking whether results are equal.
+         */
+        void ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params);
 
 #define derivative_tester_verbose(X, R) \
         std::cout << "Testing derivative of "<<#X<<":"<<std::endl; \

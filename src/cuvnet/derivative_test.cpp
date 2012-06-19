@@ -3,8 +3,36 @@
 
 #include <cuvnet/op_utils.hpp>
 #include <tools/matwrite.hpp>
+#include <tools/function.hpp>
 
 namespace cuvnet{ namespace derivative_testing {
+
+    void ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params){
+        { // forward pass
+            swp.fprop();
+            cuv::tensor<float,cuv::host_memory_space> r0 = out->cdata();
+            swp.fprop();
+            cuv::tensor<float,cuv::host_memory_space> r1 = out->cdata();
+            EXPECT_TRUE(cuv::equal_shape(r0,r1));
+            for(unsigned int i=0;i<r0.size();i++) {
+                EXPECT_NEAR(r0[i],r1[i],0.0000001);
+            }
+        }
+        BOOST_FOREACH(Op* raw, params){
+            swp.fprop();
+            swp.bprop();
+            cuv::tensor<float,cuv::host_memory_space> r0 = raw->result(0)->delta.cdata();
+            swp.fprop();
+            swp.bprop();
+            cuv::tensor<float,cuv::host_memory_space> r1 = raw->result(0)->delta.cdata();
+
+            EXPECT_TRUE(cuv::equal_shape(r0,r1));
+            for(unsigned int i=0;i<r0.size();i++)
+            {
+                EXPECT_NEAR(r0[i],r1[i],0.0000001);
+            }
+        }
+    }
 
         void print(const std::string& s, const matrix& M){
             std::cout << "_________________________________________"<<std::endl;
@@ -92,6 +120,14 @@ namespace cuvnet{ namespace derivative_testing {
                     );
 
             swiper swipe(op, result, derivable_params);
+
+            {
+                if(verbose)
+                    std::cout << "...ensuring function is stateless" << std::endl;
+                boost::shared_ptr<Op> p = op.shared_from_this();
+                ensure_no_state(out_op, swipe, derivable_params);
+            }
+
 
             BOOST_FOREACH(Op* raw, derivable_params){
                 Input* param = dynamic_cast<Input*>(raw);
