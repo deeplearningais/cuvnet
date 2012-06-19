@@ -139,10 +139,14 @@ namespace cuvnet
             /// resets all epoch statistics
             void before_epoch(){
                 BOOST_FOREACH(watchpoint* p, m_watchpoints){
-                    if(p->type == WP_SCALAR_EPOCH_STATS)
-                        p->scalar_stats = acc_t();
-                    if(p->type == WP_FUNC_SCALAR_EPOCH_STATS)
-                        p->scalar_stats = acc_t();
+                    switch(p->type){
+                        case WP_SCALAR_EPOCH_STATS:
+                        case WP_FUNC_SCALAR_EPOCH_STATS:
+                            p->scalar_stats = acc_t();
+                            break;
+                        default:
+                            break;
+                    }
                 }
                 
             }
@@ -175,6 +179,11 @@ namespace cuvnet
                 if(it != m_wpmap.end())
                     return *it->second;
                 throw std::runtime_error("Unknown watchpoint `"+name+"'");
+            }
+            
+            /// return the number of examples of a named watchpoint 
+            float count(const std::string& name)const{
+                return boost::accumulators::count(get(name).scalar_stats);
             }
 
             /// return the mean of a named watchpoint 
@@ -222,7 +231,7 @@ namespace cuvnet
                 std::cout << "\r epoch "<<m_epochs<<": ";
                 BOOST_FOREACH(const watchpoint* p, m_watchpoints){
                     if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS){
-                        std::cout << p->name<<"="<<mean(p->name)<<", ";
+                        std::cout << p->name<<"="<<mean(p->name)<<"("<<count(p->name)<<"), ";
                     }
                 }
                 std::cout << "           " << std::flush;
