@@ -7,6 +7,7 @@
  * @addtogroup OpGroup
  * @{
  *   @defgroup Ops Implementations of specific symbolic operations
+ *   @defgroup convenience_funcs Convenience functions for creating complex symbolic operations
  *   @defgroup op_visitors Operations on symbolic functions
  * @}
  * @addtogroup tools
