@@ -1,36 +1,20 @@
 // vim:ts=4:sw=4:et
-#include <signal.h>
-#include <fstream>
-#include <cmath>
-#include <boost/assign.hpp>
 #include <boost/bind.hpp>
 #include <boost/lambda/lambda.hpp>
 
 #include <cuvnet/op_utils.hpp>
-#include <cuvnet/derivative_test.hpp>
-#include <tools/visualization.hpp>
 #include <tools/gradient_descent.hpp>
 #include <datasets/mnist.hpp>
-#include <tools/crossvalid.hpp>
-#include <tools/learner.hpp>
 
 #include <datasets/randomizer.hpp>
 #include <tools/preprocess.hpp>
-#include <cuvnet/models/lenet.hpp>
 #include <tools/monitor.hpp>
+
+#include <cuvnet/models/lenet.hpp>
 
 using namespace boost::assign;
 using namespace cuvnet;
 namespace ll = boost::lambda;
-
-
-/// convenient transpose for a matrix (used in visualization only)
-matrix trans(matrix& m){
-    matrix mt(m.shape(1),m.shape(0));
-    cuv::transpose(mt,m);
-    return mt;
-}
-
 
 /**
  * load a batch from the dataset

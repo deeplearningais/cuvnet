@@ -1,35 +1,18 @@
 // vim:ts=4:sw=4:et
-#include <signal.h>
-#include <fstream>
-#include <cmath>
-#include <boost/assign.hpp>
 #include <boost/bind.hpp>
 #include <boost/lambda/lambda.hpp>
-
-#include <boost/archive/binary_oarchive.hpp>
-#include <boost/archive/binary_iarchive.hpp>
-#include <boost/serialization/export.hpp>
-
-#include <boost/uuid/uuid_io.hpp>
-#include <boost/uuid/uuid_generators.hpp>
 
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/derivative_test.hpp>
 #include <tools/visualization.hpp>
 #include <tools/gradient_descent.hpp>
-#include <mongo/bson/bson.h>
 #include <datasets/mnist.hpp>
-#include <tools/crossvalid.hpp>
-#include <tools/learner.hpp>
 
 #include <tools/preprocess.hpp>
-#include <cuvnet/models/auto_encoder_stack.hpp>
-#include <cuvnet/models/simple_auto_encoder.hpp>
 #include <cuvnet/models/logistic_regression.hpp>
 #include <cuvnet/models/linear_regression.hpp>
 #include <tools/monitor.hpp>
 
-using namespace boost::assign;
 using namespace cuvnet;
 namespace ll = boost::lambda;
 

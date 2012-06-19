@@ -1,17 +1,11 @@
 // vim:ts=4:sw=4:et
-#include <signal.h>
-#include <fstream>
-#include <cmath>
-#include <boost/assign.hpp>
 #include <boost/bind.hpp>
 #include <boost/lambda/lambda.hpp>
 #include <boost/format.hpp>
 
 #include <cuvnet/op_utils.hpp>
-#include <cuvnet/derivative_test.hpp>
 #include <cuvnet/ops.hpp>
 #include <cuv/libs/cimg/cuv_cimg.hpp>
-#include <cuv/tensor_ops/rprop.hpp>
 #include <tools/visualization.hpp>
 #include <tools/preprocess.hpp>
 #include <tools/gradient_descent.hpp>
@@ -21,7 +15,6 @@
 
 #include "cuvnet/models/simple_auto_encoder.hpp"
 
-using namespace boost::assign;
 namespace ll = boost::lambda;
 typedef simple_auto_encoder<simple_auto_encoder_weight_decay> ae_type;
 
