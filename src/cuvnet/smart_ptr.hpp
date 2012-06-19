@@ -42,6 +42,8 @@ namespace cuvnet
      * If somebody wants to modify the content while it is still required by
      * others, the content is copied and the pointer detached from the original
      * data.
+     *
+     * @ingroup tools
      */
     template <class T>
         class cow_ptr
