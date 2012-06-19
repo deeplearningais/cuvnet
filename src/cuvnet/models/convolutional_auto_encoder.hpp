@@ -41,8 +41,8 @@ class conv_auto_encoder
 
                 m_weights1.reset(new Input(cuv::extents[m_n_channels][m_filter_size*m_filter_size][m_n_filters], "weights1"));
                 m_weights2.reset(new Input(cuv::extents[m_n_filters][m_filter_size*m_filter_size][m_n_channels], "weights2"));
-                m_bias1.reset(new Input(cuv::extents[m_n_filters]));
-                m_bias2.reset(new Input(cuv::extents[m_n_channels]));
+                m_bias1.reset(new Input(cuv::extents[m_n_filters], "bias_hid"));
+                m_bias2.reset(new Input(cuv::extents[m_n_channels], "bias_out"));
             }
             return tanh(
                     mat_plus_vec(
@@ -50,7 +50,6 @@ class conv_auto_encoder
                             reorder_for_conv(inp),
                             m_weights1,true),
                         m_bias1, 0)); 
-
         }
         /// \f$  h * W + b\f$
         virtual op_ptr  decode(op_ptr& enc){ 
@@ -101,25 +100,24 @@ class conv_auto_encoder
          */
         virtual void reset_weights()
         {
-            // initialize weights and biases
-            //float diff = 4.f*std::sqrt(6.f/(m_n_channels*m_filter_size*m_filter_size + m_n_filters*m_filter_size*m_filter_size));
-            
-            // theano lenet tutorial style
-            float fan_in = m_n_channels * m_filter_size * m_filter_size;
-            float diff = std::sqrt(3.f/fan_in);
+            // initialize weights and biases: theano lenet tutorial style
+            {
+                float fan_in = m_n_channels * m_filter_size * m_filter_size;
+                float diff = std::sqrt(3.f/fan_in);
+    
+                cuv::fill_rnd_uniform(m_weights1->data());
+                m_weights1->data() *= 2*diff;
+                m_weights1->data() -=   diff;
+            } {
+                float fan_in = m_n_filters * m_filter_size * m_filter_size;
+                float diff = std::sqrt(3.f/fan_in);
+                cuv::fill_rnd_uniform(m_weights2->data());
+                m_weights2->data() *= 2*diff;
+                m_weights2->data() -=   diff;
+            }
 
-            cuv::fill_rnd_uniform(m_weights1->data());
-            m_weights1->data() *= 2*diff;
-            m_weights1->data() -=   diff;
-
-            cuv::fill_rnd_uniform(m_weights2->data());
-            m_weights2->data() *= 2*diff;
-            m_weights2->data() -=   diff;
-
-            m_bias1->data() =  0.f;
-            //m_bias2->data() = m_binary ? 0.f : -0.5f;
-            m_bias2->data() = m_binary ? 0.f : -0.0f;
-
+            m_bias1->data() = 0.f;
+            m_bias2->data() = 0.f;
         }
 };
 
