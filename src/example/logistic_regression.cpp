@@ -138,7 +138,7 @@ int main(int argc, char **argv)
     }
     std::cout << std::endl << " Test phase: " << std::endl;
 
-    // evaluates test data, does it similary as with train data, minibatch_learing is running only one epoch
+    // evaluates test data. We use minibatch learning with learning rate zero and only one epoch.
     {
         matrix train_data = ds.test_data;
         matrix train_labels(ds.test_labels.shape());
