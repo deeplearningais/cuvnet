@@ -51,6 +51,10 @@ namespace cuvnet
             public:
                 /// type of the contained data -- a shared pointer!
                 typedef boost::shared_ptr<T> ref_ptr;
+
+                /// @name constructors
+                /// @{
+                
                 /// constructor (does nothing)
                 cow_ptr( ){}
                 /// copy constructor (cheap)
@@ -59,6 +63,8 @@ namespace cuvnet
                 explicit cow_ptr( const ref_ptr &cpy ) : m_ptr(cpy){}
                 /// create from raw pointer (cheap, takes ownership)
                 explicit cow_ptr(       T*       cpy ) : m_ptr(cpy){}
+
+                /// @}
 
                 /// reset using raw pointer (takes ownership)
                 inline void reset( T* cpy )     { m_ptr.reset(cpy);      }
@@ -79,6 +85,10 @@ namespace cuvnet
                         m_ptr.reset(new T(tmp->shape()));
                     }
                 }
+
+                /// @name copying
+                /// @{
+                
                 /// assignment operator (other cow_ptr)
                 cow_ptr& operator=(const cow_ptr& o){ m_ptr = o.m_ptr; return *this;}
                 /// assignment operator (reference, copies! --> expensive)
@@ -93,11 +103,12 @@ namespace cuvnet
                     
                     return *this;
                 }
+                /// @}
 
-                /// return internal pointer. Can be used to get around restrictions, use w/ care!
+                /// return internal pointer. Can be used to get around COW restrictions, use w/ care!
                 T* ptr(){ return  m_ptr.get(); }
 
-                /// const versions
+                /// @name data access: const versions
                 /// @{
                 const T&       data() const { return *m_ptr; } ///< const contained data, never detaches
                 const T&      cdata() const { return *m_ptr; } ///< const contained data, never detaches
@@ -107,7 +118,7 @@ namespace cuvnet
                 bool     operator!()const   { return !m_ptr; } ///< true if pointing to NULL
                 /// @}
 
-                /// non-const versions
+                /// \name data access: non-const versions
                 /// @{
                 T&        data_onlyshape()  { detach_onlyshape(); return *m_ptr; } ///< contained data, detaches if needed
                 T&        data()         { detach(); return *m_ptr; } ///< contained data, detaches if needed
