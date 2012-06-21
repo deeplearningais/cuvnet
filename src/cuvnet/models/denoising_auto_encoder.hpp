@@ -6,8 +6,6 @@
 /**
  * This is a straight-forward symmetric auto-encoder.
  *
- * @example auto_enc.cpp
- *
  * @ingroup models
  */
 template<class Regularizer>

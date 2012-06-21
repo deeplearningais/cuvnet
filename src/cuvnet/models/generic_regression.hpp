@@ -13,8 +13,6 @@ namespace cuvnet
  * The loss function \f$ L( \hat{y}, y) \f$ must be implemented by derived
  * models and should be minimal when \f$ \hat{y} = y\f$. 
  *
- * @example logistic_regression.cpp
- * @example mlp.cpp
  * @ingroup models
  */
 class generic_regression 
