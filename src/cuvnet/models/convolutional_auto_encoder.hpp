@@ -17,8 +17,6 @@ using boost::make_shared;
  * The most straight-forward regularization is to use the 
  * \c denoising_conv_auto_encoder instead of the plain one.
  *
- * @example conv_auto_enc.cpp
- *
  * @ingroup models
  */
 template<class Regularizer>
