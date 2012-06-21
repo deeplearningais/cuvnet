@@ -1,9 +1,11 @@
 if(WIN32)
     set(TBB_INCLUDE_DIR "/usr" CACHE PATH "Location of the TBB includes.")
     set(TBB_LIB_DIR "/usr" CACHE PATH "Location of the TBB libraries.")
+    SET(TBB_FOUND false)
 else(WIN32)
     include(CheckIncludeFileCXX)
     check_include_file_cxx(tbb/tbb.h HAVE_TBB)
     SET(TBB_LIBS tbb)
+    SET(TBB_FOUND true)
 endif(WIN32)
 
