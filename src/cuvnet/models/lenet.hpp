@@ -34,8 +34,8 @@ class lenet
 {
     typedef boost::shared_ptr<Op> op_ptr;
     typedef boost::shared_ptr<Input> input_ptr;
-    //typedef logistic_regression regression_type;
-    typedef linear_regression regression_type;
+    typedef logistic_regression regression_type;
+    //typedef linear_regression regression_type;
     protected:
         input_ptr m_conv1_weights;
         input_ptr m_conv2_weights;
