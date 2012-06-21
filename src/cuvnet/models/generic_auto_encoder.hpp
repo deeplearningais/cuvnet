@@ -5,13 +5,12 @@
 
 #include <cuvnet/ops.hpp>
 
-using namespace cuvnet;
+namespace cuvnet{
 
 
 /**
  * Base class for various versions of the auto-encoder.
  *
- * @example auto_enc.cpp
  * @ingroup models
  */
 class generic_auto_encoder {
@@ -171,5 +170,6 @@ class generic_auto_encoder {
          */
         virtual ~generic_auto_encoder(){}
 };
+}
 
 #endif /* __GENERIC_AUTO_ENCODER_HPP__ */

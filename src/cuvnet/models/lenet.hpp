@@ -26,8 +26,6 @@ using boost::make_shared;
  * - A fully connected MLP-like hidden layer
  * - A logistic regression module for classification.
  *
- * @example lenet.cpp
- *
  * @ingroup models
  */
 class lenet
