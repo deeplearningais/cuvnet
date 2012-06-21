@@ -13,8 +13,6 @@ template<class Regularizer=simple_auto_encoder_no_regularization>
  * chained, pre-trained and the top-level encoder is used as input for 
  * \c logistic_regression.
  *
- * @example logistic_regression.cpp
- *
  * @see generic_auto_encoder 
  * @see simple_auto_encoder
  * @see denoising_auto_encoder

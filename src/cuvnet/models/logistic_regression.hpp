@@ -12,7 +12,6 @@ namespace cuvnet
  *
  * \f[ L( \hat{y}, y) = - \frac{1}{N} \sum{i=1}{N} \sum{k=1}{K} (\hat{y_{n,k}} - ln(\sum_{j}e^{y_{n,j}})) \f] 
  *
- * @example logistic_regression.cpp
  * @ingroup models
  */
 class logistic_regression:  public generic_regression{
