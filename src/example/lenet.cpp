@@ -25,7 +25,7 @@ void load_batch(
         cuv::tensor<float,cuv::dev_memory_space>* data,
         cuv::tensor<float,cuv::dev_memory_space>* labels,
         unsigned int bs, unsigned int batch){
-    //std::cout <<"."<<std::flush;
+    //std::cout <<"."<<batch<<std::flush;
     input->data() = (*data)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
     input->data().reshape(cuv::extents[bs][1][input->data().shape(1)]);
     target->data() = (*labels)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
@@ -100,9 +100,9 @@ int main(int argc, char **argv)
         // the number of batches is constant in our case (but has to be supplied as a function)
         gd.current_batch_num.connect(ds.train_data.shape(0)/ll::constant(bs));
         
-        // do mini-batch learning for at most 100 epochs, or 10 minutes
+        // do mini-batch learning for at most 10 epochs, or 10 minutes
         // (whatever comes first)
-        gd.minibatch_learning(100, 10*60); // 10 minutes maximum
+        gd.minibatch_learning(10, 10*60); // 10 minutes maximum
     }
     std::cout << std::endl << " Test phase: " << std::endl;
 
