@@ -1,6 +1,10 @@
-
+#include <opencv2/opencv.hpp>
 #include <iostream>
 #include <fstream>
+
+#include <cuv/libs/cimg/cuv_cimg.hpp>
+#include <cuv/convert/convert.hpp>
+#include "preprocess.hpp"
 
 void normalize_hog(cv::Mat& m, const unsigned int rows, const unsigned int cols, unsigned int steps){
     float* it    = m.ptr<float>();
@@ -20,6 +24,22 @@ void normalize_hog(cv::Mat& m, const unsigned int rows, const unsigned int cols,
 #endif
     }
 
+}
+cuv::tensor<float,cuv::host_memory_space>
+separate_color_channels(const cv::Mat img){
+    std::vector<cv::Mat> stack;
+    cv::split(img, stack);
+    cuvAssert(stack.size()==3);
+
+    using namespace cuv;
+    tensor<float,host_memory_space> tstack(extents[3][img.rows][img.cols]);
+    for (int i = 0; i < 3; ++i) {
+        tensor<unsigned char,host_memory_space> tmp(extents[img.rows][img.cols], stack[i].ptr<unsigned char>());
+        tensor<float,host_memory_space> dst = tstack[indices[2-i][index_range()][index_range()]];
+        convert(dst, tmp);
+    }
+
+    return tstack;
 }
 cv::Mat dense_hog(const cv::Mat img, const int steps=5, const int spatialpool=3){
     cv::Mat gmx, gmy, mag, ang;
@@ -80,7 +100,7 @@ cv::Mat square(const cv::Mat& orig_, unsigned int sq_size){
     unsigned int new_rows = orig_.rows >= orig_.cols ? sq_size : orig_.rows/(float)orig_.cols * sq_size;
     unsigned int new_cols = orig_.cols >= orig_.rows ? sq_size : orig_.cols/(float)orig_.rows * sq_size;
     cv::Mat orig;
-    cv::resize(orig_,orig,cv::Size(new_cols, new_rows));
+    cv::resize(orig_,orig,cv::Size(new_cols, new_rows), 0, 0, cv::INTER_AREA);
     unsigned int top=0, left=0;
     cv::Mat squared(sq_size, sq_size, orig.type(), cv::mean(orig));
 
@@ -93,29 +113,38 @@ cv::Mat square(const cv::Mat& orig_, unsigned int sq_size){
     } 
     cv::Rect rect(left, top, orig.cols, orig.rows);
 
-    cv::Mat roi(squared,rect);
+    cv::Mat roi(squared, rect);
     orig.copyTo(roi);
-    for (int i = 0; i < 0; ++i)
+    for (int i = 0; i < 2; ++i)
     {
-        cv::GaussianBlur(squared,squared,cv::Size(5,5),2.5,2.5);
+        cv::GaussianBlur(squared, squared, cv::Size(5,5),2.5,2.5);
         orig.copyTo(roi);
     }
 
     return squared;
 }
 
-using namespace cuvnet;
+namespace cuvnet
+{
 
-void patch_extractor::process_filestring(cuv::tensor<float,cuv::host_memory_space>& dst, const char* buf, size_t n){
+void filename_processor::process_filestring(cuv::tensor<float,cuv::host_memory_space>& dst, const char* buf, size_t n){
     static const int s = 176;
     static const unsigned int n_hog_channels = 5;
     static const unsigned int hog_pool       = 3;
     cv::Mat orig, squared, H;
     cv::Mat buf_wrapper(n,1,CV_8UC1,const_cast<char*>(buf),1);
     orig    = cv::imdecode(buf_wrapper,1);
+    std::cout << orig.rows<<" x "<<orig.cols << std::endl;
     squared = square(orig,s);
-    H       = dense_hog(squared,n_hog_channels,hog_pool);
-    dst.resize(cuv::extents[n_hog_channels][s][s]);
-    cuv::tensor<float,cuv::host_memory_space> Hcuv(cuv::indices[cuv::index_range(0,n_hog_channels)][cuv::index_range(0,s)][cuv::index_range(0,s)], H.ptr<float>());
-    dst = Hcuv;
+    if(0){
+        H       = dense_hog(squared,n_hog_channels,hog_pool);
+        dst.resize(cuv::extents[n_hog_channels][s][s]);
+
+        using namespace cuv;
+        tensor<float,cuv::host_memory_space> Hcuv(cuv::extents[n_hog_channels][s][s], H.ptr<float>());
+        dst = Hcuv.copy();
+    }else{
+        dst = separate_color_channels(squared);
+    }
+}
 }

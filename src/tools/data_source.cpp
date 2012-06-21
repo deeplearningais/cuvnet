@@ -24,8 +24,8 @@ struct loop{
     typedef std::vector<cuv::tensor<float,cuv::host_memory_space> > res_t;
     folder_loader&   m_this;
     res_t&           m_res;
-    cuvnet::preprocessor<cuv::host_memory_space>*    m_pp;
-    loop(folder_loader* fl, res_t& r, cuvnet::preprocessor<cuv::host_memory_space>* pp):m_this(*fl),m_res(r),m_pp(pp){}
+    cuvnet::filename_processor*    m_pp;
+    loop(folder_loader* fl, res_t& r, cuvnet::filename_processor* pp):m_this(*fl),m_res(r),m_pp(pp){}
     void operator()(const tbb::blocked_range<unsigned int>& r)const;
 };
 
@@ -62,8 +62,8 @@ folder_loader::scan(const std::string& pathstr, bool recursive){
                         allowed_extensions.end(),
                         fs::extension(*it))
                     != allowed_extensions.end()){
-                m_files.push_back(detail::file_descr());
-                m_files.back().name = boost::lexical_cast<std::string>(*it);
+                m_files.push_back(cuvnet::detail::file_descr());
+                m_files.back().name = it->path().string();
                 m_files.back().size = fs::file_size(*it);
             }
         }
@@ -77,19 +77,22 @@ loop::operator()(const tbb::blocked_range<unsigned int>& r)const{
     //std::cout<<ss.str();
     for(unsigned int i=r.begin(); i!=r.end(); ++i){
         unsigned int idx = (m_this.m_idx+i)%m_this.m_files.size();
-        detail::file_descr& fd = m_this.m_files[idx];
+        cuvnet::detail::file_descr& fd = m_this.m_files[idx];
+        std::cout << "fd.name:" << fd.name << std::endl;
         if(fd.content.size()!=fd.size){
+            std::cout << "-> reading `" << fd.name<<"' bytes: "<<fd.size<< std::endl;
             fd.content.resize(fd.size);
-            std::ifstream is(fd.name);
+            std::ifstream is;
+            is.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+            is.open(fd.name.c_str(), std::ios::binary | std::ios::in);
             is.read(&fd.content[0], fd.size);
         }
-        // TODO: make this work again!
-        //m_pp->process_filestring(m_res[i], &fd.content[0],fd.size);
+        m_pp->process_filestring(m_res[i], &fd.content[0],fd.size);
     }
 };
 
 void
-folder_loader::get(std::vector<cuv::tensor<float,cuv::host_memory_space> >& res, const unsigned int n, cuvnet::preprocessor<cuv::host_memory_space>* pp){
+folder_loader::get(std::vector<cuv::tensor<float,cuv::host_memory_space> >& res, const unsigned int n, cuvnet::filename_processor* pp){
     res.resize(n);
     //timeval begin, end;
     //gettimeofday(&begin,NULL);

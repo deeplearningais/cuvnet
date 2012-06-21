@@ -313,13 +313,10 @@ namespace cuvnet
                 const cuv::tensor<float,cuv::host_memory_space>& rrot(){return m_rot_revrs;};
     };
 
-    class patch_extractor
-    //: public preprocessor
+    class filename_processor
     {
         private:
-            unsigned int m_s0, m_s1;
         public:
-            patch_extractor(unsigned int s0, unsigned int s1):m_s0(s0),m_s1(s1){}
             void process_filestring(cuv::tensor<float,cuv::host_memory_space>& dst, const char* buf, size_t n);
     };
 }

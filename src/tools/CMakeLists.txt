@@ -1,6 +1,6 @@
 OPTION(USE_OPENCV "Use OpenCV if available" OFF)
 IF(USE_OPENCV)
-    FIND_PACKAGE( OpenCV )
+    FIND_PACKAGE( OpenCV REQUIRED )
     FIND_PACKAGE( tbb )
 ENDIF(USE_OPENCV)
 
@@ -16,9 +16,9 @@ SET (CUVNET_TOOLS_SRC
 INCLUDE_DIRECTORIES(/usr/local/src/magma_1.1.0/include)
 LINK_DIRECTORIES(/usr/local/src/magma_1.1.0/lib)
 
-IF (OpenCV_FOUND AND TBB_FOUND)
+IF (USE_OPENCV AND TBB_FOUND)
    LIST(APPEND CUVNET_TOOLS_SRC preprocess.cpp data_source.cpp)
-ENDIF (OpenCV_FOUND AND TBB_FOUND)
+ENDIF (USE_OPENCV AND TBB_FOUND)
 
 add_library(cuvnet_tools STATIC ${CUVNET_TOOLS_SRC})
 
