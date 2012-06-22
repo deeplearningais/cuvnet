@@ -3,6 +3,7 @@
 
 #include <cuvnet/ops.hpp>
 #include "generic_auto_encoder.hpp"
+#include <tools/orthonormalization.hpp>
 
 using namespace cuvnet;
 using boost::make_shared;
@@ -29,13 +30,14 @@ class conv_auto_encoder
         boost::shared_ptr<ParameterInput> m_weights1, m_weights2;
         boost::shared_ptr<ParameterInput> m_bias1, m_bias2;
 
-        unsigned int m_filter_size, m_n_filters, m_n_channels;
+        unsigned int m_filter_size, m_n_filters, m_n_channels, m_n_pix_x;
 
         /// \f$ h := \sigma ( x * W + b ) \f$
         virtual op_ptr  encode(op_ptr& inp){
             if(!m_weights1){
                 inp->visit(determine_shapes_visitor()); 
                 m_n_channels = inp->result()->shape[1];
+                m_n_pix_x = std::sqrt(inp->result()->shape[2]);
 
                 m_weights1.reset(new ParameterInput(cuv::extents[m_n_channels][m_filter_size*m_filter_size][m_n_filters], "weights1"));
                 m_weights2.reset(new ParameterInput(cuv::extents[m_n_filters][m_filter_size*m_filter_size][m_n_channels], "weights2"));
@@ -47,11 +49,11 @@ class conv_auto_encoder
                         convolve( 
                             reorder_for_conv(inp),
                             m_weights1,true),
-                        m_bias1, 0)); 
+                        m_bias1, 0) / (float) m_n_channels); 
         }
         /// \f$  h * W + b\f$
         virtual op_ptr  decode(op_ptr& enc){ 
-            return reorder_from_conv(mat_plus_vec(convolve( enc, m_weights2, true), m_bias2, 0));
+            return reorder_from_conv(mat_plus_vec(convolve( enc, m_weights2, true), m_bias2, 0)/(float) m_n_filters);
         }
 
     public:
@@ -74,7 +76,7 @@ class conv_auto_encoder
         /**
          * @return weights operating on input
          */
-        virtual boost::shared_ptr<Input> get_weights()const{
+        virtual boost::shared_ptr<ParameterInput> get_weights()const{
             return m_weights1;
         }
 
@@ -109,6 +111,7 @@ class conv_auto_encoder
             } {
                 float fan_in = m_n_filters * m_filter_size * m_filter_size;
                 float diff = std::sqrt(3.f/fan_in);
+
                 cuv::fill_rnd_uniform(m_weights2->data());
                 m_weights2->data() *= 2*diff;
                 m_weights2->data() -=   diff;
@@ -117,6 +120,15 @@ class conv_auto_encoder
             m_bias1->data() = 0.f;
             m_bias2->data() = 0.f;
         }
+
+        void normalize_weights(){
+            cuv::tensor<float, cuv::host_memory_space> t = m_weights1->data();
+            t.reshape(cuv::extents[t.shape(0)*t.shape(1)][t.shape(2)]);
+            orthogonalize_symmetric(t, true);
+            t.reshape(m_weights1->data().shape());
+            m_weights1->data() = t;
+        }
+
 };
 
 
