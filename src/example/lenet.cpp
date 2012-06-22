@@ -5,6 +5,7 @@
 #include <cuvnet/op_utils.hpp>
 #include <tools/gradient_descent.hpp>
 #include <datasets/mnist.hpp>
+#include <datasets/cifar.hpp>
 
 #include <datasets/randomizer.hpp>
 #include <tools/preprocess.hpp>
@@ -24,10 +25,11 @@ void load_batch(
         boost::shared_ptr<ParameterInput> target,
         cuv::tensor<float,cuv::dev_memory_space>* data,
         cuv::tensor<float,cuv::dev_memory_space>* labels,
+        unsigned int channels,
         unsigned int bs, unsigned int batch){
     //std::cout <<"."<<batch<<std::flush;
     input->data() = (*data)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
-    input->data().reshape(cuv::extents[bs][1][input->data().shape(1)]);
+    input->data().reshape(cuv::extents[bs][channels][input->data().shape(1)/channels]);
     target->data() = (*labels)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
 
 }
@@ -38,6 +40,7 @@ int main(int argc, char **argv)
     cuv::initialize_mersenne_twister_seeds();
 
     // load the dataset
+    //cifar_dataset ds("/home/local/datasets/CIFAR10");
     mnist_dataset ds("/home/local/datasets/MNIST");
     randomizer().transform(ds.train_data, ds.train_labels);
    
@@ -46,6 +49,8 @@ int main(int argc, char **argv)
 
     // makes the values between 0 and 1. Max element of the data will have value 1, and min element valaue 0.
     global_min_max_normalize<> n;
+    // ensures that each variable=pixel has zero mean & unit variance (color images only!)
+    //zero_mean_unit_variance<> n;
     n.fit_transform(ds.train_data);
     n.transform(ds.test_data);
 
@@ -89,7 +94,7 @@ int main(int argc, char **argv)
         gd.register_monitor(mon);
 
         // before each batch, load data into \c input
-        gd.before_batch.connect(boost::bind(load_batch,input, target,&train_data, &train_labels, bs,_2));
+        gd.before_batch.connect(boost::bind(load_batch,input, target,&train_data, &train_labels, ds.channels, bs,_2));
 
         /*
          *gd.after_batch.connect(
@@ -108,15 +113,15 @@ int main(int argc, char **argv)
 
     // evaluates test data. We use minibatch learning with learning rate zero and only one epoch.
     {
-        matrix train_data = ds.test_data;
-        matrix train_labels(ds.test_labels.shape());
+        matrix test_data = ds.test_data;
+        matrix test_labels(ds.test_labels.shape());
         {
             cuv::tensor<int,cuv::dev_memory_space>  tmp(ds.test_labels);
-            cuv::convert(train_labels, tmp);
+            cuv::convert(test_labels, tmp);
         }
         gradient_descent gd(ln.get_loss(),0,params,0.f);
         gd.register_monitor(mon);
-        gd.before_batch.connect(boost::bind(load_batch,input, target,&train_data, &train_labels, bs,_2));
+        gd.before_batch.connect(boost::bind(load_batch,input, target,&test_data, &test_labels, ds.channels, bs,_2));
         gd.current_batch_num.connect(ds.test_data.shape(0)/ll::constant(bs));
         gd.minibatch_learning(1);
     }
