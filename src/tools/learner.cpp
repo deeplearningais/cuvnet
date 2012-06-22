@@ -169,7 +169,7 @@ namespace cuvnet
             }
             m_splits.init(dsall, nsplits);
         }else if(ds == "cifar"){
-            dataset dsall = cifar_dataset();
+            dataset dsall = cifar_dataset("/home/local/datasets/CIFAR10");
             randomizer().transform(dsall.train_data, dsall.train_labels);
             zero_mean_unit_variance<> normalizer;
             normalizer.fit_transform(dsall.train_data);
