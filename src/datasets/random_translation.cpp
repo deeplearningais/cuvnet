@@ -7,7 +7,7 @@
 using namespace std;
 namespace cuvnet
 {
-        random_translation::random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int translate_size):
+        random_translation::random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int max_translation):
             m_num_train_example(num_train_examples),
             m_num_test_example(num_test_examples),
             m_dim(dim),
@@ -24,13 +24,28 @@ namespace cuvnet
             cuv::apply_scalar_functor(train_data,cuv::SF_LT,m_thres);
             cuv::apply_scalar_functor(test_data,cuv::SF_LT,m_thres);
             
+            // creates the vector for random translation. It is used to randomly translate each example vector
+            srand ( time(NULL) );
+            vector<int> random_translations_train(train_data.shape(1));
+            for(unsigned int i = 0; i < train_data.shape(1); i++){
+                // For each example, the random translation is a number from  [- max_translation, + max_translation]
+                random_translations_train[i] = rand() % (2 * max_translation  + 1) - max_translation;
+            }
+
+            vector<int> random_translations_test(test_data.shape(1));
+            for(unsigned int i = 0; i < test_data.shape(1); i++){
+                // For each example, the random translation is a number from  [- max_translation, + max_translation]
+                random_translations_test[i] = rand() % (2 * max_translation  + 1) - max_translation;
+            }
+
+
             // translate train data 
-            translate_data(train_data, 1, translate_size);
-            translate_data(train_data, 2, translate_size);
+            translate_data(train_data, 1, random_translations_train);
+            translate_data(train_data, 2, random_translations_train);
 
             // translate test data 
-            translate_data(test_data, 1, translate_size);
-            translate_data(test_data, 2, translate_size);
+            translate_data(test_data, 1, random_translations_test);
+            translate_data(test_data, 2, random_translations_test);
 
 
             // creates gaussian filter
@@ -44,6 +59,7 @@ namespace cuvnet
             // subsamples each "subsample" element
             subsampling(train_data, subsample);
             subsampling(test_data,subsample);
+
 
         }
 
@@ -103,12 +119,13 @@ namespace cuvnet
         
 
         
-        void translate_data(cuv::tensor<float,cuv::host_memory_space>  &data, int dim, int trans_size){
+        // the second dim is the translated version of the first,
+        // and third dimension is translated version of the second
+        void translate_data(cuv::tensor<float,cuv::host_memory_space>  &data, int dim, const vector<int> &rand_translations){
             assert(dim == 1 || dim == 2);
             for(unsigned int i = 0; i < data.shape(1); i++){
                 for(unsigned int j = 0; j < data.shape(2); j++){
-                    // the second dim is the translated version of the first
-                    int index = j - trans_size;
+                    int index = j - rand_translations[i];
                     // wrap around if the index goes out of border
                     if(index < 0)
                         index = data.shape(2) + index;

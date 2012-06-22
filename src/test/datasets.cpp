@@ -92,6 +92,8 @@ TEST(RandomTranslation, SubSampling){
 
 TEST(RandomTranslation, TranslateData){
     cuv::tensor<float,cuv::host_memory_space> tmp_data(cuv::extents[3][1][6]);
+    vector<int> rand_trans(tmp_data.shape(1));
+    rand_trans[0] = 2;
     tmp_data(0, 0, 0) = 1;    
     tmp_data(0, 0, 1) = 2;    
     tmp_data(0, 0, 2) = 3;    
@@ -100,7 +102,7 @@ TEST(RandomTranslation, TranslateData){
     tmp_data(0, 0, 5) = 6;
 
     // translate data by 2    
-    translate_data(tmp_data, 1, 2);
+    translate_data(tmp_data, 1, rand_trans);
 
     EXPECT_EQ(tmp_data(1,0,0), 5);
     EXPECT_EQ(tmp_data(1,0,1), 6);
@@ -109,7 +111,7 @@ TEST(RandomTranslation, TranslateData){
     EXPECT_EQ(tmp_data(1,0,4), 3);
     EXPECT_EQ(tmp_data(1,0,5), 4);
 
-    translate_data(tmp_data, 2, 2);
+    translate_data(tmp_data, 2, rand_trans);
     
     EXPECT_EQ(tmp_data(2,0,0), 3);
     EXPECT_EQ(tmp_data(2,0,1), 4);
@@ -119,7 +121,8 @@ TEST(RandomTranslation, TranslateData){
     EXPECT_EQ(tmp_data(2,0,5), 2);
     
     // translate data by -2    
-    translate_data(tmp_data, 1, -2);
+    rand_trans[0] = -2;
+    translate_data(tmp_data, 1, rand_trans);
 
     EXPECT_EQ(tmp_data(1,0,0), 3);
     EXPECT_EQ(tmp_data(1,0,1), 4);
@@ -128,7 +131,7 @@ TEST(RandomTranslation, TranslateData){
     EXPECT_EQ(tmp_data(1,0,4), 1);
     EXPECT_EQ(tmp_data(1,0,5), 2);
 
-    translate_data(tmp_data, 2, -2);
+    translate_data(tmp_data, 2, rand_trans);
     
     EXPECT_EQ(tmp_data(2,0,0), 5);
     EXPECT_EQ(tmp_data(2,0,1), 6);

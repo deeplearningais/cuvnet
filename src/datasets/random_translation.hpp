@@ -29,12 +29,17 @@ namespace cuvnet
     void subsampling(cuv::tensor<float,cuv::host_memory_space>  &data, int each_elem);
 
     /**
-     * subsamples the data
+     * Translate the data. Allows subpixel and full pixel translations.
      * @param data the data which is being translated
-     * @param dim which dim is translated. If dim is 1 then the second dim is the translated version of the first. If dim is 0, then third dimension is translated version of the second dimension
-     * @param trans_size how many elements to translate. If the number is positive, it translates the data to the right. If negative, to the left. If the translation index exceeds the border of the vector, then wrap around.
+     * @param dim which dim is translated. If dim is 1 then the second dim is
+     *        the translated version of the first. If dim is 0, then third dimension
+     *        is translated version of the second dimension
+     * @param trans_size how many elements to translate. If the number is
+     *        positive, it translates the data to the right. If negative, to the left.
+     *        If the translation index exceeds the border of the vector, then wrap
+     *        around.
      */
-    void translate_data(cuv::tensor<float,cuv::host_memory_space>  &data, int dim, int trans_size);
+    void translate_data(cuv::tensor<float,cuv::host_memory_space>  &data, int dim, const vector<int> &rand_translations);
 
 
     
