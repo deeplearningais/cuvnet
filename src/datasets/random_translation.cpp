@@ -15,8 +15,8 @@ namespace cuvnet
             m_distance(distance),
             m_sigma(sigma)
         {
-            train_data.resize(cuv::extents[m_num_train_example][m_dim][3]);
-            test_data.resize(cuv::extents[m_num_test_example][m_dim][3]);
+            train_data.resize(cuv::extents[3][m_num_train_example][m_dim]);
+            test_data.resize(cuv::extents[3][m_num_test_example][m_dim]);
             
             // fills the train and test sets with random uniform numbers
             cuv::fill_rnd_uniform(train_data);
@@ -59,12 +59,12 @@ namespace cuvnet
 
 
         void convolve_last_dim(cuv::tensor<float,cuv::host_memory_space>  &data, const cuv::tensor<float,cuv::host_memory_space>  & kernel){
-            int dim = data.shape(1);
+            int dim = data.shape(2);
             cuv::tensor<float,cuv::host_memory_space>  temp_data(data.copy());
-            for (int ex = 0; ex < (int)data.shape(0); ex++){
-                for(int d = 0; d < dim; d++){
-                    for(int t = 0; t < (int)data.shape(2); t++){
-                         
+            for(int t = 0; t < (int)data.shape(0); t++){
+                for (int ex = 0; ex < (int)data.shape(1); ex++){
+                    for(int d = 0; d < dim; d++){
+
                         int sum = 0;  
                         int distance = (kernel.size() - 1) / 2;
                         for(int dist = - distance; dist <= distance; dist++){
@@ -76,10 +76,10 @@ namespace cuvnet
                             else if(wrap_index >= dim)
                                 // go to the left side
                                 wrap_index = dim - (wrap_index);        
-                            sum +=  data(ex, wrap_index, t) * kernel(dist + distance); 
+                            sum +=  data(t, ex, wrap_index) * kernel(dist + distance); 
                         }
                         // update the element
-                        temp_data(ex, d ,t) = sum;
+                        temp_data(t, ex, d) = sum;
                     }
                 } 
             }
@@ -88,16 +88,16 @@ namespace cuvnet
         
 
         void subsampling(cuv::tensor<float,cuv::host_memory_space>  &data, int each_elem){
-            assert(data.shape(1) % each_elem == 0);
-            cuv::tensor<float,cuv::host_memory_space>  tmp_data(cuv::extents[data.shape(0)][data.shape(1) / each_elem][data.shape(2)]);
-            for(int i = 0; i < tmp_data.shape(0); i++){
-                for(int j = 0; j < tmp_data.shape(1); j++){
-                    for(int k = 0; k < tmp_data.shape(2); k++){
-                        tmp_data(i,j,k) = data(i,j * each_elem,k);
+            assert(data.shape(2) % each_elem == 0);
+            cuv::tensor<float,cuv::host_memory_space>  tmp_data(cuv::extents[data.shape(0)][data.shape(1)][data.shape(2) / each_elem]);
+            for(unsigned int i = 0; i < tmp_data.shape(0); i++){
+                for(unsigned int j = 0; j < tmp_data.shape(1); j++){
+                    for(unsigned int k = 0; k < tmp_data.shape(2); k++){
+                        tmp_data(i, j, k) = data(i, j, k * each_elem);
                     }
                 }
             }
-            data.resize(cuv::extents[data.shape(0)][data.shape(1) / each_elem][data.shape(2)]);
+            data.resize(cuv::extents[data.shape(0)][data.shape(1)][data.shape(2) / each_elem]);
             data = tmp_data.copy();
         }
         
@@ -105,16 +105,16 @@ namespace cuvnet
         
         void translate_data(cuv::tensor<float,cuv::host_memory_space>  &data, int dim, int trans_size){
             assert(dim == 1 || dim == 2);
-            for(int i = 0; i < data.shape(0); i++){
-                for(int j = 0; j < data.shape(1); j++){
+            for(unsigned int i = 0; i < data.shape(1); i++){
+                for(unsigned int j = 0; j < data.shape(2); j++){
                     // the second dim is the translated version of the first
                     int index = j - trans_size;
                     // wrap around if the index goes out of border
                     if(index < 0)
-                        index = data.shape(1) + index;
-                    else if(index >= data.shape(1))
-                        index = index - data.shape(1);
-                    data(i, j, dim) = data(i, index, dim - 1);
+                        index = data.shape(2) + index;
+                    else if(index >= (int)data.shape(2))
+                        index = index - data.shape(2);
+                    data(dim, i, j) = data(dim - 1, i, index);
                 }
             }
         }
