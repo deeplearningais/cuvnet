@@ -117,14 +117,14 @@ int main(int argc, char **argv)
 
     //mnist_dataset ds_all("/home/local/datasets/MNIST");
     natural_dataset ds_all("/home/local/datasets/natural_images");
-    pca_whitening normalizer(128,false,true, 0.01);
+    pca_whitening normalizer(200,false,true, 0.01);
     splitter ds_split(ds_all,2);
     dataset ds  = ds_split[0];
     ds.binary   = false;
 
     // number of filters is fa*fb (fa and fb determine layout of plots printed in \c visualize_filters)
     // batch size is bs
-    unsigned int fa=8,fb=8,bs=64;
+    unsigned int fa=8,fb=4,bs=64;
     
     {   //-------------------------------------------------------------
         // pre-processing                                              +
@@ -156,7 +156,7 @@ int main(int argc, char **argv)
 
     // create a denoising convolutional auto-encoder
     // given filter-size, number of filters and noise standard deviation
-    ae_type ae(ds.binary, 5, fa*fb, 1.0); 
+    ae_type ae(ds.binary, 5, fa*fb, 0.6); 
     ae.init(input, 0.001f);
     
     // obtain the parameters which we need to derive for in the unsupervised
@@ -169,19 +169,29 @@ int main(int argc, char **argv)
     monitor mon(true); 
     mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.loss(),        "total loss");
     mon.add(monitor::WP_SINK, ae.get_decoded(), "decoded");
+    mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.get_decoded(), "decoded_stats");
+    mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.get_encoded(), "encoded_stats");
+    mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.m_weights1, "weights1");
+    mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.m_weights2, "weights2");
+    mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.m_bias1, "bias1");
+    mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.m_bias2, "bias2");
 
     // copy training data to the device
     matrix data = ds.train_data;
 
     // create a \c gradient_descent object that derives the auto-encoder loss
     // w.r.t. \c params and has learning rate 0.0001f
-    gradient_descent gd(ae.loss(),0,params,0.0001f);
+    gradient_descent gd(ae.loss(),0,params,0.01f);
 
     // register the monitor so that it receives learning events
     gd.register_monitor(mon); 
 
     // after each epoch, run \c visualize_filters
     gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,&normalizer,fa,fb,ds.image_size,ds.channels, input,_1));
+
+    //gd.after_batch.connect(boost::bind(&monitor::simple_logging, &mon));
+    //gd.after_batch.connect(std::cout << ll::constant("\n"));
+    //gd.after_batch.connect(boost::bind(&ae_type::normalize_weights,&ae));
 
     // before each batch, load data into \c input
     gd.before_batch.connect(boost::bind(load_batch,input,&data,bs,_2));
@@ -191,7 +201,7 @@ int main(int argc, char **argv)
 
     // do mini-batch learning for at most 6000 epochs, or 10 minutes
     // (whatever comes first)
-    gd.minibatch_learning(6000, 10*60); 
+    gd.minibatch_learning(6000, 20*60); 
     
     return 0;
 }
