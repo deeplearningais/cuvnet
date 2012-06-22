@@ -65,8 +65,9 @@ class lenet
 
             int n_pix      = inp->result()->shape[2];
             int n_pix_x    = std::sqrt(n_pix);
-            int n_pix_x2   = (n_pix_x  - m_filter_size1 / 2 - 1)/2;
-            int n_pix_x3   = (n_pix_x2 - m_filter_size2 / 2 - 1)/2;
+            bool pad = true;
+            int n_pix_x2   = pad ? n_pix_x/2  : (n_pix_x  - m_filter_size1 / 2 - 1)/2;
+            int n_pix_x3   = pad ? n_pix_x2/2 : (n_pix_x2 - m_filter_size2 / 2 - 1)/2;
 
             m_conv1_weights.reset(new ParameterInput(cuv::extents[m_n_channels][m_filter_size1*m_filter_size1][m_n_filters1], "conv_weights1"));
             m_conv2_weights.reset(new ParameterInput(cuv::extents[m_n_filters1][m_filter_size2*m_filter_size2][m_n_filters2], "conv_weights2"));
@@ -83,7 +84,7 @@ class lenet
                             mat_plus_vec(
                                 convolve( 
                                     reorder_for_conv(inp),
-                                    m_conv1_weights, false),
+                                    m_conv1_weights, pad),
                                 m_bias1, 0)),
                         cuv::alex_conv::PT_MAX); 
 
@@ -93,7 +94,7 @@ class lenet
                             mat_plus_vec(
                                 convolve( 
                                     hl1,
-                                    m_conv2_weights, false),
+                                    m_conv2_weights, pad),
                                 m_bias2, 0)),
                         cuv::alex_conv::PT_MAX); 
             hl2 = reorder_from_conv(hl2);
