@@ -50,6 +50,14 @@ class lenet
 
     public:
         op_ptr hl1, hl2, hl3;
+        /**
+         * initialize the LeNet with input and target
+         *
+         * Inputs must be square images.
+         *
+         * @param inp the input images (shape: batch size X number of color channels x number of pixels)
+         * @param target the target labels (one-out-of-n coded)
+         */
         virtual void init(op_ptr inp, op_ptr target){
             inp->visit(determine_shapes_visitor()); 
             m_n_channels   = inp->result()->shape[1];
@@ -122,6 +130,13 @@ class lenet
         /**
          * constructor
          *
+         * The parameter description below includes examples for the MNIST database
+         *
+         * @param filter_size1 the size of the first-layer filters (MNIST: 5)
+         * @param n_filters1 the number of filters in the first layer (MNIST: 16)
+         * @param filter_size2 the size of the first-layer filters (MNIST: 5)
+         * @param n_filters2 the number of filters in the first layer (MNIST: 16)
+         * @param n_hiddens the size of the 'regular' MLP hidden layer after the convolutions (MNIST: 128)
          */
         lenet(int filter_size1, int n_filters1, int filter_size2, int n_filters2, int n_hiddens)
             : 
