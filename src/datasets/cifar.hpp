@@ -13,7 +13,7 @@ namespace cuvnet
      */
     struct cifar_dataset : dataset
     {
-        cifar_dataset(){
+        cifar_dataset(const std::string& path){
             std::cout << "Reading CIFAR10 dataset..."<<std::flush;
             const unsigned int size = 3*32*32;
             train_data = cuv::tensor<float,cuv::host_memory_space>(cuv::extents[50000][size]);
@@ -23,7 +23,7 @@ namespace cuvnet
             //val_labels   = cuv::tensor<int,cuv::host_memory_space>(cuv::extents[10000]);
             test_labels  = cuv::tensor<int,cuv::host_memory_space>(cuv::extents[10000]);
 
-            const char* datadir = "/home/local/datasets/CIFAR10/data_batch_%d.bin";
+            const char* templ = "%s/data_batch_%d.bin";
             char filename[255];
             unsigned char img[size];
 
@@ -32,7 +32,7 @@ namespace cuvnet
 
             float* dest = train_data.ptr();
             for(unsigned int i=0;i<5;i++){
-                sprintf(filename, datadir, i+1);
+                sprintf(filename, path.c_str(), templ, i+1);
                 std::ifstream ifs(filename, std::ios::in | std::ios::binary);
                 for(unsigned int j=0;j<10000;j++){
                     trainl[i*10000+j] = (int) ifs.get();
@@ -43,7 +43,7 @@ namespace cuvnet
             /*
              *{
              *    dest = val_data.ptr();
-             *    sprintf(filename, datadir, 5);
+             *    sprintf(filename, path.c_str(), templ, 5);
              *    std::ifstream ifs(filename, std::ios::binary);
              *    for(unsigned int j=0;j<10000;j++){
              *        val_labels[j] = (int) ifs.get();
