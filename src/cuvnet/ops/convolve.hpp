@@ -176,7 +176,7 @@ namespace cuvnet
                             }else{
                                 value_type& dflt = *tmp_dw;
                                 d_conv2d_dfilt(dflt,*tmp_r0delta,img, m_padding_start, 1, m_nGroups,m_partial_sum);
-                                value_ptr ptr(new value_type((*tmp_dw)[indices[index_range()][index_range()][index_range(0,nFiltReal)]].copy()));
+                                value_ptr ptr(new value_type(dflt[indices[index_range()][index_range()][index_range(0,nFiltReal)]].copy()));
                                 p1.push(ptr);
                             }
                         }
