@@ -20,8 +20,8 @@ namespace ll = boost::lambda;
  * load a batch from the dataset
  */
 void load_batch(
-        boost::shared_ptr<Input> input,
-        boost::shared_ptr<Input> target,
+        boost::shared_ptr<ParameterInput> input,
+        boost::shared_ptr<ParameterInput> target,
         cuv::tensor<float,cuv::dev_memory_space>* data,
         cuv::tensor<float,cuv::dev_memory_space>* labels,
         unsigned int bs, unsigned int batch){
@@ -52,10 +52,10 @@ int main(int argc, char **argv)
     // an \c Input is a function with 0 parameters and 1 output.
     // here we only need to specify the shape of the input and target correctly
     // \c load_batch will put values in it.
-    boost::shared_ptr<Input> input(
-            new Input(cuv::extents[bs][1][ds.train_data.shape(1)],"input"));
-    boost::shared_ptr<Input> target(
-            new Input(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
+    boost::shared_ptr<ParameterInput> input(
+            new ParameterInput(cuv::extents[bs][ds.channels][ds.train_data.shape(1)/ds.channels],"input"));
+    boost::shared_ptr<ParameterInput> target(
+            new ParameterInput(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
 
     // creates the LeNet
     lenet ln(5,16,5,16,128);

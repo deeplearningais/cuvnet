@@ -31,7 +31,7 @@ using boost::make_shared;
 class lenet
 {
     typedef boost::shared_ptr<Op> op_ptr;
-    typedef boost::shared_ptr<Input> input_ptr;
+    typedef boost::shared_ptr<ParameterInput> input_ptr;
     typedef logistic_regression regression_type;
     //typedef linear_regression regression_type;
     protected:
@@ -68,14 +68,14 @@ class lenet
             int n_pix_x2   = (n_pix_x  - m_filter_size1 / 2 - 1)/2;
             int n_pix_x3   = (n_pix_x2 - m_filter_size2 / 2 - 1)/2;
 
-            m_conv1_weights.reset(new Input(cuv::extents[m_n_channels][m_filter_size1*m_filter_size1][m_n_filters1], "conv_weights1"));
-            m_conv2_weights.reset(new Input(cuv::extents[m_n_filters1][m_filter_size2*m_filter_size2][m_n_filters2], "conv_weights2"));
+            m_conv1_weights.reset(new ParameterInput(cuv::extents[m_n_channels][m_filter_size1*m_filter_size1][m_n_filters1], "conv_weights1"));
+            m_conv2_weights.reset(new ParameterInput(cuv::extents[m_n_filters1][m_filter_size2*m_filter_size2][m_n_filters2], "conv_weights2"));
 
-            m_weights3.reset(new Input(cuv::extents[n_pix_x3*n_pix_x3*m_n_filters2][m_n_hiddens], "weights3"));
+            m_weights3.reset(new ParameterInput(cuv::extents[n_pix_x3*n_pix_x3*m_n_filters2][m_n_hiddens], "weights3"));
 
-            m_bias1.reset(new Input(cuv::extents[m_n_filters1]));
-            m_bias2.reset(new Input(cuv::extents[m_n_filters2]));
-            m_bias3.reset(new Input(cuv::extents[m_n_hiddens]));
+            m_bias1.reset(new ParameterInput(cuv::extents[m_n_filters1]));
+            m_bias2.reset(new ParameterInput(cuv::extents[m_n_filters2]));
+            m_bias3.reset(new ParameterInput(cuv::extents[m_n_hiddens]));
 
             hl1 =
                 local_pool(

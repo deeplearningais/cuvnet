@@ -23,7 +23,7 @@ TEST(op_test,io){
 	namespace bar= boost::archive;
 
 	{
-		ptr_t inp = boost::make_shared<Input>(cuv::extents[10][20]);
+		ptr_t inp = boost::make_shared<ParameterInput>(cuv::extents[10][20]);
 		ptr_t id  = boost::make_shared<Identity>(inp->result());
 
 		std::ofstream f("test.ser");
@@ -39,7 +39,7 @@ TEST(op_test,io){
 	EXPECT_FALSE(!boost::dynamic_pointer_cast<Identity>(id));
 	EXPECT_EQ(id->param()->param_uses.size(),1);
 	ptr_t inp = id->param()->use(0)->get_op();
-	EXPECT_FALSE(!boost::dynamic_pointer_cast<Input>(inp));
+	EXPECT_FALSE(!boost::dynamic_pointer_cast<ParameterInput>(inp));
 }
 
 TEST(op_test,strio){
@@ -48,7 +48,7 @@ TEST(op_test,strio){
 
     std::string s;
 	{
-		ptr_t inp = boost::make_shared<Input>(cuv::extents[10][20]);
+		ptr_t inp = boost::make_shared<ParameterInput>(cuv::extents[10][20]);
 		ptr_t id  = boost::make_shared<Identity>(inp->result());
 
         s = op2str(id);
@@ -59,5 +59,5 @@ TEST(op_test,strio){
 	EXPECT_FALSE(!boost::dynamic_pointer_cast<Identity>(id));
 	EXPECT_EQ(id->param()->param_uses.size(),1);
 	ptr_t inp = id->param()->use(0)->get_op();
-	EXPECT_FALSE(!boost::dynamic_pointer_cast<Input>(inp));
+	EXPECT_FALSE(!boost::dynamic_pointer_cast<ParameterInput>(inp));
 }

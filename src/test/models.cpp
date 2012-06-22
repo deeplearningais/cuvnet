@@ -19,7 +19,7 @@
 using namespace cuvnet::derivative_testing;
 
 TEST(Function, simple){
-    boost::shared_ptr<Input> inp(new Input(cuv::extents[3][5]));
+    boost::shared_ptr<ParameterInput> inp(new ParameterInput(cuv::extents[3][5]));
     boost::shared_ptr<Op> func(new Sum(inp->result()));
     boost::shared_ptr<Sink> out(new Sink("out",func->result()));
 
@@ -48,7 +48,7 @@ TEST(Function, simple){
 
 }
 TEST(Monitor, simple){
-    boost::shared_ptr<Input> inp(new Input(cuv::extents[3][5]));
+    boost::shared_ptr<ParameterInput> inp(new ParameterInput(cuv::extents[3][5]));
     boost::shared_ptr<Op> func(new Sum(inp->result()));
     inp->data() = 1.f;
 
@@ -69,7 +69,7 @@ TEST(Monitor, simple){
 }
 
 TEST(Monitor, function){
-    boost::shared_ptr<Input> inp(new Input(cuv::extents[3][5]));
+    boost::shared_ptr<ParameterInput> inp(new ParameterInput(cuv::extents[3][5]));
     boost::shared_ptr<Op> func(new Sum(inp->result()));
     boost::shared_ptr<Sink> out(new Sink("out",func->result()));
 
@@ -106,7 +106,7 @@ class RandomNumberUsingTest : public ::testing::Test {
 
 
 TEST_F(RandomNumberUsingTest, simple_ae_loss_derivative){
-   boost::shared_ptr<Op>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+   boost::shared_ptr<Op>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
 
    {
        simple_auto_encoder<simple_auto_encoder_weight_decay> ae(4, true);
@@ -122,7 +122,7 @@ TEST_F(RandomNumberUsingTest, simple_ae_loss_derivative){
 }
 TEST_F(RandomNumberUsingTest, convolutional_auto_encoder_derivative ){
     // nBatch x nChannels x nPixels
-   boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[2][2][6*6], "input");
+   boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[2][2][6*6], "input");
    //inp->set_derivable(false);
 
    {
@@ -141,7 +141,7 @@ TEST_F(RandomNumberUsingTest, convolutional_auto_encoder_derivative ){
 }
 
 TEST_F(RandomNumberUsingTest, denoising_ae_loss_derivative){
-   boost::shared_ptr<Op>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+   boost::shared_ptr<Op>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
 
    denoising_auto_encoder<simple_auto_encoder_weight_decay> ae(4, true, .0f); // zero noise
    ae.init(inp, 0.00f);
@@ -149,7 +149,7 @@ TEST_F(RandomNumberUsingTest, denoising_ae_loss_derivative){
 }
 
 TEST_F(RandomNumberUsingTest, stack_derivative){
-   boost::shared_ptr<Op>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+   boost::shared_ptr<Op>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
 
    auto_encoder_stack<> ae(true); // zero noise
 
@@ -163,16 +163,16 @@ TEST_F(RandomNumberUsingTest, stack_derivative){
 }
 
 TEST_F(RandomNumberUsingTest, linear_regression_derivative){
-   boost::shared_ptr<Input>  inp    = boost::make_shared<Input>(cuv::extents[3][5], "input");
-   boost::shared_ptr<Input>  target = boost::make_shared<Input>(cuv::extents[3][5], "target");
+   boost::shared_ptr<ParameterInput>  inp    = boost::make_shared<ParameterInput>(cuv::extents[3][5], "input");
+   boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[3][5], "target");
 
    linear_regression lg(inp, target); 
    derivative_tester(*lg.get_loss(), 0, false, .01);
 }
 
 TEST_F(RandomNumberUsingTest, logistic_regression_derivative){
-   boost::shared_ptr<Input>  inp    = boost::make_shared<Input>(cuv::extents[3][5], "input");
-   boost::shared_ptr<Input>  target = boost::make_shared<Input>(cuv::extents[3][5], "target");
+   boost::shared_ptr<ParameterInput>  inp    = boost::make_shared<ParameterInput>(cuv::extents[3][5], "input");
+   boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[3][5], "target");
    target->set_derivable(false); // cannot derive for target of logistic regression
 
    logistic_regression lg(inp, target); 
@@ -180,8 +180,8 @@ TEST_F(RandomNumberUsingTest, logistic_regression_derivative){
 }
 
 TEST_F(RandomNumberUsingTest, lenet_derivative){
-   boost::shared_ptr<Input>  inp    = boost::make_shared<Input>(cuv::extents[2][1][28*28], "input");
-   boost::shared_ptr<Input>  target = boost::make_shared<Input>(cuv::extents[2][10], "target");
+   boost::shared_ptr<ParameterInput>  inp    = boost::make_shared<ParameterInput>(cuv::extents[2][1][28*28], "input");
+   boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[2][10], "target");
    target->set_derivable(false); // cannot derive for target of logistic regression
 
    lenet ln(5,16,5,16,2); 

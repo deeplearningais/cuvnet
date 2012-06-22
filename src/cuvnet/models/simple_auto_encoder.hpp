@@ -18,7 +18,7 @@ class simple_auto_encoder
 , public Regularizer
 {
     // these are the parametrs of the model
-    boost::shared_ptr<Input>  m_weights, m_bias_h, m_bias_y;
+    boost::shared_ptr<ParameterInput>  m_weights, m_bias_h, m_bias_y;
 
     unsigned int m_hidden_dim;
 
@@ -29,9 +29,9 @@ class simple_auto_encoder
             inp->visit(determine_shapes_visitor()); 
             unsigned int input_dim = inp->result()->shape[1];
             
-            m_weights.reset(new Input(cuv::extents[input_dim][m_hidden_dim],"weights"));
-            m_bias_h.reset(new Input(cuv::extents[m_hidden_dim],            "bias_h"));
-            m_bias_y.reset(new Input(cuv::extents[input_dim],             "bias_y"));
+            m_weights.reset(new ParameterInput(cuv::extents[input_dim][m_hidden_dim],"weights"));
+            m_bias_h.reset(new ParameterInput(cuv::extents[m_hidden_dim],            "bias_h"));
+            m_bias_y.reset(new ParameterInput(cuv::extents[input_dim],             "bias_y"));
         }else{
             inp->visit(determine_shapes_visitor()); 
             unsigned int input_dim = inp->result()->shape[1];
@@ -52,7 +52,7 @@ class simple_auto_encoder
     /**
      * @return weight matrix
      */
-    boost::shared_ptr<Input> get_weights(){return m_weights;} 
+    boost::shared_ptr<ParameterInput> get_weights(){return m_weights;} 
 
     /**
      * Determine the parameters learned during pre-training
@@ -117,7 +117,7 @@ class simple_auto_encoder_weight_decay
     virtual op_ptr regularize(){ 
         op_ptr regloss;
         BOOST_FOREACH(Op* op, unsupervised_params()){
-            if(dynamic_cast<Input*>(op)->data().ndim()==2){
+            if(dynamic_cast<ParameterInput*>(op)->data().ndim()==2){
                 op_ptr tmp = sum(pow(op->shared_from_this(),2.f)); 
                 if(!regloss)
                     regloss = tmp;

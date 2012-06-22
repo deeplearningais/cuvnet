@@ -33,7 +33,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
     else
         n.fillcolor = "gray70";
 	n.style = "filled";
-    bool is_input = dynamic_cast<Input*>(o);
+    bool is_input = dynamic_cast<ParameterInput*>(o);
     bool is_sink  = dynamic_cast<Sink*>(o);
     Op* sink_prev = NULL;
     if(is_input){
@@ -44,7 +44,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
         else
             n.fillcolor = "goldenrod3";
 
-        Op::value_ptr p = ((Input*)o)->data_ptr();
+        Op::value_ptr p = ((ParameterInput*)o)->data_ptr();
         if(!p);
         else{
             std::ostringstream ss;

@@ -10,7 +10,7 @@ namespace cuvnet{ namespace derivative_testing {
     void ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params){
         { // forward pass
             swp.fprop();
-            cuv::tensor<float,cuv::host_memory_space> r0 = out->cdata();
+            cuv::tensor<float,cuv::host_memory_space> r0 = out->cdata().copy();
             swp.fprop();
             cuv::tensor<float,cuv::host_memory_space> r1 = out->cdata();
             EXPECT_TRUE(cuv::equal_shape(r0,r1));
@@ -21,7 +21,7 @@ namespace cuvnet{ namespace derivative_testing {
         BOOST_FOREACH(Op* raw, params){
             swp.fprop();
             swp.bprop();
-            cuv::tensor<float,cuv::host_memory_space> r0 = raw->result(0)->delta.cdata();
+            cuv::tensor<float,cuv::host_memory_space> r0 = raw->result(0)->delta.cdata().copy();
             swp.fprop();
             swp.bprop();
             cuv::tensor<float,cuv::host_memory_space> r1 = raw->result(0)->delta.cdata();
@@ -94,7 +94,7 @@ namespace cuvnet{ namespace derivative_testing {
 
             // fill all params with random numbers
             BOOST_FOREACH(Op* raw, pcv.plist){
-                Input* param = dynamic_cast<Input*>(raw);
+                ParameterInput* param = dynamic_cast<ParameterInput*>(raw);
                 EXPECT_TRUE(param!=NULL);
                 for (unsigned int i = 0; i < param->data().size(); ++i)
                 {
@@ -115,8 +115,8 @@ namespace cuvnet{ namespace derivative_testing {
                     std::back_inserter(derivable_params), 
                     std::not1( // not [  cast_to_input(op)->derivable()   ]
                         __gnu_cxx::compose1(
-                            std::mem_fun( &Input::derivable ),
-                            ptr_caster<Op,Input>()))
+                            std::mem_fun( &ParameterInput::derivable ),
+                            ptr_caster<Op,ParameterInput>()))
                     );
 
             swiper swipe(op, result, derivable_params);
@@ -130,7 +130,7 @@ namespace cuvnet{ namespace derivative_testing {
 
 
             BOOST_FOREACH(Op* raw, derivable_params){
-                Input* param = dynamic_cast<Input*>(raw);
+                ParameterInput* param = dynamic_cast<ParameterInput*>(raw);
                 EXPECT_TRUE(param!=NULL);
                 if(!param->derivable())
                     continue;

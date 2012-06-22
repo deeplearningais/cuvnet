@@ -260,17 +260,13 @@ namespace cuvnet
             virtual void update_weights(){
                 for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++){
                     cuvAssert(&((*it)->result()->delta.cdata()));
-                    Input* inp = (Input*) *it;
+                    cuvAssert(NULL != dynamic_cast<ParameterInput*>(*it));
+                    ParameterInput* inp = (ParameterInput*) *it;
 
-                    float lr = m_learnrate;
-                    //if(inp->name().find("_wh")!=std::string::npos)
-                        //lr /= 10.f;
-                    //std::cout << inp->name()<<" delta: "<< cuv::norm2(inp->result()->delta.cdata())<< std::endl;[> cursor <]
-                    //std::cout << inp->name()<<" value: "<< cuv::norm2(inp->data())<< std::endl;[> cursor <]
-
+                    float lr = m_learnrate * inp->m_learnrate_factor;
                     // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
                     //       we're changing the underlying object all cow_ptrs pointing to it!!!
-                    cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->result()->delta.cdata(), -lr, m_weightdecay);
+                    cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->delta(), -lr, m_weightdecay);
                 }
             }
             /**
@@ -336,7 +332,7 @@ namespace cuvnet
              */
             void save_current_params(){
                     for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
-                        Input* p = dynamic_cast<Input*>(*it);
+                        ParameterInput* p = dynamic_cast<ParameterInput*>(*it);
                         cuvAssert(p);
                         m_best_perf_params[*it] = p->data();
                     }
@@ -349,7 +345,7 @@ namespace cuvnet
                     // load the best parameters again
                     bool did_load_something = false;
                     for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
-                        Input* p = dynamic_cast<Input*>(*it);
+                        ParameterInput* p = dynamic_cast<ParameterInput*>(*it);
                         cuvAssert(p);
                         std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >::iterator mit = m_best_perf_params.find(*it);
                         if(mit != m_best_perf_params.end()) {
@@ -432,10 +428,10 @@ namespace cuvnet
         { 
             unsigned int i=0;
             for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
-                m_learnrates[i].resize(((Input*)*it)->data().shape());
+                m_learnrates[i].resize(((ParameterInput*)*it)->data().shape());
                 m_learnrates[i] = learnrate;
 
-                m_old_dw[i].resize(((Input*)*it)->data().shape());
+                m_old_dw[i].resize(((ParameterInput*)*it)->data().shape());
                 m_old_dw[i] = (signed char)0;
             }
         }
@@ -448,7 +444,7 @@ namespace cuvnet
             unsigned int i=0;
             for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
                 Op::value_type dW = ::operator-((*it)->result()->delta.cdata()); // TODO: change sign in cuv::rprop
-                cuv::rprop((dynamic_cast<Input*>(*it))->data(), dW, m_old_dw[i], m_learnrates[i], m_weightdecay, 0.0000000f);
+                cuv::rprop((dynamic_cast<ParameterInput*>(*it))->data(), dW, m_old_dw[i], m_learnrates[i], m_weightdecay, 0.0000000f);
             }
         }
 

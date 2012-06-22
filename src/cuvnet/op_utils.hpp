@@ -43,7 +43,8 @@ namespace cuvnet
                 // not derive for certain parameters.
                 // however, it still needs to see them to /initialize/ them.
                 //if(((Input*)o)->derivable())
-                plist.push_back(o);
+                if(dynamic_cast<ParameterInput*>(o))
+                    plist.push_back(o);
             }
         }
     };

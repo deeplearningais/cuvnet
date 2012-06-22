@@ -30,7 +30,7 @@ matrix trans(matrix& m){
  * load a batch from the dataset
  */
 void load_batch(
-        boost::shared_ptr<Input> input,
+        boost::shared_ptr<ParameterInput> input,
         cuv::tensor<float,cuv::dev_memory_space>* data,
         unsigned int bs, unsigned int batch){
     //std::cout <<"."<<std::flush;
@@ -43,7 +43,7 @@ void load_batch(
  * writes the results to a file.
  *
  */
-void visualize_filters(ae_type* ae, monitor* mon, pca_whitening* normalizer, int fa,int fb, int image_size, int channels, boost::shared_ptr<Input> input, unsigned int epoch){
+void visualize_filters(ae_type* ae, monitor* mon, pca_whitening* normalizer, int fa,int fb, int image_size, int channels, boost::shared_ptr<ParameterInput> input, unsigned int epoch){
     if(epoch%300 != 0)
         return;
     {
@@ -140,8 +140,8 @@ int main(int argc, char **argv)
     // an \c Input is a function with 0 parameters and 1 output.
     // here we only need to specify the shape of the input correctly
     // \c load_batch will put values in it.
-    boost::shared_ptr<Input> input(
-            new Input(cuv::extents[bs][ds.train_data.shape(1)],"input")); 
+    boost::shared_ptr<ParameterInput> input(
+            new ParameterInput(cuv::extents[bs][ds.train_data.shape(1)],"input")); 
 
 
     ae_type ae(fa*fb, ds.binary); // creates simple autoencoder

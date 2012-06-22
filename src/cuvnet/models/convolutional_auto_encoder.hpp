@@ -24,10 +24,10 @@ class conv_auto_encoder
 : virtual public generic_auto_encoder
 , public Regularizer
 {
-    protected:
+    public:
 
-        boost::shared_ptr<Input> m_weights1, m_weights2;
-        boost::shared_ptr<Input> m_bias1, m_bias2;
+        boost::shared_ptr<ParameterInput> m_weights1, m_weights2;
+        boost::shared_ptr<ParameterInput> m_bias1, m_bias2;
 
         unsigned int m_filter_size, m_n_filters, m_n_channels;
 
@@ -37,10 +37,10 @@ class conv_auto_encoder
                 inp->visit(determine_shapes_visitor()); 
                 m_n_channels = inp->result()->shape[1];
 
-                m_weights1.reset(new Input(cuv::extents[m_n_channels][m_filter_size*m_filter_size][m_n_filters], "weights1"));
-                m_weights2.reset(new Input(cuv::extents[m_n_filters][m_filter_size*m_filter_size][m_n_channels], "weights2"));
-                m_bias1.reset(new Input(cuv::extents[m_n_filters], "bias_hid"));
-                m_bias2.reset(new Input(cuv::extents[m_n_channels], "bias_out"));
+                m_weights1.reset(new ParameterInput(cuv::extents[m_n_channels][m_filter_size*m_filter_size][m_n_filters], "weights1"));
+                m_weights2.reset(new ParameterInput(cuv::extents[m_n_filters][m_filter_size*m_filter_size][m_n_channels], "weights2"));
+                m_bias1.reset(new ParameterInput(cuv::extents[m_n_filters], "bias_hid"));
+                m_bias2.reset(new ParameterInput(cuv::extents[m_n_channels], "bias_out"));
             }
             return tanh(
                     mat_plus_vec(

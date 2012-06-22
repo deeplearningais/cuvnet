@@ -23,7 +23,7 @@ using std::printf;
 
 TEST(op_test,wiring){
 	typedef boost::shared_ptr<Op> ptr_t;
-    ptr_t inp = boost::make_shared<Input>(cuv::extents[10][20]);
+    ptr_t inp = boost::make_shared<ParameterInput>(cuv::extents[10][20]);
     ptr_t id  = boost::make_shared<Identity>(inp->result());
 
     // find input object
@@ -45,11 +45,11 @@ TEST(op_test,wiring){
 
 TEST(op_test,fprop_and_bprop){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[10][20]);
+    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[10][20]);
     ptr_t pow                     = boost::make_shared<Pow>(2,inp->result());
     boost::shared_ptr<Sink> out = boost::make_shared<Sink>(pow->result());
 
-    boost::dynamic_pointer_cast<Input>(inp)->data() = 2.f;
+    boost::dynamic_pointer_cast<ParameterInput>(inp)->data() = 2.f;
 
     // tell that we want derivative w.r.t. all params
     param_collector_visitor pcv;
@@ -81,14 +81,14 @@ TEST(op_test,fprop_and_bprop){
     pow->result()->delta.data() = 1.f;
     pow->bprop();
     inp->bprop();
-    EXPECT_EQ(inp->result()->delta.cdata()[0],4);
+    EXPECT_EQ(inp->delta()[0],4);
 }
 
 TEST(op_test,toposort){
     typedef boost::shared_ptr<Op> ptr_t;
 
-    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[8][3]);
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8][3]);
     ptr_t func0		       = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
     ptr_t func1		       = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
     ptr_t func 		       = boost::make_shared<Axpby>(func0->result(), func1->result(), 1.3,1.5);
@@ -114,7 +114,7 @@ TEST(op_test,toposort){
 
 TEST(op_test, destruction){
 	typedef boost::shared_ptr<Op> ptr_t;
-	boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[10][20]);
+	boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[10][20]);
 	ptr_t id                      = boost::make_shared<Identity>(inp->result());
 	ptr_t pow                     = boost::make_shared<Pow>(2,id->result());
 
@@ -145,8 +145,8 @@ TEST(op_test, destruction){
 
 TEST(op_test, write_graphviz){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                     = boost::make_shared<Axpby>(inp0->result(), inp1->result(), 1.3, -2.5);
     func                           = boost::make_shared<Pow>(2.f,func->result());
     std::ofstream os("test.dot");

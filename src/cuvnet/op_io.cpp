@@ -18,6 +18,7 @@ BOOST_CLASS_EXPORT(Op);
 BOOST_CLASS_EXPORT(::cuvnet::detail::op_param<Op::value_type> );
 BOOST_CLASS_EXPORT(::cuvnet::detail::op_result<Op::value_type> );
 BOOST_CLASS_EXPORT(Input);
+BOOST_CLASS_EXPORT(ParameterInput);
 BOOST_CLASS_EXPORT(Sink);
 BOOST_CLASS_EXPORT(Identity);
 BOOST_CLASS_EXPORT(Axpby);

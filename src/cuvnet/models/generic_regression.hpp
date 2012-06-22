@@ -22,7 +22,7 @@ class generic_regression
          * this is the type of a `function', eg the output or the loss.
          */
         typedef boost::shared_ptr<Op> op_ptr;
-        typedef boost::shared_ptr<Input> input_ptr; 
+        typedef boost::shared_ptr<ParameterInput> input_ptr; 
     protected:
        op_ptr m_input;    ///< x 
        op_ptr m_target;   ///< y
@@ -48,8 +48,8 @@ class generic_regression
             unsigned int input_dim = m_input->result()->shape[1]; 
             m_target->visit(determine_shapes_visitor());
             unsigned int m_target_dim = target->result()->shape[1];  
-            m_weights.reset(new Input(cuv::extents[input_dim][m_target_dim],"weights"));
-            m_bias.reset(new Input(cuv::extents[m_target_dim],             "bias"));
+            m_weights.reset(new ParameterInput(cuv::extents[input_dim][m_target_dim],"weights"));
+            m_bias.reset(new ParameterInput(cuv::extents[m_target_dim],             "bias"));
 
             m_est      = estimator(input);
 

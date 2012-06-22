@@ -18,14 +18,14 @@ using namespace cuvnet::derivative_testing;
 
 TEST(derivative_test, derivative_test_pipe){
    typedef boost::shared_ptr<Op> ptr_t;
-   boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+   boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
    ptr_t func                    = boost::make_shared<Pipe>(inp->result(),0);
    derivative_tester(*func);
 }
 TEST(derivative_test, derivative_test_row_select){
    typedef boost::shared_ptr<Op> ptr_t;
-   boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-   boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+   boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+   boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
 
    ptr_t func                    = row_select(inp0,inp1,1);
 
@@ -34,26 +34,26 @@ TEST(derivative_test, derivative_test_row_select){
 }
 TEST(derivative_test, derivative_test_pow){
    typedef boost::shared_ptr<Op> ptr_t;
-   boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+   boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
    ptr_t pow                     = boost::make_shared<Pow>(2,inp->result());
    derivative_tester(*pow);
 }
 TEST(derivative_test, derivative_test_exp){
    typedef boost::shared_ptr<Op> ptr_t;
-   boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+   boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
    ptr_t exp                     = boost::make_shared<Exp>(2,inp->result());
    derivative_tester(*exp,0,false,0.01);
 }
 TEST(derivative_test, derivative_test_abs){
    typedef boost::shared_ptr<Op> ptr_t;
-   boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+   boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
    ptr_t func                    = boost::make_shared<Abs>(inp->result());
    derivative_tester(*func);
 }
 
 TEST(derivative_test, derivative_test_log){
    typedef boost::shared_ptr<Op> ptr_t;
-   boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+   boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
    boost::shared_ptr<Pow>    pw  = boost::make_shared<Pow>(2, inp->result());
    ptr_t func                    = boost::make_shared<Log>(pw->result());
    derivative_tester(*func);
@@ -61,45 +61,45 @@ TEST(derivative_test, derivative_test_log){
 
 TEST(derivative_test, derivative_test_mean){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                    = boost::make_shared<Mean>(inp->result());
     derivative_tester(*func);
 }
 
 TEST(derivative_test, derivative_test_tanh){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                    = boost::make_shared<Tanh>(inp->result());
     derivative_tester(*func);
 }
 TEST(derivative_test, derivative_test_sin){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                    = boost::make_shared<Sin>(inp->result());
     derivative_tester(*func);
 }
 TEST(derivative_test, derivative_test_cos){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                    = boost::make_shared<Cos>(inp->result());
     derivative_tester(*func);
 }
 
 TEST(derivative_test, derivative_test_add_scalar){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                    = boost::make_shared<AddScalar>(1.f,inp->result());
     derivative_tester(*func);
 }
 TEST(derivative_test, derivative_test_mult_scalar){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                    = boost::make_shared<MultScalar>(1.5f,inp->result());
     derivative_tester(*func);
 }
 TEST(derivative_test, derivative_test_subtract_from_scalar){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     //ptr_t func                    = boost::make_shared<SubtractFromScalar>(1.f,inp->result());
     ptr_t func                    = 1.f-inp;
     derivative_tester(*func);
@@ -107,56 +107,56 @@ TEST(derivative_test, derivative_test_subtract_from_scalar){
 
 TEST(derivative_test, derivative_test_multiply){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                     = boost::make_shared<Multiply>(inp0->result(), inp1->result());
     derivative_tester(*func);
 }
 TEST(derivative_test, derivative_test_atan2){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[5], "y");
-    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[5], "x");
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[5], "y");
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[5], "x");
     ptr_t func                     = boost::make_shared<Atan2>(inp0->result(), inp1->result());
     derivative_tester(*func);
 }
 TEST(derivative_test, derivative_test_neg_cross_entropy_logistic){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[5]);
-    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[5]);
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[5]);
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[5]);
     ptr_t func                     = boost::make_shared<NegCrossEntropyOfLogistic>(inp0->result(), inp1->result());
     derivative_tester(*func);
 }
 TEST(derivative_test, bernoulli_kl){
 	typedef boost::shared_ptr<Op> ptr_t;
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[5], "inp0");
-        boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[5], "inp1");
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[5], "inp0");
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[5], "inp1");
         inp0->set_derivable(false);
         ptr_t func                     = boost::make_shared<BernoulliKullbackLeibler>(inp0->result(), inp1->result());
         derivative_tester(*func,0,false, .003, 0.1, 0.9);
     }
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[5], "inp0");
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[5], "inp0");
         ptr_t func                     = boost::make_shared<BernoulliKullbackLeibler>(0.5f, inp0->result());
         derivative_tester(*func,0,false,.003,0.1,0.9); // test in the range of 0.1, 0.9
     }
 }
 TEST(derivative_test, derivative_test_axpby){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                     = boost::make_shared<Axpby>(inp0->result(), inp1->result(), 1.3, -2.5);
     derivative_tester(*func);
 }
 TEST(derivative_test, derivative_test_sum_mat_to_vec){
 	typedef boost::shared_ptr<Op> ptr_t;
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),0);
         derivative_tester(*func);
     }
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1);
         derivative_tester(*func);
     }
@@ -165,13 +165,13 @@ TEST(derivative_test, derivative_test_sum_mat_to_vec3d){
 	typedef boost::shared_ptr<Op> ptr_t;
     {
         std::cout << "axis=0" << std::endl;
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5][4]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),0);
         derivative_tester(*func);
     }
     {
         std::cout << "axis=1" << std::endl;
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5][4]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),2);
         derivative_tester(*func);
     }
@@ -181,14 +181,14 @@ TEST(derivative_test, derivative_test_sum_mat_to_vec3d){
  *TEST(derivative_test, derivative_test_noiser){
  *        cuv::initialize_mersenne_twister_seeds();
  *        typedef boost::shared_ptr<Op> ptr_t;
- *    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[4][5]);
+ *    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5]);
  *    ptr_t func                     = boost::make_shared<Noiser>(inp0->result());
  *    derivative_tester(*func);
  *}
  */
 TEST(derivative_test, derivative_test_sum){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[2][2]);
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[2][2]);
     ptr_t func                     = boost::make_shared<Sum>(inp0->result());
     derivative_tester(*func);
 }
@@ -196,32 +196,32 @@ TEST(derivative_test, derivative_test_sum){
 TEST(derivative_test, derivative_test_prod){
 	typedef boost::shared_ptr<Op> ptr_t;
 	{
-		boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[5][3]);
-		boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][8]);
+		boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[5][3]);
+		boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][8]);
 		ptr_t func		     = boost::make_shared<Prod>(inp0->result(), inp1->result());
 		derivative_tester(*func);
 	}
 	{
-		boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-		boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][8]);
+		boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+		boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][8]);
 		ptr_t func		     = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t');
 		derivative_tester(*func);
 	}
 	{
-		boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[5][3]);
-		boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[8][3]);
+		boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[5][3]);
+		boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8][3]);
 		ptr_t func		     = boost::make_shared<Prod>(inp0->result(), inp1->result(),'n','t');
 		derivative_tester(*func);
 	}
 	{
-		boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-		boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[8][3]);
+		boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+		boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8][3]);
 		ptr_t func		     = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
 		derivative_tester(*func);
 	}
 	{
-		boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-		boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[8][3]);
+		boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+		boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8][3]);
 		ptr_t func0		       = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
 		ptr_t func1		       = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
 		ptr_t func 		       = boost::make_shared<Axpby>(func0->result(), func1->result(), 1.3,1.5);
@@ -231,8 +231,8 @@ TEST(derivative_test, derivative_test_prod){
 
 TEST(derivative_test, derivative_test_sq_axpby){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                     = boost::make_shared<Axpby>(inp0->result(), inp0->result(), 1.5f, -1.8f);
     func                           = boost::make_shared<Pow>(2.f,func->result());
     derivative_tester(*func);
@@ -240,20 +240,20 @@ TEST(derivative_test, derivative_test_sq_axpby){
 
 TEST(derivative_test, derivative_test_xtx){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                     = inp0*inp0;
     derivative_tester(*func);
 }
 TEST(derivative_test, derivative_test_xt1mx){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                     = inp0*(1.f-inp0);
     derivative_tester(*func);
 }
 
 TEST(derivative_test, derivative_test_add_to_param){
 	typedef boost::shared_ptr<Op> ptr_t;
-    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t tmp0                     = boost::make_shared<Pow>(2.f, inp0->result());
     ptr_t tmp1                     = boost::make_shared<Pow>(3.f, inp0->result());
     ptr_t func                     = boost::make_shared<Sum>(tmp0->result());
@@ -264,12 +264,12 @@ TEST(derivative_test, derivative_test_add_to_param){
 TEST(derivative_test, derivative_test_softmax){
 	typedef boost::shared_ptr<Op> ptr_t;
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<Softmax>(inp0->result(), 0);
         derivative_tester(*func);
     }
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<Softmax>(inp0->result(), 1);
         derivative_tester(*func);
     }
@@ -278,30 +278,30 @@ TEST(derivative_test, derivative_test_softmax){
 TEST(derivative_test, derivative_test_mll){
 	typedef boost::shared_ptr<Op> ptr_t;
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-        boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         inp1->set_derivable(false);
         ptr_t func                     = boost::make_shared<MultinomialLogisticLoss>(inp0->result(), inp1->result(), 0);
         derivative_tester(*func);
     }
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-        boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         inp1->set_derivable(false);
         ptr_t func                     = boost::make_shared<MultinomialLogisticLoss>(inp0->result(), inp1->result(), 1);
         derivative_tester(*func);
     }
     ///// SoftMax result of MultinomialLogisticLoss
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-        boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         inp1->set_derivable(false);
         ptr_t func                     = boost::make_shared<MultinomialLogisticLoss>(inp0->result(), inp1->result(), 0);
         derivative_tester(*func,1);
     }
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-        boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3][5]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         inp1->set_derivable(false);
         ptr_t func                     = boost::make_shared<MultinomialLogisticLoss>(inp0->result(), inp1->result(), 1);
         derivative_tester(*func,1);
@@ -311,15 +311,15 @@ TEST(derivative_test, derivative_test_mll){
 TEST(derivative_test, derivative_test_mat_plus_vec){
 	typedef boost::shared_ptr<Op> ptr_t;
     {
-	    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-	    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3]);
+	    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+	    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3]);
 	    ptr_t func		           = boost::make_shared<MatPlusVec>(inp0->result(), inp1->result(), 0);
 
 	    derivative_tester(*func);
     }
     {
-	    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-	    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents   [5]);
+	    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+	    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [5]);
 	    ptr_t func		           = boost::make_shared<MatPlusVec>(inp0->result(), inp1->result(), 1);
 
 	    derivative_tester(*func);
@@ -328,15 +328,15 @@ TEST(derivative_test, derivative_test_mat_plus_vec){
 TEST(derivative_test, derivative_test_mat_times_vec){
 	typedef boost::shared_ptr<Op> ptr_t;
     {
-	    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-	    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[3]);
+	    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+	    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3]);
 	    ptr_t func		           = boost::make_shared<MatTimesVec>(inp0->result(), inp1->result(), 0);
 
 	    derivative_tester(*func);
     }
     {
-	    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[3][5]);
-	    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents   [5]);
+	    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+	    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [5]);
 	    ptr_t func		           = boost::make_shared<MatTimesVec>(inp0->result(), inp1->result(), 1);
 
 	    derivative_tester(*func);
@@ -362,8 +362,8 @@ TEST(derivative_test, derivative_test_convolve){
             //unsigned int nResPix   = nImgPixX-nFiltPixX+1;
 
             {
-                boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[nImgChan][nImgPixX*nImgPixX][nImg], "inputs");
-                boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[nFiltChan][nFiltPixX*nFiltPixX][nFilt], "weights");
+                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixX*nImgPixX][nImg], "inputs");
+                boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFiltChan][nFiltPixX*nFiltPixX][nFilt], "weights");
                 ptr_t func                       = boost::make_shared<Convolve>(inp0->result(), inp1->result(), padding);
 
                 derivative_tester(*func,0,false,.03f);
@@ -387,8 +387,8 @@ TEST(derivative_test, derivative_test_convolve){
 
             //unsigned int nResPix   = nImgPixX-nFiltPixX+1;
             {
-                boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[nImgChan][nImgPixX*nImgPixX][nImg],"inputs");
-                boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[nFiltChan][nFiltPixX*nFiltPixX][nFilt],"weights");
+                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixX*nImgPixX][nImg],"inputs");
+                boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFiltChan][nFiltPixX*nFiltPixX][nFilt],"weights");
                 ptr_t func                     = boost::make_shared<Convolve>(inp0->result(), inp1->result(), padding);
 
                 derivative_tester(*func,0,false,.03);
@@ -411,8 +411,8 @@ TEST(derivative_test, derivative_test_convolve_reorder){
     unsigned int nFiltPixX  = 3;
     unsigned int nFilt     = 16; 
 
-    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[nImgChan][nImgPixX*nImgPixX][nImg]);
-    boost::shared_ptr<Input>  inp1 = boost::make_shared<Input>(cuv::extents[nFiltChan][nFiltPixX*nFiltPixX][nFilt]);
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixX*nImgPixX][nImg]);
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFiltChan][nFiltPixX*nFiltPixX][nFilt]);
     {
 	    ptr_t func		               = boost::make_shared<ReorderForConv>(inp0->result());
 	    derivative_tester(*func);
@@ -433,7 +433,7 @@ TEST(derivative_test, derivative_test_convolve_pooling){
     unsigned int nImg     = 1;
 
     {
-	    boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[nImgChan][nImgPixX*nImgPixX][nImg]);
+	    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixX*nImgPixX][nImg]);
 	    ptr_t func		               = boost::make_shared<LocalPooling>(inp0->result(), cuv::alex_conv::PT_AVG);
 
 	    derivative_tester(*func);
@@ -443,7 +443,7 @@ TEST(derivative_test, derivative_test_convolve_pooling){
 TEST(derivative_test, derivative_test_flatten){
 	typedef boost::shared_ptr<Op> ptr_t;
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3]);
         ptr_t func                       = boost::make_shared<Flatten>(inp0->result());
 
         func->visit(determine_shapes_visitor());
@@ -453,7 +453,7 @@ TEST(derivative_test, derivative_test_flatten){
         derivative_tester(*func);
     }
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3]);
         ptr_t func                       = boost::make_shared<Flatten>(inp0->result(), 2);
 
         func->visit(determine_shapes_visitor());
@@ -465,7 +465,7 @@ TEST(derivative_test, derivative_test_flatten){
     }
 
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3][2]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3][2]);
         ptr_t func                       = boost::make_shared<Flatten>(inp0->result(), 3);
 
         func->visit(determine_shapes_visitor());
@@ -480,7 +480,7 @@ TEST(derivative_test, derivative_test_flatten){
 TEST(derivative_test, derivative_test_reshape){
 	typedef boost::shared_ptr<Op> ptr_t;
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3]);
         ptr_t func                     = boost::make_shared<Reshape>(inp0->result(), cuv::extents[3][8][3]);
 
         func->visit(determine_shapes_visitor());
@@ -492,14 +492,14 @@ TEST(derivative_test, derivative_test_reshape){
         derivative_tester(*func);
     }
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3]);
         ptr_t rshp                     = boost::make_shared<Reshape>(inp0->result(), cuv::extents[3][-1]);
         ptr_t func                    = boost::make_shared<Pow>(2,rshp->result());
 
         derivative_tester(*func);
     }
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3]);
         ptr_t func                       = boost::make_shared<Reshape>(inp0->result(), cuv::extents[8*3][-1]);
 
         func->visit(determine_shapes_visitor());
@@ -509,7 +509,7 @@ TEST(derivative_test, derivative_test_reshape){
     }
 
     {
-        boost::shared_ptr<Input>  inp0 = boost::make_shared<Input>(cuv::extents[8][3][3][2]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3][2]);
         ptr_t func                       = boost::make_shared<Reshape>(inp0->result(), cuv::extents[8][-1][3]);
 
         func->visit(determine_shapes_visitor());
