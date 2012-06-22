@@ -7,7 +7,7 @@
 using namespace std;
 namespace cuvnet
 {
-        random_translation::random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int translate_size):
+        random_translation::random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int max_translation):
             m_num_train_example(num_train_examples),
             m_num_test_example(num_test_examples),
             m_dim(dim),
@@ -15,8 +15,8 @@ namespace cuvnet
             m_distance(distance),
             m_sigma(sigma)
         {
-            train_data.resize(cuv::extents[m_num_train_example][m_dim][3]);
-            test_data.resize(cuv::extents[m_num_test_example][m_dim][3]);
+            train_data.resize(cuv::extents[3][m_num_train_example][m_dim]);
+            test_data.resize(cuv::extents[3][m_num_test_example][m_dim]);
             
             // fills the train and test sets with random uniform numbers
             cuv::fill_rnd_uniform(train_data);
@@ -24,13 +24,28 @@ namespace cuvnet
             cuv::apply_scalar_functor(train_data,cuv::SF_LT,m_thres);
             cuv::apply_scalar_functor(test_data,cuv::SF_LT,m_thres);
             
+            // creates the vector for random translation. It is used to randomly translate each example vector
+            srand ( time(NULL) );
+            vector<int> random_translations_train(train_data.shape(1));
+            for(unsigned int i = 0; i < train_data.shape(1); i++){
+                // For each example, the random translation is a number from  [- max_translation, + max_translation]
+                random_translations_train[i] = rand() % (2 * max_translation  + 1) - max_translation;
+            }
+
+            vector<int> random_translations_test(test_data.shape(1));
+            for(unsigned int i = 0; i < test_data.shape(1); i++){
+                // For each example, the random translation is a number from  [- max_translation, + max_translation]
+                random_translations_test[i] = rand() % (2 * max_translation  + 1) - max_translation;
+            }
+
+
             // translate train data 
-            translate_data(train_data, 1, translate_size);
-            translate_data(train_data, 2, translate_size);
+            translate_data(train_data, 1, random_translations_train);
+            translate_data(train_data, 2, random_translations_train);
 
             // translate test data 
-            translate_data(test_data, 1, translate_size);
-            translate_data(test_data, 2, translate_size);
+            translate_data(test_data, 1, random_translations_test);
+            translate_data(test_data, 2, random_translations_test);
 
 
             // creates gaussian filter
@@ -44,6 +59,7 @@ namespace cuvnet
             // subsamples each "subsample" element
             subsampling(train_data, subsample);
             subsampling(test_data,subsample);
+
 
         }
 
@@ -59,12 +75,12 @@ namespace cuvnet
 
 
         void convolve_last_dim(cuv::tensor<float,cuv::host_memory_space>  &data, const cuv::tensor<float,cuv::host_memory_space>  & kernel){
-            int dim = data.shape(1);
+            int dim = data.shape(2);
             cuv::tensor<float,cuv::host_memory_space>  temp_data(data.copy());
-            for (int ex = 0; ex < (int)data.shape(0); ex++){
-                for(int d = 0; d < dim; d++){
-                    for(int t = 0; t < (int)data.shape(2); t++){
-                         
+            for(int t = 0; t < (int)data.shape(0); t++){
+                for (int ex = 0; ex < (int)data.shape(1); ex++){
+                    for(int d = 0; d < dim; d++){
+
                         int sum = 0;  
                         int distance = (kernel.size() - 1) / 2;
                         for(int dist = - distance; dist <= distance; dist++){
@@ -76,10 +92,10 @@ namespace cuvnet
                             else if(wrap_index >= dim)
                                 // go to the left side
                                 wrap_index = dim - (wrap_index);        
-                            sum +=  data(ex, wrap_index, t) * kernel(dist + distance); 
+                            sum +=  data(t, ex, wrap_index) * kernel(dist + distance); 
                         }
                         // update the element
-                        temp_data(ex, d ,t) = sum;
+                        temp_data(t, ex, d) = sum;
                     }
                 } 
             }
@@ -88,33 +104,34 @@ namespace cuvnet
         
 
         void subsampling(cuv::tensor<float,cuv::host_memory_space>  &data, int each_elem){
-            assert(data.shape(1) % each_elem == 0);
-            cuv::tensor<float,cuv::host_memory_space>  tmp_data(cuv::extents[data.shape(0)][data.shape(1) / each_elem][data.shape(2)]);
-            for(int i = 0; i < tmp_data.shape(0); i++){
-                for(int j = 0; j < tmp_data.shape(1); j++){
-                    for(int k = 0; k < tmp_data.shape(2); k++){
-                        tmp_data(i,j,k) = data(i,j * each_elem,k);
+            assert(data.shape(2) % each_elem == 0);
+            cuv::tensor<float,cuv::host_memory_space>  tmp_data(cuv::extents[data.shape(0)][data.shape(1)][data.shape(2) / each_elem]);
+            for(unsigned int i = 0; i < tmp_data.shape(0); i++){
+                for(unsigned int j = 0; j < tmp_data.shape(1); j++){
+                    for(unsigned int k = 0; k < tmp_data.shape(2); k++){
+                        tmp_data(i, j, k) = data(i, j, k * each_elem);
                     }
                 }
             }
-            data.resize(cuv::extents[data.shape(0)][data.shape(1) / each_elem][data.shape(2)]);
+            data.resize(cuv::extents[data.shape(0)][data.shape(1)][data.shape(2) / each_elem]);
             data = tmp_data.copy();
         }
         
 
         
-        void translate_data(cuv::tensor<float,cuv::host_memory_space>  &data, int dim, int trans_size){
+        // the second dim is the translated version of the first,
+        // and third dimension is translated version of the second
+        void translate_data(cuv::tensor<float,cuv::host_memory_space>  &data, int dim, const vector<int> &rand_translations){
             assert(dim == 1 || dim == 2);
-            for(int i = 0; i < data.shape(0); i++){
-                for(int j = 0; j < data.shape(1); j++){
-                    // the second dim is the translated version of the first
-                    int index = j - trans_size;
+            for(unsigned int i = 0; i < data.shape(1); i++){
+                for(unsigned int j = 0; j < data.shape(2); j++){
+                    int index = j - rand_translations[i];
                     // wrap around if the index goes out of border
                     if(index < 0)
-                        index = data.shape(1) + index;
-                    else if(index >= data.shape(1))
-                        index = index - data.shape(1);
-                    data(i, j, dim) = data(i, index, dim - 1);
+                        index = data.shape(2) + index;
+                    else if(index >= (int)data.shape(2))
+                        index = index - data.shape(2);
+                    data(dim, i, j) = data(dim - 1, i, index);
                 }
             }
         }
