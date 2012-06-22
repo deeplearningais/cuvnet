@@ -3,6 +3,8 @@
 
 #include "simple_auto_encoder.hpp"
 
+namespace cuvnet
+{
 /**
  * This is a straight-forward symmetric auto-encoder.
  *
@@ -43,6 +45,7 @@ class denoising_auto_encoder
     {
     }
 };
+}
 
 
 #endif /* __DENOISING_AUTO_ENCODER_HPP__ */

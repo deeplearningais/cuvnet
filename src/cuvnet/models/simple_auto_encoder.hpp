@@ -4,6 +4,8 @@
 #include <boost/assign.hpp>
 #include "generic_auto_encoder.hpp"
 
+namespace cuvnet
+{
 /**
  * This is a straight-forward symmetric auto-encoder.
  *
@@ -146,4 +148,5 @@ class simple_auto_encoder_no_regularization
     }
 };
 
+} // namespace cuvnet
 #endif /* __SIMPLE_AUTO_ENCODER_HPP__ */

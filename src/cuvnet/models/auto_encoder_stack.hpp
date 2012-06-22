@@ -3,6 +3,8 @@
 
 #include "generic_auto_encoder.hpp"
 
+namespace cuvnet
+{
 class simple_auto_encoder_no_regularization;
 template<class Regularizer=simple_auto_encoder_no_regularization>
 
@@ -146,6 +148,8 @@ class auto_encoder_stack
             reset_weights();
         }
 };
+
+} // namespace cuvnet
 
 
 #endif /* __AUTO_ENCODER_STACK_HPP__ */

@@ -15,6 +15,7 @@
 
 #include "cuvnet/models/simple_auto_encoder.hpp"
 
+using namespace cuvnet;
 namespace ll = boost::lambda;
 typedef simple_auto_encoder<simple_auto_encoder_weight_decay> ae_type;
 
