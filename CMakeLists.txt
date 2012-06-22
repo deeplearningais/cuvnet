@@ -40,6 +40,6 @@ ENDIF(DOXYGEN_FOUND)
 
 ENABLE_TESTING()
 add_subdirectory(src)
-
+add_subdirectory(src/datasets)
 
 
