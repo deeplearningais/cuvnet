@@ -1,3 +1,4 @@
+add_executable(obj_detection obj_detection.cpp)
 add_executable(auto_enc auto_enc.cpp )
 add_executable(conv_auto_enc conv_auto_enc.cpp )
 add_executable(logistic_regression logistic_regression.cpp )
@@ -12,6 +13,7 @@ target_link_libraries(conv_auto_enc ${Boost_LIBRARIES} cuv cuv_tools cuv_basics 
 target_link_libraries(lenet ${Boost_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)
 target_link_libraries(logistic_regression ${Boost_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)
 target_link_libraries(mlp ${Boost_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)
+target_link_libraries(obj_detection ${Boost_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools cuvnet_datasets pthread)
 
 #target_link_libraries(stacked_auto_enc2 ${Boost_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)
 #target_link_libraries(relational_ae ${Boost_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)

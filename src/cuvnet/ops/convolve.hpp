@@ -45,7 +45,7 @@ namespace cuvnet
                  * @param filters nFiltChannels x nFiltPix x nFilt
                  * @param partial_sum optimization parameter of alex' convolution routines. Good values are probably 4 or 8.
                  */
-                Convolve(result_t& images, result_t& filters, bool padding, unsigned int partial_sum=0)
+                Convolve(result_t& images, result_t& filters, bool padding, unsigned int partial_sum=4)
                     :Op(2,1)
                     ,m_nGroups(1)
                     ,m_partial_sum(partial_sum)

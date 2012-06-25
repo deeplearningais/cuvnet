@@ -44,9 +44,9 @@ namespace cuvnet
             /// a fully loaded pattern 
             struct pattern{
                 voc_detection_dataset::image_meta_info meta_info;
-                cuv::tensor<unsigned char,cuv::host_memory_space> img;
-                cuv::tensor<unsigned char,cuv::host_memory_space> tch;
-                cuv::tensor<unsigned char,cuv::host_memory_space> ign;
+                cuv::tensor<float,cuv::host_memory_space> img;
+                cuv::tensor<float,cuv::host_memory_space> tch;
+                cuv::tensor<float,cuv::host_memory_space> ign;
             };
 
         public:
@@ -71,6 +71,8 @@ namespace cuvnet
             unsigned int size_available()const;
 
             void get_batch(std::list<pattern>& dest, unsigned int n);
+
+            unsigned int trainset_size()const{ return m_training_set.size(); }
 
         private:
             /**

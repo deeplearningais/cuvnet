@@ -74,7 +74,6 @@ class obj_detector
                                     m_conv2_weights, pad),
                                 m_bias2, 0)),
                         cuv::alex_conv::PT_MAX); 
-            //hl2 = reorder_from_conv(hl2);
             
             // pool target twice
             op_ptr subsampled_target = local_pool( 

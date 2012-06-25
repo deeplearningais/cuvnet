@@ -129,9 +129,16 @@ namespace cuvnet
             //tch.blur(5.f);
 
             // convert to cuv
-            pat.img = cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[3][172][172] , img.data()).copy();
-            pat.tch = cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[20][172][172], tch.data()).copy();
-            pat.ign = cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[20][172][172], ign.data()).copy();
+            pat.img.resize(cuv::extents[3][172* 172]);
+            cuv::convert(pat.img, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[3][172* 172] , img.data()));
+            pat.tch.resize(cuv::extents[20][172* 172]);
+            cuv::convert(pat.tch, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[20][172* 172], tch.data()));
+            pat.ign.resize(cuv::extents[20][172* 172]);
+            cuv::convert(pat.ign, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[20][172* 172], ign.data()));
+            pat.img /= 255.f;
+            pat.tch /= 255.f;
+            pat.ign /= 255.f;
+            pat.img -= 0.5f;
             
             // put in pipe
             boost::mutex::scoped_lock lock(*mutex);
@@ -273,6 +280,7 @@ namespace cuvnet
     {
         read_meta_info(m_training_set, train_filename, verbose);
         read_meta_info(m_test_set, test_filename, verbose);
+        std::random_shuffle(m_training_set.begin(), m_training_set.end());
         switch_dataset(SS_TRAIN);
     }
 
