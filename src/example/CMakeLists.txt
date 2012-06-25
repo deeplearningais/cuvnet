@@ -1,4 +1,5 @@
 add_executable(auto_enc auto_enc.cpp )
+add_executable(relational_auto_encoder relational_auto_encoder.cpp )
 add_executable(conv_auto_enc conv_auto_enc.cpp )
 add_executable(logistic_regression logistic_regression.cpp )
 add_executable(mlp mlp.cpp )
@@ -7,6 +8,7 @@ add_executable(lenet lenet.cpp )
 #add_executable(relational_ae relational_ae.cpp)
 #add_executable(descriptor_classification descriptor_classification.cpp)
 
+target_link_libraries(relational_auto_encoder ${Boost_LIBRARIES} cuv cuv_tools  cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuvnet_datasets cuv_opt npy cuvnet_tools pthread)
 target_link_libraries(auto_enc ${Boost_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)
 target_link_libraries(conv_auto_enc ${Boost_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)
 target_link_libraries(lenet ${Boost_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)
