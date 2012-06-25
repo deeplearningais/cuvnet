@@ -174,3 +174,13 @@ TEST(VOC_Detection, init){
         }
     }
 }
+
+TEST(VOC_Detection, realdata){
+    const char* realtest = "/home/local/datasets/VOC2011/voc_detection_val.txt";
+    voc_detection_dataset ds(realtest, realtest);
+
+    while(ds.size_available() < 2);
+
+    std::list<voc_detection_dataset::pattern> L;
+    ds.get_batch(L, 2);
+}

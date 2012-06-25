@@ -1,12 +1,55 @@
 #include<iostream>
 #include<fstream>
 #include<queue>
+#include <boost/foreach.hpp>
 #include <boost/thread/thread.hpp>
-#include "voc_detection.hpp"
+
+#define cimg_use_jpeg
 #include <CImg.h>
+
+#include "voc_detection.hpp"
+
 
 namespace cuvnet
 {
+
+    void square(cimg_library::CImg<unsigned char>& orig, unsigned int sq_size, voc_detection_dataset::image_meta_info& meta){
+        unsigned int orig_rows = orig.height();
+        unsigned int orig_cols = orig.width();
+
+        unsigned int new_rows = orig.height() >= orig.width()  ? sq_size : orig.height()/(float)orig.width() * sq_size;
+        unsigned int new_cols = orig.width() >= orig.height() ? sq_size : orig.width()/(float)orig.height() * sq_size;
+
+        // downsample
+        orig.resize(new_cols, new_rows, -100/* z */, -100 /* c */, 3 /* 3: linear interpolation */);
+
+        // square
+        orig.resize(sq_size, sq_size, -100, -100, 0 /* no interpolation */, 1 /* 0: zero border, 1: nearest neighbor */, 0.5f, 0.5f);
+
+        float stretchx = new_cols / (float)orig_cols;
+        float stretchy = new_rows / (float)orig_rows;
+        float offx     = 0.5f * stretchx * std::max(0, (int)orig_rows - (int)orig_cols);
+        float offy     = 0.5f * stretchy * std::max(0, (int)orig_cols - (int)orig_rows);
+        std::cout << "stretchx:" << stretchx << " stretchy:" << stretchy << " offx:" << offx << " offy:" << offy << std::endl;
+
+        unsigned int cnt=1;
+        BOOST_FOREACH(voc_detection_dataset::object& o, meta.objects){
+            o.xmin = stretchx * o.xmin + offx;
+            o.ymin = stretchy * o.ymin + offy;
+            o.xmax = std::min((float)orig.width()-1, stretchx * o.xmax + offx);
+            o.ymax = std::min((float)orig.height()-1, stretchy * o.ymax + offy);
+            assert(o.xmin < o.xmax);
+            assert(o.ymin < o.ymax);
+            assert(o.xmin >= 0);
+            assert(o.ymin >= 0);
+            assert(o.xmax < sq_size);
+            assert(o.ymin < sq_size);
+            orig.draw_rectangle(o.xmin, o.ymin, 0, 0, o.xmax, o.ymax, 0, 2, 255, std::min(0.8, 0.2 * cnt++));
+        }
+
+    }
+
+
     /**
      * loads an image from file using metadata, processes it and places it in queue
      */
@@ -24,8 +67,14 @@ namespace cuvnet
             voc_detection_dataset::pattern pat;
             pat.meta_info = *meta;
             // TODO: load pat using meta
-            boost::this_thread::sleep(boost::posix_time::milliseconds(1000 + 4000 * drand48()));
+            cimg_library::CImg<unsigned char> img;
+            img.load_jpeg(meta->filename.c_str());
+            square(img, 172, pat.meta_info);
+            
             boost::mutex::scoped_lock lock(*mutex);
+
+            img.display();
+
             loaded_data->push(pat);
         }
     };
