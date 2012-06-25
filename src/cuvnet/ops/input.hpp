@@ -40,14 +40,14 @@ namespace cuvnet
                 Input(const cuv::extent_gen<D>& shape):Op(0,1), m_derivable(false), m_learnrate_factor(1.f)
                 {  
                     m_shape.resize(D);
-                    for(int i=0; i<D; i++)
+                    for(unsigned int i=0; i<D; i++)
                         m_shape[i] = shape.ranges_[i].finish();
                 }
                 template<std::size_t D>
                 Input(const cuv::extent_gen<D>& shape, const std::string& name):Op(0,1), m_name(name),m_derivable(false),m_learnrate_factor(1.f)
                 {  
                     m_shape.resize(D);
-                    for(int i=0; i<D; i++)
+                    for(unsigned int i=0; i<D; i++)
                         m_shape[i] = shape.ranges_[i].finish();
                 }
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
