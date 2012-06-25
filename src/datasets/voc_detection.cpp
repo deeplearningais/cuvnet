@@ -123,7 +123,7 @@ namespace cuvnet
             bb_teacher(ign, pat.meta_info, 20, 1., 0); // generate teacher for image (rect)
 
             ignore_margin(ign, pat.meta_info);
-            ign = (ign - tch).cut(0,255);
+            ign = 255 - (ign - tch).cut(0,255);
 
             ign.blur(5.f,5.f,0.f);
             //tch.blur(5.f);

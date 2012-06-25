@@ -11,6 +11,7 @@
 #include <cuvnet/models/convolutional_auto_encoder.hpp>
 #include <cuvnet/models/linear_regression.hpp>
 #include <cuvnet/models/logistic_regression.hpp>
+#include <cuvnet/models/object_detector.hpp>
 #include <cuvnet/models/lenet.hpp>
 #include <tools/monitor.hpp>
 #include <tools/function.hpp>
@@ -177,6 +178,24 @@ TEST_F(RandomNumberUsingTest, logistic_regression_derivative){
 
    logistic_regression lg(inp, target); 
    derivative_tester(*lg.get_loss(), 0, false, .03, 0.1, 0.9);
+}
+
+TEST_F(RandomNumberUsingTest, obj_det){
+   boost::shared_ptr<ParameterInput>  inp    = boost::make_shared<ParameterInput>(cuv::extents[2][1][28*28], "input");
+   boost::shared_ptr<ParameterInput>  ign    = boost::make_shared<ParameterInput>(cuv::extents[2][16][28*28], "ign");
+   boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[2][16][28*28], "target");
+   target->set_derivable(false); // cannot derive for target of logistic regression
+
+   obj_detector od(5,16,5,16); 
+   od.init(inp,ign,target);
+   std::cout << "---hl2--" << std::endl;
+   derivative_tester(*od.hl2, 0, true, .2, -1.0, 1.0);
+
+   std::cout << "---hl1--" << std::endl;
+   derivative_tester(*od.hl1, 0, true, .2, -1.0, 1.0);
+
+   std::cout << "---loss--" << std::endl;
+   derivative_tester(*od.get_loss(), 0, true, .3, -1.0, 1.0);
 }
 
 TEST_F(RandomNumberUsingTest, lenet_derivative){
