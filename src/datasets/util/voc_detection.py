@@ -6,6 +6,7 @@ import xml.etree.ElementTree as et
 
 
 def get_image_props(xml_filename, obj_filter):
+    """ put the contents of the XML file into a Python data structure """
     dom = et.parse(xml_filename)
     root = dom.getroot()
     objects = root.findall("object")
@@ -28,7 +29,11 @@ def get_image_props(xml_filename, obj_filter):
     return {"objects": O}
 
 
-def get_classinfo(basepath, db, img_filter, obj_filter):
+def load_metadata(basepath, db, img_filter, obj_filter):
+    """
+    for a given dataset (val, trainval), load
+    meta-data of all contained images.
+    """
     dataset_path = os.path.join(basepath,
             'TrainVal/VOCdevkit/VOC2011/ImageSets/Main/*_%s.txt' % db)
     anno_path = os.path.join(basepath,
@@ -91,7 +96,7 @@ if __name__ == "__main__":
     obj_filter = lambda x: True
     img_filter = lambda x: True
     for dset in ["trainval", "val"]:
-        D = get_classinfo(basepath, dset, img_filter, obj_filter)
+        D = load_metadata(basepath, dset, img_filter, obj_filter)
         print dset, sum((len(x["objects"]) for x in D.values()))
-        with open("%s.txt" % dset, "w") as f:
+        with open("voc_detection_%s.txt" % dset, "w") as f:
             write_for_cpp(f, basepath, D)
