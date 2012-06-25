@@ -1,6 +1,7 @@
 #ifndef __VOC_DETECTION_DATASET__
 #     define __VOC_DETECTION_DATASET__
 #include<boost/shared_ptr.hpp>
+#include<cuv.hpp>
 #include<string>
 #include<vector>
 
@@ -30,12 +31,22 @@ namespace cuvnet
             struct image_meta_info{
                 std::string filename;   ///< image file name
                 std::vector<object> objects; ///< descriptions of depicted objects
+
+                /// a 4-tuple: coordinates of original image in squared image
+                /// @{
+                unsigned int xmin;
+                unsigned int xmax;
+                unsigned int ymin;
+                unsigned int ymax;
+                /// @}
             };
 
             /// a fully loaded pattern 
             struct pattern{
                 voc_detection_dataset::image_meta_info meta_info;
-                void* data;
+                cuv::tensor<unsigned char,cuv::host_memory_space> img;
+                cuv::tensor<unsigned char,cuv::host_memory_space> tch;
+                cuv::tensor<unsigned char,cuv::host_memory_space> ign;
             };
 
         public:

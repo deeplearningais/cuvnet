@@ -5,6 +5,7 @@
 #include <cuvnet/op_utils.hpp>
 #include <datasets/random_translation.hpp>
 #include <datasets/voc_detection.hpp>
+#include <cuv/libs/cimg/cuv_cimg.hpp>
 
 using namespace cuvnet;
 
@@ -183,4 +184,12 @@ TEST(VOC_Detection, realdata){
 
     std::list<voc_detection_dataset::pattern> L;
     ds.get_batch(L, 2);
+    BOOST_FOREACH(voc_detection_dataset::pattern& pat, L){
+        cuv::libs::cimg::show(pat.img, "image");
+        for (int i = 0; i < pat.tch.shape(0); ++i)
+        {
+            cuv::libs::cimg::show(pat.ign[cuv::indices[i][cuv::index_range()][cuv::index_range()]], "ignore");
+            cuv::libs::cimg::show(pat.tch[cuv::indices[i][cuv::index_range()][cuv::index_range()]], "teacher");
+        }
+    }
 }

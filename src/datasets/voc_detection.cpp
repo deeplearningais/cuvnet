@@ -1,8 +1,10 @@
 #include<iostream>
 #include<fstream>
 #include<queue>
+#include<boost/tuple/tuple.hpp>
 #include <boost/foreach.hpp>
 #include <boost/thread/thread.hpp>
+#include <cuv.hpp>
 
 #define cimg_use_jpeg
 #include <CImg.h>
@@ -30,9 +32,14 @@ namespace cuvnet
         float stretchy = new_rows / (float)orig_rows;
         float offx     = 0.5f * stretchx * std::max(0, (int)orig_rows - (int)orig_cols);
         float offy     = 0.5f * stretchy * std::max(0, (int)orig_cols - (int)orig_rows);
-        std::cout << "stretchx:" << stretchx << " stretchy:" << stretchy << " offx:" << offx << " offy:" << offy << std::endl;
 
-        unsigned int cnt=1;
+        meta.xmin = stretchx * 0         + offx;
+        meta.xmax = stretchx * orig_cols + offx;
+        meta.ymin = stretchy * 0         + offy;
+        meta.ymax = stretchy * orig_rows + offy;
+        meta.xmax = std::min(sq_size-1, meta.xmax);
+        meta.ymax = std::min(sq_size-1, meta.ymax);
+
         BOOST_FOREACH(voc_detection_dataset::object& o, meta.objects){
             o.xmin = stretchx * o.xmin + offx;
             o.ymin = stretchy * o.ymin + offy;
@@ -44,9 +51,49 @@ namespace cuvnet
             assert(o.ymin >= 0);
             assert(o.xmax < sq_size);
             assert(o.ymin < sq_size);
-            orig.draw_rectangle(o.xmin, o.ymin, 0, 0, o.xmax, o.ymax, 0, 2, 255, std::min(0.8, 0.2 * cnt++));
         }
+    }
 
+    void bb_teacher(
+            cimg_library::CImg<unsigned char>& dst,
+            voc_detection_dataset::image_meta_info& meta,
+            unsigned int n_classes, float bbsize, int ttype)
+    {
+        dst.resize(172, 172, n_classes, 1, -1 /* -1: no interpolation, raw memory resize!*/);
+        dst = (unsigned char) 0; // initialize w/ 0
+        unsigned char color = 255;
+        bbsize /= 2.f;
+        BOOST_FOREACH(voc_detection_dataset::object& o, meta.objects){
+            unsigned int w  = o.xmax - o.xmin;
+            unsigned int h  = o.ymax - o.ymin;
+            unsigned int cx = 0.5 * (o.xmax + o.xmin) + 0.5;
+            unsigned int cy = 0.5 * (o.ymax + o.ymin) + 0.5;
+            unsigned int xmin = cx - bbsize * w;
+            unsigned int xmax = cx + bbsize * w;
+            unsigned int ymin = cy - bbsize * h;
+            unsigned int ymax = cy + bbsize * h;
+            if(ttype == 0)
+                dst.get_shared_plane(o.klass).draw_rectangle(
+                        xmin, ymin, 0, 0, 
+                        xmax, ymax, 0, 0, 
+                        color);
+            else if(ttype == 1)
+                dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, bbsize * w, bbsize * h, 0.f, &color);
+        }
+    }
+
+    void ignore_margin(
+            cimg_library::CImg<unsigned char>& dst,
+            voc_detection_dataset::image_meta_info& meta)
+    {
+        if(meta.xmin > 0)
+            dst.draw_rectangle(0,0,0,0,  meta.xmin, dst.height()-1, dst.depth()-1, dst.spectrum()-1, 255);
+        if(meta.xmax < dst.width()-1)
+            dst.draw_rectangle(meta.xmax+1,0,0,0,  dst.width()-1, dst.height()-1, dst.depth()-1, dst.spectrum()-1, 255);
+        if(meta.ymin > 0)
+            dst.draw_rectangle(0,0,0,0,  dst.width()-1, meta.ymin-1, dst.depth()-1, dst.spectrum()-1, 255);
+        if(meta.ymax < dst.height()-1)
+            dst.draw_rectangle(0,meta.ymax+1,0,0,  dst.width()-1, dst.height()-1, dst.depth()-1, dst.spectrum()-1, 255);
     }
 
 
@@ -64,17 +111,30 @@ namespace cuvnet
         {
         }
         void operator()(){
+            cimg_library::CImg<unsigned char> img;
+            cimg_library::CImg<unsigned char> tch;
+            cimg_library::CImg<unsigned char> ign;
+            img.load_jpeg(meta->filename.c_str()); // load image from file
+
             voc_detection_dataset::pattern pat;
             pat.meta_info = *meta;
-            // TODO: load pat using meta
-            cimg_library::CImg<unsigned char> img;
-            img.load_jpeg(meta->filename.c_str());
-            square(img, 172, pat.meta_info);
+            square(img, 172, pat.meta_info);    // ensure image size is 172 x 172
+            bb_teacher(tch, pat.meta_info, 20, .6, 1); // generate teacher for image (ellipse)
+            bb_teacher(ign, pat.meta_info, 20, 1., 0); // generate teacher for image (rect)
+
+            ignore_margin(ign, pat.meta_info);
+            ign = (ign - tch).cut(0,255);
+
+            ign.blur(5.f,5.f,0.f);
+            //tch.blur(5.f);
+
+            // convert to cuv
+            pat.img = cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[3][172][172] , img.data()).copy();
+            pat.tch = cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[20][172][172], tch.data()).copy();
+            pat.ign = cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[20][172][172], ign.data()).copy();
             
+            // put in pipe
             boost::mutex::scoped_lock lock(*mutex);
-
-            img.display();
-
             loaded_data->push(pat);
         }
     };
