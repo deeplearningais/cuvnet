@@ -259,8 +259,8 @@ namespace cuvnet
              */
             virtual void update_weights(){
                 for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++){
-                    cuvAssert(&((*it)->result()->delta.cdata()));
-                    cuvAssert(NULL != dynamic_cast<ParameterInput*>(*it));
+                    //cuvAssert(&((*it)->result()->delta.cdata()));
+                    //cuvAssert(NULL != dynamic_cast<ParameterInput*>(*it));
                     ParameterInput* inp = (ParameterInput*) *it;
 
                     float lr = m_learnrate * inp->m_learnrate_factor;
