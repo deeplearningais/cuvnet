@@ -4,6 +4,8 @@
 
 #include <cuvnet/op_utils.hpp>
 #include <datasets/random_translation.hpp>
+#include <datasets/voc_detection.hpp>
+
 using namespace cuvnet;
 
 
@@ -139,4 +141,36 @@ TEST(RandomTranslation, TranslateData){
     EXPECT_EQ(tmp_data(2,0,3), 2);
     EXPECT_EQ(tmp_data(2,0,4), 3);
     EXPECT_EQ(tmp_data(2,0,5), 4);
+}
+
+TEST(VOC_Detection, init){
+    std::ofstream os("test.txt");
+    std::string fn = "/home/local/datasets/VOC2011/TrainVal/VOCdevkit/VOC2011/JPEGImages/2007_000027.jpg";
+    os << fn;
+    os << " 2";         // two objects
+    os << " 0 0 0 1 2 3";     // class 0, not truncated,  xmin,xmax, ymin, ymax
+    os << " 1 0 10 11 12 13"; // class 1, not truncated,  xmin,xmax, ymin, ymax
+    os << endl;
+    voc_detection_dataset ds("test.txt", "test.txt");
+    while(ds.size_available() < 2);
+    std::list<voc_detection_dataset::pattern> L;
+    ds.get_batch(L, 2);
+    BOOST_FOREACH(voc_detection_dataset::pattern& pat, L){
+        EXPECT_EQ(pat.meta_info.filename, fn);
+        EXPECT_EQ(pat.meta_info.objects.size(), 2);
+        for(unsigned int obj = 0; obj < pat.meta_info.objects.size(); obj++){
+            EXPECT_TRUE(
+                    pat.meta_info.objects[obj].klass == 0 ||
+                    pat.meta_info.objects[obj].klass == 1);
+            EXPECT_TRUE(
+                    pat.meta_info.objects[obj].xmin == 0 ||
+                    pat.meta_info.objects[obj].xmin == 10);
+            EXPECT_TRUE(
+                    pat.meta_info.objects[obj].xmax == 1 ||
+                    pat.meta_info.objects[obj].xmax == 11);
+            EXPECT_TRUE(
+                    pat.meta_info.objects[obj].xmax == 1 ||
+                    pat.meta_info.objects[obj].xmax == 11);
+        }
+    }
 }

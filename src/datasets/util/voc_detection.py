@@ -70,6 +70,7 @@ def write_for_cpp(f, basepath, D):
         - number of objects
         - for each object,
           - class index of object
+          - 0/1 whether truncated
           - 4 numbers describing bounding box of object (xmin xmax ymin ymax)
     """
     classes = get_classnames(D)
@@ -83,6 +84,7 @@ def write_for_cpp(f, basepath, D):
             continue
         for o in props["objects"]:
             L.append(classes.index(o["name"]))
+            L.append(o["truncated"])
             L.extend(o["bndbox"])
         f.write(" ".join([str(x) for x in L]))
         f.write("\n")
@@ -97,6 +99,7 @@ if __name__ == "__main__":
     img_filter = lambda x: True
     for dset in ["trainval", "val"]:
         D = load_metadata(basepath, dset, img_filter, obj_filter)
-        print dset, sum((len(x["objects"]) for x in D.values()))
-        with open("voc_detection_%s.txt" % dset, "w") as f:
+        print dset, len(D), sum((len(x["objects"]) for x in D.values()))
+        dest = os.path.join(basepath, "voc_detection_%s.txt" % dset)
+        with open(dest, "w") as f:
             write_for_cpp(f, basepath, D)
