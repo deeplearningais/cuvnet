@@ -122,7 +122,7 @@ class simple_auto_encoder_weight_decay
                 if(!regloss)
                     regloss = tmp;
                 else
-                    regloss = regloss + tmp;
+                    regloss = add_to_param(regloss, tmp);
             }
         }
         return regloss;
