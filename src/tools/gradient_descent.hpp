@@ -267,6 +267,7 @@ namespace cuvnet
                     // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
                     //       we're changing the underlying object all cow_ptrs pointing to it!!!
                     cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->delta(), -lr, m_weightdecay);
+                    inp->delta() = 0.f;
                 }
             }
             /**
