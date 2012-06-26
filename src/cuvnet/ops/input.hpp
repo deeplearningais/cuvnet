@@ -120,6 +120,7 @@ namespace cuvnet
                 inline value_type&       data()      { return m_data.data();  }
                 inline const value_type& data() const{ return m_data.cdata(); }
 
+                inline       value_type& delta()      { return m_delta.data(); }
                 inline const value_type& delta() const{ return m_delta.cdata(); }
 
             private:
