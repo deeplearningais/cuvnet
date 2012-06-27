@@ -15,17 +15,30 @@ using boost::make_shared;
  */
 class obj_detector
 {
-    typedef boost::shared_ptr<Op> op_ptr;
-    typedef boost::shared_ptr<ParameterInput> input_ptr;
-    protected:
+    public:
+        typedef boost::shared_ptr<Op> op_ptr;
+        typedef boost::shared_ptr<ParameterInput> input_ptr;
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version){
+                ar & m_conv1_weights & m_conv2_weights & m_conv3_weights;
+                ar & m_bias1 & m_bias2 & m_bias3;
+                ar & m_loss;
+                ar & m_n_channels;
+                ar & m_filter_size1 & m_filter_size2 & m_filter_size3;
+                ar & m_n_filters1 & m_n_filters2 & m_n_filters3;
+            }
+    public:
         input_ptr m_conv1_weights;
         input_ptr m_conv2_weights;
+        input_ptr m_conv3_weights;
         input_ptr m_bias1, m_bias2, m_bias3;
         op_ptr m_loss;
 
         unsigned int m_n_channels;
-        unsigned int m_filter_size1, m_filter_size2; 
-        unsigned int m_n_filters1, m_n_filters2;
+        unsigned int m_filter_size1, m_filter_size2, m_filter_size3; 
+        unsigned int m_n_filters1, m_n_filters2, m_n_filters3;
 
 
     public:
@@ -42,18 +55,19 @@ class obj_detector
         virtual void init(op_ptr inp, op_ptr ignore, op_ptr target){
             inp->visit(determine_shapes_visitor()); 
             m_n_channels   = inp->result()->shape[1];
-            int batchsize  = inp->result()->shape[0];
 
-            int n_pix      = inp->result()->shape[2];
-            int n_pix_x    = std::sqrt(n_pix);
+            target->visit(determine_shapes_visitor()); 
+            m_n_filters3   = target->result()->shape[1]; // number of output maps
+
             bool pad = true; // must be true, since we're subsampling `ignore' and `target' in parallel....
-            //int n_pix_x2   = pad ? n_pix_x/2  : (n_pix_x  - m_filter_size1 / 2 - 1)/2;
 
             m_conv1_weights.reset(new ParameterInput(cuv::extents[m_n_channels][m_filter_size1*m_filter_size1][m_n_filters1], "conv_weights1"));
             m_conv2_weights.reset(new ParameterInput(cuv::extents[m_n_filters1][m_filter_size2*m_filter_size2][m_n_filters2], "conv_weights2"));
+            m_conv3_weights.reset(new ParameterInput(cuv::extents[m_n_filters2][m_filter_size3*m_filter_size3][m_n_filters3], "conv_weights3"));
 
             m_bias1.reset(new ParameterInput(cuv::extents[m_n_filters1]));
             m_bias2.reset(new ParameterInput(cuv::extents[m_n_filters2]));
+            m_bias3.reset(new ParameterInput(cuv::extents[m_n_filters3]));
 
             hl1 =
                 local_pool(
@@ -74,6 +88,11 @@ class obj_detector
                                     m_conv2_weights, pad),
                                 m_bias2, 0)),
                         cuv::alex_conv::PT_MAX); 
+
+            hl3 = 
+                mat_plus_vec(
+                        convolve(hl2, m_conv3_weights, pad), 
+                        m_bias3, 0);
             
             // pool target twice
             op_ptr subsampled_target = local_pool( 
@@ -84,7 +103,9 @@ class obj_detector
                     local_pool( reorder_for_conv(ignore), cuv::alex_conv::PT_AVG),
                     cuv::alex_conv::PT_AVG);
 
-            m_loss = mean(sum_to_vec(subsampled_ignore * pow(hl2 - subsampled_target, 2.f), 0));
+            // batch is in the dimension with index 2
+            //m_loss = mean(sum_to_vec(subsampled_ignore * pow(hl3 - subsampled_target, 2.f), 2));
+            m_loss = mean(sum_to_vec(subsampled_ignore * neg_log_cross_entropy_of_logistic(subsampled_target, hl3), 2));
 
             reset_weights();
         }
@@ -98,6 +119,7 @@ class obj_detector
             std::vector<Op*> params;
             params += m_conv1_weights.get();
             params += m_conv2_weights.get();
+            params += m_conv3_weights.get();
             params += m_bias1.get();
             params += m_bias2.get();
             return params;
@@ -119,8 +141,10 @@ class obj_detector
             : 
                 m_filter_size1(filter_size1),
                 m_filter_size2(filter_size2),
+                m_filter_size3(filter_size2),
                 m_n_filters1(n_filters1),
-                m_n_filters2(n_filters2)
+                m_n_filters2(n_filters2),
+                m_n_filters3(n_filters2)
     {
     }
 
@@ -130,23 +154,42 @@ class obj_detector
         virtual void reset_weights()
         {
             {
-                float fan_in = m_n_channels * m_filter_size1 * m_filter_size1;
-                float diff = std::sqrt(3.f/fan_in);
+                float fan_in  = m_n_channels * m_filter_size1 * m_filter_size1;
+                float fan_out = m_n_filters1 * m_filter_size2 * m_filter_size2;
+                float diff = std::sqrt(6.f/(fan_in+fan_out));
+                diff *= .1f;
     
                 cuv::fill_rnd_uniform(m_conv1_weights->data());
                 m_conv1_weights->data() *= 2*diff;
                 m_conv1_weights->data() -=   diff;
-            } {
+            } 
+            {
                 float fan_in = m_n_filters1 * m_filter_size2 * m_filter_size2;
-                float diff = std::sqrt(3.f/fan_in);
+                float fan_out = m_n_filters2 * m_filter_size3 * m_filter_size3;
+                float diff = std::sqrt(6.f/(fan_in + fan_out));
+                diff *= .1f;
     
                 cuv::fill_rnd_uniform(m_conv2_weights->data());
                 m_conv2_weights->data() *= 2*diff;
                 m_conv2_weights->data() -=   diff;
             } 
+            {
+                m_conv3_weights->data() = 0.f;
+            } 
+
+            m_conv1_weights->m_learnrate_factor = 1.f / (m_filter_size1 * m_filter_size1);
+            m_conv2_weights->m_learnrate_factor = 1.f / (m_filter_size2 * m_filter_size2);
+            m_conv3_weights->m_learnrate_factor = 1.f / (m_filter_size3 * m_filter_size3);
 
             m_bias1->data() =  0.f;
             m_bias2->data() =  0.f;
+            m_bias3->data() =  -2.f;
+            m_bias1->m_learnrate_factor = 1.f / (m_filter_size1 * m_filter_size1);
+            m_bias2->m_learnrate_factor = 1.f / (m_filter_size2 * m_filter_size2);
+            m_bias3->m_learnrate_factor = 1.f / (m_filter_size3 * m_filter_size3);
+            m_bias1->m_weight_decay_factor = 0.f;
+            m_bias2->m_weight_decay_factor = 0.f;
+            m_bias3->m_weight_decay_factor = 0.f;
         }
 };
 
