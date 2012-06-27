@@ -21,19 +21,48 @@ namespace cuvnet
         inline void preorder(Op* o)const{ ; }
         inline void postorder(Op* o)const{ ; }
     };
+
     /**
-     * collect all no-input ops in a list
+     * helper class to create visitors (you can derive from this so
+     * that you eg only need to implement one method).
+     *
+     * This one only visits every op once
+     *
      * @ingroup op_visitors
      */
-    struct param_collector_visitor : public op_visitor_adaptor{
-        typedef std::vector<Op*> container_type;
-        container_type     plist;
+    struct op_visitor_once_adaptor{
         std::map<Op*,bool> visited;
         inline bool discover(Op* o){
+            // do not continue past Sinks---they are treated as Inputs!
+            if(dynamic_cast<Sink*>(o)!=NULL)
+                return false;
             if(visited.find(o)!=visited.end())
                 return false;
             visited[o]=true;
             return true;
+        }
+        inline void preorder(Op* o)const{ ; }
+        inline void postorder(Op* o)const{ ; }
+    };
+
+    /**
+     * collect all ParameterInput ops in a list
+     * @ingroup op_visitors
+     */
+    struct param_collector_visitor 
+        : public op_visitor_once_adaptor{
+        typedef std::vector<Op*> container_type;
+        container_type     plist;
+        const std::string& m_name;
+        /**
+         * collect everything that is a ParameterInput
+         */
+        param_collector_visitor(): m_name(""){ }
+        /**
+         * filter by name (must match exactly)
+         */
+        param_collector_visitor(const std::string& name)
+        :m_name(name){
         }
         inline void preorder(Op* o){
             if(o->get_n_params()==0)
@@ -43,25 +72,37 @@ namespace cuvnet
                 // not derive for certain parameters.
                 // however, it still needs to see them to /initialize/ them.
                 //if(((Input*)o)->derivable())
-                if(dynamic_cast<ParameterInput*>(o))
-                    plist.push_back(o);
+                ParameterInput* pi = dynamic_cast<ParameterInput*>(o);
+                if(pi){
+                    if(!m_name.size() || m_name == pi->name())
+                        plist.push_back(pi);
+                }
             }
         }
     };
+
+    /**
+     * find a parameter by name
+     *
+     * @ingroup op_visitors
+     */
+    inline ParameterInput* get_parameter(const boost::shared_ptr<Op>& f, const std::string& name){
+        param_collector_visitor pcv(name);
+        f->visit(pcv);
+        if(pcv.plist.size()==0)
+            throw std::runtime_error("Could not find parameter `"+name+"'");
+        if(pcv.plist.size() > 1)
+            throw std::runtime_error("Multiple matches for parameter `"+name+"'");
+        return dynamic_cast<ParameterInput*>(pcv.plist.front());
+    }
+
+
     /** 
      * cleanup unused data 
      * @ingroup op_visitors
      */
-    struct cleanup_temp_vars_visitor : public op_visitor_adaptor{
-        typedef std::vector<Op*> container_type;
-        container_type     plist;
-        std::map<Op*,bool> visited;
-        inline bool discover(Op* o){
-            if(visited.find(o)!=visited.end())
-                return false;
-            visited[o]=true;
-            return true;
-        }
+    struct cleanup_temp_vars_visitor 
+        : public op_visitor_once_adaptor{
         inline void preorder(Op* o){
             o->release_data();
             BOOST_FOREACH(Op::result_t& r, o->m_results){
@@ -71,6 +112,7 @@ namespace cuvnet
             }
         }
     };
+
     /**
      * collect all ops in a list in topological order
      * @ingroup op_visitors
@@ -105,6 +147,8 @@ namespace cuvnet
     struct determine_shapes_visitor :public op_visitor_adaptor{
         determine_shapes_visitor(){}
         inline void postorder(Op* o)const{
+            if(dynamic_cast<DeltaSink*>(o)) // delta sinks do not fprop, just take what they get for bprop.
+                return;
             o->_determine_shapes();
             // push from result to result-users
             BOOST_FOREACH(Op::result_t& r, o->m_results){
@@ -158,6 +202,7 @@ namespace cuvnet
     struct reset_needed_flags : public op_visitor_adaptor{
         std::map<Op*,bool> visited;
         inline bool discover(Op* o){
+            // do not continue past Sinks---they are treated as Inputs!
             if(dynamic_cast<Sink*>(o)!=NULL)
                 return false;
             if(visited.find(o)!=visited.end()) 
