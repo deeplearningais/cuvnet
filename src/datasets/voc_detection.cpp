@@ -256,19 +256,22 @@ namespace cuvnet
             }
     };
 
-    void voc_detection_dataset::switch_dataset(voc_detection_dataset::subset ss){
+    void voc_detection_dataset::switch_dataset(voc_detection_dataset::subset ss, int n_threads){
+
+        n_threads = n_threads == 0 ? m_n_threads : n_threads;
+
         if(m_pipe)
             m_pipe->request_stop();
 
         switch(ss){
             case SS_TRAIN:
-                m_pipe.reset(new voc_detection_pipe(m_training_set));
+                m_pipe.reset(new voc_detection_pipe(m_training_set, n_threads));
                 break;
             case SS_VAL:
-                m_pipe.reset(new voc_detection_pipe(m_val_set));
+                m_pipe.reset(new voc_detection_pipe(m_val_set, n_threads));
                 break;
             case SS_TEST:
-                m_pipe.reset(new voc_detection_pipe(m_test_set));
+                m_pipe.reset(new voc_detection_pipe(m_test_set, n_threads));
                 break;
             default:
                 throw std::runtime_error("VOC Detection Dataset: cannot switch to supplied subset!");
@@ -276,7 +279,7 @@ namespace cuvnet
         m_pipe->start();
     }
 
-    voc_detection_dataset::voc_detection_dataset(const std::string& train_filename, const std::string& test_filename, bool verbose)
+    voc_detection_dataset::voc_detection_dataset(const std::string& train_filename, const std::string& test_filename, int n_threads, bool verbose)
     {
         read_meta_info(m_training_set, train_filename, verbose);
         read_meta_info(m_test_set, test_filename, verbose);
