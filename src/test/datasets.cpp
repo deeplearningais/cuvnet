@@ -145,38 +145,47 @@ TEST(RandomTranslation, TranslateData){
 }
 
 TEST(VOC_Detection, init){
-    std::ofstream os("test.txt");
-    std::string fn = "/home/local/datasets/VOC2011/TrainVal/VOCdevkit/VOC2011/JPEGImages/2007_000027.jpg";
-    os << fn;
-    os << " 2";         // two objects
-    os << " 0 0 0 1 2 3";     // class 0, not truncated,  xmin,xmax, ymin, ymax
-    os << " 1 0 10 11 12 13"; // class 1, not truncated,  xmin,xmax, ymin, ymax
-    os << endl;
-    voc_detection_dataset ds("test.txt", "test.txt");
+    // NOTE: must be of same size as the squared-size the dataset produces
+    //       since bndbox coordinates will be translated to new size!
+    std::string fn = "../src/datasets/util/lena.jpg"; 
+    {
+        std::ofstream os("test.txt");
+        os << fn;
+        os << " 2";         // two objects
+        os << " 0 0 0 1 2 3";     // class 0, not truncated,  xmin,xmax, ymin, ymax
+        os << " 1 0 10 11 12 13"; // class 1, not truncated,  xmin,xmax, ymin, ymax
+        os << endl;
+    }
+    voc_detection_dataset ds("test.txt", "test.txt", 1); // 1 thread only
+    // training set is shuffled, switch to test set
+    ds.switch_dataset(voc_detection_dataset::SS_TEST);
     while(ds.size_available() < 2);
     std::list<voc_detection_dataset::pattern> L;
     ds.get_batch(L, 2);
     BOOST_FOREACH(voc_detection_dataset::pattern& pat, L){
         EXPECT_EQ(pat.meta_info.filename, fn);
-        EXPECT_EQ(pat.meta_info.objects.size(), 2);
-        for(unsigned int obj = 0; obj < pat.meta_info.objects.size(); obj++){
-            EXPECT_TRUE(
-                    pat.meta_info.objects[obj].klass == 0 ||
-                    pat.meta_info.objects[obj].klass == 1);
-            EXPECT_TRUE(
-                    pat.meta_info.objects[obj].xmin == 0 ||
-                    pat.meta_info.objects[obj].xmin == 10);
-            EXPECT_TRUE(
-                    pat.meta_info.objects[obj].xmax == 1 ||
-                    pat.meta_info.objects[obj].xmax == 11);
-            EXPECT_TRUE(
-                    pat.meta_info.objects[obj].xmax == 1 ||
-                    pat.meta_info.objects[obj].xmax == 11);
-        }
+        ASSERT_EQ(pat.meta_info.objects.size(), 2);
+
+        // first object
+        EXPECT_EQ( 0, pat.meta_info.objects[0].klass);
+        EXPECT_EQ( 0, pat.meta_info.objects[0].xmin);
+        EXPECT_EQ( 1, pat.meta_info.objects[0].xmax);
+        EXPECT_EQ( 2, pat.meta_info.objects[0].ymin);
+        EXPECT_EQ( 3, pat.meta_info.objects[0].ymax);
+        
+        // second object
+        EXPECT_EQ( 1, pat.meta_info.objects[1].klass);
+        EXPECT_EQ( 10, pat.meta_info.objects[1].xmin);
+        EXPECT_EQ( 11, pat.meta_info.objects[1].xmax);
+        EXPECT_EQ( 12, pat.meta_info.objects[1].ymin);
+        EXPECT_EQ( 13, pat.meta_info.objects[1].ymax);
+
     }
 }
 
 TEST(VOC_Detection, realdata){
+    return;
+
     const char* realtest = "/home/local/datasets/VOC2011/voc_detection_val.txt";
     voc_detection_dataset ds(realtest, realtest);
 
@@ -186,7 +195,7 @@ TEST(VOC_Detection, realdata){
     ds.get_batch(L, 2);
     BOOST_FOREACH(voc_detection_dataset::pattern& pat, L){
         cuv::libs::cimg::show(pat.img, "image");
-        for (int i = 0; i < pat.tch.shape(0); ++i)
+        for (unsigned int i = 0; i < pat.tch.shape(0); ++i)
         {
             cuv::libs::cimg::show(pat.ign[cuv::indices[i][cuv::index_range()][cuv::index_range()]], "ignore");
             cuv::libs::cimg::show(pat.tch[cuv::indices[i][cuv::index_range()][cuv::index_range()]], "teacher");
