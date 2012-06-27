@@ -73,7 +73,7 @@ void pca_whitening::fit(const cuv::tensor<float,cuv::host_memory_space>& train_)
     for(int i=0;i<m_n_components;i++) 
         column(rot,i) = column(Eigv,idx[i]);
 
-    std::cout <<"w:"<<m_whiten<<" z:"<<m_zca<<" n:"<<m_n_components<<" s:"<<train_.shape(1)<<std::endl;
+    //std::cout <<"w:"<<m_whiten<<" z:"<<m_zca<<" n:"<<m_n_components<<" s:"<<train_.shape(1)<<std::endl;
     if(!m_whiten && m_zca && (unsigned int)m_n_components == train_.shape(1)){
         // don't do anything!
         ublas::noalias(rot_trans) = ublas::identity_matrix<float>(m_n_components);

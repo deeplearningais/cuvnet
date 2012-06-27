@@ -188,14 +188,14 @@ TEST_F(RandomNumberUsingTest, obj_det){
 
    obj_detector od(5,16,5,16); 
    od.init(inp,ign,target);
-   std::cout << "---hl2--" << std::endl;
-   derivative_tester(*od.hl2, 0, true, .2, -1.0, 1.0);
+   //std::cout << "---hl2--" << std::endl;
+   derivative_tester(*od.hl2, 0, false, .2, -1.0, 1.0);
 
-   std::cout << "---hl1--" << std::endl;
-   derivative_tester(*od.hl1, 0, true, .2, -1.0, 1.0);
+   //std::cout << "---hl1--" << std::endl;
+   derivative_tester(*od.hl1, 0, false, .2, -1.0, 1.0);
 
-   std::cout << "---loss--" << std::endl;
-   derivative_tester(*od.get_loss(), 0, true, .3, -1.0, 1.0);
+   //std::cout << "---loss--" << std::endl;
+   derivative_tester(*od.get_loss(), 0, false, .3, -1.0, 1.0);
 }
 
 TEST_F(RandomNumberUsingTest, lenet_derivative){
@@ -205,15 +205,15 @@ TEST_F(RandomNumberUsingTest, lenet_derivative){
 
    lenet ln(5,16,5,16,2); 
    ln.init(inp,target);
-   std::cout << "---hl2--" << std::endl;
-   derivative_tester(*ln.hl2, 0, true, .2, -1.0, 1.0);
+   //std::cout << "---hl2--" << std::endl;
+   derivative_tester(*ln.hl2, 0, false, .2, -1.0, 1.0);
 
-   std::cout << "---hl3--" << std::endl;
-   derivative_tester(*ln.hl3, 0, true, .2, -1.0, 1.0);
+   //std::cout << "---hl3--" << std::endl;
+   derivative_tester(*ln.hl3, 0, false, .2, -1.0, 1.0);
 
-   std::cout << "---hl1--" << std::endl;
-   derivative_tester(*ln.hl1, 0, true, .2, -1.0, 1.0);
+   //std::cout << "---hl1--" << std::endl;
+   derivative_tester(*ln.hl1, 0, false, .2, -1.0, 1.0);
 
-   std::cout << "---loss--" << std::endl;
-   derivative_tester(*ln.get_loss(), 0, true, .3, -1.0, 1.0);
+   //std::cout << "---loss--" << std::endl;
+   derivative_tester(*ln.get_loss(), 0, false, .3, -1.0, 1.0);
 }
