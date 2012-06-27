@@ -1,6 +1,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <cstdio>
+#include <boost/assign.hpp>
 #include <gtest/gtest.h>
 
 #define CUVNET_PRECISE_SUM 1
@@ -15,6 +16,22 @@ using namespace cuvnet;
 using std::printf;
 using namespace cuvnet::derivative_testing;
 
+TEST(op_test, deltasink){
+    typedef boost::shared_ptr<Op> ptr_t;
+    typedef boost::shared_ptr<ParameterInput> param_t;
+    param_t inp = boost::make_shared<ParameterInput>(cuv::extents[2][4]);
+    inp->data() = 3.f;
+    ptr_t func  = boost::make_shared<Pow>(2.f,inp->result());
+    boost::shared_ptr<DeltaSink> ds = delta_sink("pow_delta", inp); // monitor the delta 
+
+    swiper s(*func, 0, boost::assign::list_of<Op*>(inp.get()));
+    s.fprop();
+    s.bprop();
+    EXPECT_NEAR(ds->cdata()[0], 6.f, 0.001f);
+    s.fprop();
+    s.bprop();
+    EXPECT_NEAR(ds->cdata()[0], 6.f, 0.001f); // make sure it does not add to previous value
+}
 
 TEST(derivative_test, derivative_test_pipe){
    typedef boost::shared_ptr<Op> ptr_t;
