@@ -197,6 +197,20 @@ namespace cuvnet
             src->result(result)->result_uses.push_back(dst->param(param));
             return dst;
         }
+    /// construct a DeltaSink object attached to a \c op_param.
+    /// it assumes that the result is only used \b once.
+    inline
+        boost::shared_ptr<DeltaSink> delta_sink(const std::string& name, Op::op_ptr x, unsigned int res=0){ 
+            cuvAssert(x->result(res)->result_uses.size()==1);
+
+            boost::shared_ptr<Op> dst 
+                = x->result(res)->result_uses[0].lock()->get_op()->shared_from_this();
+            int param_number = x->result(res)->result_uses[0].lock()->param_number;
+
+            boost::shared_ptr<DeltaSink> snk = boost::make_shared<DeltaSink>(name); 
+            add_to_param(dst, snk, param_number, 0);
+            return snk;
+        }
     /// @}
 }
 #endif /* __OPS_HPP__ */

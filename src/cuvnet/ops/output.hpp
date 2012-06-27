@@ -68,7 +68,63 @@ namespace cuvnet
                 }
 
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
-                    desc.label = "Sink `" + m_name + "'";
+                    if(m_name.size())
+                        desc.label = m_name;
+                    else
+                        desc.label = "Sink";
+                }
+            private:
+                std::string    m_name;
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_name;
+                    }
+        };
+
+    /**
+     * A delta sink is like a Sink, but it can be attached to op_params to save
+     * the result of a delta calculation.
+     *
+     * @ingroup Ops
+     */
+    class DeltaSink
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+
+            public:
+                DeltaSink(){} /// for serialization
+                DeltaSink(const std::string& name):Op(0,1),m_name(name){ 
+                }
+                ///  A sink always pretends it wants the derivative
+                /// @overload
+                virtual bool need_derivative()const{return true;}
+                void fprop(){
+                    // does nothing!
+                }
+                void bprop(){
+                    // simply do not reset m_result[0].delta
+                }
+                const value_type& cdata() const{ return m_results[0]->delta.cdata(); }
+
+                /**
+                 * forget the stored value
+                 */
+                void forget(){
+                    m_results[0]->delta.reset();
+                }
+
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
+                    if(m_name.size())
+                        desc.label = m_name;
+                    else
+                        desc.label = "DeltaSink";
                 }
             private:
                 std::string    m_name;
