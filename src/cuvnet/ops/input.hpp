@@ -34,17 +34,18 @@ namespace cuvnet
 
             public:
                 float m_learnrate_factor;
+                float m_weight_decay_factor;
 
                 Input(){} /// for serialization
                 template<std::size_t D>
-                Input(const cuv::extent_gen<D>& shape):Op(0,1), m_derivable(false), m_learnrate_factor(1.f)
+                Input(const cuv::extent_gen<D>& shape):Op(0,1), m_derivable(false), m_learnrate_factor(1.f), m_weight_decay_factor(1.f)
                 {  
                     m_shape.resize(D);
                     for(int i=0; i<D; i++)
                         m_shape[i] = shape.ranges_[i].finish();
                 }
                 template<std::size_t D>
-                Input(const cuv::extent_gen<D>& shape, const std::string& name):Op(0,1), m_name(name),m_derivable(false),m_learnrate_factor(1.f)
+                Input(const cuv::extent_gen<D>& shape, const std::string& name):Op(0,1), m_name(name),m_derivable(false),m_learnrate_factor(1.f),m_weight_decay_factor(1.f)
                 {  
                     m_shape.resize(D);
                     for(int i=0; i<D; i++)
