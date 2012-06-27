@@ -97,7 +97,7 @@ if __name__ == "__main__":
     #obj_filter = lambda x: x["truncated"] == False
     obj_filter = lambda x: True
     img_filter = lambda x: True
-    for dset in ["trainval", "val"]:
+    for dset in ["train", "trainval", "val"]:
         D = load_metadata(basepath, dset, img_filter, obj_filter)
         print dset, len(D), sum((len(x["objects"]) for x in D.values()))
         dest = os.path.join(basepath, "voc_detection_%s.txt" % dset)
