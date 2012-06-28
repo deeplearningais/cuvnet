@@ -14,6 +14,7 @@
 
 #include <tools/serialization_helper.hpp>
 #include <tools/python_helper.hpp>
+#include <tools/function.hpp>
 
 using namespace boost::assign;
 using namespace cuvnet;
@@ -85,6 +86,8 @@ int main(int argc, char **argv)
     std::vector<Op*> params = od->params();
     if(load_old_model_and_drop_to_python){
         load_batch(input, ignore, target, &ds, bs);
+        cuvnet::function f(od->get_loss(), 0, "click");
+        f.evaluate();
         try{
             initialize_python();
             export_ops();

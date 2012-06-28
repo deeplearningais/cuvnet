@@ -4,6 +4,7 @@
 #include <boost/format.hpp>
 #include <cuvnet/ops.hpp>
 #include <cuvnet/op_utils.hpp>
+#include <tools/function.hpp>
 #include <boost/python/register_ptr_to_python.hpp>
 #include "python_helper.hpp"
 
@@ -46,6 +47,10 @@ namespace cuvnet
     };
 
     struct Dummy{};
+    matrix evaluate(Op& o){
+        cuvnet::function f(o.shared_from_this(), 0, "click");
+        return f.evaluate();
+    }
     std::string dot(Op& o){
         std::string path = boost::filesystem::unique_path("%%%%-%%%%-%%%%-%%%%.dot").string();
         
@@ -55,8 +60,9 @@ namespace cuvnet
 
         return os.str();
     }
-    inline ParameterInput* get_parameter(const boost::shared_ptr<Op>& f, long pointer){
-        return get_parameter(f, (Op*)pointer);
+    template<class T>
+    inline T* get_node(const boost::shared_ptr<Op>& f, long pointer){
+        return (T*) get_node<T>(f, (Op*)pointer);
     }
 
     void export_ops(){
@@ -80,16 +86,31 @@ namespace cuvnet
                     .def("bprop", pure_virtual(&OpWrap::bprop))
                     .def("dot", dot)
                     .def("get_parameter", 
-                            (ParameterInput* (*)(const boost::shared_ptr<Op>&, const std::string&)) get_parameter, 
+                            (ParameterInput* (*)(const boost::shared_ptr<Op>&, const std::string&)) get_node, 
                             return_internal_reference<1>())
                     .def("get_parameter", 
-                            (ParameterInput* (*)(const boost::shared_ptr<Op>&, Op*)) get_parameter, 
+                            (ParameterInput* (*)(const boost::shared_ptr<Op>&, long)) get_node, 
                             return_internal_reference<1>())
-                    .def("get_parameter", 
-                            (ParameterInput* (*)(const boost::shared_ptr<Op>&, long)) get_parameter, 
+                    .def("get_node", 
+                            (Op* (*)(const boost::shared_ptr<Op>&, long)) get_node, 
                             return_internal_reference<1>())
+                    .def("get_sink", 
+                            (Sink* (*)(const boost::shared_ptr<Op>&, long)) get_node, 
+                            return_internal_reference<1>())
+                    .def("evaluate", &evaluate)
                     ;
                 
+                class_<Sink, boost::shared_ptr<Sink> >("Sink", no_init)
+                    .add_property("cdata",
+                        make_function(
+                            &Sink::cdata,
+                            return_internal_reference<>()))
+                    .add_property("name", 
+                            make_function(
+                                (const std::string& (Sink::*)()const)
+                                &Sink::name,
+                                return_value_policy<copy_const_reference>()))
+                    ;
                 class_<ParameterInput, boost::shared_ptr<ParameterInput> >("ParameterInput", no_init)
                     .add_property("name", 
                             make_function(

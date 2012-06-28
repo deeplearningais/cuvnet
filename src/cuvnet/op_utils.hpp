@@ -55,40 +55,49 @@ namespace cuvnet
         container_type     plist;
         const std::string& m_name_query;
         const Op*          m_ptr_query;
+        bool m_search_name;
         /**
          * collect everything that is a ParameterInput
          */
-        param_collector_visitor(): m_name_query(""), m_ptr_query(NULL){ }
+        param_collector_visitor(): m_name_query(""), m_ptr_query(NULL), m_search_name(false){ }
         /**
          * filter by name (must match exactly)
          */
         param_collector_visitor(const std::string& name)
-        :m_name_query(name), m_ptr_query(NULL){
+        :m_name_query(name), m_ptr_query(NULL), m_search_name(true){
         }
         /**
          * filter by pointer 
          */
         param_collector_visitor(const Op* op)
-        :m_name_query(""), m_ptr_query(op){
+        :m_name_query(""), m_ptr_query(op), m_search_name(false){
         }
         inline void preorder(Op* o){
-            if(o->get_n_params()==0)
-            {
-                // do not check for derivability.
-                // `derivable' was added for derivative_test(), which should
-                // not derive for certain parameters.
-                // however, it still needs to see them to /initialize/ them.
-                //if(((Input*)o)->derivable())
+            // do not check for derivability.
+            // `derivable' was added for derivative_test(), which should
+            // not derive for certain parameters.
+            // however, it still needs to see them to /initialize/ them.
+            //if(((Input*)o)->derivable())
+            //std::cout << "test: "<<boost::lexical_cast<std::string>(o)<<std::endl;
+            //std::cout << "  m_name_query.length():" << m_name_query.length() << std::endl;
+            //std::cout << "  m_ptr_query:" << boost::lexical_cast<std::string>(m_ptr_query) << std::endl;
+            if(!m_search_name && !m_ptr_query){
                 ParameterInput* pi = dynamic_cast<ParameterInput*>(o);
-                if(pi){
-                    if(!m_name_query.size() && !m_ptr_query)
-                        plist.push_back(pi);
-                    if(m_name_query.size() && m_name_query == pi->name())
-                        plist.push_back(pi);
-                    if(m_ptr_query && m_ptr_query == o)
-                        plist.push_back(pi);
-                }
+                if(pi)
+                    plist.push_back(pi);
             }
+            else if(m_search_name)
+            {
+                ParameterInput* pi = dynamic_cast<ParameterInput*>(o);
+                if(pi && m_name_query == pi->name())
+                    plist.push_back(pi);
+                Sink* si = dynamic_cast<Sink*>(o);
+                if(si && m_name_query == si->name())
+                    plist.push_back(si);
+            }   
+            else if(m_ptr_query && m_ptr_query == o)
+                plist.push_back(o);
+            //else std::cout << "  --> no match: "<<boost::lexical_cast<std::string>(o)<<std::endl;
         }
     };
 
@@ -97,26 +106,28 @@ namespace cuvnet
      *
      * @ingroup op_visitors
      */
-    inline ParameterInput* get_parameter(const boost::shared_ptr<Op>& f, const std::string& name){
+    template<class T>
+    inline T* get_node(const boost::shared_ptr<Op>& f, const std::string& name){
         param_collector_visitor pcv(name);
         f->visit(pcv);
         if(pcv.plist.size()==0)
             throw std::runtime_error("Could not find parameter `"+name+"'");
         if(pcv.plist.size() > 1)
             throw std::runtime_error("Multiple matches for parameter `"+name+"'");
-        return dynamic_cast<ParameterInput*>(pcv.plist.front());
+        return dynamic_cast<T*>(pcv.plist.front());
     }
     /**
      * find a parameter by address
      *
      * @ingroup op_visitors
      */
-    inline ParameterInput* get_parameter(const boost::shared_ptr<Op>& f, Op* query){
+    template<class T>
+    inline T* get_node(const boost::shared_ptr<Op>& f, Op* query){
         param_collector_visitor pcv(query);
         f->visit(pcv);
         if(pcv.plist.size()==0)
-            throw std::runtime_error("Could not find parameter `"+boost::lexical_cast<std::string>(query)+"'");
-        return dynamic_cast<ParameterInput*>(pcv.plist.front());
+            throw std::runtime_error("Could not find parameter with address `"+boost::lexical_cast<std::string>(query)+"'");
+        return dynamic_cast<T*>(pcv.plist.front());
     }
 
 

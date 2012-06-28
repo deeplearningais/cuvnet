@@ -7,16 +7,16 @@ def cfg(ax):
     ax.yaxis.set_visible(False)
 
 
-def generic_filters(x, trans=True):
+def generic_filters(x, trans=True, maxy=5):
     """ visualize an generic filter matrix """
     if trans:
         x = np.rollaxis(x, 2)
     print x.min(), x.mean(), x.max()
     print x.shape
     x -= x.min()
-    x /= x.max()
+    x /= x.max() + 0.000001
     n_filters_x = x.shape[0]
-    n_filters_y = x.shape[1]
+    n_filters_y = min(maxy, x.shape[1])
     n_pix_x = int(np.sqrt(x.shape[2]))
     fig, axes = plt.subplots(n_filters_x, n_filters_y)
     fig.subplots_adjust(hspace=0.00, wspace=0.00,
@@ -76,22 +76,48 @@ class MyDotWindow(xdot.DotWindow):
         self.widget.connect('clicked', self.on_url_clicked)
 
     def on_url_clicked(self, widget, url, event):
-        node = self.op.get_parameter(long(url, 0))
-        data = node.data.np
-        print "got shape: ", data.shape
-        if "weight" in node.name:
-            is_rgb = data.shape[0] == 3
-            if is_rgb:
-                rgb_filters(node.data.np)
+        typ, ptr = url.split()
+        if typ == "input":
+            node = self.op.get_parameter(long(ptr, 0))
+            data = node.data.np
+            print "got shape: ", data.shape
+            if "weight" in node.name:
+                is_rgb = data.shape[0] == 3
+                if is_rgb:
+                    rgb_filters(data)
+                else:
+                    generic_filters(data)
             else:
-                generic_filters(node.data.np)
-        else:
-            is_rgb = data.shape[1] == 3
-            if is_rgb:
-                rgb_filters(node.data.np, False)
+                is_rgb = data.shape[1] == 3
+                if is_rgb:
+                    rgb_filters(data, False)
+                else:
+                    generic_filters(data, False)
+            plt.show()
+        elif typ == "sink":
+            node = self.op.get_sink(long(ptr, 0))
+            data = node.cdata.np
+            if len(data.shape) == 3:
+                is_rgb = data.shape[1] == 3
+                if is_rgb:
+                    rgb_filters(data, True)
+                else:
+                    generic_filters(data, True)
+                plt.show()
             else:
-                generic_filters(node.data.np, False)
-        plt.show()
+                print data
+        elif typ == "generic":
+            node = self.op.get_node(long(ptr, 0))
+            data = node.evaluate().np
+            if len(data.shape) == 3:
+                is_rgb = data.shape[1] == 3
+                if is_rgb:
+                    rgb_filters(data, True)
+                else:
+                    generic_filters(data, True)
+                plt.show()
+            else:
+                print data
         return True
 
 
