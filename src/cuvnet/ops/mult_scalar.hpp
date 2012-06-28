@@ -26,6 +26,12 @@ namespace cuvnet
             private:
                 float m_scalar;
             public:
+                /// default ctor, for serialization only.
+                MultScalar()
+                    :   Op(1,1)
+                        , m_scalar(0)
+            {
+            }
                 MultScalar(result_t& mat, float f)
                     :   Op(1,1)
                         , m_scalar(f)

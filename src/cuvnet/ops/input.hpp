@@ -57,7 +57,7 @@ namespace cuvnet
                     else
                         desc.label = "Input";
                 }
-                virtual void fprop()=0;
+                virtual void fprop(){ throw std::runtime_error("fprop() not implemented for input `"+m_name+"'!"); }
                 virtual void bprop(){ throw std::runtime_error("bprop() not implemented for input `"+m_name+"'!"); }
                 void _determine_shapes(){
                     m_results[0]->shape = m_shape;
