@@ -78,6 +78,7 @@ int main(int argc, char **argv)
     std::vector<Op*> params = od->params();
 
     {
+        load_batch(input, ignore, target, &ds, bs);
         try{
             initialize_python();
             export_ops();
