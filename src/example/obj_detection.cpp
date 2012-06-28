@@ -6,9 +6,14 @@
 #include <tools/gradient_descent.hpp>
 
 #include <tools/monitor.hpp>
+#include <tools/matwrite.hpp>
 
 #include <datasets/voc_detection.hpp>
 #include <cuvnet/models/object_detector.hpp>
+#include <cuvnet/op_io.hpp>
+
+#include <tools/serialization_helper.hpp>
+#include <tools/python_helper.hpp>
 
 using namespace boost::assign;
 using namespace cuvnet;
@@ -36,12 +41,20 @@ void load_batch(
     }
 }
 
+static unsigned int cnt=0;
+void save_weights(obj_detector* ds, unsigned int epoch){
+    if(cnt++ % 100 == 0){
+        tofile((boost::format("conv1-%05d.npy") % cnt ).str(), ds->m_conv1_weights->data());
+        tofile((boost::format("conv2-%05d.npy") % cnt ).str(), ds->m_conv2_weights->data());
+    }
+}
+
 int main(int argc, char **argv)
 {
     // initialize cuv library   
     cuv::initialize_mersenne_twister_seeds();
 
-    voc_detection_dataset ds("/home/local/datasets/VOC2011/voc_detection_trainval.txt", "/home/local/datasets/VOC2011/voc_detection_val.txt", true);
+    voc_detection_dataset ds("/home/local/datasets/VOC2011/voc_detection_train.txt", "/home/local/datasets/VOC2011/voc_detection_val.txt", true);
    
     // number of simultaneously processed items
     unsigned int bs=16;
@@ -56,22 +69,43 @@ int main(int argc, char **argv)
     boost::shared_ptr<ParameterInput> target(
             new ParameterInput(cuv::extents[bs][20][172*172],"target"));
 
-    obj_detector od(5,16,5,20);
-    od.init(input,ignore,target);
+    boost::shared_ptr<obj_detector> od;
+    if(1 /* start over, as opposed to load serialized model */){
+        od.reset( new obj_detector(7,32,7,32) );
+        od->init(input,ignore,target);
+    }
 
-    std::vector<Op*> params = od.params();
+    std::vector<Op*> params = od->params();
+
+    {
+        try{
+            initialize_python();
+            export_ops();
+            using namespace boost::python;
+            object main_module = import("__main__");
+            scope main(main_module);
+            object main_namespace = main_module.attr("__dict__");
+            main_namespace["loss"] = od->get_loss(); 
+
+            embed_python();
+        }catch(const boost::python::error_already_set&){
+            PyErr_PrintEx(0);
+            return 1;
+        }
+        return 0;
+    }
 
     // create a verbose monitor, so we can see progress 
     // and register the decoded activations, so they can be displayed
     // in \c visualize_filters
     monitor mon(true); // verbose
-    mon.add(monitor::WP_SCALAR_EPOCH_STATS, od.get_loss(),        "total loss");
+    mon.add(monitor::WP_SCALAR_EPOCH_STATS, od->get_loss(),        "total loss");
 
     std::cout << std::endl << " Training phase: " << std::endl;
     {
         // create a \c gradient_descent object that derives the logistic loss
         // w.r.t. \c params and has learning rate 0.1f
-        gradient_descent gd(od.get_loss(),0,params,0.0000001f / (43*43));
+        gradient_descent gd(od->get_loss(),0,params,0.002f, .000001f);
         
         // register the monitor so that it receives learning events
         gd.register_monitor(mon);
@@ -81,14 +115,17 @@ int main(int argc, char **argv)
 
         gd.after_batch.connect(
                 boost::bind(&monitor::simple_logging, &mon));
-        //gd.after_batch.connect(std::cout << ll::constant("\n"));
+        gd.after_epoch.connect(std::cout << ll::constant("\n"));
+
+        gd.before_batch.connect(boost::bind(serialize_to_file<obj_detector>, "obj_detector-%05d.ser", od, _2, 100));
+        gd.before_batch.connect(boost::bind(save_weights, od.get(), _2));
         
-        // the number of batches is constant in our case (but has to be supplied as a function)
+        // the number of batches 
         gd.current_batch_num.connect(boost::bind(&voc_detection_dataset::trainset_size, &ds));
         
-        // do mini-batch learning for at most 10 epochs, or 10 minutes
+        // do mini-batch learning for at most 10 epochs, or until timeout
         // (whatever comes first)
-        gd.minibatch_learning(10, 10*60); // 10 minutes maximum
+        gd.minibatch_learning(10, 60*60,1,false); // 1h
     }
     std::cout <<  std::endl;
 
