@@ -22,29 +22,59 @@ namespace cuvnet
     template < typename Archive > 
         void register_objects(Archive & ar) 
         { 
-            //ar.template register_type<Input>();
-            //ar.template register_type<Output>();
-            //ar.template register_type<Identity>();
-            //ar.template register_type<Axpby>();
-            //ar.template register_type<Multiply>();
-            //ar.template register_type<SubtractFromScalar>();
-            //ar.template register_type<Log>();
-            //ar.template register_type<Pow>();
-            //ar.template register_type<Prod>();
-            //ar.template register_type<Tanh>();
-            //ar.template register_type<Logistic>();
-            //ar.template register_type<NegCrossEntropyOfLogistic>();
-            //ar.template register_type<Noiser>();
-            //ar.template register_type<Sum>();
-            //ar.template register_type<SumMatToVec>();
-            //ar.template register_type<Mean>();
-            //ar.template register_type<MatPlusVec>();
-            //ar.template register_type<Convolve>();
-            //ar.template register_type<ReorderForConv>();
-            //ar.template register_type<Flatten>();
-            //ar.template register_type<Reshape>();
-            //ar.template register_type<Softmax>();
-            //ar.template register_type<MultinomialLogisticLoss>();
+            // infrastructure
+            ar.template register_type<Input>();
+            ar.template register_type<Pipe>();
+            ar.template register_type<Sink>();
+            ar.template register_type<DeltaSink>();
+
+            // +, -, *, /
+            ar.template register_type<Axpby>();
+            ar.template register_type<AddScalar>();
+            ar.template register_type<MultScalar>();
+            ar.template register_type<SubtractFromScalar>();
+            ar.template register_type<Multiply>();
+            ar.template register_type<Prod>();
+
+            ar.template register_type<Log>();
+            ar.template register_type<Exp>();
+            ar.template register_type<Pow>();
+
+            // reductions
+            ar.template register_type<Sum>();
+            ar.template register_type<Mean>();
+
+            // matrix-vector
+            ar.template register_type<MatPlusVec>();
+            ar.template register_type<SumMatToVec>();
+            ar.template register_type<MatTimesVec>();
+
+            // trigonometry
+            ar.template register_type<Tanh>();
+            ar.template register_type<Sin>();
+            ar.template register_type<Cos>();
+            ar.template register_type<Logistic>();
+            ar.template register_type<Atan2>();
+
+            // Loss functions
+            ar.template register_type<NegCrossEntropyOfLogistic>();
+            ar.template register_type<Softmax>();
+            ar.template register_type<MultinomialLogisticLoss>();
+            ar.template register_type<ClassificationLoss>();
+
+            // convolutions
+            ar.template register_type<Convolve>();
+            ar.template register_type<ReorderForConv>();
+            ar.template register_type<ReorderFromConv>();
+            ar.template register_type<LocalPooling>();
+
+            // misc
+            ar.template register_type<Identity>();
+            ar.template register_type<Noiser>();
+            ar.template register_type<Flatten>();
+            ar.template register_type<Reshape>();
+            ar.template register_type<Abs>();
+            ar.template register_type<RowSelector>();
         } 
 }
 

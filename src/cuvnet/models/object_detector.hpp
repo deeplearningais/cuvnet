@@ -148,6 +148,9 @@ class obj_detector
     {
     }
 
+        /** Default constructor for serialization purposes */
+        obj_detector() { }
+
         /**
          * initialize the weights and biases with random numbers
          */
