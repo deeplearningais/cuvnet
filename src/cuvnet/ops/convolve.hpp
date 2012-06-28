@@ -250,6 +250,7 @@ namespace cuvnet
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_nGroups;
                         ar & m_partial_sum;
+                        ar & m_padding_start;
                     }
         };
 

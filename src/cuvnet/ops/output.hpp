@@ -73,6 +73,7 @@ namespace cuvnet
                     else
                         desc.label = "Sink";
                 }
+                inline const std::string& name()const{ return m_name; }
             private:
                 std::string    m_name;
                 friend class boost::serialization::access;
