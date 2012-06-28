@@ -53,16 +53,23 @@ namespace cuvnet
         : public op_visitor_once_adaptor{
         typedef std::vector<Op*> container_type;
         container_type     plist;
-        const std::string& m_name;
+        const std::string& m_name_query;
+        const Op*          m_ptr_query;
         /**
          * collect everything that is a ParameterInput
          */
-        param_collector_visitor(): m_name(""){ }
+        param_collector_visitor(): m_name_query(""), m_ptr_query(NULL){ }
         /**
          * filter by name (must match exactly)
          */
         param_collector_visitor(const std::string& name)
-        :m_name(name){
+        :m_name_query(name), m_ptr_query(NULL){
+        }
+        /**
+         * filter by pointer 
+         */
+        param_collector_visitor(const Op* op)
+        :m_name_query(""), m_ptr_query(op){
         }
         inline void preorder(Op* o){
             if(o->get_n_params()==0)
@@ -74,7 +81,11 @@ namespace cuvnet
                 //if(((Input*)o)->derivable())
                 ParameterInput* pi = dynamic_cast<ParameterInput*>(o);
                 if(pi){
-                    if(!m_name.size() || m_name == pi->name())
+                    if(!m_name_query.size() && !m_ptr_query)
+                        plist.push_back(pi);
+                    if(m_name_query.size() && m_name_query == pi->name())
+                        plist.push_back(pi);
+                    if(m_ptr_query && m_ptr_query == o)
                         plist.push_back(pi);
                 }
             }
@@ -93,6 +104,18 @@ namespace cuvnet
             throw std::runtime_error("Could not find parameter `"+name+"'");
         if(pcv.plist.size() > 1)
             throw std::runtime_error("Multiple matches for parameter `"+name+"'");
+        return dynamic_cast<ParameterInput*>(pcv.plist.front());
+    }
+    /**
+     * find a parameter by address
+     *
+     * @ingroup op_visitors
+     */
+    inline ParameterInput* get_parameter(const boost::shared_ptr<Op>& f, Op* query){
+        param_collector_visitor pcv(query);
+        f->visit(pcv);
+        if(pcv.plist.size()==0)
+            throw std::runtime_error("Could not find parameter `"+boost::lexical_cast<std::string>(query)+"'");
         return dynamic_cast<ParameterInput*>(pcv.plist.front());
     }
 

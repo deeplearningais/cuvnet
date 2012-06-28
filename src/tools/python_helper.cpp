@@ -1,5 +1,5 @@
 #include <iostream>
-#include <fstream>
+#include <sstream>
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <cuvnet/ops.hpp>
@@ -46,17 +46,19 @@ namespace cuvnet
     };
 
     struct Dummy{};
-    void show_op(Op& o){
+    std::string dot(Op& o){
         std::string path = boost::filesystem::unique_path("%%%%-%%%%-%%%%-%%%%.dot").string();
         
-        std::ofstream os(path.c_str());
+        std::ostringstream os(path.c_str());
         std::vector<Op*> v;
         write_graphviz(o, os, v, &o);
 
-        std::string cmd = (boost::format("xdot.py %s") % path).str();
-
-        std::system(cmd.c_str());
+        return os.str();
     }
+    inline ParameterInput* get_parameter(const boost::shared_ptr<Op>& f, long pointer){
+        return get_parameter(f, (Op*)pointer);
+    }
+
     void export_ops(){
         using namespace boost::python;
         object main_module = import("__main__");
@@ -64,7 +66,13 @@ namespace cuvnet
 
         {   scope cn = class_<Dummy>("cuvnet")
                 .def("get_parameter", 
-                        get_parameter, 
+                        (ParameterInput* (*)(const boost::shared_ptr<Op>&, const std::string&)) get_parameter, 
+                        return_internal_reference<1>())
+                .def("get_parameter", 
+                        (ParameterInput* (*)(const boost::shared_ptr<Op>&, Op*)) get_parameter, 
+                        return_internal_reference<1>())
+                .def("get_parameter", 
+                        (ParameterInput* (*)(const boost::shared_ptr<Op>&, long)) get_parameter, 
                         return_internal_reference<1>())
                 .staticmethod("get_parameter")
             ;
@@ -80,7 +88,7 @@ namespace cuvnet
                             (void (OpWrap::*)(bool)) & OpWrap::need_result)
                     .def("fprop", pure_virtual(&OpWrap::fprop))
                     .def("bprop", pure_virtual(&OpWrap::bprop))
-                    .def("show", show_op)
+                    .def("dot", dot)
                     ;
                 
                 class_<ParameterInput, boost::shared_ptr<ParameterInput> >("ParameterInput", no_init)

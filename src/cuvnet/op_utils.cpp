@@ -80,7 +80,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
     m_seen[o] = opstr;
 	os << opstr
 	   << " ["
-	   << " tooltip=\"tooltip "<<n.label<<"\","
+	   << " URL=\""<<boost::lexical_cast<std::string>(o)<<"\","
 	   << " label=\""<<n.label<<"\","
 	   << " shape=\""<<n.shape<<"\","
 	   << " style=\""<<n.style<<"\","
