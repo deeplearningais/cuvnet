@@ -53,6 +53,7 @@ int main(int argc, char **argv)
 {
     // initialize cuv library   
     cuv::initialize_mersenne_twister_seeds();
+    std::string serialization_file = "obj_detector-%05d.ser";
 
     voc_detection_dataset ds("/home/local/datasets/VOC2011/voc_detection_train.txt", "/home/local/datasets/VOC2011/voc_detection_val.txt", true);
    
@@ -70,14 +71,19 @@ int main(int argc, char **argv)
             new ParameterInput(cuv::extents[bs][20][172*172],"target"));
 
     boost::shared_ptr<obj_detector> od;
-    if(1 /* start over, as opposed to load serialized model */){
+
+    bool load_old_model_and_drop_to_python = argc > 1;
+    if(! load_old_model_and_drop_to_python){
+        // create new network
         od.reset( new obj_detector(7,32,7,32) );
         od->init(input,ignore,target);
+    }else{
+        od = deserialize_from_file<obj_detector>(serialization_file, boost::lexical_cast<int>(argv[1]));
     }
 
-    std::vector<Op*> params = od->params();
 
-    {
+    std::vector<Op*> params = od->params();
+    if(load_old_model_and_drop_to_python){
         load_batch(input, ignore, target, &ds, bs);
         try{
             initialize_python();
@@ -118,7 +124,7 @@ int main(int argc, char **argv)
                 boost::bind(&monitor::simple_logging, &mon));
         gd.after_epoch.connect(std::cout << ll::constant("\n"));
 
-        gd.before_batch.connect(boost::bind(serialize_to_file<obj_detector>, "obj_detector-%05d.ser", od, _2, 100));
+        gd.before_batch.connect(boost::bind(serialize_to_file<obj_detector>, serialization_file, od, _2, 100));
         gd.before_batch.connect(boost::bind(save_weights, od.get(), _2));
         
         // the number of batches 
