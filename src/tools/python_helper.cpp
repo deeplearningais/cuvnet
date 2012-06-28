@@ -1,4 +1,7 @@
 #include <iostream>
+#include <fstream>
+#include <boost/filesystem.hpp>
+#include <boost/format.hpp>
 #include <cuvnet/ops.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <boost/python/register_ptr_to_python.hpp>
@@ -43,8 +46,16 @@ namespace cuvnet
     };
 
     struct Dummy{};
-    void greet(){
-        std::cout << "hello world!" << std::endl;
+    void show_op(Op& o){
+        std::string path = boost::filesystem::unique_path("%%%%-%%%%-%%%%-%%%%.dot").string();
+        
+        std::ofstream os(path.c_str());
+        std::vector<Op*> v;
+        write_graphviz(o, os, v, &o);
+
+        std::string cmd = (boost::format("xdot.py %s") % path).str();
+
+        std::system(cmd.c_str());
     }
     void export_ops(){
         using namespace boost::python;
@@ -52,8 +63,6 @@ namespace cuvnet
         scope main(main_module);
 
         {   scope cn = class_<Dummy>("cuvnet")
-                .def("greet",greet)
-                .staticmethod("greet")
                 .def("get_parameter", 
                         get_parameter, 
                         return_internal_reference<1>())
@@ -71,6 +80,7 @@ namespace cuvnet
                             (void (OpWrap::*)(bool)) & OpWrap::need_result)
                     .def("fprop", pure_virtual(&OpWrap::fprop))
                     .def("bprop", pure_virtual(&OpWrap::bprop))
+                    .def("show", show_op)
                     ;
                 
                 class_<ParameterInput, boost::shared_ptr<ParameterInput> >("ParameterInput", no_init)
@@ -113,7 +123,11 @@ namespace cuvnet
         object ignored = exec(
                 "import sys\n"
                 "sys.argv = ['cuvnet.py']\n" // otherwise, embed() fails below!
-                "import cuv_python as cp\n",
+                "import cuv_python as cp\n"
+                "import sys\n"
+                "sys.path.insert(0, '../src/scripts')\n"
+                "import visualization\n"
+                "import matplotlib.pyplot as plt\n",
                 main_namespace);
     }
 
