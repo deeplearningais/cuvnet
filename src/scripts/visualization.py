@@ -76,19 +76,19 @@ class MyDotWindow(xdot.DotWindow):
         self.widget.connect('clicked', self.on_url_clicked)
 
     def on_url_clicked(self, widget, url, event):
-        print "clicked ", url
-        from __main__ import cuvnet
-        node = cuvnet.get_parameter(self.op, long(url, 0))
+        node = self.op.get_parameter(long(url, 0))
         data = node.data.np
-        is_rgb = data.shape[1] == 3
-        if is_rgb:
-            if "weight" in node.name:
+        print "got shape: ", data.shape
+        if "weight" in node.name:
+            is_rgb = data.shape[0] == 3
+            if is_rgb:
                 rgb_filters(node.data.np)
             else:
-                rgb_filters(node.data.np, False)
-        else:
-            if "weight" in node.name:
                 generic_filters(node.data.np)
+        else:
+            is_rgb = data.shape[1] == 3
+            if is_rgb:
+                rgb_filters(node.data.np, False)
             else:
                 generic_filters(node.data.np, False)
         plt.show()

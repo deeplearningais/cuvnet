@@ -65,16 +65,6 @@ namespace cuvnet
         scope main(main_module);
 
         {   scope cn = class_<Dummy>("cuvnet")
-                .def("get_parameter", 
-                        (ParameterInput* (*)(const boost::shared_ptr<Op>&, const std::string&)) get_parameter, 
-                        return_internal_reference<1>())
-                .def("get_parameter", 
-                        (ParameterInput* (*)(const boost::shared_ptr<Op>&, Op*)) get_parameter, 
-                        return_internal_reference<1>())
-                .def("get_parameter", 
-                        (ParameterInput* (*)(const boost::shared_ptr<Op>&, long)) get_parameter, 
-                        return_internal_reference<1>())
-                .staticmethod("get_parameter")
             ;
 
                 class_<Op, boost::shared_ptr<OpWrap>, boost::noncopyable >("Op", no_init)
@@ -89,6 +79,15 @@ namespace cuvnet
                     .def("fprop", pure_virtual(&OpWrap::fprop))
                     .def("bprop", pure_virtual(&OpWrap::bprop))
                     .def("dot", dot)
+                    .def("get_parameter", 
+                            (ParameterInput* (*)(const boost::shared_ptr<Op>&, const std::string&)) get_parameter, 
+                            return_internal_reference<1>())
+                    .def("get_parameter", 
+                            (ParameterInput* (*)(const boost::shared_ptr<Op>&, Op*)) get_parameter, 
+                            return_internal_reference<1>())
+                    .def("get_parameter", 
+                            (ParameterInput* (*)(const boost::shared_ptr<Op>&, long)) get_parameter, 
+                            return_internal_reference<1>())
                     ;
                 
                 class_<ParameterInput, boost::shared_ptr<ParameterInput> >("ParameterInput", no_init)
