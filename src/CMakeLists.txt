@@ -17,6 +17,8 @@ INCLUDE_DIRECTORIES(/usr/local/cuda/include)
 FIND_PACKAGE( LAPACK )
 LINK_DIRECTORIES( ${LAPACK_LIBRARIES} )
 
+FIND_PACKAGE( PythonLibs )
+
 INCLUDE_DIRECTORIES($ENV{HOME}/pool/include/boost-numeric-bindings/)
 #LINK_DIRECTORIES(/usr/local/cuv/lib)
 LINK_DIRECTORIES(~/lib)
