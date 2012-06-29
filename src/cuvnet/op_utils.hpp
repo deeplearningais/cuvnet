@@ -53,24 +53,23 @@ namespace cuvnet
         : public op_visitor_once_adaptor{
         typedef std::vector<Op*> container_type;
         container_type     plist;
-        const std::string& m_name_query;
+        std::string m_name_query;
         const Op*          m_ptr_query;
-        bool m_search_name;
         /**
          * collect everything that is a ParameterInput
          */
-        param_collector_visitor(): m_name_query(""), m_ptr_query(NULL), m_search_name(false){ }
+        param_collector_visitor(): m_ptr_query(NULL){}
         /**
          * filter by name (must match exactly)
          */
         param_collector_visitor(const std::string& name)
-        :m_name_query(name), m_ptr_query(NULL), m_search_name(true){
+        :m_name_query(name), m_ptr_query(NULL){
         }
         /**
          * filter by pointer 
          */
         param_collector_visitor(const Op* op)
-        :m_name_query(""), m_ptr_query(op), m_search_name(false){
+        :m_ptr_query(op){
         }
         inline void preorder(Op* o){
             // do not check for derivability.
@@ -81,12 +80,12 @@ namespace cuvnet
             //std::cout << "test: "<<boost::lexical_cast<std::string>(o)<<std::endl;
             //std::cout << "  m_name_query.length():" << m_name_query.length() << std::endl;
             //std::cout << "  m_ptr_query:" << boost::lexical_cast<std::string>(m_ptr_query) << std::endl;
-            if(!m_search_name && !m_ptr_query){
+            if(!m_name_query.length() && m_ptr_query == NULL){
                 ParameterInput* pi = dynamic_cast<ParameterInput*>(o);
                 if(pi)
                     plist.push_back(pi);
             }
-            else if(m_search_name)
+            else if(m_name_query.length())
             {
                 ParameterInput* pi = dynamic_cast<ParameterInput*>(o);
                 if(pi && m_name_query == pi->name())
