@@ -136,6 +136,13 @@ TEST(derivative_test, derivative_test_atan2){
     ptr_t func                     = boost::make_shared<Atan2>(inp0->result(), inp1->result());
     derivative_tester(*func);
 }
+TEST(derivative_test, derivative_test_eps_insensitive_loss){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[20]);
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[20]);
+    ptr_t func                     = boost::make_shared<EpsilonInsensitiveLoss>(0.1, inp0->result(), inp1->result());
+    derivative_tester(*func, 0, false, .003, 0.0, 1.0);
+}
 TEST(derivative_test, derivative_test_neg_cross_entropy_logistic){
 	typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[5]);

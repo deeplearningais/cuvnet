@@ -132,6 +132,103 @@ namespace cuvnet
                     }
         };
     /**
+     * epsilon insensitive loss function.
+     * 
+     * \f$ x \max(0,1-y-a)^2 + (-x) \max(0,y-a)^2\f$.
+     *
+     * @note The derivative is only implemented w.r.t. \i y!
+     *
+     * @ingroup Ops
+     */
+    class EpsilonInsensitiveLoss
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+                float m_sensitivity;
+            public:
+                EpsilonInsensitiveLoss(){} /// for serialization
+                EpsilonInsensitiveLoss(float sensitivity, result_t& p0, result_t& p1)
+                    :Op(2,1), m_sensitivity(sensitivity){
+                         add_param(0,p0);
+                         add_param(1,p1);
+                     }
+
+                void fprop(){
+                    using namespace cuv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    param_t::element_type&  p1 = *m_params[1];
+                    result_t::element_type& r0 = *m_results[0];
+
+                    const value_type& inp0 = p0.value.cdata();           // original
+                    const value_type& inp1 = p1.value.cdata();           // original
+
+                    if(r0.can_overwrite_directly()){
+                        value_type& result = r0.overwrite_or_add_value().data();
+                        apply_binary_functor(result, inp0, inp1, BF_SQSQLOSS, m_sensitivity);
+                    }else{
+                        value_ptr presult  = p0.value;
+                        value_type& result = presult.data_onlyshape();
+                        apply_binary_functor(result, inp0, inp1, BF_SQSQLOSS, m_sensitivity);
+                        r0.push(presult);
+                    }
+
+                    if(!p0.need_derivative && !p1.need_derivative) {
+                        p0.value.reset();
+                        p1.value.reset();
+                    }
+                }
+                void bprop(){
+                    using namespace cuv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    param_t::element_type&  p1 = *m_params[1];
+                    result_t::element_type& r0 = *m_results[0];
+                    assert(!p0.need_derivative && p1.need_derivative);
+
+                    const value_type& inp0 = p0.value.cdata();           // original
+                    const value_type& inp1 = p1.value.cdata();           // original
+
+                    if(p1.can_overwrite_directly()){
+                        value_type& res = p1.overwrite_or_add_value().data();
+                        apply_binary_functor(res, inp0, inp1, BF_DSQSQLOSS, m_sensitivity);
+                    }else{
+                        // overwrite one of the inputs
+                        value_ptr presult;
+                        if(p0.value.unique()){
+                            presult  = p0.value;
+                            p0.value.reset();
+                            value_type& result = presult.data_onlyshape();
+                            apply_binary_functor(result, inp0, inp1, BF_DSQSQLOSS, m_sensitivity);
+                        }
+                        else{
+                            presult  = p1.value;
+                            p1.value.reset();
+                            value_type& result = presult.data_onlyshape();
+                            apply_binary_functor(result, inp0, inp1, BF_DSQSQLOSS, m_sensitivity);
+                        }
+                        *presult *= r0.delta.cdata();
+                        p0.value.reset();
+                        p1.value.reset();
+                        r0.push(presult);
+                    }
+
+                }
+                void _determine_shapes(){
+                    assert(m_params[0]->shape == m_params[1]->shape);
+                    m_results[0]->shape = m_params[0]->shape;
+                }
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_sensitivity;
+                    }
+        };
+    /**
      * calculates the elementwise KullbackLeibler-Divergence of two Bernoulli
      * variables given by their means.
      * 
