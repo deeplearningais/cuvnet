@@ -90,9 +90,13 @@ namespace cuvnet
             public:
                 ParameterInput(){} /// for serialization
                 template<class T>
-                    ParameterInput(const T& init):Input(init), m_data(new value_type(init)){  }
+                    ParameterInput(const T& init):Input(init), m_data(new value_type(init)){ 
+                        set_derivable(true);
+                    }
                 template<class T>
-                    ParameterInput(const T& init, const std::string& name):Input(init,name), m_data(new value_type(init)){  }
+                    ParameterInput(const T& init, const std::string& name):Input(init,name), m_data(new value_type(init)){  
+                        set_derivable(true);
+                    }
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
                     if(m_name.size())
                         desc.label = m_name;
@@ -115,6 +119,7 @@ namespace cuvnet
                     cuvAssert(m_data->shape() == m_shape);
                     Input::_determine_shapes();
                 }
+                inline void reset_delta(){ if(!!m_delta) m_delta.data()=0.f; }
                 inline value_ptr&        data_ptr()     { return m_data; }
                 inline const value_ptr&  data_ptr()const{ return m_data; }
 

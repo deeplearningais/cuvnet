@@ -1,3 +1,4 @@
+#include <gtest/gtest.h>
 #include "derivative_test.hpp"
 #include <ext/functional>
 
@@ -19,12 +20,17 @@ namespace cuvnet{ namespace derivative_testing {
             }
         }
         BOOST_FOREACH(Op* raw, params){
+            ParameterInput* pi = dynamic_cast<ParameterInput*>(raw);
+            EXPECT_TRUE(pi != NULL);
+            pi->reset_delta();
             swp.fprop();
             swp.bprop();
-            cuv::tensor<float,cuv::host_memory_space> r0 = raw->result(0)->delta.cdata().copy();
+            cuv::tensor<float,cuv::host_memory_space> r0 = pi->delta().copy();
+            pi->reset_delta();
             swp.fprop();
             swp.bprop();
-            cuv::tensor<float,cuv::host_memory_space> r1 = raw->result(0)->delta.cdata();
+            cuv::tensor<float,cuv::host_memory_space> r1 = pi->delta().copy();
+            pi->reset_delta();
 
             EXPECT_TRUE(cuv::equal_shape(r0,r1));
             for(unsigned int i=0;i<r0.size();i++)
@@ -91,6 +97,7 @@ namespace cuvnet{ namespace derivative_testing {
             // tell that we want derivative w.r.t. all params
             param_collector_visitor pcv;
             op.visit(pcv);
+            EXPECT_TRUE(pcv.plist.size()>0);
 
             // fill all params with random numbers
             BOOST_FOREACH(Op* raw, pcv.plist){
@@ -101,6 +108,8 @@ namespace cuvnet{ namespace derivative_testing {
                     //param->data()[i] = 2.f;
                     if(maxv>minv){
                         param->data()[i] = (float)((maxv-minv)*drand48()+minv);
+                    }else if(maxv==minv){
+                        // assume params are initialized already
                     }else{
                         param->data()[i] = (float)(0.1f + 0.9f*drand48()) * (drand48()<.5?-1.f:1.f); // avoid values around 0
                     }
@@ -118,6 +127,7 @@ namespace cuvnet{ namespace derivative_testing {
                             std::mem_fun( &ParameterInput::derivable ),
                             ptr_caster<Op,ParameterInput>()))
                     );
+            EXPECT_TRUE(derivable_params.size() > 0);
 
             swiper swipe(op, result, derivable_params);
 
@@ -144,11 +154,16 @@ namespace cuvnet{ namespace derivative_testing {
                 }
                 for(unsigned int out=0;out<n_outputs;out++){
                     swipe.fprop();
+                    cuvAssert(!cuv::has_nan(out_op->cdata()));
+                    cuvAssert(!cuv::has_inf(out_op->cdata()));
                     set_delta_to_unit_vec(op,result,out);
+                    param->reset_delta();
                     swipe.bprop(false);
 
                     // set row in J to the backpropagated value
-                    matrix d_in = param->result()->delta.cdata();
+                    matrix d_in = param->delta();
+                    cuvAssert(!cuv::has_nan(d_in));
+                    cuvAssert(!cuv::has_inf(d_in));
                     d_in.reshape(cuv::extents[n_inputs]);
                     J[cuv::indices[cuv::index_range(out,out+1)][cuv::index_range()]] = d_in;
                 }
@@ -187,7 +202,7 @@ namespace cuvnet{ namespace derivative_testing {
                     tofile("analyticalJ.npy", Jh);
                     tofile("finitediffJ.npy", J_t);
                 }
-                EXPECT_NEAR(maxdiff, 0.f, prec_ );
+                EXPECT_LT(maxdiff, prec_ );
             }
         }
 
