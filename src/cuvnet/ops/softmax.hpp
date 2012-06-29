@@ -212,7 +212,7 @@ namespace cuvnet
                         *presult *= r0.delta.cdata();
                         p0.value.reset();
                         p1.value.reset();
-                        r0.push(presult);
+                        p1.push(presult);
                     }
 
                 }

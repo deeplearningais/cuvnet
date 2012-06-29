@@ -167,6 +167,9 @@ namespace cuvnet
     /// construct a MultinomialLogisticLoss object
     inline
         Op::op_ptr multinomial_logistic_loss(Op::op_ptr x, Op::op_ptr target, unsigned int dim=0){ return boost::make_shared<MultinomialLogisticLoss>(x->result(), target->result(), dim); }
+    /// construct a EpsilonInsensitiveLoss object
+    inline
+        Op::op_ptr epsilon_insensitive_loss(float sensitivity, Op::op_ptr target, Op::op_ptr x){ return boost::make_shared<EpsilonInsensitiveLoss>(sensitivity, target->result(), x->result()); }
     /// construct a RowSelector object
     inline
         Op::op_ptr row_select(Op::op_ptr p0, int row=-1){ return boost::make_shared<RowSelector>(p0->result(), row); }
