@@ -20,8 +20,6 @@ IF (USE_OPENCV AND TBB_FOUND)
    LIST(APPEND CUVNET_TOOLS_SRC preprocess.cpp data_source.cpp)
 ENDIF (USE_OPENCV AND TBB_FOUND)
 
-FIND_PACKAGE( PythonLibs )
-
 if ( PYTHONLIBS_FOUND )
     include_directories( ${PYTHON_INCLUDE_DIRS} )
     LIST(APPEND CUVNET_TOOLS_SRC python_helper.cpp)
