@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 
 def cfg(ax):
@@ -7,28 +8,34 @@ def cfg(ax):
     ax.yaxis.set_visible(False)
 
 
-def generic_filters(x, trans=True, maxy=5):
+def generic_filters(x, trans=True, maxx=8, maxy=6, sepnorm=False):
     """ visualize an generic filter matrix """
     if trans:
         x = np.rollaxis(x, 2)
     print x.min(), x.mean(), x.max()
     print x.shape
-    x -= x.min()
-    x /= x.max() + 0.000001
-    n_filters_x = x.shape[0]
-    n_filters_y = min(maxy, x.shape[1])
+    #x -= x.min()
+    #x /= x.max() + 0.000001
+    n_filters_x = min(x.shape[0], maxy)
+    n_filters_y = min(x.shape[1], maxx)
     n_pix_x = int(np.sqrt(x.shape[2]))
     fig, axes = plt.subplots(n_filters_x, n_filters_y)
     fig.subplots_adjust(hspace=0.00, wspace=0.00,
-            left=0, top=1, bottom=0, right=1)
+            left=0, top=1, bottom=0.10, right=1)
+    norm = mpl.colors.Normalize(vmin=x.min(), vmax=x.max())
     for ax, i in zip(axes.T.flatten(), xrange(np.prod(axes.shape))):
         idx_x = i % n_filters_x
         idx_y = i / n_filters_x
         flt = x[idx_x, idx_y, :]
-        flt -= flt.min()
-        flt /= flt.max()
-        ax.matshow(flt.reshape(n_pix_x, n_pix_x), cmap="binary")
+        if sepnorm:
+            flt -= flt.min()
+            flt /= flt.max()
+        res = ax.matshow(flt.reshape(n_pix_x, n_pix_x), cmap="binary")
+        res.set_norm(norm)
         cfg(ax)
+    if not sepnorm:
+        cbaxes = fig.add_axes([0.1, 0.10, 0.8, 0.05])
+        fig.colorbar(res, cax=cbaxes, orientation='horizontal')
     return fig
 
 
@@ -93,6 +100,7 @@ class MyDotWindow(xdot.DotWindow):
                     rgb_filters(data, False)
                 else:
                     generic_filters(data, False)
+            plt.ion()
             plt.show()
         elif typ == "sink":
             node = self.op.get_sink(long(ptr, 0))
@@ -103,6 +111,7 @@ class MyDotWindow(xdot.DotWindow):
                     rgb_filters(data, True)
                 else:
                     generic_filters(data, True)
+                plt.ion()
                 plt.show()
             else:
                 print data
@@ -115,6 +124,7 @@ class MyDotWindow(xdot.DotWindow):
                     rgb_filters(data, True)
                 else:
                     generic_filters(data, True)
+                plt.ion()
                 plt.show()
             else:
                 print data
