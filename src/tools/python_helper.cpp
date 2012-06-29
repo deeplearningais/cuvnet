@@ -143,7 +143,7 @@ namespace cuvnet
         }
     }
 
-    void initialize_python(){
+    boost::python::object initialize_python(){
         using namespace boost::python;
         Py_Initialize();
         object main_module = import("__main__");
@@ -157,6 +157,7 @@ namespace cuvnet
                 "import visualization\n"
                 "import matplotlib.pyplot as plt\n",
                 main_namespace);
+        return main_namespace;
     }
 
     void embed_python(){

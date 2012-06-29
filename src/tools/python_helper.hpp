@@ -5,7 +5,10 @@
 namespace cuvnet
 {
     
-    void initialize_python();
+    /**
+     * @return main scope
+     */
+    boost::python::object initialize_python();
 
     void export_ops();
 

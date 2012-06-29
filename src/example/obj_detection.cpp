@@ -14,7 +14,6 @@
 
 #include <tools/serialization_helper.hpp>
 #include <tools/python_helper.hpp>
-#include <tools/function.hpp>
 
 using namespace boost::assign;
 using namespace cuvnet;
@@ -86,17 +85,10 @@ int main(int argc, char **argv)
     std::vector<Op*> params = od->params();
     if(load_old_model_and_drop_to_python){
         load_batch(input, ignore, target, &ds, bs);
-        cuvnet::function f(od->get_loss(), 0, "click");
-        f.evaluate();
         try{
-            initialize_python();
+            boost::python::object main_namespace = initialize_python();
             export_ops();
-            using namespace boost::python;
-            object main_module = import("__main__");
-            scope main(main_module);
-            object main_namespace = main_module.attr("__dict__");
             main_namespace["loss"] = od->get_loss(); 
-
             embed_python();
         }catch(const boost::python::error_already_set&){
             PyErr_PrintEx(0);
@@ -135,7 +127,7 @@ int main(int argc, char **argv)
         
         // do mini-batch learning for at most 10 epochs, or until timeout
         // (whatever comes first)
-        gd.minibatch_learning(10, 60*60,1,false); // 1h
+        gd.minibatch_learning(10, 10000*60,1,false); // 1h
     }
     std::cout <<  std::endl;
 
