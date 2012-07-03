@@ -88,11 +88,11 @@ namespace cuvnet
     {
         if(meta.xmin > 0)
             dst.draw_rectangle(0,0,0,0,  meta.xmin, dst.height()-1, dst.depth()-1, dst.spectrum()-1, 255);
-        if(meta.xmax < dst.width()-1)
+        if((int)meta.xmax < dst.width()-1)
             dst.draw_rectangle(meta.xmax+1,0,0,0,  dst.width()-1, dst.height()-1, dst.depth()-1, dst.spectrum()-1, 255);
         if(meta.ymin > 0)
             dst.draw_rectangle(0,0,0,0,  dst.width()-1, meta.ymin-1, dst.depth()-1, dst.spectrum()-1, 255);
-        if(meta.ymax < dst.height()-1)
+        if((int)meta.ymax < dst.height()-1)
             dst.draw_rectangle(0,meta.ymax+1,0,0,  dst.width()-1, dst.height()-1, dst.depth()-1, dst.spectrum()-1, 255);
     }
 
