@@ -233,7 +233,7 @@ namespace cuvnet
      * 
      * \f$ \max(0, yt-1)\f$ or \f$ \max(0, yt-1)^2\f$.
      *
-     * As with hinge loss, the target is typically either 1 or -1.
+     * For hinge loss, the target is typically either 1 or -1 (not 0...).
      *
      * @note The derivative is only implemented w.r.t. \i y!
      *
