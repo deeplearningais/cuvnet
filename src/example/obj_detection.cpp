@@ -85,15 +85,10 @@ int main(int argc, char **argv)
     std::vector<Op*> params = od->params();
     if(load_old_model_and_drop_to_python){
         load_batch(input, ignore, target, &ds, bs);
-        try{
-            boost::python::object main_namespace = initialize_python();
-            export_ops();
-            main_namespace["loss"] = od->get_loss(); 
-            embed_python();
-        }catch(const boost::python::error_already_set&){
-            PyErr_PrintEx(0);
-            return 1;
-        }
+        initialize_python();
+        export_ops();
+        export_op("loss", od->get_loss());
+        embed_python();
         return 0;
     }
 

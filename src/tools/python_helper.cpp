@@ -5,6 +5,7 @@
 #include <cuvnet/ops.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <tools/function.hpp>
+#include <boost/python.hpp>
 #include <boost/python/register_ptr_to_python.hpp>
 #include "python_helper.hpp"
 
@@ -65,13 +66,14 @@ namespace cuvnet
         return (T*) get_node<T>(f, (Op*)pointer);
     }
 
-    void export_ops(){
+    int export_ops(){
         using namespace boost::python;
-        object main_module = import("__main__");
-        scope main(main_module);
+        try{
+            object main_module = import("__main__");
+            scope main(main_module);
 
-        {   scope cn = class_<Dummy>("cuvnet")
-            ;
+            {   scope cn = class_<Dummy>("cuvnet")
+                ;
 
                 class_<Op, boost::shared_ptr<OpWrap>, boost::noncopyable >("Op", no_init)
                     .add_property("n_params", &OpWrap::get_n_params, &OpWrap::set_n_params)
@@ -99,12 +101,12 @@ namespace cuvnet
                             return_internal_reference<1>())
                     .def("evaluate", &evaluate)
                     ;
-                
+
                 class_<Sink, boost::shared_ptr<Sink> >("Sink", no_init)
                     .add_property("cdata",
-                        make_function(
-                            &Sink::cdata,
-                            return_internal_reference<>()))
+                            make_function(
+                                &Sink::cdata,
+                                return_internal_reference<>()))
                     .add_property("name", 
                             make_function(
                                 (const std::string& (Sink::*)()const)
@@ -126,10 +128,10 @@ namespace cuvnet
                                 &ParameterInput::data,
                                 return_internal_reference<>()))
                     .add_property("delta", 
-                        make_function(
-                            (Op::value_type& (ParameterInput::*)())
-                            &ParameterInput::delta,
-                            return_internal_reference<>()))
+                            make_function(
+                                (Op::value_type& (ParameterInput::*)())
+                                &ParameterInput::delta,
+                                return_internal_reference<>()))
                     ;
                 ;
                 register_ptr_to_python< boost::shared_ptr<Op> >();
@@ -140,11 +142,30 @@ namespace cuvnet
                     .def("bprop", &swiper::bprop)
                     ;
 
+            }
+        }catch(const boost::python::error_already_set&){
+            PyErr_PrintEx(0);
+            throw std::runtime_error("python failure in export_ops");
         }
+        return 0;
     }
 
-    boost::python::object initialize_python(){
+    int export_op(const std::string& name, boost::shared_ptr<Op> op){
         using namespace boost::python;
+        try{
+            object main_module = import("__main__");
+            object main_namespace = main_module.attr("__dict__");
+            main_namespace[name] = op;
+        }catch(const boost::python::error_already_set&){
+            PyErr_PrintEx(0);
+            throw std::runtime_error("python failure in export_op");
+        }
+        return 0;
+    }
+
+    int initialize_python(){
+        using namespace boost::python;
+        try{
         Py_Initialize();
         object main_module = import("__main__");
         object main_namespace = main_module.attr("__dict__");
@@ -157,16 +178,26 @@ namespace cuvnet
                 "import visualization\n"
                 "import matplotlib.pyplot as plt\n",
                 main_namespace);
-        return main_namespace;
+        }catch(const boost::python::error_already_set&){
+            PyErr_PrintEx(0);
+            throw std::runtime_error("python failure");
+        }
+        return 0;
     }
 
-    void embed_python(){
+    int embed_python(){
         using namespace boost::python;
-        object main_module = import("__main__");
-        object main_namespace = main_module.attr("__dict__");
-        object ignored = exec(
-                "from IPython import embed\n"
-                "embed()\n",
-                main_namespace);
+        try{
+            object main_module = import("__main__");
+            object main_namespace = main_module.attr("__dict__");
+            object ignored = exec(
+                    "from IPython import embed\n"
+                    "embed()\n",
+                    main_namespace);
+        }catch(const boost::python::error_already_set&){
+            PyErr_PrintEx(0);
+            throw std::runtime_error("python failure in embed_python");
+        }
+        return 0;
     }
 }
