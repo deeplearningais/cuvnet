@@ -162,7 +162,7 @@ class obj_detector
                 float fan_in  = m_n_channels * m_filter_size1 * m_filter_size1;
                 float fan_out = m_n_filters1 * m_filter_size2 * m_filter_size2;
                 float diff = std::sqrt(6.f/(fan_in+fan_out));
-                diff *= .1f;
+                //diff *= .1f;
     
                 cuv::fill_rnd_uniform(m_conv1_weights->data());
                 m_conv1_weights->data() *= 2*diff;
@@ -172,7 +172,7 @@ class obj_detector
                 float fan_in = m_n_filters1 * m_filter_size2 * m_filter_size2;
                 float fan_out = m_n_filters2 * m_filter_size3 * m_filter_size3;
                 float diff = std::sqrt(6.f/(fan_in + fan_out));
-                diff *= .1f;
+                //diff *= .1f;
     
                 cuv::fill_rnd_uniform(m_conv2_weights->data());
                 m_conv2_weights->data() *= 2*diff;
@@ -182,16 +182,16 @@ class obj_detector
                 m_conv3_weights->data() = 0.f;
             } 
 
-            m_conv1_weights->m_learnrate_factor = 1.f / (m_filter_size1 * m_filter_size1);
-            m_conv2_weights->m_learnrate_factor = 1.f / (m_filter_size2 * m_filter_size2);
-            m_conv3_weights->m_learnrate_factor = 1.f / (m_filter_size3 * m_filter_size3);
+            //m_conv1_weights->m_learnrate_factor = 1.f / (m_filter_size1 * m_filter_size1);
+            //m_conv2_weights->m_learnrate_factor = 1.f / (m_filter_size2 * m_filter_size2);
+            //m_conv3_weights->m_learnrate_factor = 1.f / (m_filter_size3 * m_filter_size3);
 
             m_bias1->data() =  0.f;
             m_bias2->data() =  0.f;
-            m_bias3->data() =  -2.f;
-            m_bias1->m_learnrate_factor = 1.f / (m_filter_size1 * m_filter_size1);
-            m_bias2->m_learnrate_factor = 1.f / (m_filter_size2 * m_filter_size2);
-            m_bias3->m_learnrate_factor = 1.f / (m_filter_size3 * m_filter_size3);
+            m_bias3->data() =  -0.f;
+            //m_bias1->m_learnrate_factor = 1.f / (m_filter_size1 * m_filter_size1);
+            //m_bias2->m_learnrate_factor = 1.f / (m_filter_size2 * m_filter_size2);
+            //m_bias3->m_learnrate_factor = 1.f / (m_filter_size3 * m_filter_size3);
             m_bias1->m_weight_decay_factor = 0.f;
             m_bias2->m_weight_decay_factor = 0.f;
             m_bias3->m_weight_decay_factor = 0.f;
