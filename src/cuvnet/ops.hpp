@@ -192,6 +192,14 @@ namespace cuvnet
     /// construct a ClassificationLoss object
     inline
         Op::op_ptr classification_loss(boost::shared_ptr<Sink> x, Op::op_ptr y){ return boost::make_shared<ClassificationLoss>(x->result(),y->result()); }
+    
+    /// construct a HingeLoss object
+    inline
+        Op::op_ptr hinge_loss(Op::op_ptr y, Op::op_ptr y_hat){ return boost::make_shared<HingeLoss>(y->result(),y_hat->result(), false /* not squared */); }
+
+    /// construct a HingeLoss object
+    inline
+        Op::op_ptr squared_hinge_loss(Op::op_ptr y, Op::op_ptr y_hat){ return boost::make_shared<HingeLoss>(y->result(),y_hat->result(), true /* squared */); }
 
     /// adds to the value of another Op's parameter
     inline 

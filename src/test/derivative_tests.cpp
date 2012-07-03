@@ -9,6 +9,7 @@
 #include <cuvnet/op.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/derivative_test.hpp>
+#include <tools/function.hpp>
 
 #include <cuvnet/ops.hpp>
 
@@ -142,7 +143,29 @@ TEST(derivative_test, derivative_test_eps_insensitive_loss){
     boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[20]);
     inp0->set_derivable(false);
     ptr_t func                     = boost::make_shared<EpsilonInsensitiveLoss>(0.1, inp0->result(), inp1->result());
+    {
+        inp0->data()[0] = 0.2f;
+        inp1->data()[0] = 0.3f;
+        function f(func, 0);
+        EXPECT_NEAR(f.evaluate()[0], 0, 0.01);
+    }
     derivative_tester(*func, 0, true, .003, 0.0, 1.0);
+}
+TEST(derivative_test, derivative_test_hinge_loss){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[20]);
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[20]);
+    inp0->set_derivable(false);
+    ptr_t func                     = boost::make_shared<HingeLoss>(inp0->result(), inp1->result(), false);
+    derivative_tester(*func, 0, true, .003, -1.0, 1.0);
+}
+TEST(derivative_test, derivative_test_squared_hinge_loss){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[20]);
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[20]);
+    inp0->set_derivable(false);
+    ptr_t func                     = boost::make_shared<HingeLoss>(inp0->result(), inp1->result(), true);
+    derivative_tester(*func, 0, true, .003, -1.0, 1.0);
 }
 TEST(derivative_test, derivative_test_neg_cross_entropy_logistic){
 	typedef boost::shared_ptr<Op> ptr_t;

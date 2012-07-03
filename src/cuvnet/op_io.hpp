@@ -62,6 +62,7 @@ namespace cuvnet
             ar.template register_type<MultinomialLogisticLoss>();
             ar.template register_type<ClassificationLoss>();
             ar.template register_type<EpsilonInsensitiveLoss>();
+            ar.template register_type<HingeLoss>();
 
             // convolutions
             ar.template register_type<Convolve>();
