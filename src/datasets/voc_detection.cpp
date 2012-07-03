@@ -136,9 +136,10 @@ namespace cuvnet
             pat.ign.resize(cuv::extents[20][172* 172]);
             cuv::convert(pat.ign, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[20][172* 172], ign.data()));
             pat.img /= 255.f;
-            pat.tch /= 255.f;
-            pat.ign /= 255.f;
             pat.img -= 0.5f;
+            pat.tch /= 127.f;
+            pat.tch -=   1.f;
+            pat.ign /= 255.f;
             
             // put in pipe
             boost::mutex::scoped_lock lock(*mutex);
