@@ -106,7 +106,8 @@ class obj_detector
             // batch is in the dimension with index 2
             //m_loss = mean(sum_to_vec(subsampled_ignore * pow(hl3 - subsampled_target, 2.f), 2));
             //m_loss = mean(sum_to_vec(subsampled_ignore * neg_log_cross_entropy_of_logistic(subsampled_target, hl3), 2));
-            m_loss = mean(sum_to_vec(subsampled_ignore * epsilon_insensitive_loss(0.05f, subsampled_target, hl3), 2));
+            //m_loss = mean(sum_to_vec(subsampled_ignore * epsilon_insensitive_loss(0.05f, subsampled_target, hl3), 2));
+            m_loss = mean(sum_to_vec(subsampled_ignore * squared_hinge_loss(subsampled_target, hl3), 2));
 
             reset_weights();
         }
