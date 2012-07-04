@@ -101,7 +101,7 @@ int main(int argc, char **argv)
     std::cout << std::endl << " Training phase: " << std::endl;
     {
         // create a \c gradient_descent object 
-        gradient_descent gd(od->get_loss(),0,params,0.0000001f, .000010f);
+        gradient_descent gd(od->get_loss(),0,params,0.1f, .000000f);
         
         // register the monitor so that it receives learning events
         gd.register_monitor(mon);
