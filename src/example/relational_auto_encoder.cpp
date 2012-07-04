@@ -12,7 +12,7 @@
 #include <vector>
 using namespace cuvnet;
 namespace ll = boost::lambda;
-
+using namespace std;
 /**
  * collects weights, inputs and decoded data from the network and plots it, and
  * writes the results to a file.
@@ -179,8 +179,7 @@ void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb,
         std::string base = (boost::format("fx&y-%06d-")%epoch).str();
 
         tensor fx = trans(ae->get_fx()->data());
-        cuv::apply_scalar_functor(fx, SF_SIGM);
-        //fx *= fx;
+        fx *= fx;
         std::cout << "fx dims: "<<fx.shape(0)<<", "<<fx.shape(1)<<std::endl;
 
         tensor fy = trans(ae->get_fy()->data());
@@ -227,12 +226,13 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
+    unsigned int fa=30,fb=10,bs= 640, num_hidden = 5;
 
     // generate random translation dataset
     std::cout << "generating dataset: "<<std::endl;
     //random_translation ds(100, 20, 10, 0.5f, 3, 2.f, 5, 10);
     //random_translation ds(20, 64* 200, 1024, 0.1f, 8, 5.f, 2, 3);
-    random_translation ds(6, 10 * 64, 1024, 0.1f, 2, 2.f, 1, 1);
+    random_translation ds(fb, 10 * 64, 1024, 0.1f, 2, 2.f, 2, 2);
     ds.binary   = false;
 
     // number of filters is fa*fb (fa and fb determine layout of plots printed
@@ -240,7 +240,6 @@ int main(int argc, char **argv)
     // batch size is bs
     //unsigned int fa=16,fb=8,bs=512;
     //unsigned int fa=5,fb=20,bs= 4;
-    unsigned int fa=3,fb=6,bs= 64;
 
     std::cout << "Traindata: "<<std::endl;
     std::cout << ds.train_data.shape(0)<<std::endl;
@@ -257,7 +256,7 @@ int main(int argc, char **argv)
     input_ptr input_y(
             new ParameterInput(cuv::extents[bs][ds.train_data.shape(2)],"input_y")); 
 
-    relational_auto_encoder ae(3, fa*fb, ds.binary); // creates simple autoencoder
+    relational_auto_encoder ae(num_hidden, fa*fb, ds.binary); // creates simple autoencoder
     ae.init(input_x, input_y);
     
 
@@ -277,8 +276,9 @@ int main(int argc, char **argv)
 
     // create a \c gradient_descent object that derives the auto-encoder loss
     // w.r.t. \c params and has learning rate 0.001f
-    gradient_descent gd(ae.loss(),0,params,0.05f);
-
+    //gradient_descent gd(ae.loss(),0,params,0.05f);
+    rprop_gradient_descent gd(ae.loss(), 0, params, 0.0000001);
+    
     // register the monitor so that it receives learning events
     gd.register_monitor(mon);
 
@@ -296,7 +296,9 @@ int main(int argc, char **argv)
 
     // do mini-batch learning for at most 6000 epochs, or 10 minutes
     // (whatever comes first)
-    gd.minibatch_learning(50005, 10*600); // 10 minutes maximum
+    //gd.minibatch_learning(50005, 100*60, 0); // 10 minutes maximum
+    load_batch(input_x, input_y, &train_data,bs,0);
+    gd.batch_learning(10000, 100*60);
     
     return 0;
 }

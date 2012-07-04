@@ -30,9 +30,9 @@ class relational_auto_encoder{
         op_ptr m_factor_x;          ///< the projection of x
         op_ptr m_factor_y;          ///< the projection of y
         op_ptr m_factor_h;          ///< the projection of h
-        unsigned int m_num_factors; ///< the dimension of factors
         unsigned int m_hidden_dim;  ///< the number of hidden units
         bool m_binary;
+        unsigned int m_num_factors; ///< the dimension of factors
         // these are the parametrs of the model
         input_ptr  m_fx, m_fy, m_fh, m_bias_x, m_bias_y, m_bias_h;
 
@@ -77,7 +77,7 @@ class relational_auto_encoder{
             m_bias_y.reset(new ParameterInput(cuv::extents[input_y_dim],             "bias_y"));
             
             // calculates the projections of x and y
-            m_factor_x = prod(m_input_x, logistic(m_fx));
+            m_factor_x = prod(m_input_x, square(m_fx));
             //m_factor_x = prod(m_input_x, m_fx);
             m_factor_y = prod(m_input_y, m_fy);
             
@@ -162,12 +162,8 @@ class relational_auto_encoder{
          */
         virtual void reset_weights(){
             unsigned int input_dim_x = m_fx->data().shape(0);
-            unsigned int input_dim_y = m_fy->data().shape(0);
-            unsigned int hidden_dim = m_fh->data().shape(0);
             unsigned int factor_dim = m_fh->data().shape(1);
             float diff_x = 4.f*std::sqrt(6.f/(input_dim_x + factor_dim));
-            float diff_y = 4.f*std::sqrt(6.f/(input_dim_y + factor_dim));
-            float diff_h = 4.f*std::sqrt(6.f/(hidden_dim + factor_dim));
             cuv::fill_rnd_uniform(m_fx->data());
             cuv::fill_rnd_uniform(m_fy->data());
             cuv::fill_rnd_uniform(m_fh->data());
@@ -176,7 +172,7 @@ class relational_auto_encoder{
             m_fx->data() -=   diff_x;
             
             // makes identity submatrixes
-            std::cout << " initializing matrix fy : " << endl;
+            std::cout << " initializing matrix fy : " << std::endl;
             for(unsigned int i = 0; i < m_fy->data().shape(0); i++){
                 for(unsigned int j = 0; j < m_fy->data().shape(1); j++){
                     if(j % m_fy->data().shape(0) == i){
@@ -185,13 +181,13 @@ class relational_auto_encoder{
                         m_fy->data()(i,j) = 0;
                     std::cout << "  " << m_fy->data()(i,j) ;
                 }
-                std::cout << endl;
+                std::cout << std::endl;
 
             }
 
-                std::cout << endl;
+                std::cout << std::endl;
 
-            std::cout << " initializing matrix fh : " << endl;
+            std::cout << " initializing matrix fh : " << std::endl;
             for(unsigned int i = 0; i < m_fh->data().shape(0); i++){
                 for(unsigned int j = 0; j < m_fh->data().shape(1); j++){
                 if(j < input_dim_x * (i+1) && j >= input_dim_x * i){
@@ -200,7 +196,7 @@ class relational_auto_encoder{
                         m_fh->data()(i,j) = 0;
                     std::cout << "  " << m_fh->data()(i,j) ;
                 }
-                std::cout << endl;
+                std::cout << std::endl;
 
             }
             
