@@ -227,6 +227,7 @@ namespace cuvnet
                     before_epoch(epoch);
                     m_swipe.fprop();
                     m_swipe.bprop();
+                    after_batch(epoch, 0); // should accumulate errors etc
                     update_weights();
                     after_epoch(epoch);
                     m_learnrate *= m_learnrate_decay;
@@ -415,6 +416,10 @@ namespace cuvnet
         private:
             std::vector<Op::value_type> m_learnrates; ///< per-weight learning rates
             std::vector<cuv::tensor<signed char,Op::value_type::memory_space_type> > m_old_dw;     ///< old delta-w signs
+
+            unsigned int m_n_batches;
+
+            void inc_n_batches(){ m_n_batches ++; }
         public:
             /**
              * constructor
@@ -436,6 +441,8 @@ namespace cuvnet
                 m_old_dw[i].resize(((ParameterInput*)*it)->data().shape());
                 m_old_dw[i] = (signed char)0;
             }
+
+            after_batch.connect(boost::bind(&rprop_gradient_descent::inc_n_batches, this));
         }
         /**
          * @overload
@@ -444,10 +451,16 @@ namespace cuvnet
         virtual void update_weights(){
             using namespace cuv;
             unsigned int i=0;
+            //cuvAssert(m_n_batches > 0);
             for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
-                Op::value_type dW = ::operator-((*it)->result()->delta.cdata()); // TODO: change sign in cuv::rprop
-                cuv::rprop((dynamic_cast<ParameterInput*>(*it))->data(), dW, m_old_dw[i], m_learnrates[i], m_weightdecay, 0.0000000f);
+                ParameterInput* param = dynamic_cast<ParameterInput*>(*it);
+                Op::value_type dW = ::operator-(param->delta()); // TODO: change sign in cuv::rprop
+                if(m_n_batches > 1)
+                    dW /= (float) m_n_batches;
+                cuv::rprop(*param->data_ptr().ptr(), dW, m_old_dw[i], m_learnrates[i], m_weightdecay, 0.0000000f);
+                param->delta() = 0.f;
             }
+            m_n_batches = 0;
         }
 
     };
