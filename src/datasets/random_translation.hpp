@@ -5,6 +5,9 @@
 using namespace std;
 namespace cuvnet
 {
+
+    void normalize_data_set(cuv::tensor<float,cuv::host_memory_space> &data);
+    
     /**
      * creates gauss filter \f[ exp(-distance^2 / sigma^2) \f]
      * @param gauss the gauss filter which is being created.
