@@ -15,7 +15,7 @@
 #include <cuvnet/models/lenet.hpp>
 #include <tools/monitor.hpp>
 #include <tools/function.hpp>
-#include <cuvnet/models/relational_autoencoder.hpp>
+#include <cuvnet/models/relational_auto_encoder.hpp>
 
 
 using namespace cuvnet::derivative_testing;
@@ -233,7 +233,7 @@ TEST_F(RandomNumberUsingTest, lenet_derivative){
 TEST_F(RandomNumberUsingTest, relational_auto_encoder_derivative){
    boost::shared_ptr<Op>  inp_x = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
    boost::shared_ptr<Op>  inp_y = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
-   relational_auto_encoder r_ae(4, false); 
+   relational_auto_encoder r_ae(4, 4,  false); 
    r_ae.init(inp_x, inp_y);
 
    derivative_tester(*r_ae.loss(), 0, true, .01);
