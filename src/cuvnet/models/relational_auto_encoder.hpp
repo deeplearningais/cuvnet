@@ -26,6 +26,7 @@ class relational_auto_encoder{
         op_ptr m_encoded;           ///< the encoder function 
         op_ptr m_decoded_x;         ///< the decoder function when we want to reconstruct x from y
         op_ptr m_decoded_y;         ///< the decoder function when we want to reconstruct y from x
+        op_ptr m_prediction;         ///< the prediction function
         op_ptr m_factor_x;          ///< the projection of x
         op_ptr m_factor_y;          ///< the projection of y
         op_ptr m_factor_h;          ///< the projection of h
@@ -76,7 +77,8 @@ class relational_auto_encoder{
             m_bias_y.reset(new ParameterInput(cuv::extents[input_y_dim],             "bias_y"));
             
             // calculates the projections of x and y
-            m_factor_x = prod(m_input_x, m_fx);
+            m_factor_x = prod(m_input_x, logistic(m_fx));
+            //m_factor_x = prod(m_input_x, m_fx);
             m_factor_y = prod(m_input_y, m_fy);
             
             // calculates encoder and projection of encoder
@@ -90,6 +92,7 @@ class relational_auto_encoder{
 
             // calculates the decoder when y is reconstruction
             m_decoded_y = decode(m_factor_x, m_factor_h, m_fy, m_bias_y);
+            
 
             // calculates the reconstruction loss
             m_loss  = reconstruction_loss(m_input_x, m_input_y, m_decoded_x, m_decoded_y);
@@ -106,10 +109,7 @@ class relational_auto_encoder{
                 m_loss = m_rec_loss;
             }
 */
-    std::cout << "1a" << endl;
             reset_weights();
-
-    std::cout << "1b" << endl;
         }
     
         
@@ -119,6 +119,7 @@ class relational_auto_encoder{
                     prod(factor * factor_h, w, 'n', 't')
                     , b, 1);
         }
+        
         
        op_ptr get_decoded_x(){return m_decoded_x;} 
        op_ptr get_decoded_y(){return m_decoded_y;} 
@@ -134,9 +135,8 @@ class relational_auto_encoder{
          */
         op_ptr reconstruction_loss(op_ptr& input_x, op_ptr& input_y, op_ptr& decode_x, op_ptr& decode_y){
             if(!m_binary)  // squared loss
-                return    mean( sum_to_vec(pow(axpby(decode_x, -1.f, input_x), 2.f), 0) ) 
-                        + mean( sum_to_vec(pow(axpby(decode_y, -1.f, input_y), 2.f), 0) );
-            
+                return   // mean( sum_to_vec(pow(axpby(decode_x, -1.f, input_x), 2.f), 0) ) ;
+                          mean( sum_to_vec(pow(axpby(decode_y, -1.f, input_y), 2.f), 0) );
             else         // cross-entropy
             {
                 return   mean( sum_to_vec(neg_log_cross_entropy_of_logistic(input_x,decode_x),0))
@@ -171,12 +171,44 @@ class relational_auto_encoder{
             cuv::fill_rnd_uniform(m_fx->data());
             cuv::fill_rnd_uniform(m_fy->data());
             cuv::fill_rnd_uniform(m_fh->data());
+            diff_x *= 0.01;
             m_fx->data() *= 2*diff_x;
             m_fx->data() -=   diff_x;
-            m_fy->data() *= 2*diff_y;
-            m_fy->data() -=   diff_y;
-            m_fh->data() *= 2*diff_h;
-            m_fh->data() -=   diff_h;
+            
+            // makes identity submatrixes
+            std::cout << " initializing matrix fy : " << endl;
+            for(unsigned int i = 0; i < m_fy->data().shape(0); i++){
+                for(unsigned int j = 0; j < m_fy->data().shape(1); j++){
+                    if(j % m_fy->data().shape(0) == i){
+                        m_fy->data()(i,j) = 1;
+                    }else
+                        m_fy->data()(i,j) = 0;
+                    std::cout << "  " << m_fy->data()(i,j) ;
+                }
+                std::cout << endl;
+
+            }
+
+                std::cout << endl;
+
+            std::cout << " initializing matrix fh : " << endl;
+            for(unsigned int i = 0; i < m_fh->data().shape(0); i++){
+                for(unsigned int j = 0; j < m_fh->data().shape(1); j++){
+                if(j < input_dim_x * (i+1) && j >= input_dim_x * i){
+                        m_fh->data()(i,j) = 1;
+                    }else
+                        m_fh->data()(i,j) = 0;
+                    std::cout << "  " << m_fh->data()(i,j) ;
+                }
+                std::cout << endl;
+
+            }
+            
+            
+            //m_fy->data() *= 2*diff_y;
+            //m_fy->data() -=   diff_y;
+            //m_fh->data() *= 2*diff_h;
+            //m_fh->data() -=   diff_h;
             m_bias_h->data()   = 0.f;
             m_bias_y->data()   = 0.f;
             m_bias_x->data()   = 0.f;
@@ -186,7 +218,9 @@ class relational_auto_encoder{
      * Determine the unsupervised parameters learned during training
      */
     std::vector<Op*> unsupervised_params(){
-        return boost::assign::list_of(m_fx.get())(m_fy.get())(m_fh.get())(m_bias_h.get())(m_bias_x.get())(m_bias_y.get());
+        return boost::assign::list_of(m_fx.get())(m_bias_h.get())(m_bias_y.get());
+        //return boost::assign::list_of(m_fx.get())(m_bias_h.get())(m_bias_x.get());
+        //return boost::assign::list_of(m_fx.get())(m_fy.get())(m_fh.get())(m_bias_h.get())(m_bias_x.get())(m_bias_y.get());
     }
     
     /**
@@ -195,6 +229,17 @@ class relational_auto_encoder{
     std::vector<Op*> supervised_params(){
         return boost::assign::list_of(m_fx.get())(m_fy.get())(m_fh.get())(m_bias_h.get());
     }
+    
+    /**
+     * @return weight matrix fx
+     */
+    boost::shared_ptr<ParameterInput> get_fx(){return m_fx;} 
+
+    /**
+     * @return weight matrix fx
+     */
+    boost::shared_ptr<ParameterInput> get_fy(){return m_fy;} 
+
 };
 
 
