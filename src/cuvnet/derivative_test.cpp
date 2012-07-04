@@ -194,6 +194,11 @@ namespace cuvnet{ namespace derivative_testing {
                 cuv::transpose(J_t,J_h); J_h.dealloc();
                 double maxdiff = cuv::maximum((J_t-Jh)*(J_t-Jh));    // squared(!) 
                 double prec_  = prec * prec;                       // square precision, too
+                if(verbose)
+                {
+                    std::cout << "   maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;
+                    std::cout << "   max(Jh)="<<cuv::maximum(Jh)<<std::endl;
+                }
                 if(maxdiff>prec_){
                     std::cout << "   maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;
                     std::cout << "   dumping Jacobi matrices: " << std::endl;
