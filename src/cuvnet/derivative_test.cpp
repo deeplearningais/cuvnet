@@ -13,11 +13,12 @@ namespace cuvnet{ namespace derivative_testing {
             swp.fprop();
             cuv::tensor<float,cuv::host_memory_space> r0 = out->cdata().copy();
             swp.fprop();
-            cuv::tensor<float,cuv::host_memory_space> r1 = out->cdata();
+            cuv::tensor<float,cuv::host_memory_space> r1 = out->cdata().copy();
+
             EXPECT_TRUE(cuv::equal_shape(r0,r1));
-            for(unsigned int i=0;i<r0.size();i++) {
-                EXPECT_NEAR(r0[i],r1[i],0.0000001);
-            }
+            cuv::tensor<float,cuv::host_memory_space> rdiff(r0-r1);
+            cuv::apply_scalar_functor(rdiff, cuv::SF_ABS);
+            EXPECT_LT(cuv::maximum(rdiff), 0.00000001);
         }
         BOOST_FOREACH(Op* raw, params){
             ParameterInput* pi = dynamic_cast<ParameterInput*>(raw);
@@ -33,10 +34,9 @@ namespace cuvnet{ namespace derivative_testing {
             pi->reset_delta();
 
             EXPECT_TRUE(cuv::equal_shape(r0,r1));
-            for(unsigned int i=0;i<r0.size();i++)
-            {
-                EXPECT_NEAR(r0[i],r1[i],0.0000001);
-            }
+            cuv::tensor<float,cuv::host_memory_space> rdiff(r0-r1);
+            cuv::apply_scalar_functor(rdiff, cuv::SF_ABS);
+            EXPECT_LT(cuv::maximum(rdiff), 0.00000001);
         }
     }
 
