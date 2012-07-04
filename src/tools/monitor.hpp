@@ -2,6 +2,7 @@
 #     define __MONITOR_HPP__
 
 #include <map>
+#include <iomanip>
 //#include <boost/ptr_container/ptr_vector.hpp>
 
 #include <boost/accumulators/accumulators.hpp>
@@ -12,6 +13,8 @@
 #include <boost/accumulators/statistics/variance.hpp>
 
 #include <cuvnet/ops/output.hpp>
+#include <cuvnet/ops.hpp>
+#include <cuv/tools/device_tools.hpp>
 #include <tools/function.hpp>
 
 namespace cuvnet
@@ -39,6 +42,8 @@ namespace cuvnet
             enum watchpoint_type {
                 WP_SINK,                ///< simply create a sink which keeps the values 
                 WP_SCALAR_EPOCH_STATS, ///< keep stats over one epoch
+                WP_D_SINK,                ///< simply create a sink which keeps the values 
+                WP_D_SCALAR_EPOCH_STATS, ///< keep stats over one epoch
                 WP_FUNC_SINK,                ///< a sink which needs to be evaluated first
                 WP_FUNC_SCALAR_EPOCH_STATS  ///< needs evaluation first, keeps stats over one epoch
             };
@@ -65,6 +70,10 @@ namespace cuvnet
                         case WP_SCALAR_EPOCH_STATS:
                             sink.reset(new Sink(name,op->result(result)));
                             break;
+                        case WP_D_SINK:
+                        case WP_D_SCALAR_EPOCH_STATS:
+                            dsink = delta_sink(name, op, result);
+                            break;
                         case WP_FUNC_SINK:
                         case WP_FUNC_SCALAR_EPOCH_STATS:
                             func.reset(op,result,name);
@@ -75,6 +84,7 @@ namespace cuvnet
                 function                func;
                 boost::shared_ptr<Op>     op;
                 std::string             name;
+                boost::shared_ptr<DeltaSink> dsink;  ///< this sink is managed by the monitor itself
                 boost::shared_ptr<Sink> sink;  ///< this sink is managed by the monitor itself
                 acc_t           scalar_stats;
             };
@@ -133,6 +143,18 @@ namespace cuvnet
                             p->scalar_stats(cuv::minimum(p->sink->cdata()));
                         }
                         p->sink->forget();
+                    }
+                    if(p->type == WP_D_SCALAR_EPOCH_STATS)
+                    {
+                        if(p->dsink->cdata().size()==1)
+                            p->scalar_stats((float)p->dsink->cdata()[0]);
+                        else {
+                            // TODO: need real stats, not this!
+                            p->scalar_stats(cuv::maximum(p->dsink->cdata()));
+                            p->scalar_stats(cuv::mean(p->dsink->cdata()));
+                            p->scalar_stats(cuv::minimum(p->dsink->cdata()));
+                        }
+                        p->dsink->forget();
                     }
                     if(p->type == WP_FUNC_SCALAR_EPOCH_STATS)
                     {
@@ -200,6 +222,10 @@ namespace cuvnet
             float var(const std::string& name)const{
                 return boost::accumulators::variance(get(name).scalar_stats);
             }
+            /// return the standard deviation of a named watchpoint 
+            float stddev(const std::string& name)const{
+                return std::sqrt(boost::accumulators::variance(get(name).scalar_stats));
+            }
 
             /**
              * access a sink by a name
@@ -211,10 +237,14 @@ namespace cuvnet
                     case WP_SINK:
                     case WP_SCALAR_EPOCH_STATS:
                         return wp.sink->cdata();
+                    case WP_D_SINK:
+                    case WP_D_SCALAR_EPOCH_STATS:
+                        return wp.dsink->cdata();
                     case WP_FUNC_SINK:
                     case WP_FUNC_SCALAR_EPOCH_STATS:
                         return wp.func.evaluate();
                 }
+                throw std::runtime_error("unknown watchpoint type");
             }
 
             /**
@@ -233,10 +263,12 @@ namespace cuvnet
              * plain text logging of all epochstats 
              */
             void simple_logging()const{
-                std::cout << "\r epoch "<<m_epochs<<": ";
+                std::cout << "\r epoch "<<m_epochs<<":  free_mb="<<cuv::getFreeDeviceMemory()/*/1024/1024*/<<",  ";
                 BOOST_FOREACH(const watchpoint* p, m_watchpoints){
-                    if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS){
-                        std::cout << p->name<<"="<<mean(p->name)<<"("<<var(p->name)<<"), ";
+                    if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
+                        std::cout  << p->name<<"="
+                        << std::left << std::setprecision(4) << mean(p->name) <<" ("
+                        << std::left << std::setprecision(4) << stddev(p->name)<<"),  ";
                     }
                 }
                 std::cout << "           " << std::flush;

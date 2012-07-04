@@ -264,9 +264,10 @@ namespace cuvnet
                     ParameterInput* inp = (ParameterInput*) *it;
 
                     float lr = m_learnrate * inp->m_learnrate_factor;
+                    float wd = m_weightdecay * inp->m_weight_decay_factor;
                     // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
                     //       we're changing the underlying object all cow_ptrs pointing to it!!!
-                    cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->delta(), -lr, m_weightdecay);
+                    cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->delta(), -lr, wd);
                     inp->delta() = 0.f;
                 }
             }

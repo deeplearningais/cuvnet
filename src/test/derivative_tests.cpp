@@ -1,6 +1,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <cstdio>
+#include <boost/assign.hpp>
 #include <gtest/gtest.h>
 
 #define CUVNET_PRECISE_SUM 1
@@ -8,6 +9,7 @@
 #include <cuvnet/op.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/derivative_test.hpp>
+#include <tools/function.hpp>
 
 #include <cuvnet/ops.hpp>
 
@@ -15,6 +17,22 @@ using namespace cuvnet;
 using std::printf;
 using namespace cuvnet::derivative_testing;
 
+TEST(op_test, deltasink){
+    typedef boost::shared_ptr<Op> ptr_t;
+    typedef boost::shared_ptr<ParameterInput> param_t;
+    param_t inp = boost::make_shared<ParameterInput>(cuv::extents[2][4]);
+    inp->data() = 3.f;
+    ptr_t func  = boost::make_shared<Pow>(2.f,inp->result());
+    boost::shared_ptr<DeltaSink> ds = delta_sink("pow_delta", inp); // monitor the delta 
+
+    swiper s(*func, 0, boost::assign::list_of<Op*>(inp.get()));
+    s.fprop();
+    s.bprop();
+    EXPECT_NEAR(ds->cdata()[0], 6.f, 0.001f);
+    s.fprop();
+    s.bprop();
+    EXPECT_NEAR(ds->cdata()[0], 6.f, 0.001f); // make sure it does not add to previous value
+}
 
 TEST(derivative_test, derivative_test_pipe){
    typedef boost::shared_ptr<Op> ptr_t;
@@ -119,6 +137,36 @@ TEST(derivative_test, derivative_test_atan2){
     ptr_t func                     = boost::make_shared<Atan2>(inp0->result(), inp1->result());
     derivative_tester(*func);
 }
+TEST(derivative_test, derivative_test_eps_insensitive_loss){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[20]);
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[20]);
+    inp0->set_derivable(false);
+    ptr_t func                     = boost::make_shared<EpsilonInsensitiveLoss>(0.1, inp0->result(), inp1->result());
+    {
+        inp0->data()[0] = 0.2f;
+        inp1->data()[0] = 0.3f;
+        function f(func, 0);
+        EXPECT_NEAR(f.evaluate()[0], 0, 0.01);
+    }
+    derivative_tester(*func, 0, true, .003, 0.0, 1.0);
+}
+TEST(derivative_test, derivative_test_hinge_loss){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[20]);
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[20]);
+    inp0->set_derivable(false);
+    ptr_t func                     = boost::make_shared<HingeLoss>(inp0->result(), inp1->result(), false);
+    derivative_tester(*func, 0, true, .003, -1.0, 1.0);
+}
+TEST(derivative_test, derivative_test_squared_hinge_loss){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[20]);
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[20]);
+    inp0->set_derivable(false);
+    ptr_t func                     = boost::make_shared<HingeLoss>(inp0->result(), inp1->result(), true);
+    derivative_tester(*func, 0, true, .003, -1.0, 1.0);
+}
 TEST(derivative_test, derivative_test_neg_cross_entropy_logistic){
 	typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[5]);
@@ -164,13 +212,13 @@ TEST(derivative_test, derivative_test_sum_mat_to_vec){
 TEST(derivative_test, derivative_test_sum_mat_to_vec3d){
 	typedef boost::shared_ptr<Op> ptr_t;
     {
-        std::cout << "axis=0" << std::endl;
+        //std::cout << "axis=0" << std::endl;
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),0);
         derivative_tester(*func);
     }
     {
-        std::cout << "axis=1" << std::endl;
+        //std::cout << "axis=1" << std::endl;
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),2);
         derivative_tester(*func);

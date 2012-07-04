@@ -34,17 +34,18 @@ namespace cuvnet
 
             public:
                 float m_learnrate_factor;
+                float m_weight_decay_factor;
 
                 Input(){} /// for serialization
                 template<std::size_t D>
-                Input(const cuv::extent_gen<D>& shape):Op(0,1), m_derivable(false), m_learnrate_factor(1.f)
+                Input(const cuv::extent_gen<D>& shape):Op(0,1), m_derivable(false), m_learnrate_factor(1.f), m_weight_decay_factor(1.f)
                 {  
                     m_shape.resize(D);
                     for(unsigned int i=0; i<D; i++)
                         m_shape[i] = shape.ranges_[i].finish();
                 }
                 template<std::size_t D>
-                Input(const cuv::extent_gen<D>& shape, const std::string& name):Op(0,1), m_name(name),m_derivable(false),m_learnrate_factor(1.f)
+                Input(const cuv::extent_gen<D>& shape, const std::string& name):Op(0,1), m_name(name),m_derivable(false),m_learnrate_factor(1.f),m_weight_decay_factor(1.f)
                 {  
                     m_shape.resize(D);
                     for(unsigned int i=0; i<D; i++)
@@ -56,7 +57,7 @@ namespace cuvnet
                     else
                         desc.label = "Input";
                 }
-                virtual void fprop()=0;
+                virtual void fprop(){ throw std::runtime_error("fprop() not implemented for input `"+m_name+"'!"); }
                 virtual void bprop(){ throw std::runtime_error("bprop() not implemented for input `"+m_name+"'!"); }
                 void _determine_shapes(){
                     m_results[0]->shape = m_shape;
@@ -69,7 +70,7 @@ namespace cuvnet
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
-                        ar & m_name & m_learnrate_factor;
+                        ar & m_name & m_learnrate_factor & m_shape;
                     }
         };
 
@@ -89,9 +90,13 @@ namespace cuvnet
             public:
                 ParameterInput(){} /// for serialization
                 template<class T>
-                    ParameterInput(const T& init):Input(init), m_data(new value_type(init)){  }
+                    ParameterInput(const T& init):Input(init), m_data(new value_type(init)){ 
+                        set_derivable(true);
+                    }
                 template<class T>
-                    ParameterInput(const T& init, const std::string& name):Input(init,name), m_data(new value_type(init)){  }
+                    ParameterInput(const T& init, const std::string& name):Input(init,name), m_data(new value_type(init)){  
+                        set_derivable(true);
+                    }
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
                     if(m_name.size())
                         desc.label = m_name;
@@ -114,6 +119,7 @@ namespace cuvnet
                     cuvAssert(m_data->shape() == m_shape);
                     Input::_determine_shapes();
                 }
+                inline void reset_delta(){ if(!!m_delta) m_delta.data()=0.f; }
                 inline value_ptr&        data_ptr()     { return m_data; }
                 inline const value_ptr&  data_ptr()const{ return m_data; }
 

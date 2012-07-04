@@ -15,6 +15,8 @@ namespace cuvnet
      */
     class voc_detection_pipe;
     class voc_detection_dataset{
+        private:
+            int m_n_threads;
         public:
             struct object {
                 unsigned int klass;  ///< the index of the class this object belongs to
@@ -59,14 +61,22 @@ namespace cuvnet
              *
              * @param train_filename filename containing meta-infos for training set
              * @param test_filename filename containing meta-infos for test set
+             * @param n_threads number of threads to start for queue. If zero, use number of CPUs
              * @param verbose if true, print number of images loaded
              */
-            voc_detection_dataset(const std::string& train_filename, const std::string& test_filename, bool verbose=false);
+            voc_detection_dataset(const std::string& train_filename, const std::string& test_filename, int n_threads=0, bool verbose=false);
 
             enum subset{
                 SS_TRAIN, SS_VAL, SS_TEST
             };
-            void switch_dataset(subset ss);
+            /**
+             * change the subset of the dataset .
+             *
+             * @param ss the new subset
+             * @param n_threads if it is zero, use value given in constructor
+             *
+             */
+            void switch_dataset(subset ss, int n_threads=0);
 
             unsigned int size_available()const;
 

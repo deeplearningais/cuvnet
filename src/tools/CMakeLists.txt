@@ -20,7 +20,15 @@ IF (USE_OPENCV AND TBB_FOUND)
    LIST(APPEND CUVNET_TOOLS_SRC preprocess.cpp data_source.cpp)
 ENDIF (USE_OPENCV AND TBB_FOUND)
 
-add_library(cuvnet_tools STATIC ${CUVNET_TOOLS_SRC})
+if ( PYTHONLIBS_FOUND )
+    include_directories( ${PYTHON_INCLUDE_DIRS} )
+    LIST(APPEND CUVNET_TOOLS_SRC python_helper.cpp)
+elseif( PYTHONLIBS_FOUND )
+    SET(PYTHON_LIBRARIES "")
+endif( PYTHONLIBS_FOUND )
+
+
+add_library(cuvnet_tools STATIC ${CUVNET_TOOLS_SRC} ${PYTHON_LIBRARIES})
 
 # MAGMA has circular dependencies on MAGMABLAS.
 # We need to link with -lmagma -lmagmablas -lmagma
@@ -37,7 +45,7 @@ add_library(cuvnet_tools STATIC ${CUVNET_TOOLS_SRC})
 #set_property(TARGET magmablas PROPERTY
 #            IMPORTED_LOCATION /usr/local/src/magma_1.1.0/lib/libmagmablas.a)
 
-TARGET_LINK_LIBRARIES( cuvnet_tools ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} npy mdbq zzip )
+TARGET_LINK_LIBRARIES( cuvnet_tools ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} cuvnet_ops npy mdbq zzip )
 
 if ( OpenCV_FOUND  AND TBB_FOUND )
     TARGET_LINK_LIBRARIES( cuvnet_tools ${OpenCV_LIBS} ${TBB_LIBS} )

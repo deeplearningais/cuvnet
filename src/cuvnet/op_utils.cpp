@@ -75,12 +75,20 @@ void define_graphviz_node_visitor::preorder(Op* o){
         n.fillcolor = "firebrick1";
     }
 
+    std::string type;
+    if(is_input)
+        type = "input ";
+    else if(is_sink)
+        type = "sink ";
+    else 
+        type = "generic ";
+
     // define the op-node itself
     std::string opstr = "n" + boost::lexical_cast<std::string>( o );
     m_seen[o] = opstr;
 	os << opstr
 	   << " ["
-	   << " tooltip=\"tooltip "<<n.label<<"\","
+	   << " URL=\""<<type<<boost::lexical_cast<std::string>(o)<<"\","
 	   << " label=\""<<n.label<<"\","
 	   << " shape=\""<<n.shape<<"\","
 	   << " style=\""<<n.style<<"\","

@@ -125,6 +125,8 @@ TEST_F(RandomNumberUsingTest, simple_ae_loss_derivative){
 TEST_F(RandomNumberUsingTest, convolutional_auto_encoder_derivative ){
     // nBatch x nChannels x nPixels
    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[2][2][6*6], "input");
+   cuv::fill_rnd_uniform(inp->data());
+   inp->data() -= 0.5f;
    //inp->set_derivable(false);
 
    {
@@ -132,13 +134,13 @@ TEST_F(RandomNumberUsingTest, convolutional_auto_encoder_derivative ){
        ae.init(inp);
 
        std::cout << "-encoded" << std::endl;
-       derivative_tester(*ae.get_encoded(),0,true,.01f); // generate inputs in interval 0,1
+       derivative_tester(*ae.get_encoded(),0,true,.01f, 0,0); // generate inputs in interval 0,1
 
        std::cout << "-decoded" << std::endl;
-       derivative_tester(*ae.get_decoded(),0,true,.1f); // generate inputs in interval 0,1
+       derivative_tester(*ae.get_decoded(),0,true,.1f, 0,0); // generate inputs in interval 0,1
 
        std::cout << "-loss" << std::endl;
-       derivative_tester(*ae.loss(),0,true,.1f); // generate inputs in interval 0,1
+       derivative_tester(*ae.loss(),0,true,.1f, 0,0); // generate inputs in interval 0,1
    }
 }
 
@@ -187,36 +189,45 @@ TEST_F(RandomNumberUsingTest, obj_det){
    boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[2][16][28*28], "target");
    target->set_derivable(false); // cannot derive for target of logistic regression
 
+   cuv::fill_rnd_uniform(inp->data());
+   cuv::fill_rnd_uniform(target->data());
+   cuv::fill_rnd_uniform(ign->data());
+   inp->data() -= 0.5f;
+
    obj_detector od(5,16,5,16); 
    od.init(inp,ign,target);
    std::cout << "---hl2--" << std::endl;
-   derivative_tester(*od.hl2, 0, true, .2, -1.0, 1.0);
+   derivative_tester(*od.hl2, 0, true, .1, 0, 0);
 
    std::cout << "---hl1--" << std::endl;
-   derivative_tester(*od.hl1, 0, true, .2, -1.0, 1.0);
+   derivative_tester(*od.hl1, 0, true, .1, 0, 0);
 
    std::cout << "---loss--" << std::endl;
-   derivative_tester(*od.get_loss(), 0, true, .3, -1.0, 1.0);
+   derivative_tester(*od.get_loss(), 0, true, .1, 0, 0);
 }
 
 TEST_F(RandomNumberUsingTest, lenet_derivative){
    boost::shared_ptr<ParameterInput>  inp    = boost::make_shared<ParameterInput>(cuv::extents[2][1][28*28], "input");
    boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[2][10], "target");
+   cuv::fill_rnd_uniform(inp->data());
+   cuv::fill_rnd_uniform(target->data());
+   inp->data() -= 0.5f;
+
    target->set_derivable(false); // cannot derive for target of logistic regression
 
    lenet ln(5,16,5,16,2); 
    ln.init(inp,target);
    std::cout << "---hl2--" << std::endl;
-   derivative_tester(*ln.hl2, 0, true, .2, -1.0, 1.0);
+   derivative_tester(*ln.hl2, 0, false, .15, 0,0);
 
    std::cout << "---hl3--" << std::endl;
-   derivative_tester(*ln.hl3, 0, true, .2, -1.0, 1.0);
+   derivative_tester(*ln.hl3, 0, false, .1, 0,0);
 
    std::cout << "---hl1--" << std::endl;
-   derivative_tester(*ln.hl1, 0, true, .2, -1.0, 1.0);
+   derivative_tester(*ln.hl1, 0, false, .1, 0,0);
 
    std::cout << "---loss--" << std::endl;
-   derivative_tester(*ln.get_loss(), 0, true, .3, -1.0, 1.0);
+   derivative_tester(*ln.get_loss(), 0, false, .1, 0,0);
 }
 
 TEST_F(RandomNumberUsingTest, relational_auto_encoder_derivative){

@@ -7,6 +7,7 @@
 #ifndef GTEST_INCLUDE_GTEST_GTEST_H_
 #include <cassert>
 #define EXPECT_TRUE(X) assert(X)
+#define EXPECT_LT(X, Y) assert(X < Y)
 #define EXPECT_NEAR(X,Y,D) assert(((X)-(Y))*((X)-(Y))<((D)*(D)))
 #endif
 

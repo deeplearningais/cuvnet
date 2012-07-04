@@ -88,11 +88,11 @@ namespace cuvnet
     {
         if(meta.xmin > 0)
             dst.draw_rectangle(0,0,0,0,  meta.xmin, dst.height()-1, dst.depth()-1, dst.spectrum()-1, 255);
-        if(meta.xmax < dst.width()-1)
+        if((int)meta.xmax < dst.width()-1)
             dst.draw_rectangle(meta.xmax+1,0,0,0,  dst.width()-1, dst.height()-1, dst.depth()-1, dst.spectrum()-1, 255);
         if(meta.ymin > 0)
             dst.draw_rectangle(0,0,0,0,  dst.width()-1, meta.ymin-1, dst.depth()-1, dst.spectrum()-1, 255);
-        if(meta.ymax < dst.height()-1)
+        if((int)meta.ymax < dst.height()-1)
             dst.draw_rectangle(0,meta.ymax+1,0,0,  dst.width()-1, dst.height()-1, dst.depth()-1, dst.spectrum()-1, 255);
     }
 
@@ -136,9 +136,10 @@ namespace cuvnet
             pat.ign.resize(cuv::extents[20][172* 172]);
             cuv::convert(pat.ign, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[20][172* 172], ign.data()));
             pat.img /= 255.f;
-            pat.tch /= 255.f;
-            pat.ign /= 255.f;
             pat.img -= 0.5f;
+            pat.tch /= 127.f;
+            pat.tch -=   1.f;
+            pat.ign /= 255.f;
             
             // put in pipe
             boost::mutex::scoped_lock lock(*mutex);
@@ -256,19 +257,22 @@ namespace cuvnet
             }
     };
 
-    void voc_detection_dataset::switch_dataset(voc_detection_dataset::subset ss){
+    void voc_detection_dataset::switch_dataset(voc_detection_dataset::subset ss, int n_threads){
+
+        n_threads = n_threads == 0 ? m_n_threads : n_threads;
+
         if(m_pipe)
             m_pipe->request_stop();
 
         switch(ss){
             case SS_TRAIN:
-                m_pipe.reset(new voc_detection_pipe(m_training_set));
+                m_pipe.reset(new voc_detection_pipe(m_training_set, n_threads));
                 break;
             case SS_VAL:
-                m_pipe.reset(new voc_detection_pipe(m_val_set));
+                m_pipe.reset(new voc_detection_pipe(m_val_set, n_threads));
                 break;
             case SS_TEST:
-                m_pipe.reset(new voc_detection_pipe(m_test_set));
+                m_pipe.reset(new voc_detection_pipe(m_test_set, n_threads));
                 break;
             default:
                 throw std::runtime_error("VOC Detection Dataset: cannot switch to supplied subset!");
@@ -276,7 +280,7 @@ namespace cuvnet
         m_pipe->start();
     }
 
-    voc_detection_dataset::voc_detection_dataset(const std::string& train_filename, const std::string& test_filename, bool verbose)
+    voc_detection_dataset::voc_detection_dataset(const std::string& train_filename, const std::string& test_filename, int n_threads, bool verbose)
     {
         read_meta_info(m_training_set, train_filename, verbose);
         read_meta_info(m_test_set, test_filename, verbose);

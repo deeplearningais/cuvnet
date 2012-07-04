@@ -79,14 +79,16 @@ class lenet
             m_bias3.reset(new ParameterInput(cuv::extents[m_n_hiddens]));
 
             hl1 =
-                local_pool(
-                        tanh(
+                tanh(
+                        local_pool(
                             mat_plus_vec(
                                 convolve( 
                                     reorder_for_conv(inp),
                                     m_conv1_weights, pad),
-                                m_bias1, 0)),
-                        cuv::alex_conv::PT_MAX); 
+                                m_bias1, 0)
+                        , cuv::alex_conv::PT_MAX)
+                    )
+                            ; 
 
             hl2 = 
                 local_pool(
@@ -95,8 +97,9 @@ class lenet
                                 convolve( 
                                     hl1,
                                     m_conv2_weights, pad),
-                                m_bias2, 0)),
-                        cuv::alex_conv::PT_MAX); 
+                                m_bias2, 0))
+                        , cuv::alex_conv::PT_MAX)
+                        ; 
             hl2 = reorder_from_conv(hl2);
             hl2 = reshape(hl2, cuv::extents[batchsize][-1]);
             hl3 =

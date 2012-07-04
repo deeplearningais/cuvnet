@@ -167,6 +167,9 @@ namespace cuvnet
     /// construct a MultinomialLogisticLoss object
     inline
         Op::op_ptr multinomial_logistic_loss(Op::op_ptr x, Op::op_ptr target, unsigned int dim=0){ return boost::make_shared<MultinomialLogisticLoss>(x->result(), target->result(), dim); }
+    /// construct a EpsilonInsensitiveLoss object
+    inline
+        Op::op_ptr epsilon_insensitive_loss(float sensitivity, Op::op_ptr target, Op::op_ptr x){ return boost::make_shared<EpsilonInsensitiveLoss>(sensitivity, target->result(), x->result()); }
     /// construct a RowSelector object
     inline
         Op::op_ptr row_select(Op::op_ptr p0, int row=-1){ return boost::make_shared<RowSelector>(p0->result(), row); }
@@ -189,6 +192,14 @@ namespace cuvnet
     /// construct a ClassificationLoss object
     inline
         Op::op_ptr classification_loss(boost::shared_ptr<Sink> x, Op::op_ptr y){ return boost::make_shared<ClassificationLoss>(x->result(),y->result()); }
+    
+    /// construct a HingeLoss object
+    inline
+        Op::op_ptr hinge_loss(Op::op_ptr y, Op::op_ptr y_hat){ return boost::make_shared<HingeLoss>(y->result(),y_hat->result(), false /* not squared */); }
+
+    /// construct a HingeLoss object
+    inline
+        Op::op_ptr squared_hinge_loss(Op::op_ptr y, Op::op_ptr y_hat){ return boost::make_shared<HingeLoss>(y->result(),y_hat->result(), true /* squared */); }
 
     /// adds to the value of another Op's parameter
     inline 
@@ -196,6 +207,20 @@ namespace cuvnet
             dst->param(param)->param_uses.push_back(src->result(result));
             src->result(result)->result_uses.push_back(dst->param(param));
             return dst;
+        }
+    /// construct a DeltaSink object attached to a \c op_param.
+    /// it assumes that the result is only used \b once.
+    inline
+        boost::shared_ptr<DeltaSink> delta_sink(const std::string& name, Op::op_ptr x, unsigned int res=0){ 
+            cuvAssert(x->result(res)->result_uses.size()==1);
+
+            boost::shared_ptr<Op> dst 
+                = x->result(res)->result_uses[0].lock()->get_op()->shared_from_this();
+            int param_number = x->result(res)->result_uses[0].lock()->param_number;
+
+            boost::shared_ptr<DeltaSink> snk = boost::make_shared<DeltaSink>(name); 
+            add_to_param(dst, snk, param_number, 0);
+            return snk;
         }
     /// @}
 }
