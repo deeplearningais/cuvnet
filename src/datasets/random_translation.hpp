@@ -2,7 +2,6 @@
 #ifndef __RANDOM_TRANSLATION_HPP__
 #     define __RANDOM_TRANSLATION_HPP__
 #include "dataset.hpp"
-using namespace std;
 namespace cuvnet
 {
 
@@ -42,7 +41,7 @@ namespace cuvnet
      *        If the translation index exceeds the border of the vector, then wrap
      *        around.
      */
-    void translate_data(cuv::tensor<float,cuv::host_memory_space>  &data, int dim, const vector<int> &rand_translations);
+    void translate_data(cuv::tensor<float,cuv::host_memory_space>  &data, int dim, const std::vector<int> &rand_translations);
 
 
     
