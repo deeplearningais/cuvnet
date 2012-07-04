@@ -105,6 +105,7 @@ namespace cuvnet
                             p1.push(v);
                         }
                     }
+                    r0.delta.reset();
                 }
                 void _determine_shapes(){
                     assert(m_params[0]->shape.size()>=2);

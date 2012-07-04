@@ -161,7 +161,6 @@ namespace cuvnet
                                 d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding_start, 1, m_nGroups,m_partial_sum);
                         }
                         else if(filtSizeOK && p1.can_add_directly()){
-                            *p1.overwrite_or_add_value() = 0.f;
                             if(filtSizeOK)
                                 d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding_start, 1, m_nGroups,m_partial_sum, 1.f,1.f);
                             else
@@ -207,6 +206,8 @@ namespace cuvnet
                             }
                         }
                     }
+                    p0.value.reset();
+                    p1.value.reset();
                     r0.delta.reset();
                 }
 
@@ -281,6 +282,10 @@ namespace cuvnet
                 {
                     add_param(0,images);
                 }
+                virtual void release_data(){
+                    m_result.reset();
+                    Op::release_data();
+                }
                 void fprop(){
                     using namespace cuv;
                     using namespace cuv::alex_conv;
@@ -332,7 +337,7 @@ namespace cuvnet
                             // try overwriting p0.
                             //value_ptr ptr = p0.value;
                             value_ptr ptr(new value_type(p0.shape));
-                            value_type& v = ptr.data_onlyshape();
+                            value_type& v = *ptr;
                             local_avg_pool_grad(v, r0.delta.cdata(), m_subsx,0,m_stridex);
                             p0.push(ptr);
                         }
@@ -343,14 +348,16 @@ namespace cuvnet
                             local_max_pool_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex, 1.f,1.f);
                         }else{
                             value_ptr ptr(new value_type(p0.shape));
-                            value_type& v = ptr.data_onlyshape();
+                            value_type& v = *ptr;
                             local_max_pool_grad(v, p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex);
                             p0.push(ptr);
                         }
                         p0.value.reset(); 
                         m_result.reset();
                     }
+                    p0.value.reset();
                     r0.delta.reset();
+                    m_result.reset();
                 }
 
                 void _determine_shapes(){
