@@ -12,7 +12,6 @@ def generic_filters(x, trans=True, maxx=8, maxy=6, sepnorm=False):
     """ visualize an generic filter matrix """
     if trans:
         x = np.rollaxis(x, 2)
-    print x.min(), x.mean(), x.max()
     print x.shape
     #x -= x.min()
     #x /= x.max() + 0.000001
@@ -39,26 +38,27 @@ def generic_filters(x, trans=True, maxx=8, maxy=6, sepnorm=False):
     return fig
 
 
-def rgb_filters(x, trans=True):
+def rgb_filters(x, trans=True, sepnorm=False):
     """ visualize an RGB filter matrix """
     if trans:
         x = np.rollaxis(x, 2)
     print x.min(), x.mean(), x.max()
     print x.shape
-    x -= x.min()
-    x /= x.max()
     n_filters = x.shape[0]
     n_pix_x = int(np.sqrt(x.shape[2]))
     fig, axes = plt.subplots(4, n_filters)
     fig.subplots_adjust(hspace=0.00, wspace=0.00,
-            left=0, top=1, bottom=0, right=1)
+            left=0, top=1, bottom=0.2, right=1)
+    norm = mpl.colors.Normalize(vmin=x.min(), vmax=x.max())
     for ax, i in zip(axes.T.flatten(), xrange(np.prod(axes.shape))):
         idx = i % 4
         if idx < 3:
-            flt = x[i / 4, idx, :]
-            flt -= flt.min()
-            flt /= flt.max()
-            ax.matshow(flt.reshape(n_pix_x, n_pix_x), cmap="binary")
+            flt = x[i / 4, idx, :].copy()
+            if sepnorm:
+                flt -= flt.min()
+                flt /= flt.max()
+            res = ax.matshow(flt.reshape(n_pix_x, n_pix_x), cmap="binary")
+            res.set_norm(norm)
         else:
             flt = x[i / 4, :, :].T
             flt -= flt.min()
@@ -68,6 +68,9 @@ def rgb_filters(x, trans=True):
                     interpolation='nearest')
 
         cfg(ax)
+    if not sepnorm:
+        cbaxes = fig.add_axes([0.1, 0.10, 0.8, 0.05])
+        fig.colorbar(res, cax=cbaxes, orientation='horizontal')
     return fig
 
 
@@ -88,6 +91,7 @@ class MyDotWindow(xdot.DotWindow):
             node = self.op.get_parameter(long(ptr, 0))
             data = node.data.np
             print "got shape: ", data.shape
+            print "    stats: ", data.min(), data.mean(), data.max()
             if "weight" in node.name:
                 is_rgb = data.shape[0] == 3
                 if is_rgb:
@@ -118,6 +122,7 @@ class MyDotWindow(xdot.DotWindow):
         elif typ == "generic":
             node = self.op.get_node(long(ptr, 0))
             data = node.evaluate().np
+            #data = 1 / (1 + np.exp(-data))
             if len(data.shape) == 3:
                 is_rgb = data.shape[1] == 3
                 if is_rgb:
