@@ -8,7 +8,7 @@
 #include <cuv/libs/cimg/cuv_cimg.hpp>
 
 using namespace cuvnet;
-
+using namespace std;
 
 
 
@@ -46,6 +46,8 @@ TEST(RandomTranslation, Convolution){
     data(0,0,1) = 2;
     data(0,0,2) = 3;
     convolve_last_dim(data, simple_filter);
+    std::cout << "mean : "<< cuv::mean(data)<<std::endl;
+    std::cout << "var : "<< cuv::var(data)<<std::endl;
     cuv::tensor<float,cuv::host_memory_space> conv_data(cuv::extents[1][1][3]);
     conv_data(0,0,0) = 6;
     conv_data(0,0,1) = 6;
