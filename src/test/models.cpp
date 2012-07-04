@@ -218,16 +218,16 @@ TEST_F(RandomNumberUsingTest, lenet_derivative){
    lenet ln(5,16,5,16,2); 
    ln.init(inp,target);
    std::cout << "---hl2--" << std::endl;
-   derivative_tester(*ln.hl2, 0, false, .15, 0,0);
+   derivative_tester(*ln.hl2, 0, true, .01, 0,0);
+   std::cout << "---hl1--" << std::endl;
+   derivative_tester(*ln.hl1, 0, true, .01, 0,0);
+
 
    std::cout << "---hl3--" << std::endl;
-   derivative_tester(*ln.hl3, 0, false, .1, 0,0);
-
-   std::cout << "---hl1--" << std::endl;
-   derivative_tester(*ln.hl1, 0, false, .1, 0,0);
+   derivative_tester(*ln.hl3, 0, true, .01, 0,0);
 
    std::cout << "---loss--" << std::endl;
-   derivative_tester(*ln.get_loss(), 0, false, .1, 0,0);
+   derivative_tester(*ln.get_loss(), 0, true, .01, 0,0);
 }
 
 TEST_F(RandomNumberUsingTest, relational_auto_encoder_derivative){

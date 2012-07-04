@@ -133,7 +133,7 @@ namespace cuvnet{ namespace derivative_testing {
 
             {
                 if(verbose)
-                    std::cout << "...ensuring function is stateless" << std::endl;
+                    std::cout << "  -ensuring function is stateless" << std::endl;
                 boost::shared_ptr<Op> p = op.shared_from_this();
                 ensure_no_state(out_op, swipe, derivable_params);
             }
@@ -149,7 +149,7 @@ namespace cuvnet{ namespace derivative_testing {
                 matrix J(n_outputs, n_inputs); J = 0.f;
                 if(verbose)
                 {
-                std::cout << "...testing derivative w.r.t. "<<param->name()<<""<<std::endl;
+                std::cout << "  -testing derivative w.r.t. "<<param->name()<<""<<std::endl;
                 std::cout << "   Jacobi dims: "<<n_outputs<<" x "<<n_inputs<<"..."<<std::endl;
                 }
                 for(unsigned int out=0;out<n_outputs;out++){
@@ -171,7 +171,7 @@ namespace cuvnet{ namespace derivative_testing {
 
                 matrix J_(n_inputs,n_outputs); J_ = 0.f;
                 for (unsigned int in = 0; in < n_inputs; ++in) {
-                    static const double eps = 0.0001;
+                    static const double eps = 0.001;
                     float v = param->data()[in];
                     param->data()[in] = (float)((double)v + eps);
                     swipe.fprop();
@@ -197,7 +197,7 @@ namespace cuvnet{ namespace derivative_testing {
                 if(verbose)
                 {
                     std::cout << "   maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;
-                    std::cout << "   max(Jh)="<<cuv::maximum(Jh)<<std::endl;
+                    std::cout << "   range(Jh)="<<cuv::maximum(Jh)-cuv::minimum(Jh)<<std::endl;
                 }
                 if(maxdiff>prec_){
                     std::cout << "   maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;

@@ -74,33 +74,26 @@ class lenet
 
             m_weights3.reset(new ParameterInput(cuv::extents[n_pix_x3*n_pix_x3*m_n_filters2][m_n_hiddens], "weights3"));
 
-            m_bias1.reset(new ParameterInput(cuv::extents[m_n_filters1]));
-            m_bias2.reset(new ParameterInput(cuv::extents[m_n_filters2]));
-            m_bias3.reset(new ParameterInput(cuv::extents[m_n_hiddens]));
+            m_bias1.reset(new ParameterInput(cuv::extents[m_n_filters1], "bias1"));
+            m_bias2.reset(new ParameterInput(cuv::extents[m_n_filters2], "bias2"));
+            m_bias3.reset(new ParameterInput(cuv::extents[m_n_hiddens],  "bias3"));
 
             hl1 =
-                tanh(
-                        local_pool(
-                            mat_plus_vec(
-                                convolve( 
-                                    reorder_for_conv(inp),
-                                    m_conv1_weights, pad),
-                                m_bias1, 0)
-                        , cuv::alex_conv::PT_MAX)
-                    )
-                            ; 
+                mat_plus_vec(
+                        convolve( 
+                            reorder_for_conv(inp),
+                            m_conv1_weights, pad),
+                        m_bias1, 0) ; 
+            op_ptr pooled_hl1 = tanh(local_pool(hl1, cuv::alex_conv::PT_AVG));
 
             hl2 = 
-                local_pool(
-                        tanh(
-                            mat_plus_vec(
-                                convolve( 
-                                    hl1,
-                                    m_conv2_weights, pad),
-                                m_bias2, 0))
-                        , cuv::alex_conv::PT_MAX)
-                        ; 
-            hl2 = reorder_from_conv(hl2);
+                mat_plus_vec(
+                        convolve( 
+                            pooled_hl1,
+                            m_conv2_weights, pad),
+                        m_bias2, 0); 
+            op_ptr pooled_hl2 = tanh(local_pool(hl2, cuv::alex_conv::PT_AVG));
+            hl2 = reorder_from_conv(pooled_hl2);
             hl2 = reshape(hl2, cuv::extents[batchsize][-1]);
             hl3 =
                 tanh(

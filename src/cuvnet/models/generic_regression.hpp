@@ -48,8 +48,8 @@ class generic_regression
             unsigned int input_dim = m_input->result()->shape[1]; 
             m_target->visit(determine_shapes_visitor());
             unsigned int m_target_dim = target->result()->shape[1];  
-            m_weights.reset(new ParameterInput(cuv::extents[input_dim][m_target_dim],"weights"));
-            m_bias.reset(new ParameterInput(cuv::extents[m_target_dim],             "bias"));
+            m_weights.reset(new ParameterInput(cuv::extents[input_dim][m_target_dim],"regression_weights"));
+            m_bias.reset(new ParameterInput(cuv::extents[m_target_dim],             "regression_bias"));
 
             m_est      = estimator(input);
 
