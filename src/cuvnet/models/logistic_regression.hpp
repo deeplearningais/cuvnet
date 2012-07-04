@@ -10,7 +10,7 @@ namespace cuvnet
 /**
  * implements multinomial logistic regression.
  *
- * \f[ L( \hat{y}, y) = - \frac{1}{N} \sum{i=1}{N} \sum{k=1}{K} (\hat{y_{n,k}} - ln(\sum_{j}e^{y_{n,j}})) \f] 
+ * \f[ L( \hat{y}, y) = - \frac{1}{N} \sum_{i=1}^{N} \sum_{k=1}^{K} (\hat{y_{n,k}} - ln(\sum_{j}e^{y_{n,j}})) \f] 
  *
  * @ingroup models
  */
