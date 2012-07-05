@@ -50,8 +50,12 @@ namespace cuvnet
     };
 
     struct Dummy{};
-    matrix evaluate(Op& o){
+    matrix evaluate_op(Op& o){
         cuvnet::function f(o.shared_from_this(), 0, "click");
+        return f.evaluate();
+    }
+    matrix evaluate_sink(Sink& o){
+        cuvnet::function f(o.param(0)->param_uses[0]->get_op(), 0, "click");
         return f.evaluate();
     }
     std::string dot(Op& o){
@@ -101,7 +105,10 @@ namespace cuvnet
                     .def("get_sink", 
                             (Sink* (*)(const boost::shared_ptr<Op>&, long)) get_node, 
                             return_internal_reference<1>())
-                    .def("evaluate", &evaluate)
+                    .def("get_sink", 
+                            (Sink* (*)(const boost::shared_ptr<Op>&, const std::string&)) get_node, 
+                            return_internal_reference<1>())
+                    .def("evaluate", &evaluate_op)
                     ;
 
                 class_<Sink, boost::shared_ptr<Sink> >("Sink", no_init)
@@ -114,6 +121,7 @@ namespace cuvnet
                                 (const std::string& (Sink::*)()const)
                                 &Sink::name,
                                 return_value_policy<copy_const_reference>()))
+                    .def("evaluate", &evaluate_sink)
                     ;
                 class_<ParameterInput, boost::shared_ptr<ParameterInput> >("ParameterInput", no_init)
                     .add_property("name", 
