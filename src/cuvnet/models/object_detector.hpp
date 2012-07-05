@@ -18,6 +18,7 @@ class obj_detector
     public:
         typedef boost::shared_ptr<Op> op_ptr;
         typedef boost::shared_ptr<ParameterInput> input_ptr;
+        typedef boost::shared_ptr<Sink> sink_ptr;
     private:
         friend class boost::serialization::access;
         template<class Archive>
@@ -34,6 +35,7 @@ class obj_detector
         input_ptr m_conv2_weights;
         input_ptr m_conv3_weights;
         input_ptr m_bias1, m_bias2, m_bias3;
+        sink_ptr m_output;
         op_ptr m_loss;
 
         unsigned int m_n_channels;
@@ -65,49 +67,73 @@ class obj_detector
             m_conv2_weights.reset(new ParameterInput(cuv::extents[m_n_filters1][m_filter_size2*m_filter_size2][m_n_filters2], "conv_weights2"));
             m_conv3_weights.reset(new ParameterInput(cuv::extents[m_n_filters2][m_filter_size3*m_filter_size3][m_n_filters3], "conv_weights3"));
 
-            m_bias1.reset(new ParameterInput(cuv::extents[m_n_filters1]));
-            m_bias2.reset(new ParameterInput(cuv::extents[m_n_filters2]));
-            m_bias3.reset(new ParameterInput(cuv::extents[m_n_filters3]));
+            m_bias1.reset(new ParameterInput(cuv::extents[m_n_filters1], "bias1"));
+            m_bias2.reset(new ParameterInput(cuv::extents[m_n_filters2], "bias2"));
+            m_bias3.reset(new ParameterInput(cuv::extents[m_n_filters3], "bias3"));
 
             hl1 =
-                local_pool(
-                        tanh(
-                            mat_plus_vec(
-                                convolve( 
-                                    reorder_for_conv(inp),
-                                    m_conv1_weights, pad),
-                                m_bias1, 0)),
-                        cuv::alex_conv::PT_MAX); 
+                mat_plus_vec(
+                        convolve( 
+                            reorder_for_conv(inp),
+                            m_conv1_weights, pad),
+                        m_bias1, 0);
+
+            op_ptr pooled_hl1 = local_pool(hl1, cuv::alex_conv::PT_MAX);
 
             hl2 = 
-                local_pool(
-                        tanh(
-                            mat_plus_vec(
-                                convolve( 
-                                    hl1,
-                                    m_conv2_weights, pad),
-                                m_bias2, 0)),
-                        cuv::alex_conv::PT_MAX); 
+                mat_plus_vec(
+                        convolve( 
+                            tanh(pooled_hl1),
+                            m_conv2_weights, pad),
+                        m_bias2, 0);
+
+            for (int i = 0; i < 0; ++i)
+            {
+                hl2 = 
+                    mat_plus_vec(
+                            convolve( 
+                                tanh(hl2),
+                                m_conv2_weights, pad),
+                            m_bias2, 0);
+            }
+
+            op_ptr pooled_hl2 = local_pool(hl2, cuv::alex_conv::PT_MAX);
 
             hl3 = 
                 mat_plus_vec(
-                        convolve(hl2, m_conv3_weights, pad), 
+                        convolve( 
+                            tanh(pooled_hl2),
+                            m_conv3_weights, 
+                            pad),
                         m_bias3, 0);
-            
+
+            m_output = sink("output", logistic(hl3));
+
             // pool target twice
-            op_ptr subsampled_target = local_pool( 
-                    local_pool( reorder_for_conv(target), cuv::alex_conv::PT_AVG),
-                    cuv::alex_conv::PT_AVG);
+            op_ptr subsampled_target = 
+                        reorder_for_conv(target)
+                //local_pool( 
+                //    local_pool( 
+                //        reorder_for_conv(target)
+                //        , cuv::alex_conv::PT_AVG)
+                //    ,cuv::alex_conv::PT_AVG)
+                    ;
             // pool ignore twice
-            op_ptr subsampled_ignore = local_pool( 
-                    local_pool( reorder_for_conv(ignore), cuv::alex_conv::PT_AVG),
-                    cuv::alex_conv::PT_AVG);
+            op_ptr subsampled_ignore = 
+                        reorder_for_conv(ignore)
+                //local_pool( 
+                //    local_pool( 
+                //        reorder_for_conv(ignore)
+                //        , cuv::alex_conv::PT_AVG)
+                //    ,cuv::alex_conv::PT_AVG)
+                    ;
 
             // batch is in the dimension with index 2
-            //m_loss = mean(sum_to_vec(subsampled_ignore * pow(hl3 - subsampled_target, 2.f), 2));
-            //m_loss = mean(sum_to_vec(subsampled_ignore * neg_log_cross_entropy_of_logistic(subsampled_target, hl3), 2));
-            //m_loss = mean(sum_to_vec(subsampled_ignore * epsilon_insensitive_loss(0.05f, subsampled_target, hl3), 2));
-            m_loss = mean(sum_to_vec(subsampled_ignore * squared_hinge_loss(subsampled_target, hl3), 2));
+            //m_loss = mean(subsampled_ignore * square(hl3 - subsampled_target));
+            //m_loss = mean(subsampled_ignore * neg_log_cross_entropy_of_logistic(subsampled_target, hl3));
+            m_loss = mean(subsampled_ignore * epsilon_insensitive_loss(0.05f, subsampled_target, logistic(hl3)));
+            //m_loss = mean(subsampled_ignore * epsilon_insensitive_loss(0.05f, subsampled_target, hl3));
+            //m_loss = mean(subsampled_ignore * squared_hinge_loss(subsampled_target, hl3));
 
             reset_weights();
         }
@@ -124,6 +150,7 @@ class obj_detector
             params += m_conv3_weights.get();
             params += m_bias1.get();
             params += m_bias2.get();
+            params += m_bias3.get();
             return params;
         };
 
@@ -179,6 +206,14 @@ class obj_detector
                 m_conv2_weights->data() -=   diff;
             } 
             {
+                //float fan_in = m_n_filters2 * m_filter_size3 * m_filter_size3;
+                //float fan_out = 1 * 1 * 1;
+                //float diff = std::sqrt(6.f/(fan_in + fan_out));
+                ////diff *= .1f;
+    
+                //cuv::fill_rnd_uniform(m_conv2_weights->data());
+                //m_conv3_weights->data() *= 2*diff;
+                //m_conv3_weights->data() -=   diff;
                 m_conv3_weights->data() = 0.f;
             } 
 
