@@ -15,13 +15,13 @@ namespace cuvnet
             randomizer() { }
             void transform(
                     cuv::tensor<float,cuv::host_memory_space>& train_data, 
-                    cuv::tensor<int,cuv::host_memory_space>& train_labels, 
+                    cuv::tensor<float,cuv::host_memory_space>& train_labels, 
                     cuv::tensor<int,cuv::host_memory_space>* p_bag_index=NULL)const{
 
                 using namespace cuv;
                 tensor<float,host_memory_space> new_train_data   (train_data.shape());
-                tensor<int  ,host_memory_space> new_train_labels (train_labels.shape());
-                tensor<int  ,host_memory_space> new_bag_index ;
+                tensor<float,host_memory_space> new_train_labels (train_labels.shape());
+                tensor<int,host_memory_space> new_bag_index ;
 
                 unsigned int n_train_data = train_data.shape(0);
 
@@ -53,8 +53,8 @@ namespace cuvnet
                     }
                 }else if(train_labels.ndim()==2){
                     for(unsigned int i=0;i<n_train_data;i++){
-                        tensor_view<int,host_memory_space> srcv = train_labels[indices[idx[i]][index_range()]];
-                        tensor_view<int,host_memory_space> dstv = new_train_labels[indices[i][index_range()]];
+                        tensor_view<float,host_memory_space> srcv = train_labels[indices[idx[i]][index_range()]];
+                        tensor_view<float,host_memory_space> dstv = new_train_labels[indices[i][index_range()]];
                         dstv = srcv;
                     }
                 }else{

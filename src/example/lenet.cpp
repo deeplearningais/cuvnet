@@ -78,11 +78,7 @@ int main(int argc, char **argv)
 
     // copy training data and labels to the device, and converts train_labels from int to float
     matrix train_data = ds.train_data;
-    matrix train_labels(ds.train_labels.shape());
-    {
-        cuv::tensor<int,cuv::dev_memory_space>  tmp(ds.train_labels);
-        cuv::convert(train_labels, tmp);
-    }
+    matrix train_labels(ds.train_labels);
     
     std::cout << std::endl << " Training phase: " << std::endl;
     {
@@ -114,11 +110,7 @@ int main(int argc, char **argv)
     // evaluates test data. We use minibatch learning with learning rate zero and only one epoch.
     {
         matrix test_data = ds.test_data;
-        matrix test_labels(ds.test_labels.shape());
-        {
-            cuv::tensor<int,cuv::dev_memory_space>  tmp(ds.test_labels);
-            cuv::convert(test_labels, tmp);
-        }
+        matrix test_labels(ds.test_labels);
         gradient_descent gd(ln.get_loss(),0,params,0.f);
         gd.register_monitor(mon);
         gd.before_batch.connect(boost::bind(load_batch,input, target,&test_data, &test_labels, ds.channels, bs,_2));

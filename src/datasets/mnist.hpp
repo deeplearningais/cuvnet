@@ -46,10 +46,10 @@ namespace cuvnet
             train_labels = 0.f;
             test_labels = 0.f;
             for (unsigned int i = 0; i < trainl.size(); ++i){
-                train_labels(i, trainl[i]) = 1;
+                train_labels(i, trainl[i]) = 1.f;
             }
             for (unsigned int i = 0; i < testl.size(); ++i){
-                test_labels(i, testl[i]) = 1;
+                test_labels(i, testl[i]) = 1.f;
             }
 
             //train_data = train_data[cuv::indices[cuv::index_range(0,5000)][cuv::index_range()]];

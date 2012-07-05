@@ -32,9 +32,9 @@ namespace cuvnet
             cuv::tensor<float,cuv::host_memory_space> val_data; ///< contains the validation data
             cuv::tensor<float,cuv::host_memory_space> test_data; ///< contains the test data
 
-            cuv::tensor<int,cuv::host_memory_space> train_labels; ///< contains the training labels
-            cuv::tensor<int,cuv::host_memory_space> val_labels; ///< contains the validation labels
-            cuv::tensor<int,cuv::host_memory_space> test_labels; ///< contains the test labels
+            cuv::tensor<float,cuv::host_memory_space> train_labels; ///< contains the training labels
+            cuv::tensor<float,cuv::host_memory_space> val_labels; ///< contains the validation labels
+            cuv::tensor<float,cuv::host_memory_space> test_labels; ///< contains the test labels
 
             int channels; ///< the number of channels, if the dataset contains images
             int image_size; ///< the size of the images (width==height) if dataset contains images

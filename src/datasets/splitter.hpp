@@ -169,12 +169,12 @@ namespace cuvnet
                         before_dst = before_src;
                     }
                     if(m_ds.train_labels.ndim()==1){
-                        tensor_view<int,host_memory_space> before_src(indices[index_range(0,start)], m_ds.train_labels);
-                        tensor_view<int,host_memory_space> before_dst(indices[index_range(0,start)], dst.train_labels);
+                        tensor_view<float,host_memory_space> before_src(indices[index_range(0,start)], m_ds.train_labels);
+                        tensor_view<float,host_memory_space> before_dst(indices[index_range(0,start)], dst.train_labels);
                         before_dst = before_src;
                     } else{
-                        tensor_view<int,host_memory_space> before_src(indices[index_range(0,start)][index_range()], m_ds.train_labels);
-                        tensor_view<int,host_memory_space> before_dst(indices[index_range(0,start)][index_range()], dst.train_labels);
+                        tensor_view<float,host_memory_space> before_src(indices[index_range(0,start)][index_range()], m_ds.train_labels);
+                        tensor_view<float,host_memory_space> before_dst(indices[index_range(0,start)][index_range()], dst.train_labels);
                         before_dst = before_src;
                     }
                 }
@@ -185,12 +185,12 @@ namespace cuvnet
                         after_dst = after_src;
                     }
                     if(m_ds.train_labels.ndim()==1){
-                        tensor_view<int,host_memory_space> after_src(indices[index_range(end,n_examples)], m_ds.train_labels);
-                        tensor_view<int,host_memory_space> after_dst(indices[index_range(start,n_left)], dst.train_labels);
+                        tensor_view<float,host_memory_space> after_src(indices[index_range(end,n_examples)], m_ds.train_labels);
+                        tensor_view<float,host_memory_space> after_dst(indices[index_range(start,n_left)], dst.train_labels);
                         after_dst = after_src;
                     } else{
-                        tensor_view<int,host_memory_space> after_src(indices[index_range(end,n_examples)][index_range()], m_ds.train_labels);
-                        tensor_view<int,host_memory_space> after_dst(indices[index_range(start,n_left)][index_range()], dst.train_labels);
+                        tensor_view<float,host_memory_space> after_src(indices[index_range(end,n_examples)][index_range()], m_ds.train_labels);
+                        tensor_view<float,host_memory_space> after_dst(indices[index_range(start,n_left)][index_range()], dst.train_labels);
                         after_dst = after_src;
                     }
                 }

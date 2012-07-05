@@ -43,7 +43,7 @@ namespace cuvnet
     template<class StorageSpace>
     void SimpleDatasetLearner<StorageSpace>::switch_dataset(unsigned int split, cv_mode mode){
         cuv::tensor<float,cuv::host_memory_space> data, vdata;
-        cuv::tensor<int,  cuv::host_memory_space> labels, vlabels;
+        cuv::tensor<float,  cuv::host_memory_space> labels, vlabels;
 
         m_current_mode  = mode;
         m_current_split = split;
