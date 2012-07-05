@@ -171,7 +171,7 @@ namespace cuvnet
                             throw timeout_stop();
                         }
                         // stop if epoch limit is exceeded
-                        if(iter++ >= n_max_epochs)
+                        if(iter/n_batches >= n_max_epochs)
                             throw max_iter_stop();
 
                         if(randomize)
@@ -190,7 +190,7 @@ namespace cuvnet
                                 
                                 m_swipe.bprop(); // backward pass
 
-                                if((iter+1)%update_every == 0)
+                                if((++iter)%update_every == 0)
                                     // TODO: accumulation does not work, currently delta is always overwritten!
                                     update_weights(); 
                             }
