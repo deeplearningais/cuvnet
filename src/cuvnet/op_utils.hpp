@@ -32,9 +32,15 @@ namespace cuvnet
      */
     struct op_visitor_once_adaptor{
         std::map<Op*,bool> visited;
+        bool m_visit_sinks;
+        op_visitor_once_adaptor(bool visit_sinks=false)
+            :m_visit_sinks(visit_sinks)
+        {
+        }
+
         inline bool discover(Op* o){
             // do not continue past Sinks---they are treated as Inputs!
-            if(dynamic_cast<Sink*>(o)!=NULL)
+            if(!m_visit_sinks && dynamic_cast<Sink*>(o)!=NULL)
                 return false;
             if(visited.find(o)!=visited.end())
                 return false;
@@ -58,18 +64,18 @@ namespace cuvnet
         /**
          * collect everything that is a ParameterInput
          */
-        param_collector_visitor(): m_ptr_query(NULL){}
+        param_collector_visitor(): op_visitor_once_adaptor(true), m_ptr_query(NULL){}
         /**
          * filter by name (must match exactly)
          */
         param_collector_visitor(const std::string& name)
-        :m_name_query(name), m_ptr_query(NULL){
+        :op_visitor_once_adaptor(true), m_name_query(name), m_ptr_query(NULL){
         }
         /**
          * filter by pointer 
          */
         param_collector_visitor(const Op* op)
-        :m_ptr_query(op){
+        :op_visitor_once_adaptor(true),m_ptr_query(op){
         }
         inline void preorder(Op* o){
             // do not check for derivability.
@@ -80,6 +86,7 @@ namespace cuvnet
             //std::cout << "test: "<<boost::lexical_cast<std::string>(o)<<std::endl;
             //std::cout << "  m_name_query.length():" << m_name_query.length() << std::endl;
             //std::cout << "  m_ptr_query:" << boost::lexical_cast<std::string>(m_ptr_query) << std::endl;
+
             if(!m_name_query.length() && m_ptr_query == NULL){
                 ParameterInput* pi = dynamic_cast<ParameterInput*>(o);
                 if(pi)
@@ -90,6 +97,7 @@ namespace cuvnet
                 ParameterInput* pi = dynamic_cast<ParameterInput*>(o);
                 if(pi && m_name_query == pi->name())
                     plist.push_back(pi);
+
                 Sink* si = dynamic_cast<Sink*>(o);
                 if(si && m_name_query == si->name())
                     plist.push_back(si);
