@@ -8,7 +8,7 @@ def cfg(ax):
     ax.yaxis.set_visible(False)
 
 
-def generic_filters(x, trans=True, maxx=8, maxy=6, sepnorm=False):
+def generic_filters(x, trans=True, maxx=16, maxy=12, sepnorm=False):
     """ visualize an generic filter matrix """
     if trans:
         x = np.rollaxis(x, 2)
@@ -123,6 +123,7 @@ class MyDotWindow(xdot.DotWindow):
             node = self.op.get_node(long(ptr, 0))
             data = node.evaluate().np
             #data = 1 / (1 + np.exp(-data))
+            #data = np.clip(data,-1,1)
             if len(data.shape) == 3:
                 is_rgb = data.shape[1] == 3
                 if is_rgb:
@@ -142,3 +143,39 @@ def show_op(op):
     window.set_dotcode(dot)
     window.connect('destroy', gtk.main_quit)
     gtk.main()
+
+
+def evaluate_bioid(loss, load_batch, n_batches):
+    from scipy.ndimage.measurements import center_of_mass, maximum_position
+    from numpy.linalg import norm
+    L = []
+    for batch in xrange(n_batches()):
+        load_batch(batch)
+        output = loss.get_sink("output")
+        out = output.evaluate().np
+        target = loss.get_parameter("target")
+        tch = target.data.np
+
+        out = np.rollaxis(out, 2)
+
+        for i in xrange(out.shape[0]):
+            o0, o1 = out[i].reshape(2, 30, 30)
+            t0, t1 = tch[i].reshape(2, 30, 30)
+            mo0 = np.array(maximum_position(o0))
+            mo1 = np.array(maximum_position(o1))
+            mt0 = np.array(center_of_mass(t0))
+            mt1 = np.array(center_of_mass(t1))
+            mask0 = np.zeros_like(o0)
+            mask1 = np.zeros_like(o1)
+            region0 = np.clip((mo0 - 1, mo0 + 2), 0, 30)
+            region1 = np.clip((mo1 - 1, mo1 + 2), 0, 30)
+            mask0[region0[0, 0]:region0[1, 0], region0[0, 1]:region0[1, 1]] = 1
+            mask1[region1[0, 0]:region1[1, 0], region1[0, 1]:region1[1, 1]] = 1
+            mo0 = center_of_mass(o0, mask0)
+            mo1 = center_of_mass(o1, mask1)
+            dst = max(norm(mo0 - mt0),
+                    norm(mo1 - mt1)) / norm(mt0 - mt1)
+            L.append(dst)
+    L = np.array(L)
+    print "Average normalized distance: ", L.mean()
+    print "Correct: ", np.sum(L < 0.25) / float(len(L))
