@@ -116,11 +116,11 @@ namespace cuvnet
     template<class T>
     inline T* get_node(const boost::shared_ptr<Op>& f, const std::string& name){
         param_collector_visitor pcv(name);
-        f->visit(pcv);
+        f->visit(pcv,true);
         if(pcv.plist.size()==0)
-            throw std::runtime_error("Could not find parameter `"+name+"'");
+            throw std::runtime_error("Could not find node named `"+name+"'");
         if(pcv.plist.size() > 1)
-            throw std::runtime_error("Multiple matches for parameter `"+name+"'");
+            throw std::runtime_error("Multiple matches for node named `"+name+"'");
         return dynamic_cast<T*>(pcv.plist.front());
     }
     /**
@@ -131,7 +131,7 @@ namespace cuvnet
     template<class T>
     inline T* get_node(const boost::shared_ptr<Op>& f, Op* query){
         param_collector_visitor pcv(query);
-        f->visit(pcv);
+        f->visit(pcv,true);
         if(pcv.plist.size()==0)
             throw std::runtime_error("Could not find parameter with address `"+boost::lexical_cast<std::string>(query)+"'");
         return dynamic_cast<T*>(pcv.plist.front());
