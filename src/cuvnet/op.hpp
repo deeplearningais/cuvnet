@@ -163,7 +163,7 @@ namespace cuvnet
                         if(results_too){
                             BOOST_FOREACH(Op::result_t& p, m_results){
                                 BOOST_FOREACH(boost::weak_ptr<detail::op_param<value_type> > r, p->result_uses){
-                                    r.lock()->get_op()->visit(v, false);
+                                    r.lock()->get_op()->visit(v, true);
                                 }
                             }
                         }
