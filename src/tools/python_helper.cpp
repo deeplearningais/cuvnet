@@ -1,5 +1,7 @@
 #include <iostream>
 #include <sstream>
+#include <boost/function.hpp>
+#include <boost/mpl/vector.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <cuvnet/ops.hpp>
@@ -199,5 +201,31 @@ namespace cuvnet
             throw std::runtime_error("python failure in embed_python");
         }
         return 0;
+    }
+
+    int export_loadbatch(
+            boost::function<void(unsigned int)> load_batch, 
+            boost::function<unsigned int(void)> n_batches
+            ){
+        using namespace boost::python;
+        try{
+            object main_module = import("__main__");
+            scope main(main_module);
+            def("load_batch", 
+                    make_function(
+                        load_batch, 
+                        default_call_policies(),
+                        boost::mpl::vector<void, unsigned int>()));
+            def("n_batches", 
+                    make_function(
+                        n_batches, 
+                        default_call_policies(),
+                        boost::mpl::vector<unsigned int>()));
+        }catch(const boost::python::error_already_set&){
+            PyErr_PrintEx(0);
+            throw std::runtime_error("python failure in export_loadbatch");
+        }
+        return 0;
+        
     }
 }
