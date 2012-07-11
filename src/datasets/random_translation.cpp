@@ -20,33 +20,38 @@ namespace cuvnet
             test_data.resize(cuv::extents[3][m_num_test_example][m_dim]);
             
             // fills the train and test sets with random uniform numbers
+           
             //cuv::fill_rnd_uniform(train_data);
             //cuv::fill_rnd_uniform(test_data);
             //cuv::apply_scalar_functor(train_data,cuv::SF_LT,m_thres);
             //cuv::apply_scalar_functor(test_data,cuv::SF_LT,m_thres);
+          
             
-
+            // initializes the data in the way that ones are next to each other
+            
             int random_elem;
-            int size = 0;
+            int max_size = 12;
             int wrap_index;
             int max_index;
             for(unsigned int ex = 0; ex < train_data.shape(1); ex++){
-                random_elem = rand() % m_dim;
-                max_index = random_elem + size;
-                if(max_index >= m_dim)
-                    wrap_index = max_index - m_dim;
-                else
-                    wrap_index = -1;
+               random_elem = rand() % m_dim;
+               int size = rand() % max_size + 1;  
+               //int size = max_size  ;  
+               max_index = random_elem + size;
+               if(max_index >= m_dim)
+                   wrap_index = max_index - m_dim;
+               else
+                   wrap_index = -1;
 
-                for(int elem = 0; elem < m_dim; elem++){
-                    if((elem >= random_elem && elem <= max_index) || (elem <= wrap_index) ){
-                        train_data(0,ex,elem) = 1;
-                    }else
-                        train_data(0,ex, elem) = 0;
-                }
+               for(int elem = 0; elem < m_dim; elem++){
+                   if((elem >= random_elem && elem <= max_index) || (elem <= wrap_index) ){
+                       train_data(0,ex,elem) = 1;
+                   }else
+                       train_data(0,ex, elem) = 0;
+               }
             }
 
-            
+
             // creates the vector for random translation. It is used to randomly translate each example vector
             vector<int> random_translations_train(train_data.shape(1));
             for(unsigned int i = 0; i < train_data.shape(1); i++){
@@ -74,12 +79,14 @@ namespace cuvnet
             fill_gauss(gauss, m_distance, m_sigma);
 
             // convolves last dim of both train and test data with the gauss filter
-            //convolve_last_dim(train_data, gauss);
-            //convolve_last_dim(test_data, gauss);
-            
+            convolve_last_dim(train_data, gauss);
+            convolve_last_dim(test_data, gauss);
+
+            std::cout << " train data dim before subsampling : " << train_data.shape(2) << std::endl;
             // subsamples each "subsample" element
-            //subsampling(train_data, subsample);
-            //subsampling(test_data,subsample);
+            subsampling(train_data, subsample);
+            subsampling(test_data,subsample);
+            std::cout << " train data dim after subsampling : " << train_data.shape(2) << std::endl;
 
 
             normalize_data_set(train_data);

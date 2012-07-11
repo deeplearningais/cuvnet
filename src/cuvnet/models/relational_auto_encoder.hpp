@@ -75,10 +75,14 @@ class relational_auto_encoder{
             m_bias_h.reset(new ParameterInput(cuv::extents[m_hidden_dim],            "bias_h"));
             m_bias_x.reset(new ParameterInput(cuv::extents[input_x_dim],             "bias_x"));
             m_bias_y.reset(new ParameterInput(cuv::extents[input_y_dim],             "bias_y"));
+
+            std::cout << " w_fx has dim: [" << input_x_dim << "][" << m_num_factors << "]" << std::endl;
+            std::cout << " w_fy has dim: [" << input_y_dim << "][" << m_num_factors << "]" << std::endl;
+            std::cout << " w_fh has dim: [" << m_hidden_dim << "][" << m_num_factors << "]" << std::endl;
             
             // calculates the projections of x and y
-            m_factor_x = prod(m_input_x, square(m_fx));
-            //m_factor_x = prod(m_input_x, m_fx);
+            //m_factor_x = prod(m_input_x, square(m_fx));
+            m_factor_x = prod(m_input_x, m_fx);
             m_factor_y = prod(m_input_y, m_fy);
             
             // calculates encoder and projection of encoder
@@ -171,32 +175,33 @@ class relational_auto_encoder{
             m_fx->data() *= 2*diff_x;
             m_fx->data() -=   diff_x;
             
+            std::cout << "initialized min elem fx: " << cuv::minimum(m_fx->data()) << std::endl;
             // makes identity submatrixes
-            std::cout << " initializing matrix fy : " << std::endl;
+            //std::cout << " initializing matrix fy : " << std::endl;
             for(unsigned int i = 0; i < m_fy->data().shape(0); i++){
                 for(unsigned int j = 0; j < m_fy->data().shape(1); j++){
                     if(j % m_fy->data().shape(0) == i){
                         m_fy->data()(i,j) = 1;
                     }else
                         m_fy->data()(i,j) = 0;
-                    std::cout << "  " << m_fy->data()(i,j) ;
+                  //  std::cout << "  " << m_fy->data()(i,j) ;
                 }
-                std::cout << std::endl;
+                //std::cout << std::endl;
 
             }
 
-                std::cout << std::endl;
+              //  std::cout << std::endl;
 
-            std::cout << " initializing matrix fh : " << std::endl;
+            //std::cout << " initializing matrix fh : " << std::endl;
             for(unsigned int i = 0; i < m_fh->data().shape(0); i++){
                 for(unsigned int j = 0; j < m_fh->data().shape(1); j++){
                 if(j < input_dim_x * (i+1) && j >= input_dim_x * i){
                         m_fh->data()(i,j) = 1;
                     }else
                         m_fh->data()(i,j) = 0;
-                    std::cout << "  " << m_fh->data()(i,j) ;
+                   // std::cout << "  " << m_fh->data()(i,j) ;
                 }
-                std::cout << std::endl;
+                //std::cout << std::endl;
 
             }
             
