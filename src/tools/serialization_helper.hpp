@@ -20,6 +20,7 @@ namespace cuvnet
                 return;
             if(idx>=0)
                 file = (boost::format(file) % idx).str();
+            std::cout << "serializing model to:" << file << std::endl;
             std::ofstream f(file.c_str());
             bar::binary_oarchive oa(f);
             register_objects(oa);
