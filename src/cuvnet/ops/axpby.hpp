@@ -22,6 +22,7 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
             private:
                 float m_fact_a, m_fact_b;
+                int m_scalar_param;
 
             public:
                 Axpby():Op(2,1){} /// for serialization
@@ -52,7 +53,7 @@ namespace cuvnet
 
                     const value_type& inp0 = p0.value.cdata();           // original
                     const value_type& inp1 = p1.value.cdata();           // original
-                    bool write_to_p0 = p0.value.unique();
+                    bool write_to_p0 = p0.value.unique() && (p0.shape == r0.shape);
 
                     if(r0.can_overwrite_directly()){
                         apply_binary_functor(r0.overwrite_or_add_value().data(), inp0, inp1, BF_AXPBY, m_fact_a, m_fact_b);
@@ -60,6 +61,7 @@ namespace cuvnet
                         value_type&  outp  = write_to_p0
                             ? p0.value.data_onlyshape()
                             : p1.value.data_onlyshape();  
+                        outp.resize(r0.shape);
                         apply_binary_functor(outp, inp0, inp1, BF_AXPBY, m_fact_a, m_fact_b);
                         r0.push(write_to_p0 ? p0.value : p1.value);
                     }
@@ -74,8 +76,20 @@ namespace cuvnet
                     assert(p0.need_derivative || p1.need_derivative);
 
                     value_ptr delta_orig = r0.delta;
+                    value_type::value_type s = m_scalar_param >= 0 ? sum(r0.delta.cdata()) : 0;
                     if(p0.need_derivative){
-                        if(p0.can_add_directly()){
+                        if(m_scalar_param == 0){
+                            if(p0.can_overwrite_directly()){
+                                *p0.overwrite_or_add_value()  = s * m_fact_a;
+                            }else if(p0.can_add_directly()){
+                                *p0.overwrite_or_add_value() += s * m_fact_a;
+                            }else{
+                                value_ptr v(new value_type(1));
+                                v.data() = s * m_fact_a;
+                                p0.push(v);
+                            }
+                        }
+                        else if(p0.can_add_directly()){
                             // p0 += fact_a * r0.delta
                             cuv::apply_binary_functor(p0.overwrite_or_add_value().data(),
                                     r0.delta.cdata(),
@@ -101,7 +115,18 @@ namespace cuvnet
                     }
                     r0.delta.reset();
                     if(p1.need_derivative){
-                        if(p1.can_add_directly()){
+                        if(m_scalar_param == 1){
+                            if(p1.can_overwrite_directly()){
+                                *p1.overwrite_or_add_value()  = s * m_fact_b;
+                            }else if(p1.can_add_directly()){
+                                *p1.overwrite_or_add_value() += s * m_fact_b;
+                            }else{
+                                value_ptr v(new value_type(1));
+                                v.data() = s * m_fact_b;
+                                p1.push(v);
+                            }
+                        }
+                        else if(p1.can_add_directly()){
                             // p1 += fact_b * r1.delta
                             cuv::apply_binary_functor(p1.overwrite_or_add_value().data(),
                                     delta_orig.cdata(),
@@ -122,15 +147,26 @@ namespace cuvnet
                     }
                 }
                 void _determine_shapes(){
-                    assert(m_params[0]->shape == m_params[1]->shape);
-                    m_results[0]->shape = m_params[0]->shape;
+                    if(0);
+                    else if(m_params[0]->shape == m_params[1]->shape){
+                        m_results[0]->shape = m_params[0]->shape;
+                        m_scalar_param = -1;
+                    }else if(m_params[0]->shape.size()==1 && m_params[0]->shape[0]==1){
+                        m_results[0]->shape = m_params[1]->shape;
+                        m_scalar_param = 0;
+                    }else if(m_params[1]->shape.size()==1 && m_params[1]->shape[0]==1){
+                        m_results[0]->shape = m_params[0]->shape;
+                        m_scalar_param = 1;
+                    }else{
+                        throw std::runtime_error("AXPBY shapes do not match (must be same or one of them a scalar)");
+                    }
                 }
             private:
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
-                        ar & m_fact_a & m_fact_b;
+                        ar & m_fact_a & m_fact_b & m_scalar_param;
                     }
         };
 }
