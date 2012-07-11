@@ -116,8 +116,9 @@ namespace cuvnet
                     m_results[0]->delta.reset();
                 }
                 void _determine_shapes(){
-                    cuvAssert(m_data->shape() == m_shape);
-                    Input::_determine_shapes();
+                    //cuvAssert(m_data->shape() == m_shape);
+                    //Input::_determine_shapes();
+                    m_results[0]->shape = m_data->shape();
                 }
                 inline void reset_delta(){ if(!!m_delta) m_delta.data()=0.f; }
                 inline value_ptr&        data_ptr()     { return m_data; }
