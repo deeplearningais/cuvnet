@@ -23,6 +23,7 @@ class relational_auto_encoder{
     protected:
         op_ptr m_input_x;           ///< the input x of the relational auto-encoder      
         op_ptr m_input_y;           ///< the input y of the relational auto-encoder      
+        op_ptr m_teacher;           ///< the teacher of the relational auto-encoder      
         op_ptr m_encoded;           ///< the encoder function 
         op_ptr m_decoded_x;         ///< the decoder function when we want to reconstruct x from y
         op_ptr m_decoded_y;         ///< the decoder function when we want to reconstruct y from x
@@ -34,7 +35,7 @@ class relational_auto_encoder{
         bool m_binary;
         unsigned int m_num_factors; ///< the dimension of factors
         // these are the parametrs of the model
-        input_ptr  m_fx, m_fy, m_fh, m_bias_x, m_bias_y, m_bias_h;
+        input_ptr  m_fx, m_fy, m_fh, m_bias_x, m_bias_y, m_bias_h, m_fz;
 
         op_ptr m_loss;      ///< the loss of the relational auto-encoder
 
@@ -58,11 +59,12 @@ class relational_auto_encoder{
          * construct encoder, decoder and loss; initialize weights.
          *
          */
-        void init(op_ptr input_x, op_ptr input_y){
+        void init(op_ptr input_x, op_ptr input_y, op_ptr teacher){
             m_input_x   = input_x;
             m_input_y   = input_y;
+            m_teacher = teacher;
             
-            // determines the dimension of input x and y    
+            // determines the dimension of input x and y and teacher
             m_input_x->visit(determine_shapes_visitor()); 
             unsigned int input_x_dim = m_input_x->result()->shape[1];
             m_input_y->visit(determine_shapes_visitor()); 
@@ -71,6 +73,7 @@ class relational_auto_encoder{
             // initialize weights and biases
             m_fx.reset(new ParameterInput(cuv::extents[input_x_dim][m_num_factors],"w_fx"));
             m_fy.reset(new ParameterInput(cuv::extents[input_y_dim][m_num_factors],"w_fy"));
+            m_fz.reset(new ParameterInput(cuv::extents[input_y_dim][m_num_factors],"w_fz"));
             m_fh.reset(new ParameterInput(cuv::extents[m_hidden_dim][m_num_factors],"w_fh"));
             m_bias_h.reset(new ParameterInput(cuv::extents[m_hidden_dim],            "bias_h"));
             m_bias_x.reset(new ParameterInput(cuv::extents[input_x_dim],             "bias_x"));
@@ -92,27 +95,15 @@ class relational_auto_encoder{
             m_factor_h = prod(m_encoded, m_fh);
 
             // calculates the decoder when x is reconstruction
-            m_decoded_x = decode(m_factor_y, m_factor_h, m_fx, m_bias_x);
+            //m_decoded_x = decode(m_factor_y, m_factor_h, m_fx, m_bias_x);
 
-            // calculates the decoder when y is reconstruction
-            m_decoded_y = decode(m_factor_x, m_factor_h, m_fy, m_bias_y);
+            // calculates the prediction
+            m_decoded_y = decode(m_factor_y, m_factor_h, m_fz, m_bias_y);
             
 
             // calculates the reconstruction loss
-            m_loss  = reconstruction_loss(m_input_x, m_input_y, m_decoded_x, m_decoded_y);
+            m_loss  = reconstruction_loss(m_teacher,  m_decoded_y);
     
-            /*
-            if(regularization_strength != 0.0f){
-                m_reg_loss  = regularize();
-                if(!m_reg_loss){
-                    m_loss = m_rec_loss;
-                }else{
-                    m_loss          = axpby(m_rec_loss, regularization_strength, m_reg_loss);
-                }
-            }else{
-                m_loss = m_rec_loss;
-            }
-*/
             reset_weights();
         }
     
@@ -141,16 +132,16 @@ class relational_auto_encoder{
          * @param decode_y a function that determines the reconstruction of y of the relational auto-encoder
          * @return a function that measures the quality of reconstruction 
          */
-        op_ptr reconstruction_loss(op_ptr& input_x, op_ptr& input_y, op_ptr& decode_x, op_ptr& decode_y){
+        op_ptr reconstruction_loss(op_ptr& teacher, op_ptr& decode_y){
             if(!m_binary)  // squared loss
                 return   // mean( sum_to_vec(pow(axpby(decode_x, -1.f, input_x), 2.f), 0) ) ;
-                          mean( sum_to_vec(pow(axpby(decode_y, -1.f, input_y), 2.f), 0) );
-            else         // cross-entropy
-            {
-                return   mean( sum_to_vec(neg_log_cross_entropy_of_logistic(input_x,decode_x),0))
-                       + mean( sum_to_vec(neg_log_cross_entropy_of_logistic(input_y,decode_y),0));
+                          mean( sum_to_vec(pow(axpby(decode_y, -1.f, teacher), 2.f), 0) );
+            //else         // cross-entropy
+            //{
+            //    return   mean( sum_to_vec(neg_log_cross_entropy_of_logistic(input_x,decode_x),0))
+            //           + mean( sum_to_vec(neg_log_cross_entropy_of_logistic(input_y,decode_y),0));
 
-            }
+            //}
         }
     
 
@@ -173,11 +164,12 @@ class relational_auto_encoder{
             unsigned int factor_dim = m_fh->data().shape(1);
             float diff_x = 4.f*std::sqrt(6.f/(input_dim_x + factor_dim));
             cuv::fill_rnd_uniform(m_fx->data());
-            cuv::fill_rnd_uniform(m_fy->data());
-            cuv::fill_rnd_uniform(m_fh->data());
+            cuv::fill_rnd_uniform(m_fz->data());
             diff_x *= 0.01;
             m_fx->data() *= 2*diff_x;
             m_fx->data() -=   diff_x;
+            m_fz->data() *= 2*diff_x;
+            m_fz->data() -=   diff_x;
             
             std::cout << "initialized min elem fx: " << cuv::minimum(m_fx->data()) << std::endl;
             // makes identity submatrixes
@@ -223,7 +215,7 @@ class relational_auto_encoder{
      * Determine the unsupervised parameters learned during training
      */
     std::vector<Op*> unsupervised_params(){
-        return boost::assign::list_of(m_fx.get());
+        return boost::assign::list_of(m_fx.get())(m_fz.get());
         //return boost::assign::list_of(m_fx.get())(m_bias_h.get())(m_bias_x.get());
         //return boost::assign::list_of(m_fx.get())(m_fy.get())(m_fh.get())(m_bias_h.get())(m_bias_x.get())(m_bias_y.get());
     }

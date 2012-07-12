@@ -51,6 +51,88 @@ zoom(const cuv::tensor<float,cuv::host_memory_space>& img, int zf=16){
     return zimg;
 }
 
+/**
+ * arrange inputs stored in rows/columns of a matrix nicely for viewing
+ *
+ * @param input_x_          the matrix containing the first inputs
+ * @param input_y_          the matrix containing the second inputs
+ * @param recon_          the matrix containing the reconstruction of second input
+ * @param pred_           the matrix containing the prediction 
+ * @param dstMapCount number of columns in the arrangement
+ * @param srcMapCount number of rows in the arrangement
+ * @param fs          input size
+ *
+ * @return rearranged view
+ *
+ */
+cuv::tensor<float,cuv::host_memory_space>
+arrange_inputs_and_prediction(const tensor& input_x_, const tensor& input_y_, const tensor& recon_, const tensor& pred_, unsigned int dstMapCount, unsigned int srcMapCount, unsigned int fs, bool normalize_separately=false){
+    tensor fx = input_x_.copy();
+    tensor fy = input_y_.copy();
+    tensor recon = recon_.copy();
+    tensor pred = pred_.copy();
+    // normalize the values of the tensor between 0..1
+    float min_ = min(min(min(cuv::minimum(fx), cuv::minimum(fx)), cuv::minimum(recon)), cuv::minimum(pred));
+    float max_ = max(max(max(cuv::maximum(fx), cuv::maximum(fy)), cuv::maximum(recon)), cuv::maximum(pred));
+    
+    // ensures that we don't devide by zero
+    if(max_ <  0.00001f)
+       max_ = 0.00001f;
+
+    fx -= min_; 
+    fx /= max_;
+    fy -= min_;
+    fy /= max_;
+    recon -= min_;
+    recon /= max_;
+    pred -= min_;
+    pred /= max_;
+    cuvAssert(!cuv::has_nan(fx));
+    cuvAssert(!cuv::has_inf(fx));
+    cuvAssert(!cuv::has_nan(fy));
+    cuvAssert(!cuv::has_nan(fy));
+    cuvAssert(!cuv::has_inf(recon));
+    cuvAssert(!cuv::has_inf(recon));
+    cuvAssert(!cuv::has_inf(pred));
+    cuvAssert(!cuv::has_inf(pred));
+    assert(fx.shape() == fy.shape() && fy.shape() == recon.shape() && recon.shape() == pred.shape());
+
+    // the image which is visualized
+    tensor img(cuv::extents[srcMapCount*5][dstMapCount*(fs + 1)]);
+    img = 0.f;
+
+    for(unsigned int sm=0; sm<srcMapCount; sm++){
+        for (unsigned int dm = 0; dm < dstMapCount; ++dm) {
+            int img_0 = sm * 5;
+            int img_1 = dm*(fs+1);
+            tensor f(cuv::extents[4][fs]);
+            for(unsigned int elem=0;elem<fs;elem++){
+                // first are all filters of 1st src map
+                f(0, elem) = fx(sm*dstMapCount+dm, elem);
+                f(1, elem) = fy(sm*dstMapCount+dm, elem);
+                f(2, elem) = recon(sm*dstMapCount+dm, elem);
+                f(3, elem) = pred(sm*dstMapCount+dm, elem);
+                
+            }
+            if(normalize_separately){
+                 f -= cuv::minimum(f);
+                 float max_ = cuv::maximum(f);
+                 // ensures that we don't devide by zero
+                 if(max_ <  0.00001f)
+                    max_ = 0.00001f;
+                 f /= max_;
+            }
+            for(unsigned int elem=0;elem<fs;elem++){
+                img(img_0, img_1 + elem) = f(0,elem) ;
+                img(img_0 + 1, img_1 + elem) = f(1,elem) ;
+                img(img_0 + 2, img_1 + elem) = f(2,elem) ;
+                img(img_0 + 3, img_1 + elem) = f(3,elem) ;
+            }
+        }
+    }
+    img = zoom(img);
+    return img;
+}
 
 /**
  * arrange inputs stored in rows/columns of a matrix nicely for viewing
@@ -243,7 +325,7 @@ arrange_single_filter(const tensor& fx_ ,  unsigned int dstMapCount, unsigned in
     img = zoom(img);
     return img;
 }
-void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb, input_ptr input_x, input_ptr input_y, unsigned int epoch){
+void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb, input_ptr input_x, input_ptr input_y, input_ptr teacher, unsigned int epoch){
     if(epoch%300 != 0 || epoch < 2)
         return;
     {
@@ -254,25 +336,26 @@ void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb,
        tensor fy = trans(ae->get_fy()->data());
         
        std::cout << " min elem fx: " << cuv::minimum(fx) << endl;
-       auto wvis = arrange_filters(fx, fy, fa, fb, fx.shape(1),false);
-       cuv::libs::cimg::save(wvis, base+"nb.png");
+       //auto wvis = arrange_filters(fx, fy, fa, fb, fx.shape(1),false);
+       //cuv::libs::cimg::save(wvis, base+"nb.png");
 
-       wvis      = arrange_filters(fx, fy, fa, fb, fx.shape(1),true);
-       cuv::libs::cimg::save(wvis, base+"sb.png");
+       //wvis      = arrange_filters(fx, fy, fa, fb, fx.shape(1),true);
+       //cuv::libs::cimg::save(wvis, base+"sb.png");
     }
     {
         std::string base = (boost::format("inputs-%06d-")%epoch).str();
         tensor in_x = input_x->data().copy();
         tensor in_y = input_y->data().copy();
-        tensor recon = (*mon)["decoded"].copy();
+        tensor prediction = (*mon)["decoded"].copy();
+        tensor teacher_ = teacher->data().copy();
 
         fa = 10;
         fb = in_x.shape(0) / 10;
         cuvAssert(!cuv::has_nan(in_x));
         cuvAssert(!cuv::has_inf(in_x));
-        auto wvis = arrange_input_filters(in_x, in_y, recon, fa, fb, (int)in_x.shape(1),false);
+        auto wvis = arrange_inputs_and_prediction(in_x, in_y, teacher_, prediction, fa, fb, (int)in_x.shape(1),false);
         cuv::libs::cimg::save(wvis, base+"nb.png");
-        wvis      = arrange_input_filters(in_x, in_y, recon, fa, fb, (int)in_x.shape(1),true);
+        wvis      = arrange_inputs_and_prediction(in_x, in_y, teacher_, prediction, fa, fb, (int)in_x.shape(1),true);
         cuv::libs::cimg::save(wvis, base+"sb.png");
     }
     //{
@@ -288,13 +371,13 @@ void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb,
 
     //}
     {
-        std::string base = (boost::format("encoder-%06d-")%epoch).str();
-        tensor encoder = (*mon)["encoded"].copy();
-        fa = 10;
-        fb = encoder.shape(0) / 10;
+        //std::string base = (boost::format("encoder-%06d-")%epoch).str();
+        //tensor encoder = (*mon)["encoded"].copy();
+        //fa = 10;
+        //fb = encoder.shape(0) / 10;
 
-        auto wvis = arrange_single_filter(encoder, fa, fb, (int)encoder.shape(1), false);
-        cuv::libs::cimg::save(wvis, base+".png");
+        //auto wvis = arrange_single_filter(encoder, fa, fb, (int)encoder.shape(1), false);
+        //cuv::libs::cimg::save(wvis, base+".png");
 
     }
 
@@ -306,10 +389,12 @@ void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb,
 void load_batch(
         boost::shared_ptr<ParameterInput> input_x,
         boost::shared_ptr<ParameterInput> input_y,
+        boost::shared_ptr<ParameterInput> teacher,
         cuv::tensor<float,cuv::dev_memory_space>* data,
         unsigned int bs, unsigned int batch){
     input_x->data() = (*data)[cuv::indices[0][cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
     input_y->data() = (*data)[cuv::indices[1][cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
+    teacher->data() = (*data)[cuv::indices[2][cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
     cuvAssert(!cuv::has_nan(input_x->data()));
     cuvAssert(!cuv::has_inf(input_x->data()));
 }
@@ -320,9 +405,9 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int fb=20,bs= 640, subsampling = 2, max_trans = 2, gauss_dist = 2, min_width = 8, max_width = 12;
+    unsigned int fb=40,bs= 640, subsampling = 3, max_trans = 9, gauss_dist = 12, min_width = 8, max_width = 12;
     unsigned int fa = max_trans * 2 + 1;
-    float sigma = 2.f, learning_rate = 0.15f;
+    float sigma = gauss_dist / 3, learning_rate = 0.15f;
     // generate random translation dataset
     std::cout << "generating dataset: "<<std::endl;
     //random_translation ds(100, 20, 10, 0.5f, 3, 2.f, 5, 10);
@@ -351,9 +436,12 @@ int main(int argc, char **argv)
     input_ptr input_y(
             new ParameterInput(cuv::extents[bs][ds.train_data.shape(2)],"input_y")); 
     
+    input_ptr teacher(
+            new ParameterInput(cuv::extents[bs][ds.train_data.shape(2)],"teacher")); 
+    
     std::cout << "creating relational auto-encoder with " << fa << " hidden units and " << fa*fb << " number of factors." << std::endl;
     relational_auto_encoder ae(fa, fa*fb, ds.binary); // creates simple autoencoder
-    ae.init(input_x, input_y);
+    ae.init(input_x, input_y, teacher);
     
 
     // obtain the parameters which we need to derive for in the unsupervised
@@ -382,10 +470,10 @@ int main(int argc, char **argv)
     gd.register_monitor(mon);
 
     // after each epoch, run \c visualize_filters
-    gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,fa,fb, input_x, input_y,_1));
+    gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,fa,fb, input_x, input_y, teacher,_1));
 
     // before each batch, load data into \c input
-    gd.before_batch.connect(boost::bind(load_batch,input_x, input_y,&train_data,bs,_2));
+    gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &train_data,bs,_2));
 
     // the number of batches is constant in our case (but has to be supplied as a function)
     gd.current_batch_num.connect(ds.train_data.shape(1)/ll::constant(bs));
@@ -393,7 +481,7 @@ int main(int argc, char **argv)
     // do mini-batch learning for at most 6000 epochs, or 10 minutes
     // (whatever comes first)
     //gd.minibatch_learning(500005, 100*60); // 10 minutes maximum
-    load_batch(input_x, input_y, &train_data,bs,0);
+    load_batch(input_x, input_y, teacher, &train_data,bs,0);
     gd.batch_learning(50000, 100*60);
     
     return 0;

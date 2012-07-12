@@ -209,6 +209,26 @@ namespace cuvnet
             }
         }
 
+        //the second dim is the translated version of the first,
+        and third dimension is translated version of the second
+        void growing_data(cuv::tensor<float,cuv::host_memory_space>  &data, int dim, const vector<int> &rand_growing){
+           assert(dim == 1 || dim == 2);
+           int speed;
+           for(unsigned int i = 0; i < data.shape(1); i++){
+               for(unsigned int j = 0; j < data.shape(2); j++){
+                   speed = rand_growing[i];
+                    
+                   int index = j - rand_translations[i];
+                   // wrap around if the index goes out of border
+                   if(index < 0)
+                       index = data.shape(2) + index;
+                   else if(index >= (int)data.shape(2))
+                       index = index - data.shape(2);
+                   data(dim, i, j) = data(dim - 1, i, index);
+               }
+           }
+        }
+
 }
 
 
