@@ -405,14 +405,14 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int fb=40,bs= 640, subsampling = 3, max_trans = 9, gauss_dist = 12, min_width = 8, max_width = 12;
+    unsigned int fb=40,bs= 640, subsampling = 1, max_trans = 3, gauss_dist = 12, min_width = 2, max_width = 4, max_growing = 3;
     unsigned int fa = max_trans * 2 + 1;
     float sigma = gauss_dist / 3, learning_rate = 0.15f;
     // generate random translation dataset
     std::cout << "generating dataset: "<<std::endl;
     //random_translation ds(100, 20, 10, 0.5f, 3, 2.f, 5, 10);
     //random_translation ds(20, 64* 200, 1024, 0.1f, 8, 5.f, 2, 3);
-    random_translation ds(fb * subsampling, 10 * 64, 1024, 0.1f, gauss_dist, sigma, subsampling, max_trans, min_width, max_width);
+    random_translation ds(fb * subsampling, 10 * 64, 1024, 0.1f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width);
     ds.binary   = false;
 
     // number of filters is fa*fb (fa and fb determine layout of plots printed

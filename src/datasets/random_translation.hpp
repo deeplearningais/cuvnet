@@ -4,7 +4,7 @@
 #include "dataset.hpp"
 namespace cuvnet
 {
-
+    void growing_data(cuv::tensor<float,cuv::host_memory_space>  &data, int dim, const std::vector<int> &rand_growing);
     void normalize_data_set(cuv::tensor<float,cuv::host_memory_space> &data);
     
     /**
@@ -72,7 +72,7 @@ namespace cuvnet
          * @param subsample each subsample element is subsampled from the data.
          * @param translate_size how many elements to translate the data (with wrap-around).
          */
-        random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int translate_size, int min_size, int max_size);
+        random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int translate_size, int max_growing, int min_size, int max_size);
         random_translation(){}
     };
 

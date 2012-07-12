@@ -7,7 +7,7 @@
 using namespace std;
 namespace cuvnet
 {
-        random_translation::random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int max_translation, int min_size, int max_size):
+        random_translation::random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int max_translation, int max_growing,int min_size, int max_size):
             m_num_train_example(num_train_examples),
             m_num_test_example(num_test_examples),
             m_dim(dim),
@@ -65,28 +65,39 @@ namespace cuvnet
                 // For each example, the random translation is a number from  [- max_translation, + max_translation]
                 random_translations_test[i] = rand() % (2 * max_translation  + 1) - max_translation;
             }
+            
+            
+            // creates the vector for random growing/shrinking. It is used to randomly grow each example vector
+            vector<int> random_growing_train(train_data.shape(1));
+            for(unsigned int i = 0; i < train_data.shape(1); i++){
+                // For each example, the random growing is a number from  [- max_growing, + max_growing]
+                random_growing_train[i] = rand() % (2 * max_growing  + 1) - max_growing;
+            }
 
+            
+            growing_data(train_data, 1, random_growing_train);
+            growing_data(train_data, 2, random_growing_train);
 
             // translate train data 
-            translate_data(train_data, 1, random_translations_train);
-            translate_data(train_data, 2, random_translations_train);
+            //translate_data(train_data, 1, random_translations_train);
+            //translate_data(train_data, 2, random_translations_train);
 
-            // translate test data 
-            translate_data(test_data, 1, random_translations_test);
-            translate_data(test_data, 2, random_translations_test);
+            //// translate test data 
+            //translate_data(test_data, 1, random_translations_test);
+            //translate_data(test_data, 2, random_translations_test);
 
             // creates gaussian filter
-            cuv::tensor<float,cuv::host_memory_space> gauss;
-            fill_gauss(gauss, m_distance, m_sigma);
+            //cuv::tensor<float,cuv::host_memory_space> gauss;
+            //fill_gauss(gauss, m_distance, m_sigma);
 
-            // convolves last dim of both train and test data with the gauss filter
-            convolve_last_dim(train_data, gauss);
-            convolve_last_dim(test_data, gauss);
+            //// convolves last dim of both train and test data with the gauss filter
+            //convolve_last_dim(train_data, gauss);
+            //convolve_last_dim(test_data, gauss);
 
-            std::cout << " train data dim before subsampling : " << train_data.shape(2) << std::endl;
-            // subsamples each "subsample" element
-            subsampling(train_data, subsample);
-            subsampling(test_data,subsample);
+            //std::cout << " train data dim before subsampling : " << train_data.shape(2) << std::endl;
+            //// subsamples each "subsample" element
+            //subsampling(train_data, subsample);
+            //subsampling(test_data,subsample);
             std::cout << " train data dim after subsampling : " << train_data.shape(2) << std::endl;
 
 
@@ -210,21 +221,47 @@ namespace cuvnet
         }
 
         //the second dim is the translated version of the first,
-        and third dimension is translated version of the second
+        //and third dimension is translated version of the second
         void growing_data(cuv::tensor<float,cuv::host_memory_space>  &data, int dim, const vector<int> &rand_growing){
+           cuv::tensor<float,cuv::host_memory_space>  temp_data(data.copy());
            assert(dim == 1 || dim == 2);
            int speed;
            for(unsigned int i = 0; i < data.shape(1); i++){
                for(unsigned int j = 0; j < data.shape(2); j++){
                    speed = rand_growing[i];
-                    
-                   int index = j - rand_translations[i];
-                   // wrap around if the index goes out of border
-                   if(index < 0)
-                       index = data.shape(2) + index;
-                   else if(index >= (int)data.shape(2))
-                       index = index - data.shape(2);
-                   data(dim, i, j) = data(dim - 1, i, index);
+                   // growing
+                   if(speed > 0){
+                        if (data(dim,i,j) == 0){
+                            for(int s = - speed; s <= speed; s++){
+                                int index = j + s;
+                                // wrap around
+                                if(index < 0)
+                                    index = data.shape(2) + index;
+                                else if(index >= (int)data.shape(2))
+                                    index = index - data.shape(2);
+
+                                if(data(dim,i, index) == 1)
+                                    temp_data(dim, i, j) = 1;
+                            }
+                        }
+                   }
+                   // shrinking
+                   //else if (speed < 0){
+                   //     if (data(dim,i,j) == 1){
+                   //         for(int s = - speed; s <= speed; s++){
+                   //             int index = j + s;
+                   //             // wrap around
+                   //             if(index < 0)
+                   //                 index = data.shape(2) + index;
+                   //             else if(index >= (int)data.shape(2))
+                   //                 index = index - data.shape(2);
+
+                   //             if(data(dim,i, index) == 1)
+                   //                 temp_data(dim, i, j) = 1;
+                   //         }
+                   //     }
+
+                   //} 
                }
            }
         }
