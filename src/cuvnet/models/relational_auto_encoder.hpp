@@ -133,7 +133,7 @@ class relational_auto_encoder{
          * @return a function that measures the quality of reconstruction 
          */
         op_ptr reconstruction_loss(op_ptr& teacher, op_ptr& decode_y){
-            if(!m_binary)  // squared loss
+        //    if(!m_binary)  // squared loss
                 return   // mean( sum_to_vec(pow(axpby(decode_x, -1.f, input_x), 2.f), 0) ) ;
                           mean( sum_to_vec(pow(axpby(decode_y, -1.f, teacher), 2.f), 0) );
             //else         // cross-entropy
