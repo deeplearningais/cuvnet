@@ -84,7 +84,7 @@ class lenet
                             reorder_for_conv(inp),
                             m_conv1_weights, pad),
                         m_bias1, 0) ; 
-            op_ptr pooled_hl1 = tanh(local_pool(hl1, cuv::alex_conv::PT_AVG));
+            op_ptr pooled_hl1 = tanh(local_pool(hl1, cuv::alex_conv::PT_MAX));
 
             hl2 = 
                 mat_plus_vec(
@@ -92,7 +92,8 @@ class lenet
                             pooled_hl1,
                             m_conv2_weights, pad),
                         m_bias2, 0); 
-            op_ptr pooled_hl2 = tanh(local_pool(hl2, cuv::alex_conv::PT_AVG));
+            op_ptr pooled_hl2 = tanh(local_pool(hl2, cuv::alex_conv::PT_MAX));
+
             hl2 = reorder_from_conv(pooled_hl2);
             hl2 = reshape(hl2, cuv::extents[batchsize][-1]);
             hl3 =

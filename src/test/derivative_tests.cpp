@@ -196,6 +196,13 @@ TEST(derivative_test, derivative_test_axpby){
     ptr_t func                     = boost::make_shared<Axpby>(inp0->result(), inp1->result(), 1.3, -2.5);
     derivative_tester(*func);
 }
+TEST(derivative_test, derivative_test_axpby_broadcast){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5], "inp0");
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[1], "scalar");
+    ptr_t func                  = boost::make_shared<Axpby>(inp0->result(), inp1->result(), 1.2, -2.6);
+    derivative_tester(*func);
+}
 TEST(derivative_test, derivative_test_sum_mat_to_vec){
 	typedef boost::shared_ptr<Op> ptr_t;
     {
