@@ -7,7 +7,7 @@
 using namespace std;
 namespace cuvnet
 {
-        random_translation::random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int max_translation):
+        random_translation::random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int max_translation, int min_size, int max_size):
             m_num_train_example(num_train_examples),
             m_num_test_example(num_test_examples),
             m_dim(dim),
@@ -30,12 +30,13 @@ namespace cuvnet
             // initializes the data in the way that ones are next to each other
             
             int random_elem;
-            int max_size = 12;
+            int diff = max_size - min_size + 1;
             int wrap_index;
             int max_index;
             for(unsigned int ex = 0; ex < train_data.shape(1); ex++){
                random_elem = rand() % m_dim;
-               int size = rand() % max_size + 1;  
+               //makes the size of the ones between the min_size and max_size
+               int size = rand() % diff + min_size;  
                //int size = max_size  ;  
                max_index = random_elem + size;
                if(max_index >= m_dim)

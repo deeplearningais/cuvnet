@@ -127,6 +127,10 @@ class relational_auto_encoder{
         
        op_ptr get_decoded_x(){return m_decoded_x;} 
        op_ptr get_decoded_y(){return m_decoded_y;} 
+       op_ptr get_factor_x(){return m_factor_x;} 
+       op_ptr get_factor_y(){return m_factor_y;}
+       op_ptr get_encoded(){return m_encoded;}
+        
 
         /**
          * Determine the reconstruction loss.
@@ -210,7 +214,7 @@ class relational_auto_encoder{
             //m_fy->data() -=   diff_y;
             //m_fh->data() *= 2*diff_h;
             //m_fh->data() -=   diff_h;
-            m_bias_h->data()   = 0.f;
+            m_bias_h->data()   = - 3.f;
             m_bias_y->data()   = 0.f;
             m_bias_x->data()   = 0.f;
         }
@@ -219,7 +223,7 @@ class relational_auto_encoder{
      * Determine the unsupervised parameters learned during training
      */
     std::vector<Op*> unsupervised_params(){
-        return boost::assign::list_of(m_fx.get())(m_bias_h.get())(m_bias_y.get());
+        return boost::assign::list_of(m_fx.get());
         //return boost::assign::list_of(m_fx.get())(m_bias_h.get())(m_bias_x.get());
         //return boost::assign::list_of(m_fx.get())(m_fy.get())(m_fh.get())(m_bias_h.get())(m_bias_x.get())(m_bias_y.get());
     }

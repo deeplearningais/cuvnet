@@ -72,7 +72,7 @@ namespace cuvnet
          * @param subsample each subsample element is subsampled from the data.
          * @param translate_size how many elements to translate the data (with wrap-around).
          */
-        random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int translate_size);
+        random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int translate_size, int min_size, int max_size);
         random_translation(){}
     };
 
