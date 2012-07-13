@@ -20,6 +20,7 @@ namespace cuvnet{
         std::ostringstream ss;
         {
             bar::binary_oarchive oa(ss);
+            register_objects(oa);
             oa << o;
         }
         return ss.str();
@@ -29,6 +30,7 @@ namespace cuvnet{
         std::istringstream ss(s);
         Op::op_ptr o;
         bar::binary_iarchive ia(ss);
+        register_objects(ia);
         ia >> o;
         return o;
     }
