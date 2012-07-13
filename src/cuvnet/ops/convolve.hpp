@@ -81,18 +81,18 @@ namespace cuvnet
                             // by creating larger arrays if necessary>
                             unsigned int nFiltReal = r0.shape[0];
                             unsigned int nFiltTmp  = 16 * ceil(nFiltReal / 16.);                            // create intermediate representation of the outputs
-                            value_type v(extents[nFiltTmp][r0.shape[1]][r0.shape[2]]);
+                            value_type tmp_dst(extents[nFiltTmp][r0.shape[1]][r0.shape[2]][r0.shape[3]]);
 
                             // create intermediate copy of weights
-                            value_type w(extents[p1.shape[0]][p1.shape[1]][nFiltTmp]);
-                            w = 0.f;
-                            //w[indices[index_range()][index_range()][index_range(0,nFiltTmp)]] = p1.value.cdata().copy();
-                            tensor_view<float, cuv::dev_memory_space> wview(w,
+                            value_type tmp_flt(extents[p1.shape[0]][p1.shape[1]][nFiltTmp]);
+                            tmp_flt = 0.f;
+                            //tmp_flt[indices[index_range()][index_range()][index_range(0,nFiltTmp)]] = p1.value.cdata().copy();
+                            tensor_view<float, cuv::dev_memory_space> wview(tmp_flt,
                                     indices[index_range()][index_range()][index_range(0,nFiltReal)]);
                             wview = p1.value.cdata();
 
-                            convolve2d(v, p0.value.cdata(), w, m_padding_start,1,m_nGroups);
-                            value_ptr vp(new value_type(v[indices[index_range(0,nFiltReal)][index_range()][index_range()]]));
+                            convolve2d(tmp_dst, p0.value.cdata(), tmp_flt, m_padding_start,1,m_nGroups);
+                            value_ptr vp(new value_type(tmp_dst[indices[index_range(0,nFiltReal)][index_range()][index_range()][index_range()]]));
                             r0.push(vp);
                         }
                     }
@@ -131,10 +131,10 @@ namespace cuvnet
 
                     if(!filtSizeOK){
                         // create intermediate copy of deltas
-                        tmp_r0delta.reset(new value_type(extents[nFiltTmp][r0.shape[1]][r0.shape[2]]));
+                        tmp_r0delta.reset(new value_type(extents[nFiltTmp][r0.shape[1]][r0.shape[2]][r0.shape[3]]));
                         {
                             *tmp_r0delta = 0.f;
-                            (*tmp_r0delta)[indices[index_range(0,nFiltReal)][index_range()][index_range()]] = r0.delta.cdata();
+                            (*tmp_r0delta)[indices[index_range(0,nFiltReal)][index_range()][index_range()][index_range()]] = r0.delta.cdata();
                         }
 
                         // create intermediate copy of weights
@@ -219,28 +219,31 @@ namespace cuvnet
                      */
 
 
-                    assert(m_params[0]->shape.size()==3);
+                    assert(m_params[0]->shape.size()==4);
                     assert(m_params[1]->shape.size()==3);
-                    std::vector<unsigned int> dst(3);
+                    std::vector<unsigned int> dst(4);
                     const std::vector<unsigned int>& img = m_params[0]->shape;
                     const std::vector<unsigned int>& flt = m_params[1]->shape;
                     unsigned int nFilt    = flt[2];
-                    unsigned int nImgPixX = sqrt(img[1]);
-                    assert(nImgPixX*nImgPixX==img[1]);
+                    unsigned int nImgPixY = img[1];
+                    unsigned int nImgPixX = img[2];
                     unsigned int nFltPixX = sqrt(flt[1]);
                     assert(nFltPixX*nFltPixX==flt[1]);
 
                     if(m_padding_start)
                         m_padding_start = -(int)nFltPixX/2; // assume nFltPixX%2==1
 
-#define _7848SQR(X) ((X)*(X))
                     unsigned int nOutPixX = m_padding_start 
-                        ? _7848SQR(nImgPixX)
-                        : _7848SQR(nImgPixX+1-nFltPixX);
+                        ? (nImgPixX)
+                        : (nImgPixX+1-nFltPixX);
+                    unsigned int nOutPixY = m_padding_start 
+                        ? (nImgPixY)
+                        : (nImgPixY+1-nFltPixX);
 
                     dst[0] = nFilt;
-                    dst[1] = nOutPixX;
-                    dst[2] = img[2];
+                    dst[1] = nOutPixY;
+                    dst[2] = nOutPixX;
+                    dst[3] = img[3];
                     m_results[0]->shape = dst;
                 }
 
@@ -291,8 +294,8 @@ namespace cuvnet
                     using namespace cuv::alex_conv;
                     param_t::element_type&  p0 = *m_params[0];
                     result_t::element_type& r0 = *m_results[0];
-                    unsigned int outx = sqrt(p0.shape[1])/m_subsx;
-                    cuvAssert(r0.shape[1]==outx*outx);
+                    unsigned int outy = p0.shape[1]/m_subsx;
+                    unsigned int outx = p0.shape[2]/m_subsx;
                     if(r0.can_overwrite_directly()){
                         //int subsX, int startX, int strideX, int outputsX, pool_type pooler
                         local_pool(*r0.overwrite_or_add_value(),p0.value.cdata(),
@@ -365,13 +368,16 @@ namespace cuvnet
                      * images    (numFilters, imgPixels, numImages)
                      * dst:      (numFilters, outputs, numImages)
                      */
-                    assert(m_params[0]->shape.size()==3);
+                    assert(m_params[0]->shape.size()==4);
                     std::vector<unsigned int> img = m_params[0]->shape;
-                    std::vector<unsigned int> dst(3);
+                    std::vector<unsigned int> dst(4);
                     dst[0] = img[0];
-                    dst[1] = img[1] / (m_subsx * m_subsx);
-                    dst[2] = img[2];
-                    cuvAssert(m_subsx*m_subsx*dst[1] == img[1]);
+                    dst[1] = img[1] / m_subsx;
+                    dst[2] = img[2] / m_subsx;
+                    dst[3] = img[3];
+                    cuvAssert(img[1]==img[2]); // currently, cudaConv2 only supports square images for pooling
+                    cuvAssert(m_subsx * dst[1] == img[1]);
+                    cuvAssert(m_subsx * dst[2] == img[2]);
                     m_results[0]->shape = dst;
                 }
 
@@ -445,12 +451,13 @@ namespace cuvnet
                 }
 
                 void _determine_shapes(){
-                    assert(m_params[0]->shape.size()==3);
+                    assert(m_params[0]->shape.size()==4);
                     const std::vector<unsigned int>& img = m_params[0]->shape;
-                    std::vector<unsigned int> dst(3);
+                    std::vector<unsigned int> dst(4);
                     dst[0] = img[1];
                     dst[1] = img[2];
-                    dst[2] = img[0];
+                    dst[2] = img[3];
+                    dst[3] = img[0];
                     m_results[0]->shape = dst;
                 }
 
@@ -515,12 +522,13 @@ namespace cuvnet
                 }
 
                 void _determine_shapes(){
-                    assert(m_params[0]->shape.size()==3);
+                    assert(m_params[0]->shape.size()==4);
                     const std::vector<unsigned int>& img = m_params[0]->shape;
-                    std::vector<unsigned int> dst(3);
-                    dst[0] = img[2];
+                    std::vector<unsigned int> dst(4);
+                    dst[0] = img[3];
                     dst[1] = img[0];
                     dst[2] = img[1];
+                    dst[3] = img[2];
                     m_results[0]->shape = dst;
                 }
 

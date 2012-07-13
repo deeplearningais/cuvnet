@@ -407,6 +407,7 @@ TEST(derivative_test, derivative_test_convolve){
         {
             unsigned int nImgChan = 3;      // must be divisible by nGroups
             unsigned int nImgPixX = 16;
+            unsigned int nImgPixY = 16;
             unsigned int nImg     = 4;
             unsigned int nGroups  = 1;      // must be divisible by 2 ??
 
@@ -417,7 +418,7 @@ TEST(derivative_test, derivative_test_convolve){
             //unsigned int nResPix   = nImgPixX-nFiltPixX+1;
 
             {
-                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixX*nImgPixX][nImg], "inputs");
+                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg], "inputs");
                 boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFiltChan][nFiltPixX*nFiltPixX][nFilt], "weights");
                 ptr_t func                       = boost::make_shared<Convolve>(inp0->result(), inp1->result(), padding);
 
@@ -432,6 +433,7 @@ TEST(derivative_test, derivative_test_convolve){
             // the version used here will use (temporarily) more memory and will be slower
             // (than a hypothetical "optimal" version)
             unsigned int nImgChan = 1;      // must be divisible by nGroups
+            unsigned int nImgPixY  = 16;
             unsigned int nImgPixX  = 16;
             unsigned int nImg     = 16;
             unsigned int nGroups  = 1;      // must be divisible by 2 ??
@@ -442,7 +444,7 @@ TEST(derivative_test, derivative_test_convolve){
 
             //unsigned int nResPix   = nImgPixX-nFiltPixX+1;
             {
-                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixX*nImgPixX][nImg],"inputs");
+                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg],"inputs");
                 boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFiltChan][nFiltPixX*nFiltPixX][nFilt],"weights");
                 ptr_t func                     = boost::make_shared<Convolve>(inp0->result(), inp1->result(), padding);
 
@@ -457,6 +459,7 @@ TEST(derivative_test, derivative_test_convolve_reorder){
 
     using namespace cuv::alex_conv;
     unsigned int nImgChan = 1;      // must be divisible by nGroups
+    unsigned int nImgPixY  = 16;
     unsigned int nImgPixX  = 16;
     unsigned int nImg     = 1;
     unsigned int nGroups  = 1;      // must be divisible by 2 ??
@@ -466,8 +469,8 @@ TEST(derivative_test, derivative_test_convolve_reorder){
     unsigned int nFiltPixX  = 3;
     unsigned int nFilt     = 16; 
 
-    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixX*nImgPixX][nImg]);
-    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFiltChan][nFiltPixX*nFiltPixX][nFilt]);
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg]);
+    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX]);
     {
 	    ptr_t func		               = boost::make_shared<ReorderForConv>(inp0->result());
 	    derivative_tester(*func);
@@ -485,10 +488,11 @@ TEST(derivative_test, derivative_test_convolve_pooling){
     using namespace cuv::alex_conv;
     unsigned int nImgChan = 16;      // must be multiple of 16 for bprop
     unsigned int nImgPixX  = 16;
+    unsigned int nImgPixY  = 16;
     unsigned int nImg     = 1;
 
     {
-	    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixX*nImgPixX][nImg]);
+	    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg]);
 	    ptr_t func		               = boost::make_shared<LocalPooling>(inp0->result(), cuv::alex_conv::PT_AVG);
 
 	    derivative_tester(*func);

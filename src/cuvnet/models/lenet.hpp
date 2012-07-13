@@ -63,16 +63,18 @@ class lenet
             m_n_channels   = inp->result()->shape[1];
             int batchsize  = inp->result()->shape[0];
 
-            int n_pix      = inp->result()->shape[2];
-            int n_pix_x    = std::sqrt(n_pix);
+            int n_pix_y    = inp->result()->shape[2];
+            int n_pix_x    = inp->result()->shape[3];
             bool pad = true;
-            int n_pix_x2   = pad ? n_pix_x/2  : (n_pix_x  - m_filter_size1 / 2 - 1)/2;
+            int n_pix_x2   = pad ? n_pix_x /2 : (n_pix_x  - m_filter_size1 / 2 - 1)/2;
             int n_pix_x3   = pad ? n_pix_x2/2 : (n_pix_x2 - m_filter_size2 / 2 - 1)/2;
+            int n_pix_y2   = pad ? n_pix_y /2 : (n_pix_y  - m_filter_size1 / 2 - 1)/2;
+            int n_pix_y3   = pad ? n_pix_y2/2 : (n_pix_y2 - m_filter_size2 / 2 - 1)/2;
 
             m_conv1_weights.reset(new ParameterInput(cuv::extents[m_n_channels][m_filter_size1*m_filter_size1][m_n_filters1], "conv_weights1"));
             m_conv2_weights.reset(new ParameterInput(cuv::extents[m_n_filters1][m_filter_size2*m_filter_size2][m_n_filters2], "conv_weights2"));
 
-            m_weights3.reset(new ParameterInput(cuv::extents[n_pix_x3*n_pix_x3*m_n_filters2][m_n_hiddens], "weights3"));
+            m_weights3.reset(new ParameterInput(cuv::extents[n_pix_y3*n_pix_x3*m_n_filters2][m_n_hiddens], "weights3"));
 
             m_bias1.reset(new ParameterInput(cuv::extents[m_n_filters1], "bias1"));
             m_bias2.reset(new ParameterInput(cuv::extents[m_n_filters2], "bias2"));
@@ -90,7 +92,7 @@ class lenet
                 mat_plus_vec(
                         convolve( 
                             pooled_hl1,
-                            m_conv2_weights, pad),
+                            m_conv2_weights, pad,1),
                         m_bias2, 0); 
             op_ptr pooled_hl2 = tanh(local_pool(hl2, cuv::alex_conv::PT_MAX));
 
