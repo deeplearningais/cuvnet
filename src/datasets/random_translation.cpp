@@ -231,7 +231,7 @@ namespace cuvnet
                    speed = rand_growing[i];
                    // growing
                    if(speed > 0){
-                        if (data(dim,i,j) == 0){
+                        if (data(dim,i,j) == 0.f){
                             for(int s = - speed; s <= speed; s++){
                                 int index = j + s;
                                 // wrap around
@@ -240,7 +240,7 @@ namespace cuvnet
                                 else if(index >= (int)data.shape(2))
                                     index = index - data.shape(2);
 
-                                if(data(dim,i, index) == 1)
+                                if(data(dim,i, index) == 1.f)
                                     temp_data(dim, i, j) = 1;
                             }
                         }
