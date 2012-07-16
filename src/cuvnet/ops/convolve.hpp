@@ -259,6 +259,177 @@ namespace cuvnet
         };
 
     /**
+     * Bed-of-nails subsampling (take every n-th value in the input maps)
+     *
+     * @ingroup Ops
+     */
+    class BedOfNails
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                unsigned int m_startx, m_stridex;
+            public:
+                BedOfNails() :Op(1,1){} // for serialization
+                BedOfNails(result_t& images, int stridex=2, int startx=0)
+                    :Op(1,1),
+                    m_startx(startx),
+                    m_stridex(stridex)
+                {
+                    add_param(0,images);
+                }
+                void fprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    if(r0.can_overwrite_directly()){
+                        bed_of_nails(*r0.overwrite_or_add_value(), p0.value.cdata(), m_startx,m_stridex);
+                    }else if(r0.can_add_directly()){
+                        bed_of_nails(*r0.overwrite_or_add_value(), p0.value.cdata(), m_startx,m_stridex, 1.f,1.f);
+                    }else{
+                        // reallocate *sigh*
+                        value_ptr v(new value_type(r0.shape));
+                        bed_of_nails(*v, p0.value.cdata(), m_startx,m_stridex);
+                        r0.push(v);
+                    }
+                    p0.value.reset();
+                }
+                void bprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    assert(p0.need_derivative);
+                    if(p0.can_overwrite_directly()){
+                        bed_of_nails_grad(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_startx,m_stridex);
+                    }else if(p0.can_add_directly()){
+                        bed_of_nails_grad(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_startx,m_stridex, 1.f, 1.f);
+                    }else{
+                        value_ptr ptr(new value_type(p0.shape));
+                        bed_of_nails_grad(*ptr, r0.delta.cdata(), m_startx,m_stridex);
+                        p0.push(ptr);
+                    }
+                    r0.delta.reset();
+                }
+
+                void _determine_shapes(){
+                    /*
+                     * images    (numFilters, imgPixY, imgPixX, numImages)
+                     * dst:      (numFilters, outputs, numImages)
+                     */
+                    assert(m_params[0]->shape.size()==4);
+                    std::vector<unsigned int> img = m_params[0]->shape;
+                    cuvAssert(img[1]==img[2]); // currently, cudaConv2 only supports square images for subsampling
+
+                    std::vector<unsigned int> dst(4);
+                    dst[0] = img[0];
+                    dst[1] = (img[1]-m_startx) / m_stridex;
+                    dst[2] = (img[2]-m_startx) / m_stridex;
+                    dst[3] = img[3];
+                    m_results[0]->shape = dst;
+                }
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_stridex & m_startx;
+                    }
+        };
+
+    /**
+     * Separable Filter.
+     *
+     * @ingroup Ops
+     */
+    class SeparableFilter
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                matrix m_kernel;
+            public:
+                SeparableFilter() :Op(1,1){} // for serialization
+                SeparableFilter(result_t& images, const matrix& kernel)
+                    :Op(1,1),
+                    m_kernel(kernel)
+                {
+                    add_param(0,images);
+                }
+                void fprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    if(r0.can_overwrite_directly()){
+                        value_type v(r0.shape);
+                        cuv::alex_conv::gaussian_blur(v, p0.value.cdata(), m_kernel, true);
+                        cuv::alex_conv::gaussian_blur(*r0.overwrite_or_add_value(), v, m_kernel, false);
+                    }else if(r0.can_add_directly()){
+                        value_type v(r0.shape);
+                        cuv::alex_conv::gaussian_blur(v, p0.value.cdata(), m_kernel, true);
+                        cuv::alex_conv::gaussian_blur(*r0.overwrite_or_add_value(), v, m_kernel, false, 1.f, 1.f);
+                    }else{
+                        // try to overwrite p0
+                        value_type v(r0.shape);
+                        cuv::alex_conv::gaussian_blur(v, p0.value.cdata(), m_kernel, true);
+                        cuv::alex_conv::gaussian_blur(p0.value.data(), v, m_kernel, false);
+                        r0.push(p0.value);
+                    }
+                    p0.value.reset();
+                }
+                void bprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    if(p0.can_overwrite_directly()){
+                        value_type v(p0.shape);
+                        cuv::alex_conv::gaussian_blur(v, r0.delta.cdata(), m_kernel, true);
+                        cuv::alex_conv::gaussian_blur(*p0.overwrite_or_add_value(), v, m_kernel, false);
+                    }else if(p0.can_add_directly()){
+                        value_type v(p0.shape);
+                        cuv::alex_conv::gaussian_blur(v, r0.delta.cdata(), m_kernel, true);
+                        cuv::alex_conv::gaussian_blur(*p0.overwrite_or_add_value(), v, m_kernel, false, 1.f, 1.f);
+                    }else{
+                        // try to overwrite r0.delta
+                        value_type v(p0.shape);
+                        cuv::alex_conv::gaussian_blur(v, r0.delta.cdata(), m_kernel, true);
+                        cuv::alex_conv::gaussian_blur(r0.delta.data(), v, m_kernel, false);
+                        p0.push(r0.delta);
+                    }
+                    r0.delta.reset();
+                }
+
+                void _determine_shapes(){
+                    /*
+                     * images    (numFilters, imgPixY, imgPixX, numImages)
+                     * dst:      (numFilters, imgPixY, imgPixX, numImages)
+                     */
+                    assert(m_params[0]->shape.size()==4);
+                    m_results[0]->shape = m_params[0]->shape;
+                }
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_kernel;
+                    }
+        };
+
+    /**
      * Maximum pooling or subsampling of image regions.
      *
      * @ingroup Ops
