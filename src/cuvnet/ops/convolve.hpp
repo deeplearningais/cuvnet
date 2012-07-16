@@ -344,6 +344,87 @@ namespace cuvnet
         };
 
     /**
+     * Resize Bilinear
+     *
+     * @ingroup Ops
+     */
+    class ResizeBilinear
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                float m_scale;
+            public:
+                ResizeBilinear() :Op(1,1){} // for serialization
+                ResizeBilinear(result_t& images, float scale)
+                    :Op(1,1),
+                    m_scale(scale)
+                {
+                    add_param(0,images);
+                }
+                void fprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    if(r0.can_overwrite_directly()){
+                        resize_bilinear(*r0.overwrite_or_add_value(), p0.value.cdata(), m_scale);
+                    }else{
+                        // reallocate *sigh*
+                        value_ptr v(new value_type(r0.shape));
+                        resize_bilinear(*v, p0.value.cdata(), m_scale);
+                        r0.push(v);
+                    }
+                    p0.value.reset();
+                }
+                void bprop(){
+                    std::runtime_error("Bprop of ResizeBilinear does not work: Upscaling is not correctly implemented in CudaConv2");
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    assert(p0.need_derivative);
+                    if(p0.can_overwrite_directly()){
+                        resize_bilinear(*p0.overwrite_or_add_value(), r0.delta.cdata(), 1.f/m_scale);
+                    }else{
+                        value_ptr ptr(new value_type(p0.shape));
+                        resize_bilinear(*ptr, r0.delta.cdata(), 1.f/m_scale);
+                        p0.push(ptr);
+                    }
+                    r0.delta.reset();
+                }
+
+                void _determine_shapes(){
+                    /*
+                     * images    (numFilters, imgPixY, imgPixX, numImages)
+                     * dst:      (numFilters, outputs, numImages)
+                     */
+                    assert(m_params[0]->shape.size()==4);
+                    std::vector<unsigned int> img = m_params[0]->shape;
+                    cuvAssert(img[1]==img[2]); // currently, cudaConv2 only supports square images for subsampling
+
+                    std::vector<unsigned int> dst(4);
+                    dst[0] = img[0];
+                    dst[1] = (unsigned int)(img[1] / m_scale + 0.5);
+                    dst[2] = (unsigned int)(img[2] / m_scale + 0.5);
+                    dst[3] = img[3];
+                    m_results[0]->shape = dst;
+                }
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_scale;
+                    }
+        };
+
+    /**
      * Separable Filter.
      *
      * @ingroup Ops
@@ -426,6 +507,195 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_kernel;
+                    }
+        };
+
+    /**
+     * Response Norm.
+     *
+     * @ingroup Ops
+     */
+    class ResponseNormalization
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                int m_patch_size;
+                float m_add_scale, m_pow_scale;
+                value_ptr m_orig_out;
+                matrix m_denom;
+            public:
+                ResponseNormalization() :Op(1,1){} // for serialization
+                ResponseNormalization(result_t& images, int patch_size, float add_scale, float pow_scale)
+                    :Op(1,1),
+                    m_patch_size(patch_size),
+                    m_add_scale(add_scale),
+                    m_pow_scale(pow_scale)
+                {
+                    add_param(0,images);
+                }
+                virtual void release_data(){
+                    m_denom.dealloc();
+                    m_orig_out.reset();
+                    Op::release_data();
+                }
+                void fprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    m_denom.resize(r0.shape);
+                    if(r0.can_overwrite_directly()){
+                        // note: we need to /first/ run the function, /then/ copy the cow_ptr!
+                        //       otherwise only a copy will be overwritten.
+                        cuv::alex_conv::response_normalization(*r0.overwrite_or_add_value(), m_denom, p0.value.cdata(), m_patch_size, m_add_scale, m_pow_scale);
+                        m_orig_out = r0.overwrite_or_add_value();
+                    }else{
+                        value_ptr v(new value_type(r0.shape));
+                        cuv::alex_conv::response_normalization(*v, m_denom, p0.value.cdata(), m_patch_size, m_add_scale, m_pow_scale);
+                        r0.push(v);
+                        m_orig_out = v;
+                    }
+                    if(!p0.need_derivative) {
+                        p0.value.reset();
+                        m_denom.dealloc();
+                        m_orig_out.reset();
+                    }
+                }
+                void bprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    if(p0.can_overwrite_directly()){
+                        response_normalization_grad(*r0.overwrite_or_add_value(), *m_orig_out, p0.value.cdata(), r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale);
+                    }else if(p0.can_add_directly()){
+                        response_normalization_grad(*r0.overwrite_or_add_value(), *m_orig_out, p0.value.cdata(), r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale, 1.f, 1.f);
+                    }else{
+                        // try to overwrite r0.delta
+                        value_ptr v(new value_type(p0.shape));
+                        response_normalization_grad(*v, *m_orig_out, p0.value.cdata(), r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale);
+                        p0.push(v);
+                    }
+                    r0.delta.reset();
+                    m_orig_out.reset();
+                    m_denom.dealloc();
+                }
+
+                void _determine_shapes(){
+                    /*
+                     * images    (numFilters, imgPixY, imgPixX, numImages)
+                     * dst:      (numFilters, imgPixY, imgPixX, numImages)
+                     */
+                    assert(m_params[0]->shape.size()==4);
+                    m_results[0]->shape = m_params[0]->shape;
+                }
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_patch_size & m_add_scale & m_pow_scale;
+                    }
+        };
+
+    /**
+     * Contrast Normalization
+     *
+     * @ingroup Ops
+     */
+    class ContrastNormalization
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                int m_patch_size;
+                float m_add_scale, m_pow_scale;
+                value_ptr m_orig_out;
+                matrix m_denom;
+                matrix m_meandiffs;
+            public:
+                ContrastNormalization() :Op(1,1){} // for serialization
+                ContrastNormalization(result_t& images, int patch_size, float add_scale, float pow_scale)
+                    :Op(1,1),
+                    m_patch_size(patch_size),
+                    m_add_scale(add_scale),
+                    m_pow_scale(pow_scale)
+                {
+                    add_param(0,images);
+                }
+                virtual void release_data(){
+                    m_denom.dealloc();
+                    m_orig_out.reset();
+                    Op::release_data();
+                }
+                void fprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    m_denom.resize(r0.shape);
+                    m_meandiffs.resize(extents[p0.shape[0]][p0.shape[1]/2][p0.shape[2]/2][p0.shape[3]]);
+                    local_pool(m_meandiffs, p0.value.cdata(), m_patch_size, 0, m_patch_size, 0 /*not used*/, cuv::alex_conv::PT_AVG);
+                    if(r0.can_overwrite_directly()){
+                        cuv::alex_conv::contrast_normalization(*r0.overwrite_or_add_value(), m_denom, m_meandiffs, p0.value.cdata(), m_patch_size, m_add_scale, m_pow_scale);
+                        m_orig_out = r0.overwrite_or_add_value();
+                    }else{
+                        value_ptr v(new value_type(r0.shape));
+                        cuv::alex_conv::contrast_normalization(*v, m_denom, m_meandiffs, p0.value.cdata(), m_patch_size, m_add_scale, m_pow_scale);
+                        r0.push(v);
+                        m_orig_out = v;
+                    }
+                    p0.value.reset();
+                    if(!p0.need_derivative) {
+                        m_denom.dealloc();
+                        m_orig_out.reset();
+                    }
+                }
+                void bprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    if(p0.can_overwrite_directly()){
+                        contrast_normalization_grad(*r0.overwrite_or_add_value(), *m_orig_out, m_meandiffs, r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale);
+                    }else if(p0.can_add_directly()){
+                        contrast_normalization_grad(*r0.overwrite_or_add_value(), *m_orig_out, m_meandiffs, r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale, 1.f, 1.f);
+                    }else{
+                        // try to overwrite r0.delta
+                        value_ptr v(new value_type(p0.shape));
+                        contrast_normalization_grad(*v, *m_orig_out, m_meandiffs, r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale);
+                        p0.push(v);
+                    }
+                    r0.delta.reset();
+                    m_orig_out.reset();
+                    m_denom.dealloc();
+                }
+
+                void _determine_shapes(){
+                    /*
+                     * images    (numFilters, imgPixY, imgPixX, numImages)
+                     * dst:      (numFilters, imgPixY, imgPixX, numImages)
+                     */
+                    assert(m_params[0]->shape.size()==4);
+                    m_results[0]->shape = m_params[0]->shape;
+                }
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_patch_size & m_add_scale & m_pow_scale;
                     }
         };
 

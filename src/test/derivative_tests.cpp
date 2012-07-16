@@ -495,6 +495,54 @@ TEST(derivative_test, derivative_test_sep_conv){
     }
 }
 
+TEST(derivative_test, DISABLED_derivative_test_resize_bilinear){
+	typedef boost::shared_ptr<Op> ptr_t;
+
+    using namespace cuv::alex_conv;
+    unsigned int nImgChan = 1;      // must be divisible by nGroups
+    unsigned int nImgPixY  = 16;
+    unsigned int nImgPixX  = 16;
+    unsigned int nImg     = 1;
+
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg]);
+    {
+	    ptr_t func		               = boost::make_shared<ResizeBilinear>(inp0->result(), 2.f);
+	    derivative_tester(*func);
+    }
+}
+
+TEST(derivative_test, derivative_test_response_normalization){
+	typedef boost::shared_ptr<Op> ptr_t;
+
+    using namespace cuv::alex_conv;
+    unsigned int nImgChan = 16;      // must be divisible by 16, it seems
+    unsigned int nImgPixY  = 16;
+    unsigned int nImgPixX  = 16;
+    unsigned int nImg     = 1;
+
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg]);
+    {
+	    ptr_t func		               = boost::make_shared<ResponseNormalization>(inp0->result(), 3, 1.f, 1.f);
+	    derivative_tester(*func);
+    }
+}
+
+TEST(derivative_test, derivative_test_contrast_normalization){
+	typedef boost::shared_ptr<Op> ptr_t;
+
+    using namespace cuv::alex_conv;
+    unsigned int nImgChan = 16;      // must be divisible by 16, it seems
+    unsigned int nImgPixY  = 16;
+    unsigned int nImgPixX  = 16;
+    unsigned int nImg     = 1;
+
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg]);
+    {
+	    ptr_t func		               = boost::make_shared<ContrastNormalization>(inp0->result(), 3, 1.f, 1.f);
+	    derivative_tester(*func);
+    }
+}
+
 TEST(derivative_test, derivative_test_convolve_reorder){
 	typedef boost::shared_ptr<Op> ptr_t;
 
