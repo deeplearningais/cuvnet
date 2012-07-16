@@ -465,7 +465,7 @@ namespace cuvnet
                     using namespace cuv::alex_conv;
                     param_t::element_type&  p0 = *m_params[0];
                     result_t::element_type& r0 = *m_results[0];
-                    unsigned int outy = p0.shape[1]/m_subsx;
+                    //unsigned int outy = p0.shape[1]/m_subsx;
                     unsigned int outx = p0.shape[2]/m_subsx;
                     if(r0.can_overwrite_directly()){
                         //int subsX, int startX, int strideX, int outputsX, pool_type pooler
@@ -536,7 +536,7 @@ namespace cuvnet
 
                 void _determine_shapes(){
                     /*
-                     * images    (numFilters, imgPixels, numImages)
+                     * images    (numFilters, imgPixY, imgPixX, numImages)
                      * dst:      (numFilters, outputs, numImages)
                      */
                     assert(m_params[0]->shape.size()==4);
