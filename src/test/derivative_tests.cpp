@@ -505,11 +505,6 @@ TEST(derivative_test, derivative_test_convolve_reorder){
     unsigned int nImg     = 1;
     unsigned int nGroups  = 1;      // must be divisible by 2 ??
 
-    // we must set nGroups>1, so each filter will only be applied to nImgChan/nGroups inputs
-    unsigned int nFiltChan = nImgChan/nGroups;
-    unsigned int nFiltPixX  = 3;
-    unsigned int nFilt     = 16; 
-
     boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg]);
     boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX]);
     {
