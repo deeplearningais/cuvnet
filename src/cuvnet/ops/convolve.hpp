@@ -646,6 +646,7 @@ namespace cuvnet
                     m_denom.resize(r0.shape);
                     m_meandiffs.resize(extents[p0.shape[0]][p0.shape[1]/2][p0.shape[2]/2][p0.shape[3]]);
                     local_pool(m_meandiffs, p0.value.cdata(), m_patch_size, 0, m_patch_size, 0 /*not used*/, cuv::alex_conv::PT_AVG);
+                    cuv::apply_scalar_functor(m_meandiffs, SF_NEGATE);
                     if(r0.can_overwrite_directly()){
                         cuv::alex_conv::contrast_normalization(*r0.overwrite_or_add_value(), m_denom, m_meandiffs, p0.value.cdata(), m_patch_size, m_add_scale, m_pow_scale);
                         m_orig_out = r0.overwrite_or_add_value();
