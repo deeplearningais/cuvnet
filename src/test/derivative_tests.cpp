@@ -454,6 +454,47 @@ TEST(derivative_test, derivative_test_convolve){
     }
 }
 
+TEST(derivative_test, derivative_test_bed_of_nails){
+	typedef boost::shared_ptr<Op> ptr_t;
+
+    using namespace cuv::alex_conv;
+    unsigned int nImgChan = 1;      // must be divisible by nGroups
+    unsigned int nImgPixY  = 16;
+    unsigned int nImgPixX  = 16;
+    unsigned int nImg     = 1;
+
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg]);
+    {
+	    ptr_t func		               = boost::make_shared<BedOfNails>(inp0->result());
+	    derivative_tester(*func);
+    }
+}
+
+TEST(derivative_test, derivative_test_sep_conv){
+	typedef boost::shared_ptr<Op> ptr_t;
+
+    using namespace cuv::alex_conv;
+    unsigned int nImgChan = 1;      // must be divisible by nGroups
+    unsigned int nImgPixY  = 16;
+    unsigned int nImgPixX  = 16;
+    unsigned int nImg     = 1;
+
+    matrix kernel(2*2+1);
+    kernel = 1.f;
+
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg]);
+    {
+	    ptr_t func		               = boost::make_shared<SeparableFilter>(inp0->result(), kernel);
+	    derivative_tester(*func);
+    }
+    kernel = 0.f;
+    kernel[kernel.size()/2] = 1.f;
+    {
+	    ptr_t func		               = boost::make_shared<SeparableFilter>(inp0->result(), kernel);
+	    derivative_tester(*func);
+    }
+}
+
 TEST(derivative_test, derivative_test_convolve_reorder){
 	typedef boost::shared_ptr<Op> ptr_t;
 
