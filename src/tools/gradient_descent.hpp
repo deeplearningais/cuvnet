@@ -408,7 +408,6 @@ namespace cuvnet
      * and old gradients for each parameter.
      *
      * @ingroup learning
-     * @warning this is in bad shape currently
      */
     struct rprop_gradient_descent
     : public gradient_descent
