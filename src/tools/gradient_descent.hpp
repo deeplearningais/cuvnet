@@ -199,7 +199,6 @@ namespace cuvnet
                         }
                         after_epoch(m_epoch); // should log error etc
 
-                        m_learnrate *= m_learnrate_decay;
                     }
                 }catch(timeout_stop){
                 }catch(no_improvement_stop){
@@ -270,6 +269,7 @@ namespace cuvnet
                     //       we're changing the underlying object all cow_ptrs pointing to it!!!
                     cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->delta(), -lr, wd);
                     inp->delta() = 0.f;
+                    m_learnrate *= m_learnrate_decay;
                 }
             }
             /**
