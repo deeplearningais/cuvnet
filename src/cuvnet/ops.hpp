@@ -24,6 +24,7 @@
 #include <cuvnet/ops/convolve.hpp>
 #include <cuvnet/ops/reshape.hpp>
 #include <cuvnet/ops/row_selector.hpp>
+#include <cuvnet/ops/rectified_linear.hpp>
 #include <cuvnet/ops/classification_error.hpp>
 
 namespace cuvnet
@@ -101,6 +102,9 @@ namespace cuvnet
     /// construct a Tanh object
     inline
         Op::op_ptr tanh(Op::op_ptr x)                   { return boost::make_shared<Tanh>(x->result()); }
+    /// construct a RectifiedLinear object
+    inline
+        Op::op_ptr rectified_linear(Op::op_ptr x)       { return boost::make_shared<RectifiedLinear>(x->result()); }
     /// construct a Logistic object
     inline
         Op::op_ptr logistic(Op::op_ptr x)               { return boost::make_shared<Logistic>(x->result()); }

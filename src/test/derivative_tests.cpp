@@ -122,6 +122,12 @@ TEST(derivative_test, derivative_test_subtract_from_scalar){
     ptr_t func                    = 1.f-inp;
     derivative_tester(*func);
 }
+TEST(derivative_test, derivative_test_rectified_linear){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+    ptr_t func                    = boost::make_shared<RectifiedLinear>(inp->result());
+    derivative_tester(*func);
+}
 
 TEST(derivative_test, derivative_test_multiply){
 	typedef boost::shared_ptr<Op> ptr_t;
