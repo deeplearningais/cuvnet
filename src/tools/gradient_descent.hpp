@@ -463,6 +463,69 @@ namespace cuvnet
         }
 
     };
+
+    /**
+     * does momentum gradient descent
+     *
+     * also allocates and manages variables for momentum
+     *
+     * @ingroup learning
+     */
+    struct momentum_gradient_descent
+    : public gradient_descent
+    {
+        private:
+            std::vector<Op::value_type> m_last_delta; ///< per-weight momentum
+            float m_momentum; 
+        public:
+            /**
+             * constructor
+             *
+             * @param op the function we want to minimize
+             * @param result which result of op to minimize
+             * @param params the parameters w.r.t. which we want to optimize op
+             * @param learnrate the initial learningrate
+             * @param weightdecay weight decay for weight updates
+             */
+        momentum_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float momentum=0.9f)
+            :gradient_descent(op, result, params, learnrate, weightdecay), m_last_delta(params.size()), m_momentum(momentum)
+        { 
+            unsigned int i=0;
+            for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
+                m_last_delta[i].resize(((ParameterInput*)*it)->data().shape());
+                m_last_delta[i] = 0.f;
+            }
+        }
+        /**
+         * @overload
+         * updates the weights RPROP-style
+         */
+        virtual void update_weights(){
+            using namespace cuv;
+            unsigned int i=0;
+            //cuvAssert(m_n_batches > 0);
+            std::cout << "+" << std::endl;
+            for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
+                ParameterInput* inp = (ParameterInput*) *it;
+
+                float lr = m_learnrate * inp->m_learnrate_factor;
+                float wd = m_weightdecay * inp->m_weight_decay_factor;
+
+                // this is the momentum part:
+                cuv::apply_binary_functor(inp->delta(), m_last_delta[i], cuv::BF_XPBY, m_momentum);
+                m_last_delta[i] = inp->delta().copy();  // save for next round
+
+                // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
+                //       we're changing the underlying object all cow_ptrs pointing to it!!!
+                cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->delta(), -lr, wd);
+                inp->delta() = 0.f;
+                m_learnrate *= m_learnrate_decay;
+
+                std::cout << "cuv::norm1(m_last_delta[i])/m_last_delta.size():" << cuv::norm1(m_last_delta[i])/m_last_delta.size() << std::endl;
+            }
+        }
+
+    };
 }
 
 #endif /* __GRADIENT_DESCENT_HPP__ */
