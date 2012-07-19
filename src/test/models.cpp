@@ -123,8 +123,8 @@ TEST_F(RandomNumberUsingTest, simple_ae_loss_derivative){
    }
 }
 TEST_F(RandomNumberUsingTest, convolutional_auto_encoder_derivative ){
-    // nBatch x nChannels x nPixels
-   boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[2][2][6*6], "input");
+    // nBatch x nChannels x nPixelsY x nPixelsX
+   boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[2][2][6][6], "input");
    cuv::fill_rnd_uniform(inp->data());
    inp->data() -= 0.5f;
    //inp->set_derivable(false);
@@ -184,9 +184,9 @@ TEST_F(RandomNumberUsingTest, logistic_regression_derivative){
 }
 
 TEST_F(RandomNumberUsingTest, obj_det){
-   boost::shared_ptr<ParameterInput>  inp    = boost::make_shared<ParameterInput>(cuv::extents[2][1][28*28], "input");
-   boost::shared_ptr<ParameterInput>  ign    = boost::make_shared<ParameterInput>(cuv::extents[2][16][28*28], "ign");
-   boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[2][16][28*28], "target");
+   boost::shared_ptr<ParameterInput>  inp    = boost::make_shared<ParameterInput>(cuv::extents[2][1][28][28], "input");
+   boost::shared_ptr<ParameterInput>  ign    = boost::make_shared<ParameterInput>(cuv::extents[2][16][28][28], "ign");
+   boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[2][16][28][28], "target");
    target->set_derivable(false); // cannot derive for target of logistic regression
 
    cuv::fill_rnd_uniform(inp->data());
@@ -207,7 +207,7 @@ TEST_F(RandomNumberUsingTest, obj_det){
 }
 
 TEST_F(RandomNumberUsingTest, lenet_derivative){
-   boost::shared_ptr<ParameterInput>  inp    = boost::make_shared<ParameterInput>(cuv::extents[2][1][28*28], "input");
+   boost::shared_ptr<ParameterInput>  inp    = boost::make_shared<ParameterInput>(cuv::extents[2][1][28][28], "input");
    boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[2][10], "target");
    cuv::fill_rnd_uniform(inp->data());
    cuv::fill_rnd_uniform(target->data());

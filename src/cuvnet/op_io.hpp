@@ -24,6 +24,7 @@ namespace cuvnet
         { 
             // infrastructure
             ar.template register_type<Input>();
+            ar.template register_type<ParameterInput>();
             ar.template register_type<Pipe>();
             ar.template register_type<Sink>();
             ar.template register_type<DeltaSink>();

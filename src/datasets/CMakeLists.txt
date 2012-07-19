@@ -3,4 +3,4 @@ add_library(cuvnet_datasets  STATIC
 	voc_detection.cpp
 	)
 
-target_link_libraries(cuvnet_datasets jpeg)
+target_link_libraries(cuvnet_datasets)

@@ -28,11 +28,13 @@ TEST(op_test,io){
 
 		std::ofstream f("test.ser");
 		bar::binary_oarchive oa(f);
+        register_objects(oa);
 		oa << id;
 	}
 
 	std::ifstream f("test.ser");
 	bar::binary_iarchive ia(f);
+    register_objects(ia);
 	ptr_t id;
 	ia >> id;
 	EXPECT_FALSE(!id);

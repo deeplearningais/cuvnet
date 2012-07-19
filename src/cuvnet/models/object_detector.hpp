@@ -104,28 +104,28 @@ class obj_detector
                         convolve( 
                             tanh(pooled_hl2),
                             m_conv3_weights, 
-                            pad),
+                            pad,1),
                         m_bias3, 0);
 
             m_output = sink("output", logistic(hl3));
 
             // pool target twice
             op_ptr subsampled_target = 
-                        reorder_for_conv(target)
-                //local_pool( 
-                //    local_pool( 
-                //        reorder_for_conv(target)
-                //        , cuv::alex_conv::PT_AVG)
-                //    ,cuv::alex_conv::PT_AVG)
+                        //reorder_for_conv(target)
+                local_pool( 
+                   local_pool( 
+                       reorder_for_conv(target)
+                       , cuv::alex_conv::PT_AVG)
+                   ,cuv::alex_conv::PT_AVG)
                     ;
             // pool ignore twice
             op_ptr subsampled_ignore = 
-                        reorder_for_conv(ignore)
-                //local_pool( 
-                //    local_pool( 
-                //        reorder_for_conv(ignore)
-                //        , cuv::alex_conv::PT_AVG)
-                //    ,cuv::alex_conv::PT_AVG)
+                        //reorder_for_conv(ignore)
+                local_pool( 
+                   local_pool( 
+                       reorder_for_conv(ignore)
+                       , cuv::alex_conv::PT_AVG)
+                   ,cuv::alex_conv::PT_AVG)
                     ;
 
             // batch is in the dimension with index 2

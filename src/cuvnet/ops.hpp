@@ -24,6 +24,7 @@
 #include <cuvnet/ops/convolve.hpp>
 #include <cuvnet/ops/reshape.hpp>
 #include <cuvnet/ops/row_selector.hpp>
+#include <cuvnet/ops/rectified_linear.hpp>
 #include <cuvnet/ops/classification_error.hpp>
 #include <cuvnet/ops/global_max_pool.hpp>
 
@@ -102,6 +103,9 @@ namespace cuvnet
     /// construct a Tanh object
     inline
         Op::op_ptr tanh(Op::op_ptr x)                   { return boost::make_shared<Tanh>(x->result()); }
+    /// construct a RectifiedLinear object
+    inline
+        Op::op_ptr rectified_linear(Op::op_ptr x)       { return boost::make_shared<RectifiedLinear>(x->result()); }
     /// construct a Logistic object
     inline
         Op::op_ptr logistic(Op::op_ptr x)               { return boost::make_shared<Logistic>(x->result()); }
@@ -143,13 +147,28 @@ namespace cuvnet
         Op::op_ptr mat_times_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax) { return boost::make_shared<MatTimesVec>(x->result(),v->result(), ax); }
     /// construct a Convolve object
     inline
-        Op::op_ptr convolve(Op::op_ptr img, Op::op_ptr flt, bool padding=false) { return boost::make_shared<Convolve>(img->result(),flt->result(), padding); }
+        Op::op_ptr convolve(Op::op_ptr img, Op::op_ptr flt, bool padding=false, int partialSum=4) { return boost::make_shared<Convolve>(img->result(),flt->result(), padding, partialSum); }
     /// construct a ReorderForConv object
     inline
         Op::op_ptr reorder_for_conv(Op::op_ptr img) { return boost::make_shared<ReorderForConv>(img->result()); }
     /// construct a ReorderFromConv object
     inline
         Op::op_ptr reorder_from_conv(Op::op_ptr img) { return boost::make_shared<ReorderFromConv>(img->result()); }
+    /// construct a ContrastNormalization object
+    inline
+        Op::op_ptr contrast_normalization(Op::op_ptr img, int patchSize, float addScale, float powScale) { return boost::make_shared<ContrastNormalization>(img->result(), patchSize, addScale, powScale); }
+    /// construct a ResponseNormalization object
+    inline
+        Op::op_ptr response_normalization(Op::op_ptr img, int patchSize, float addScale, float powScale) { return boost::make_shared<ResponseNormalization>(img->result(), patchSize, addScale, powScale); }
+    /// construct a BedOfNails object
+    inline
+        Op::op_ptr bed_of_nails(Op::op_ptr img, int stridex=2, int startx=0) { return boost::make_shared<BedOfNails>(img->result(), stridex, startx); }
+    /// construct a ResizeBilinear object
+    inline
+        Op::op_ptr resize_bilinear(Op::op_ptr img, float scale) { return boost::make_shared<ResizeBilinear>(img->result(), scale); }
+    /// construct a SeparableFilter object
+    inline
+        Op::op_ptr separable_filter(Op::op_ptr img, const matrix& kernel) { return boost::make_shared<SeparableFilter>(img->result(), kernel); }
     /// construct a Flatten object
     inline
         Op::op_ptr flatten(Op::op_ptr img, unsigned int outdim=1) { return boost::make_shared<Flatten>(img->result(),outdim); }

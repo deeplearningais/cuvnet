@@ -81,18 +81,18 @@ namespace cuvnet
                             // by creating larger arrays if necessary>
                             unsigned int nFiltReal = r0.shape[0];
                             unsigned int nFiltTmp  = 16 * ceil(nFiltReal / 16.);                            // create intermediate representation of the outputs
-                            value_type v(extents[nFiltTmp][r0.shape[1]][r0.shape[2]]);
+                            value_type tmp_dst(extents[nFiltTmp][r0.shape[1]][r0.shape[2]][r0.shape[3]]);
 
                             // create intermediate copy of weights
-                            value_type w(extents[p1.shape[0]][p1.shape[1]][nFiltTmp]);
-                            w = 0.f;
-                            //w[indices[index_range()][index_range()][index_range(0,nFiltTmp)]] = p1.value.cdata().copy();
-                            tensor_view<float, cuv::dev_memory_space> wview(w,
+                            value_type tmp_flt(extents[p1.shape[0]][p1.shape[1]][nFiltTmp]);
+                            tmp_flt = 0.f;
+                            //tmp_flt[indices[index_range()][index_range()][index_range(0,nFiltTmp)]] = p1.value.cdata().copy();
+                            tensor_view<float, cuv::dev_memory_space> wview(tmp_flt,
                                     indices[index_range()][index_range()][index_range(0,nFiltReal)]);
                             wview = p1.value.cdata();
 
-                            convolve2d(v, p0.value.cdata(), w, m_padding_start,1,m_nGroups);
-                            value_ptr vp(new value_type(v[indices[index_range(0,nFiltReal)][index_range()][index_range()]]));
+                            convolve2d(tmp_dst, p0.value.cdata(), tmp_flt, m_padding_start,1,m_nGroups);
+                            value_ptr vp(new value_type(tmp_dst[indices[index_range(0,nFiltReal)][index_range()][index_range()][index_range()]]));
                             r0.push(vp);
                         }
                     }
@@ -131,10 +131,10 @@ namespace cuvnet
 
                     if(!filtSizeOK){
                         // create intermediate copy of deltas
-                        tmp_r0delta.reset(new value_type(extents[nFiltTmp][r0.shape[1]][r0.shape[2]]));
+                        tmp_r0delta.reset(new value_type(extents[nFiltTmp][r0.shape[1]][r0.shape[2]][r0.shape[3]]));
                         {
                             *tmp_r0delta = 0.f;
-                            (*tmp_r0delta)[indices[index_range(0,nFiltReal)][index_range()][index_range()]] = r0.delta.cdata();
+                            (*tmp_r0delta)[indices[index_range(0,nFiltReal)][index_range()][index_range()][index_range()]] = r0.delta.cdata();
                         }
 
                         // create intermediate copy of weights
@@ -219,28 +219,31 @@ namespace cuvnet
                      */
 
 
-                    assert(m_params[0]->shape.size()==3);
+                    assert(m_params[0]->shape.size()==4);
                     assert(m_params[1]->shape.size()==3);
-                    std::vector<unsigned int> dst(3);
+                    std::vector<unsigned int> dst(4);
                     const std::vector<unsigned int>& img = m_params[0]->shape;
                     const std::vector<unsigned int>& flt = m_params[1]->shape;
                     unsigned int nFilt    = flt[2];
-                    unsigned int nImgPixX = sqrt(img[1]);
-                    assert(nImgPixX*nImgPixX==img[1]);
+                    unsigned int nImgPixY = img[1];
+                    unsigned int nImgPixX = img[2];
                     unsigned int nFltPixX = sqrt(flt[1]);
                     assert(nFltPixX*nFltPixX==flt[1]);
 
                     if(m_padding_start)
                         m_padding_start = -(int)nFltPixX/2; // assume nFltPixX%2==1
 
-#define _7848SQR(X) ((X)*(X))
                     unsigned int nOutPixX = m_padding_start 
-                        ? _7848SQR(nImgPixX)
-                        : _7848SQR(nImgPixX+1-nFltPixX);
+                        ? (nImgPixX)
+                        : (nImgPixX+1-nFltPixX);
+                    unsigned int nOutPixY = m_padding_start 
+                        ? (nImgPixY)
+                        : (nImgPixY+1-nFltPixX);
 
                     dst[0] = nFilt;
-                    dst[1] = nOutPixX;
-                    dst[2] = img[2];
+                    dst[1] = nOutPixY;
+                    dst[2] = nOutPixX;
+                    dst[3] = img[3];
                     m_results[0]->shape = dst;
                 }
 
@@ -252,6 +255,446 @@ namespace cuvnet
                         ar & m_nGroups;
                         ar & m_partial_sum;
                         ar & m_padding_start;
+                    }
+        };
+
+    /**
+     * Bed-of-nails subsampling (take every n-th value in the input maps)
+     *
+     * @ingroup Ops
+     */
+    class BedOfNails
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                unsigned int m_startx, m_stridex;
+            public:
+                BedOfNails() :Op(1,1){} // for serialization
+                BedOfNails(result_t& images, int stridex=2, int startx=0)
+                    :Op(1,1),
+                    m_startx(startx),
+                    m_stridex(stridex)
+                {
+                    add_param(0,images);
+                }
+                void fprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    if(r0.can_overwrite_directly()){
+                        bed_of_nails(*r0.overwrite_or_add_value(), p0.value.cdata(), m_startx,m_stridex);
+                    }else if(r0.can_add_directly()){
+                        bed_of_nails(*r0.overwrite_or_add_value(), p0.value.cdata(), m_startx,m_stridex, 1.f,1.f);
+                    }else{
+                        // reallocate *sigh*
+                        value_ptr v(new value_type(r0.shape));
+                        bed_of_nails(*v, p0.value.cdata(), m_startx,m_stridex);
+                        r0.push(v);
+                    }
+                    p0.value.reset();
+                }
+                void bprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    assert(p0.need_derivative);
+                    if(p0.can_overwrite_directly()){
+                        bed_of_nails_grad(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_startx,m_stridex);
+                    }else if(p0.can_add_directly()){
+                        bed_of_nails_grad(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_startx,m_stridex, 1.f, 1.f);
+                    }else{
+                        value_ptr ptr(new value_type(p0.shape));
+                        bed_of_nails_grad(*ptr, r0.delta.cdata(), m_startx,m_stridex);
+                        p0.push(ptr);
+                    }
+                    r0.delta.reset();
+                }
+
+                void _determine_shapes(){
+                    /*
+                     * images    (numFilters, imgPixY, imgPixX, numImages)
+                     * dst:      (numFilters, outputs, numImages)
+                     */
+                    assert(m_params[0]->shape.size()==4);
+                    std::vector<unsigned int> img = m_params[0]->shape;
+                    cuvAssert(img[1]==img[2]); // currently, cudaConv2 only supports square images for subsampling
+
+                    std::vector<unsigned int> dst(4);
+                    dst[0] = img[0];
+                    dst[1] = (img[1]-m_startx) / m_stridex;
+                    dst[2] = (img[2]-m_startx) / m_stridex;
+                    dst[3] = img[3];
+                    m_results[0]->shape = dst;
+                }
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_stridex & m_startx;
+                    }
+        };
+
+    /**
+     * Resize Bilinear
+     *
+     * @ingroup Ops
+     */
+    class ResizeBilinear
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                float m_scale;
+            public:
+                ResizeBilinear() :Op(1,1){} // for serialization
+                ResizeBilinear(result_t& images, float scale)
+                    :Op(1,1),
+                    m_scale(scale)
+                {
+                    add_param(0,images);
+                }
+                void fprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    if(r0.can_overwrite_directly()){
+                        resize_bilinear(*r0.overwrite_or_add_value(), p0.value.cdata(), m_scale);
+                    }else{
+                        // reallocate *sigh*
+                        value_ptr v(new value_type(r0.shape));
+                        resize_bilinear(*v, p0.value.cdata(), m_scale);
+                        r0.push(v);
+                    }
+                    p0.value.reset();
+                }
+                void bprop(){
+                    std::runtime_error("Bprop of ResizeBilinear does not work: Upscaling is not correctly implemented in CudaConv2");
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    assert(p0.need_derivative);
+                    if(p0.can_overwrite_directly()){
+                        resize_bilinear(*p0.overwrite_or_add_value(), r0.delta.cdata(), 1.f/m_scale);
+                    }else{
+                        value_ptr ptr(new value_type(p0.shape));
+                        resize_bilinear(*ptr, r0.delta.cdata(), 1.f/m_scale);
+                        p0.push(ptr);
+                    }
+                    r0.delta.reset();
+                }
+
+                void _determine_shapes(){
+                    /*
+                     * images    (numFilters, imgPixY, imgPixX, numImages)
+                     * dst:      (numFilters, outputs, numImages)
+                     */
+                    assert(m_params[0]->shape.size()==4);
+                    std::vector<unsigned int> img = m_params[0]->shape;
+                    cuvAssert(img[1]==img[2]); // currently, cudaConv2 only supports square images for subsampling
+
+                    std::vector<unsigned int> dst(4);
+                    dst[0] = img[0];
+                    dst[1] = (unsigned int)(img[1] / m_scale + 0.5);
+                    dst[2] = (unsigned int)(img[2] / m_scale + 0.5);
+                    dst[3] = img[3];
+                    m_results[0]->shape = dst;
+                }
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_scale;
+                    }
+        };
+
+    /**
+     * Separable Filter.
+     *
+     * @ingroup Ops
+     */
+    class SeparableFilter
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                matrix m_kernel;
+            public:
+                SeparableFilter() :Op(1,1){} // for serialization
+                SeparableFilter(result_t& images, const matrix& kernel)
+                    :Op(1,1),
+                    m_kernel(kernel)
+                {
+                    add_param(0,images);
+                }
+                void fprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    if(r0.can_overwrite_directly()){
+                        value_type v(r0.shape);
+                        cuv::alex_conv::gaussian_blur(v, p0.value.cdata(), m_kernel, true);
+                        cuv::alex_conv::gaussian_blur(*r0.overwrite_or_add_value(), v, m_kernel, false);
+                    }else if(r0.can_add_directly()){
+                        value_type v(r0.shape);
+                        cuv::alex_conv::gaussian_blur(v, p0.value.cdata(), m_kernel, true);
+                        cuv::alex_conv::gaussian_blur(*r0.overwrite_or_add_value(), v, m_kernel, false, 1.f, 1.f);
+                    }else{
+                        // try to overwrite p0
+                        value_type v(r0.shape);
+                        cuv::alex_conv::gaussian_blur(v, p0.value.cdata(), m_kernel, true);
+                        cuv::alex_conv::gaussian_blur(p0.value.data(), v, m_kernel, false);
+                        r0.push(p0.value);
+                    }
+                    p0.value.reset();
+                }
+                void bprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    if(p0.can_overwrite_directly()){
+                        value_type v(p0.shape);
+                        cuv::alex_conv::gaussian_blur(v, r0.delta.cdata(), m_kernel, true);
+                        cuv::alex_conv::gaussian_blur(*p0.overwrite_or_add_value(), v, m_kernel, false);
+                    }else if(p0.can_add_directly()){
+                        value_type v(p0.shape);
+                        cuv::alex_conv::gaussian_blur(v, r0.delta.cdata(), m_kernel, true);
+                        cuv::alex_conv::gaussian_blur(*p0.overwrite_or_add_value(), v, m_kernel, false, 1.f, 1.f);
+                    }else{
+                        // try to overwrite r0.delta
+                        value_type v(p0.shape);
+                        cuv::alex_conv::gaussian_blur(v, r0.delta.cdata(), m_kernel, true);
+                        cuv::alex_conv::gaussian_blur(r0.delta.data(), v, m_kernel, false);
+                        p0.push(r0.delta);
+                    }
+                    r0.delta.reset();
+                }
+
+                void _determine_shapes(){
+                    /*
+                     * images    (numFilters, imgPixY, imgPixX, numImages)
+                     * dst:      (numFilters, imgPixY, imgPixX, numImages)
+                     */
+                    assert(m_params[0]->shape.size()==4);
+                    m_results[0]->shape = m_params[0]->shape;
+                }
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_kernel;
+                    }
+        };
+
+    /**
+     * Response Norm.
+     *
+     * @ingroup Ops
+     */
+    class ResponseNormalization
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                int m_patch_size;
+                float m_add_scale, m_pow_scale;
+                value_ptr m_orig_out;
+                matrix m_denom;
+            public:
+                ResponseNormalization() :Op(1,1){} // for serialization
+                ResponseNormalization(result_t& images, int patch_size, float add_scale, float pow_scale)
+                    :Op(1,1),
+                    m_patch_size(patch_size),
+                    m_add_scale(add_scale),
+                    m_pow_scale(pow_scale)
+                {
+                    add_param(0,images);
+                }
+                virtual void release_data(){
+                    m_denom.dealloc();
+                    m_orig_out.reset();
+                    Op::release_data();
+                }
+                void fprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    m_denom.resize(r0.shape);
+                    if(r0.can_overwrite_directly()){
+                        // note: we need to /first/ run the function, /then/ copy the cow_ptr!
+                        //       otherwise only a copy will be overwritten.
+                        cuv::alex_conv::response_normalization(*r0.overwrite_or_add_value(), m_denom, p0.value.cdata(), m_patch_size, m_add_scale, m_pow_scale);
+                        m_orig_out = r0.overwrite_or_add_value();
+                    }else{
+                        value_ptr v(new value_type(r0.shape));
+                        cuv::alex_conv::response_normalization(*v, m_denom, p0.value.cdata(), m_patch_size, m_add_scale, m_pow_scale);
+                        r0.push(v);
+                        m_orig_out = v;
+                    }
+                    if(!p0.need_derivative) {
+                        p0.value.reset();
+                        m_denom.dealloc();
+                        m_orig_out.reset();
+                    }
+                }
+                void bprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    if(p0.can_overwrite_directly()){
+                        response_normalization_grad(*r0.overwrite_or_add_value(), *m_orig_out, p0.value.cdata(), r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale);
+                    }else if(p0.can_add_directly()){
+                        response_normalization_grad(*r0.overwrite_or_add_value(), *m_orig_out, p0.value.cdata(), r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale, 1.f, 1.f);
+                    }else{
+                        // try to overwrite r0.delta
+                        value_ptr v(new value_type(p0.shape));
+                        response_normalization_grad(*v, *m_orig_out, p0.value.cdata(), r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale);
+                        p0.push(v);
+                    }
+                    r0.delta.reset();
+                    m_orig_out.reset();
+                    m_denom.dealloc();
+                }
+
+                void _determine_shapes(){
+                    /*
+                     * images    (numFilters, imgPixY, imgPixX, numImages)
+                     * dst:      (numFilters, imgPixY, imgPixX, numImages)
+                     */
+                    assert(m_params[0]->shape.size()==4);
+                    m_results[0]->shape = m_params[0]->shape;
+                }
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_patch_size & m_add_scale & m_pow_scale;
+                    }
+        };
+
+    /**
+     * Contrast Normalization
+     *
+     * @ingroup Ops
+     */
+    class ContrastNormalization
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                int m_patch_size;
+                float m_add_scale, m_pow_scale;
+                value_ptr m_orig_out;
+                matrix m_denom;
+                matrix m_meandiffs;
+            public:
+                ContrastNormalization() :Op(1,1){} // for serialization
+                ContrastNormalization(result_t& images, int patch_size, float add_scale, float pow_scale)
+                    :Op(1,1),
+                    m_patch_size(patch_size),
+                    m_add_scale(add_scale),
+                    m_pow_scale(pow_scale)
+                {
+                    add_param(0,images);
+                }
+                virtual void release_data(){
+                    m_denom.dealloc();
+                    m_orig_out.reset();
+                    Op::release_data();
+                }
+                void fprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    m_denom.resize(r0.shape);
+                    m_meandiffs.resize(r0.shape);
+                    if(r0.can_overwrite_directly()){
+                        cuv::alex_conv::contrast_normalization(*r0.overwrite_or_add_value(), m_denom, m_meandiffs, p0.value.cdata(), m_patch_size, m_add_scale, m_pow_scale);
+                        m_orig_out = r0.overwrite_or_add_value();
+                    }else{
+                        value_ptr v(new value_type(r0.shape));
+                        cuv::alex_conv::contrast_normalization(*v, m_denom, m_meandiffs, p0.value.cdata(), m_patch_size, m_add_scale, m_pow_scale);
+                        r0.push(v);
+                        m_orig_out = v;
+                    }
+                    p0.value.reset();
+                    if(!p0.need_derivative) {
+                        m_denom.dealloc();
+                        m_orig_out.reset();
+                    }
+                }
+                void bprop(){
+                    using namespace cuv;
+                    using namespace cuv::alex_conv;
+                    param_t::element_type&  p0 = *m_params[0];
+                    result_t::element_type& r0 = *m_results[0];
+                    if(p0.can_overwrite_directly()){
+                        contrast_normalization_grad(*r0.overwrite_or_add_value(), *m_orig_out, m_meandiffs, r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale);
+                    }else if(p0.can_add_directly()){
+                        contrast_normalization_grad(*r0.overwrite_or_add_value(), *m_orig_out, m_meandiffs, r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale, 1.f, 1.f);
+                    }else{
+                        // try to overwrite r0.delta
+                        value_ptr v(new value_type(p0.shape));
+                        contrast_normalization_grad(*v, *m_orig_out, m_meandiffs, r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale);
+                        p0.push(v);
+                    }
+                    r0.delta.reset();
+                    m_orig_out.reset();
+                    m_denom.dealloc();
+                }
+
+                void _determine_shapes(){
+                    /*
+                     * images    (numFilters, imgPixY, imgPixX, numImages)
+                     * dst:      (numFilters, imgPixY, imgPixX, numImages)
+                     */
+                    assert(m_params[0]->shape.size()==4);
+                    m_results[0]->shape = m_params[0]->shape;
+                }
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_patch_size & m_add_scale & m_pow_scale;
                     }
         };
 
@@ -291,8 +734,8 @@ namespace cuvnet
                     using namespace cuv::alex_conv;
                     param_t::element_type&  p0 = *m_params[0];
                     result_t::element_type& r0 = *m_results[0];
-                    unsigned int outx = sqrt(p0.shape[1])/m_subsx;
-                    cuvAssert(r0.shape[1]==outx*outx);
+                    //unsigned int outy = p0.shape[1]/m_subsx;
+                    unsigned int outx = p0.shape[2]/m_subsx;
                     if(r0.can_overwrite_directly()){
                         //int subsX, int startX, int strideX, int outputsX, pool_type pooler
                         local_pool(*r0.overwrite_or_add_value(),p0.value.cdata(),
@@ -362,16 +805,19 @@ namespace cuvnet
 
                 void _determine_shapes(){
                     /*
-                     * images    (numFilters, imgPixels, numImages)
+                     * images    (numFilters, imgPixY, imgPixX, numImages)
                      * dst:      (numFilters, outputs, numImages)
                      */
-                    assert(m_params[0]->shape.size()==3);
+                    assert(m_params[0]->shape.size()==4);
                     std::vector<unsigned int> img = m_params[0]->shape;
-                    std::vector<unsigned int> dst(3);
+                    std::vector<unsigned int> dst(4);
                     dst[0] = img[0];
-                    dst[1] = img[1] / (m_subsx * m_subsx);
-                    dst[2] = img[2];
-                    cuvAssert(m_subsx*m_subsx*dst[1] == img[1]);
+                    dst[1] = img[1] / m_subsx;
+                    dst[2] = img[2] / m_subsx;
+                    dst[3] = img[3];
+                    cuvAssert(img[1]==img[2]); // currently, cudaConv2 only supports square images for pooling
+                    cuvAssert(m_subsx * dst[1] == img[1]);
+                    cuvAssert(m_subsx * dst[2] == img[2]);
                     m_results[0]->shape = dst;
                 }
 
@@ -445,12 +891,13 @@ namespace cuvnet
                 }
 
                 void _determine_shapes(){
-                    assert(m_params[0]->shape.size()==3);
+                    assert(m_params[0]->shape.size()==4);
                     const std::vector<unsigned int>& img = m_params[0]->shape;
-                    std::vector<unsigned int> dst(3);
+                    std::vector<unsigned int> dst(4);
                     dst[0] = img[1];
                     dst[1] = img[2];
-                    dst[2] = img[0];
+                    dst[2] = img[3];
+                    dst[3] = img[0];
                     m_results[0]->shape = dst;
                 }
 
@@ -515,12 +962,13 @@ namespace cuvnet
                 }
 
                 void _determine_shapes(){
-                    assert(m_params[0]->shape.size()==3);
+                    assert(m_params[0]->shape.size()==4);
                     const std::vector<unsigned int>& img = m_params[0]->shape;
-                    std::vector<unsigned int> dst(3);
-                    dst[0] = img[2];
+                    std::vector<unsigned int> dst(4);
+                    dst[0] = img[3];
                     dst[1] = img[0];
                     dst[2] = img[1];
+                    dst[3] = img[2];
                     m_results[0]->shape = dst;
                 }
 

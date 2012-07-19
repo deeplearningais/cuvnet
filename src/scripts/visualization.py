@@ -167,8 +167,8 @@ def evaluate_bioid(loss, load_batch, n_batches):
             mt1 = np.array(center_of_mass(t1))
             mask0 = np.zeros_like(o0)
             mask1 = np.zeros_like(o1)
-            region0 = np.clip((mo0 - 1, mo0 + 2), 0, 30)
-            region1 = np.clip((mo1 - 1, mo1 + 2), 0, 30)
+            region0 = np.clip((mo0 - 2, mo0 + 3), 0, 30)
+            region1 = np.clip((mo1 - 2, mo1 + 3), 0, 30)
             mask0[region0[0, 0]:region0[1, 0], region0[0, 1]:region0[1, 1]] = 1
             mask1[region1[0, 0]:region1[1, 0], region1[0, 1]:region1[1, 1]] = 1
             mo0 = center_of_mass(o0, mask0)
@@ -177,5 +177,6 @@ def evaluate_bioid(loss, load_batch, n_batches):
                     norm(mo1 - mt1)) / norm(mt0 - mt1)
             L.append(dst)
     L = np.array(L)
+    print "n =", len(L)
     print "Average normalized distance: ", L.mean()
     print "Correct: ", np.sum(L < 0.25) / float(len(L))
