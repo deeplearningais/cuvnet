@@ -325,59 +325,65 @@ arrange_single_filter(const tensor& fx_ ,  unsigned int dstMapCount, unsigned in
     img = zoom(img);
     return img;
 }
-void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb, input_ptr input_x, input_ptr input_y, input_ptr teacher, unsigned int epoch){
-    if(epoch%300 != 0 || epoch < 2)
+void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb, input_ptr input_x, input_ptr input_y, input_ptr teacher, bool is_train_set, unsigned int epoch){
+    if(epoch%300 != 0 && is_train_set)
         return;
     {
-       std::string base = (boost::format("fx&y-%06d-")%epoch).str();
+     std::string base = (boost::format("fx&y-%06d-")%epoch).str();
 
-       tensor fx = trans(ae->get_fx()->data());
+     tensor fx = trans(ae->get_fx()->data());
 
-       tensor fy = trans(ae->get_fy()->data());
+     tensor fy = trans(ae->get_fy()->data());
         
-       std::cout << " min elem fx: " << cuv::minimum(fx) << endl;
-       //auto wvis = arrange_filters(fx, fy, fa, fb, fx.shape(1),false);
-       //cuv::libs::cimg::save(wvis, base+"nb.png");
+     std::cout << " min elem fx: " << cuv::minimum(fx) << endl;
+     auto wvis = arrange_filters(fx, fy, fa, fb, fx.shape(1),false);
+     cuv::libs::cimg::save(wvis, base+"nb.png");
 
-       //wvis      = arrange_filters(fx, fy, fa, fb, fx.shape(1),true);
-       //cuv::libs::cimg::save(wvis, base+"sb.png");
+     wvis      = arrange_filters(fx, fy, fa, fb, fx.shape(1),true);
+     cuv::libs::cimg::save(wvis, base+"sb.png");
     }
     {
-        std::string base = (boost::format("inputs-%06d-")%epoch).str();
-        tensor in_x = input_x->data().copy();
-        tensor in_y = input_y->data().copy();
-        tensor prediction = (*mon)["decoded"].copy();
-        tensor teacher_ = teacher->data().copy();
+     std::cout << " visualizing inputs " << std::endl;
+     std::string base;
+     if(is_train_set)
+        base = (boost::format("inputs-train-%06d-")%epoch).str();
+     else
+        base = (boost::format("inputs-test-%06d-")%epoch).str();
+     tensor in_x = input_x->data().copy();
+     tensor in_y = input_y->data().copy();
+     tensor prediction = (*mon)["decoded"].copy();
+     tensor teacher_ = teacher->data().copy();
 
-        fa = 10;
-        fb = in_x.shape(0) / 10;
-        cuvAssert(!cuv::has_nan(in_x));
-        cuvAssert(!cuv::has_inf(in_x));
-        auto wvis = arrange_inputs_and_prediction(in_x, in_y, teacher_, prediction, fa, fb, (int)in_x.shape(1),false);
-        cuv::libs::cimg::save(wvis, base+"nb.png");
-        wvis      = arrange_inputs_and_prediction(in_x, in_y, teacher_, prediction, fa, fb, (int)in_x.shape(1),true);
-        cuv::libs::cimg::save(wvis, base+"sb.png");
+     fa = 10;
+     //fb = in_x.shape(0) / 10;
+     fb =  10;
+     cuvAssert(!cuv::has_nan(in_x));
+     cuvAssert(!cuv::has_inf(in_x));
+     auto wvis      = arrange_inputs_and_prediction(in_x, in_y, teacher_, prediction, fa, fb, (int)in_x.shape(1),true);
+     cuv::libs::cimg::save(wvis, base+"sb.png");
+     // wvis = arrange_inputs_and_prediction(in_x, in_y, teacher_, prediction, fa, fb, (int)in_x.shape(1),false);
+     //cuv::libs::cimg::save(wvis, base+"nb.png");
     }
-    //{
-    //    std::string base = (boost::format("factors-%06d-")%epoch).str();
-    //    tensor fx = (*mon)["factorx"].copy();
-    //    tensor fy = (*mon)["factory"].copy();
-    //    tensor elem_mult = fx * fy;
-    //    fa = 10;
-    //    fb = fx.shape(0) / 10;
+    ////{
+    ////  std::string base = (boost::format("factors-%06d-")%epoch).str();
+    ////  tensor fx = (*mon)["factorx"].copy();
+    ////  tensor fy = (*mon)["factory"].copy();
+    ////  tensor elem_mult = fx * fy;
+    ////  fa = 10;
+    ////  fb = fx.shape(0) / 10;
 
-    //    auto wvis = arrange_input_filters(fx, fy, elem_mult, fa, fb, (int)fx.shape(1), false);
-    //    cuv::libs::cimg::save(wvis, base+".png");
+    ////  auto wvis = arrange_input_filters(fx, fy, elem_mult, fa, fb, (int)fx.shape(1), false);
+    ////  cuv::libs::cimg::save(wvis, base+".png");
 
     //}
     {
-        //std::string base = (boost::format("encoder-%06d-")%epoch).str();
-        //tensor encoder = (*mon)["encoded"].copy();
-        //fa = 10;
-        //fb = encoder.shape(0) / 10;
+     std::string base = (boost::format("encoder-%06d-")%epoch).str();
+     tensor encoder = (*mon)["encoded"].copy();
+     fa = 10;
+     fb =  10;
 
-        //auto wvis = arrange_single_filter(encoder, fa, fb, (int)encoder.shape(1), false);
-        //cuv::libs::cimg::save(wvis, base+".png");
+     auto wvis = arrange_single_filter(encoder, fa, fb, (int)encoder.shape(1), false);
+     cuv::libs::cimg::save(wvis, base+".png");
 
     }
 
@@ -405,21 +411,15 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int fb=40,bs= 640, subsampling = 1, max_trans = 3, gauss_dist = 12, min_width = 2, max_width = 4, max_growing = 3;
-    unsigned int fa = max_trans * 2 + 1;
-    float sigma = gauss_dist / 3, learning_rate = 0.15f;
+    unsigned int fb=50,bs=  64 * 200 , subsampling = 1, max_trans = 3, gauss_dist = 12, min_width = 5, max_width = 25, max_growing = 0;
+    unsigned int fa = (max_growing * 2 + 1) * (max_trans * 2 + 1);
+    float sigma = gauss_dist / 3; 
+    float learning_rate = 0.1f;
     // generate random translation dataset
     std::cout << "generating dataset: "<<std::endl;
-    //random_translation ds(100, 20, 10, 0.5f, 3, 2.f, 5, 10);
-    //random_translation ds(20, 64* 200, 1024, 0.1f, 8, 5.f, 2, 3);
-    random_translation ds(fb * subsampling, 10 * 64, 1024, 0.1f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width);
+    random_translation ds(fb * subsampling, 200 * 64, 200*64, 0.1f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width);
     ds.binary   = false;
 
-    // number of filters is fa*fb (fa and fb determine layout of plots printed
-    //          in \c visualize_filters)
-    // batch size is bs
-    //unsigned int fa=16,fb=8,bs=512;
-    //unsigned int fa=5,fb=20,bs= 4;
 
     std::cout << "Traindata: "<<std::endl;
     std::cout << ds.train_data.shape(0)<<std::endl;
@@ -458,31 +458,47 @@ int main(int argc, char **argv)
     mon.add(monitor::WP_SINK,               ae.get_factor_y(), "factory");
     mon.add(monitor::WP_SINK,               ae.get_encoded(), "encoded");
 
-    // copy training data to the device
-    matrix train_data = ds.train_data;
+    {
+        // copy training data to the device
+        matrix train_data = ds.train_data;
+        //matrix train_data = ds.test_data;
 
-    // create a \c gradient_descent object that derives the auto-encoder loss
-    // w.r.t. \c params and has learning rate 0.001f
-    //gradient_descent gd(ae.loss(),0,params, learning_rate);
-    rprop_gradient_descent gd(ae.loss(), 0, params, 0.0000001);
-    
-    // register the monitor so that it receives learning events
-    gd.register_monitor(mon);
+        // create a \c gradient_descent object that derives the auto-encoder loss
+        // w.r.t. \c params and has learning rate 0.001f
+        //gradient_descent gd(ae.loss(),0,params, learning_rate);
+        //rprop_gradient_descent gd(ae.loss(), 0, params, 0.0000001, 0.00005f);
+        rprop_gradient_descent gd(ae.loss(), 0, params, 0.0000001);
+        //gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.95f,350);
+        // register the monitor so that it receives learning events
+        gd.register_monitor(mon);
 
-    // after each epoch, run \c visualize_filters
-    gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,fa,fb, input_x, input_y, teacher,_1));
+        // after each epoch, run \c visualize_filters
+        //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,fa,fb, input_x, input_y, teacher, true,_1));
 
-    // before each batch, load data into \c input
-    gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &train_data,bs,_2));
+        // before each batch, load data into \c input
+        gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &train_data,bs,_2));
 
-    // the number of batches is constant in our case (but has to be supplied as a function)
-    gd.current_batch_num.connect(ds.train_data.shape(1)/ll::constant(bs));
+        // the number of batches is constant in our case (but has to be supplied as a function)
+        gd.current_batch_num.connect(ds.train_data.shape(1)/ll::constant(bs));
 
-    // do mini-batch learning for at most 6000 epochs, or 10 minutes
-    // (whatever comes first)
-    //gd.minibatch_learning(500005, 100*60); // 10 minutes maximum
-    load_batch(input_x, input_y, teacher, &train_data,bs,0);
-    gd.batch_learning(50000, 100*60);
-    
+        // do mini-batch learning for at most 6000 epochs, or 10 minutes
+        // (whatever comes first)
+        std::cout << std::endl << " Training phase: " << std::endl;
+        //gd.minibatch_learning(2000, 100*60); // 10 minutes maximum
+        load_batch(input_x, input_y, teacher, &train_data,bs,0);
+        gd.batch_learning(600, 100*60);
+    }
+    std::cout << std::endl << " Test phase: " << std::endl;
+    //// evaluates test data. We use minibatch learning with learning rate zero and only one epoch.
+    {
+       matrix data = ds.test_data;
+       //matrix data = ds.train_data;
+       gradient_descent gd(ae.loss(),0,params,0.f);
+       gd.register_monitor(mon);
+       gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,fa,fb, input_x, input_y, teacher, false,_1));
+       gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
+       gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
+       gd.minibatch_learning(1);
+    }
     return 0;
 }

@@ -31,6 +31,7 @@ class relational_auto_encoder{
         op_ptr m_factor_x;          ///< the projection of x
         op_ptr m_factor_y;          ///< the projection of y
         op_ptr m_factor_h;          ///< the projection of h
+        op_ptr m_factor_y_fx;       ///< the projection of input y to the matrix fx
         unsigned int m_hidden_dim;  ///< the number of hidden units
         bool m_binary;
         unsigned int m_num_factors; ///< the dimension of factors
@@ -73,7 +74,7 @@ class relational_auto_encoder{
             // initialize weights and biases
             m_fx.reset(new ParameterInput(cuv::extents[input_x_dim][m_num_factors],"w_fx"));
             m_fy.reset(new ParameterInput(cuv::extents[input_y_dim][m_num_factors],"w_fy"));
-            m_fz.reset(new ParameterInput(cuv::extents[input_y_dim][m_num_factors],"w_fz"));
+            //m_fz.reset(new ParameterInput(cuv::extents[input_y_dim][m_num_factors],"w_fz"));
             m_fh.reset(new ParameterInput(cuv::extents[m_hidden_dim][m_num_factors],"w_fh"));
             m_bias_h.reset(new ParameterInput(cuv::extents[m_hidden_dim],            "bias_h"));
             m_bias_x.reset(new ParameterInput(cuv::extents[input_x_dim],             "bias_x"));
@@ -87,18 +88,18 @@ class relational_auto_encoder{
             //m_factor_x = prod(m_input_x, square(m_fx));
             m_factor_x = prod(m_input_x, m_fx);
             m_factor_y = prod(m_input_y, m_fy);
+            m_factor_y_fx = prod(m_input_y, m_fx);
             
             // calculates encoder and projection of encoder
-            m_encoded  = logistic(mat_plus_vec(
-                                  prod(m_factor_x * m_factor_y, m_fh, 'n', 't')
-                                  , m_bias_h, 1));
+            m_encoded  = logistic(global_max_pool(mat_plus_vec(
+                                prod(m_factor_x * m_factor_y, m_fh, 'n', 't')
+                                , m_bias_h, 1)));
             m_factor_h = prod(m_encoded, m_fh);
 
-            // calculates the decoder when x is reconstruction
-            //m_decoded_x = decode(m_factor_y, m_factor_h, m_fx, m_bias_x);
 
             // calculates the prediction
-            m_decoded_y = decode(m_factor_y, m_factor_h, m_fz, m_bias_y);
+            //m_decoded_y = decode(m_factor_y, m_factor_h, m_fz, m_bias_y);
+            m_decoded_y = decode(m_factor_y_fx, m_factor_h, m_fy, m_bias_y);
             
 
             // calculates the reconstruction loss
@@ -164,12 +165,12 @@ class relational_auto_encoder{
             unsigned int factor_dim = m_fh->data().shape(1);
             float diff_x = 4.f*std::sqrt(6.f/(input_dim_x + factor_dim));
             cuv::fill_rnd_uniform(m_fx->data());
-            cuv::fill_rnd_uniform(m_fz->data());
+            //cuv::fill_rnd_uniform(m_fz->data());
             diff_x *= 0.01;
             m_fx->data() *= 2*diff_x;
             m_fx->data() -=   diff_x;
-            m_fz->data() *= 2*diff_x;
-            m_fz->data() -=   diff_x;
+            //m_fz->data() *= 2*diff_x;
+            //m_fz->data() -=   diff_x;
             
             std::cout << "initialized min elem fx: " << cuv::minimum(m_fx->data()) << std::endl;
             // makes identity submatrixes
@@ -180,7 +181,7 @@ class relational_auto_encoder{
                         m_fy->data()(i,j) = 1;
                     }else
                         m_fy->data()(i,j) = 0;
-                  //  std::cout << "  " << m_fy->data()(i,j) ;
+                    //std::cout << "  " << m_fy->data()(i,j) ;
                 }
                 //std::cout << std::endl;
 
@@ -206,7 +207,7 @@ class relational_auto_encoder{
             //m_fy->data() -=   diff_y;
             //m_fh->data() *= 2*diff_h;
             //m_fh->data() -=   diff_h;
-            m_bias_h->data()   = - 3.f;
+            m_bias_h->data()   = 0.f;
             m_bias_y->data()   = 0.f;
             m_bias_x->data()   = 0.f;
         }
@@ -215,7 +216,8 @@ class relational_auto_encoder{
      * Determine the unsupervised parameters learned during training
      */
     std::vector<Op*> unsupervised_params(){
-        return boost::assign::list_of(m_fx.get())(m_fz.get());
+        //return boost::assign::list_of(m_fx.get())(m_fz.get());
+        return boost::assign::list_of(m_fx.get());
         //return boost::assign::list_of(m_fx.get())(m_bias_h.get())(m_bias_x.get());
         //return boost::assign::list_of(m_fx.get())(m_fy.get())(m_fh.get())(m_bias_h.get())(m_bias_x.get())(m_bias_y.get());
     }

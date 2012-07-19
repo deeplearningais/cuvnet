@@ -25,6 +25,7 @@
 #include <cuvnet/ops/reshape.hpp>
 #include <cuvnet/ops/row_selector.hpp>
 #include <cuvnet/ops/classification_error.hpp>
+#include <cuvnet/ops/global_max_pool.hpp>
 
 namespace cuvnet
 {
@@ -223,5 +224,8 @@ namespace cuvnet
             return snk;
         }
     /// @}
+    /// construct a select max object
+    inline
+        Op::op_ptr global_max_pool(Op::op_ptr x){ return boost::make_shared<GlobalMaxPool>(x->result()); }
 }
 #endif /* __OPS_HPP__ */
