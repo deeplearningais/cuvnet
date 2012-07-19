@@ -179,7 +179,7 @@ namespace cuvnet
 
                         before_epoch(m_epoch); // may run early stopping
 
-                        for (unsigned int  batch = 0; batch < n_batches; ++batch) {
+                        for (unsigned int  batch = 0; batch < n_batches; ++batch, ++iter) {
 
                             before_batch(m_epoch, batchids[batch]); // should load data into inputs
 
@@ -190,11 +190,10 @@ namespace cuvnet
                                 
                                 m_swipe.bprop(); // backward pass
 
-                                if((++iter)%update_every == 0)
+                                if(iter%update_every == 0)
                                     // TODO: accumulation does not work, currently delta is always overwritten!
                                     update_weights(); 
                             }
-
                             after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
                         }
                         after_epoch(m_epoch); // should log error etc
@@ -457,6 +456,7 @@ namespace cuvnet
                 Op::value_type dW = ::operator-(param->delta()); // TODO: change sign in cuv::rprop
                 if(m_n_batches > 1)
                     dW /= (float) m_n_batches;
+                //cuv::rprop(*param->data_ptr().ptr(), dW, m_old_dw[i], m_learnrates[i],  0.0000000f, m_weightdecay);
                 cuv::rprop(*param->data_ptr().ptr(), dW, m_old_dw[i], m_learnrates[i], m_weightdecay, 0.0000000f);
                 param->delta() = 0.f;
             }
