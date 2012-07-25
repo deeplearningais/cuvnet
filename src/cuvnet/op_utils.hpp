@@ -322,18 +322,27 @@ namespace cuvnet
          * @param paramlist the list of parameters w.r.t. which do swipes
          */
         swiper(Op& op, int result, const param_collector_visitor::container_type& paramlist)
-            :m_op(&op)
+            :m_op(&op),
+            m_result(result),
+            m_paramlist(paramlist)
         {
+                init();
+        }
+
+        void init()
+        {
+                Op& op = *m_op;
+
                 reset_needed_flags rnf;
                 op.visit(rnf);
 
-                op.result(result)->need_result = true; // this is the final res we're interested in
+                op.result(m_result)->need_result = true; // this is the final res we're interested in
                 op.need_result(true);                  // this is a bit redundant
 
                 op.visit(m_topo);
 
-                this->set_calculate_result();           // determine need_result
-                op.set_calculate_derivative(paramlist); // determine need_derivative
+                this->set_calculate_result();             // determine need_result
+                op.set_calculate_derivative(m_paramlist); // determine need_derivative
 
                 cleanup_temp_vars_visitor ctvv;
                 op.visit(ctvv); 
@@ -384,6 +393,8 @@ namespace cuvnet
         void debug(unsigned int cnt, Op* o, bool results, bool params, const char* ident);
         private:
         Op* m_op;
+        int m_result;
+        param_collector_visitor::container_type m_paramlist;
     };
 
 }
