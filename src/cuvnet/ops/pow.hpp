@@ -62,6 +62,7 @@ namespace cuvnet
                     *res *= r0.delta.cdata(); // TODO: write BF_POW_TIMES functor in cuv
                     r0.delta.reset();
                     p0.push(res);
+                    p0.value.reset();
                 }
             private:
                 friend class boost::serialization::access;
