@@ -498,30 +498,29 @@ namespace cuvnet
         }
         /**
          * @overload
-         * updates the weights RPROP-style
+         * updates the weights with momentum
          */
         virtual void update_weights(){
             using namespace cuv;
             unsigned int i=0;
-            //cuvAssert(m_n_batches > 0);
-            std::cout << "+" << std::endl;
             for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
                 ParameterInput* inp = (ParameterInput*) *it;
 
                 float lr = m_learnrate * inp->m_learnrate_factor;
                 float wd = m_weightdecay * inp->m_weight_decay_factor;
 
+                cuvAssert(inp->delta().shape() == inp->data().shape());
+                //std::cout << "cuv::norm1(m_last_delta[i]) " <<inp->name()<<" "<< cuv::norm1(m_last_delta[i])/m_last_delta[i].size() << std::endl;
+                //std::cout << "      inp->delta()          " <<inp->name()<<" "<< cuv::minimum(inp->delta())<<" "<<cuv::mean(inp->delta())<<" "<<cuv::maximum(inp->delta()) << std::endl;
+
                 // this is the momentum part:
-                cuv::apply_binary_functor(inp->delta(), m_last_delta[i], cuv::BF_XPBY, m_momentum);
-                m_last_delta[i] = inp->delta().copy();  // save for next round
+                cuv::apply_binary_functor(m_last_delta[i], inp->delta(), cuv::BF_AXPY, m_momentum);
 
                 // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
                 //       we're changing the underlying object all cow_ptrs pointing to it!!!
-                cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->delta(), -lr, wd);
-                inp->delta() = 0.f;
+                cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), m_last_delta[i], -lr, wd);
                 m_learnrate *= m_learnrate_decay;
-
-                std::cout << "cuv::norm1(m_last_delta[i])/m_last_delta.size():" << cuv::norm1(m_last_delta[i])/m_last_delta.size() << std::endl;
+                inp->delta().dealloc();
             }
         }
 
