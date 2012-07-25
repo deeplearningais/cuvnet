@@ -647,6 +647,8 @@ namespace cuvnet
                     m_denom.resize(r0.shape);
                     m_meandiffs.resize(r0.shape);
                     if(r0.can_overwrite_directly()){
+                        // note: we need to /first/ run the function, /then/ copy the cow_ptr!
+                        //       otherwise only a copy will be overwritten.
                         cuv::alex_conv::contrast_normalization(*r0.overwrite_or_add_value(), m_denom, m_meandiffs, p0.value.cdata(), m_patch_size, m_add_scale, m_pow_scale);
                         m_orig_out = r0.overwrite_or_add_value();
                     }else{
