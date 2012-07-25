@@ -161,7 +161,7 @@ namespace cuvnet
                     for(unsigned int i=0;i<n_batches;i++)
                         batchids[i] = i;
                 }
-                unsigned long int iter = 0;
+                unsigned long int iter = 1;
                 try{
                     unsigned long int t_start = time(NULL);
                     for (m_epoch = 0; ; ++m_epoch) {
@@ -187,13 +187,13 @@ namespace cuvnet
                             before_batch(m_epoch, batchids[batch]); // should load data into inputs
 
                             m_swipe.fprop();  // forward pass
-                            ++iter;
+
                             if(m_learnrate && !(m_convergence_checking && m_epoch==0)){
                                 // this is not an evaluation pass, we're actually supposed to do work ;)
                                 
                                 m_swipe.bprop(); // backward pass
 
-                                if(iter%update_every == 0)
+                                if(iter % update_every == 0)
                                     // TODO: accumulation does not work, currently delta is always overwritten!
                                     update_weights(); 
                             }
