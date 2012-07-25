@@ -28,8 +28,11 @@ namespace cuvnet
           
             
             // initializes the data in the way that ones are next to each other
-            initialize_data_set(max_size, min_size, train_data, m_dim);
-            initialize_data_set(max_size, min_size, test_data, m_dim);
+            //initialize_data_set(max_size, min_size, train_data, m_dim);
+            //initialize_data_set(max_size, min_size, test_data, m_dim);
+            cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * (max_size - min_size)][m_dim]);
+            initialize_data_set_iter(max_size, min_size, data, m_dim);
+            split_data_set(data, train_data, test_data, m_num_train_example, m_dim);
 
 
             // creates the vector for random translation. It is used to randomly translate each example vector
@@ -108,6 +111,41 @@ namespace cuvnet
             normalize_data_set(test_data); 
         }
 
+        // initializes the data in the way that ones are next to each other
+        void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set, int num_examples, int dim){
+            std::cout << " num_examples " << num_examples << " total num " << data.shape(1) << std::endl;
+            assert((unsigned int)num_examples * 2 < data.shape(1));
+            for(int ex = 0; ex < num_examples * 2; ex+=2){
+                for(int d = 0; d < dim; d++){
+                    train_set(0,ex / 2,d) = data(0,ex,d);
+                    test_set(0,ex / 2,d) = data(0,ex + 1,d);
+                }
+            }
+        }
+
+        // initializes the data in the way that ones are next to each other
+        void initialize_data_set_iter(int max_size, int min_size, cuv::tensor<float,cuv::host_memory_space>& data, int m_dim){
+            int example = 0;
+            int diff = max_size - min_size;
+            for(int w = 0; w < diff; w++){
+                for(int dim = 0; dim < m_dim; dim++){
+                    for(int d = 0; d < m_dim; d++){
+                        int width = min_size + w;
+                        if(dim + width < m_dim){
+                            if(d >= dim && d <= dim+width){
+                                data(0,example, d) = 1.f;
+                            }
+                        }else{
+                            if(d >=dim || d <= (dim + width - m_dim)){
+                                data(0,example, d) = 1.f;
+                            }
+                        }
+                    }    
+                    example++;
+                }
+
+            }
+        }
 
         // initializes the data in the way that ones are next to each other
         void initialize_data_set(int max_size, int min_size, cuv::tensor<float,cuv::host_memory_space>& data, int m_dim){
@@ -135,6 +173,8 @@ namespace cuvnet
                }
             }
         }
+
+
 
         void normalize_data_set(cuv::tensor<float,cuv::host_memory_space>& data){
             using namespace cuv;
