@@ -62,7 +62,7 @@ namespace cuvnet
             /// repair the swiper, e.g. after using another swiper on the loss
             /// to dump parameters to a file
             void repair_swiper(){
-                m_swipe = swiper(*m_loss, m_result, m_params);
+                m_swipe.init();
             }
 
             /// a vector containing all validation set results for smoothing
@@ -110,11 +110,12 @@ namespace cuvnet
              * @param every_nth_epoch run this check every n epochs
              * @param thresh stop when improvement is less than this much times initial value
              * @param patience_increase prolong training by this much if significant improvement found (e.g. 2 doubles training time)
+             * @param box_filter_size size of window used to filter performance results (1 is equivalent to no filtering)
              */
             template<class T>
-            void setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, float patience_increase){
+            void setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, float patience_increase, unsigned int box_filter_size=1){
                 m_performance = performance;
-                before_epoch.connect(boost::bind(&gradient_descent::early_stop_test,this,every_nth_epoch, thresh, patience_increase, _1), boost::signals::at_front);
+                before_epoch.connect(boost::bind(&gradient_descent::early_stop_test,this,every_nth_epoch, thresh, patience_increase, _1, box_filter_size), boost::signals::at_front);
             }
 
             /**
@@ -171,8 +172,10 @@ namespace cuvnet
                             throw timeout_stop();
                         }
                         // stop if epoch limit is exceeded
-                        if(iter/n_batches >= n_max_epochs)
+                        if(iter/n_batches >= n_max_epochs){
+
                             throw max_iter_stop();
+                        }
 
                         if(randomize)
                             std::random_shuffle(batchids.begin(),batchids.end());
@@ -184,13 +187,13 @@ namespace cuvnet
                             before_batch(m_epoch, batchids[batch]); // should load data into inputs
 
                             m_swipe.fprop();  // forward pass
-
+                            ++iter;
                             if(m_learnrate && !(m_convergence_checking && m_epoch==0)){
                                 // this is not an evaluation pass, we're actually supposed to do work ;)
                                 
                                 m_swipe.bprop(); // backward pass
 
-                                if((++iter)%update_every == 0)
+                                if(iter%update_every == 0)
                                     // TODO: accumulation does not work, currently delta is always overwritten!
                                     update_weights(); 
                             }
@@ -282,8 +285,9 @@ namespace cuvnet
              * @param thresh  determines "significant" performance improvements, i.e. 0.995
              * @param patience_increase prolong training by this much if significant improvement found (e.g. 2 doubles training time)
              * @param current_epoch number of current epoch
+             * @param box_filter_size size of window used to filter performance results (1 is equivalent to no filtering)
              */
-            void early_stop_test(unsigned int every, float thresh, float patience_increase, unsigned int current_epoch){
+            void early_stop_test(unsigned int every, float thresh, float patience_increase, unsigned int current_epoch, unsigned int box_filter_size=1){
                 if(current_epoch%every!=0)
                     return;
 
@@ -295,15 +299,13 @@ namespace cuvnet
                 float perf = m_performance();
                 m_val_perfs.push_back(perf);
 
-                const unsigned int box_filter_size = 3;
-                if(m_val_perfs.size() >= box_filter_size){
-                    perf = 0.f;
-                    for(unsigned int i = m_val_perfs.size()-box_filter_size;
-                            i < m_val_perfs.size(); 
-                            i++)
-                        perf += m_val_perfs[i];
-                    perf /= box_filter_size;
-                }
+                perf = 0.f;
+                unsigned int window_size = std::min(m_val_perfs.size(), (size_t) box_filter_size);
+                for(unsigned int i = m_val_perfs.size()-window_size;
+                        i < m_val_perfs.size(); 
+                        i++)
+                    perf += m_val_perfs[i];
+                perf /= window_size;
 
                 if(current_epoch == 0)
                     m_initial_performance = perf;
