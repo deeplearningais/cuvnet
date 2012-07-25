@@ -693,3 +693,9 @@ TEST(derivative_test, derivative_test_reshape){
         EXPECT_EQ(func->result()->shape.at(2), 3);
     }
 }
+TEST(derivative_test, derivative_test_select_max){
+   typedef boost::shared_ptr<Op> ptr_t;
+   boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+   ptr_t func = boost::make_shared<GlobalMaxPool>(inp->result());
+   derivative_tester(*func,0,false,0.01);
+}
