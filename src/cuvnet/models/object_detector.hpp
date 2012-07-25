@@ -42,6 +42,33 @@ class obj_detector
         unsigned int m_filter_size1, m_filter_size2, m_filter_size3; 
         unsigned int m_n_filters1, m_n_filters2, m_n_filters3;
 
+        op_ptr actfunc(op_ptr f){
+            //return tanh(f);
+            return response_normalization(rectified_linear(f), 7, 1.f, 1.f);
+            //return contrast_normalization(tanh(f), 7, 1.f, 1.f);
+        }
+
+        op_ptr conv_bias(op_ptr images, op_ptr weights, op_ptr bias = op_ptr()){
+            int partialSum = 16;
+            images->visit(determine_shapes_visitor()); 
+            if((images->result()->shape[1] * images->result()->shape[2]) % partialSum != 0)
+                partialSum = 8;
+            if((images->result()->shape[1] * images->result()->shape[2]) % partialSum != 0)
+                partialSum = 4;
+            if((images->result()->shape[1] * images->result()->shape[2]) % partialSum != 0)
+                partialSum = 2;
+            if((images->result()->shape[1] * images->result()->shape[2]) % partialSum != 0)
+                partialSum = 1;
+            
+            if(!bias)
+                return convolve(images, weights, true, partialSum);
+            else
+                return mat_plus_vec(convolve(images, weights, true, partialSum), bias, 0);
+        }
+
+        op_ptr max_pool(op_ptr images){
+            return local_pool(images, cuv::alex_conv::PT_MAX);
+        }
 
     public:
         op_ptr hl1, hl2, hl3;
@@ -61,8 +88,6 @@ class obj_detector
             target->visit(determine_shapes_visitor()); 
             m_n_filters3   = target->result()->shape[1]; // number of output maps
 
-            bool pad = true; // must be true, since we're subsampling `ignore' and `target' in parallel....
-
             m_conv1_weights.reset(new ParameterInput(cuv::extents[m_n_channels][m_filter_size1*m_filter_size1][m_n_filters1], "conv_weights1"));
             m_conv2_weights.reset(new ParameterInput(cuv::extents[m_n_filters1][m_filter_size2*m_filter_size2][m_n_filters2], "conv_weights2"));
             m_conv3_weights.reset(new ParameterInput(cuv::extents[m_n_filters2][m_filter_size3*m_filter_size3][m_n_filters3], "conv_weights3"));
@@ -71,69 +96,48 @@ class obj_detector
             m_bias2.reset(new ParameterInput(cuv::extents[m_n_filters2], "bias2"));
             m_bias3.reset(new ParameterInput(cuv::extents[m_n_filters3], "bias3"));
 
-            hl1 =
-                mat_plus_vec(
-                        convolve( 
-                            reorder_for_conv(inp),
-                            m_conv1_weights, pad),
-                        m_bias1, 0);
+            op_ptr input_pool0 = reorder_for_conv(inp);
+            op_ptr input_pool1 = local_pool(input_pool0, cuv::alex_conv::PT_AVG);
+            op_ptr input_pool2 = local_pool(input_pool1, cuv::alex_conv::PT_AVG);
 
-            op_ptr pooled_hl1 = local_pool(hl1, cuv::alex_conv::PT_MAX);
+            op_ptr p0 = actfunc(conv_bias(input_pool0, m_conv1_weights, m_bias1));
+            op_ptr p1 = actfunc(conv_bias(input_pool1, m_conv1_weights, m_bias1));
+            op_ptr p2 = actfunc(conv_bias(input_pool2, m_conv1_weights, m_bias1));
 
-            hl2 = 
-                mat_plus_vec(
-                        convolve( 
-                            tanh(pooled_hl1),
-                            m_conv2_weights, pad),
-                        m_bias2, 0);
+            hl1 = axpby(0.33, conv_bias(max_pool(p0), m_conv2_weights), 0.33, conv_bias(p1, m_conv2_weights));
 
-            for (int i = 0; i < 0; ++i)
-            {
-                hl2 = 
-                    mat_plus_vec(
-                            convolve( 
-                                tanh(hl2),
-                                m_conv2_weights, pad),
-                            m_bias2, 0);
-            }
+            hl2 = axpby(0.66, max_pool(hl1), 0.33, conv_bias(p2, m_conv2_weights));
+            hl2 = mat_plus_vec(hl2, m_bias2, 0);
+            hl2 = actfunc(hl2);
 
-            op_ptr pooled_hl2 = local_pool(hl2, cuv::alex_conv::PT_MAX);
+            hl3 = conv_bias(hl2, m_conv3_weights, m_bias3);
 
-            hl3 = 
-                mat_plus_vec(
-                        convolve( 
-                            tanh(pooled_hl2),
-                            m_conv3_weights, 
-                            pad,1),
-                        m_bias3, 0);
-
-            m_output = sink("output", logistic(hl3));
+            //m_output = sink("output", logistic(hl3));
+            m_output = sink("output", hl3);
 
             // pool target twice
             op_ptr subsampled_target = 
                         //reorder_for_conv(target)
-                local_pool( 
-                   local_pool( 
+                max_pool( 
+                   max_pool( 
                        reorder_for_conv(target)
-                       , cuv::alex_conv::PT_AVG)
-                   ,cuv::alex_conv::PT_AVG)
+                       ))
                     ;
             // pool ignore twice
             op_ptr subsampled_ignore = 
                         //reorder_for_conv(ignore)
-                local_pool( 
-                   local_pool( 
+                max_pool(
+                   max_pool( 
                        reorder_for_conv(ignore)
-                       , cuv::alex_conv::PT_AVG)
-                   ,cuv::alex_conv::PT_AVG)
+                       ))
                     ;
 
             // batch is in the dimension with index 2
             //m_loss = mean(subsampled_ignore * square(hl3 - subsampled_target));
             //m_loss = mean(subsampled_ignore * neg_log_cross_entropy_of_logistic(subsampled_target, hl3));
-            m_loss = mean(subsampled_ignore * epsilon_insensitive_loss(0.05f, subsampled_target, logistic(hl3)));
+            //m_loss = mean(subsampled_ignore * epsilon_insensitive_loss(0.05f, subsampled_target, logistic(hl3)));
             //m_loss = mean(subsampled_ignore * epsilon_insensitive_loss(0.05f, subsampled_target, hl3));
-            //m_loss = mean(subsampled_ignore * squared_hinge_loss(subsampled_target, hl3));
+            m_loss = mean(subsampled_ignore * squared_hinge_loss(subsampled_target, hl3));
 
             reset_weights();
         }
@@ -187,8 +191,9 @@ class obj_detector
         {
             {
                 float fan_in  = m_n_channels * m_filter_size1 * m_filter_size1;
-                float fan_out = m_n_filters1 * m_filter_size2 * m_filter_size2;
-                float diff = std::sqrt(6.f/(fan_in+fan_out));
+                //float fan_out = m_n_filters1 * m_filter_size2 * m_filter_size2;
+                //float diff = std::sqrt(6.f/(fan_in+fan_out));
+                float diff = std::sqrt(3.f/(fan_in));
                 //diff *= .1f;
     
                 cuv::fill_rnd_uniform(m_conv1_weights->data());
@@ -197,8 +202,9 @@ class obj_detector
             } 
             {
                 float fan_in = m_n_filters1 * m_filter_size2 * m_filter_size2;
-                float fan_out = m_n_filters2 * m_filter_size3 * m_filter_size3;
-                float diff = std::sqrt(6.f/(fan_in + fan_out));
+                //float fan_out = m_n_filters2 * m_filter_size3 * m_filter_size3;
+                //float diff = std::sqrt(6.f/(fan_in + fan_out));
+                float diff = std::sqrt(3.f/(fan_in));
                 //diff *= .1f;
     
                 cuv::fill_rnd_uniform(m_conv2_weights->data());
@@ -209,7 +215,7 @@ class obj_detector
                 //float fan_in = m_n_filters2 * m_filter_size3 * m_filter_size3;
                 //float fan_out = 1 * 1 * 1;
                 //float diff = std::sqrt(6.f/(fan_in + fan_out));
-                ////diff *= .1f;
+                //diff *= .1f;
     
                 //cuv::fill_rnd_uniform(m_conv2_weights->data());
                 //m_conv3_weights->data() *= 2*diff;
@@ -217,13 +223,14 @@ class obj_detector
                 m_conv3_weights->data() = 0.f;
             } 
 
+            m_conv1_weights->m_learnrate_factor = 1.f / 3.f;
             //m_conv1_weights->m_learnrate_factor = 1.f / (m_filter_size1 * m_filter_size1);
             //m_conv2_weights->m_learnrate_factor = 1.f / (m_filter_size2 * m_filter_size2);
             //m_conv3_weights->m_learnrate_factor = 1.f / (m_filter_size3 * m_filter_size3);
 
             m_bias1->data() =  0.f;
             m_bias2->data() =  0.f;
-            m_bias3->data() =  -0.f;
+            m_bias3->data() =  -2.f;
             //m_bias1->m_learnrate_factor = 1.f / (m_filter_size1 * m_filter_size1);
             //m_bias2->m_learnrate_factor = 1.f / (m_filter_size2 * m_filter_size2);
             //m_bias3->m_learnrate_factor = 1.f / (m_filter_size3 * m_filter_size3);
