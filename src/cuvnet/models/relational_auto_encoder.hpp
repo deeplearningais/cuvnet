@@ -91,9 +91,12 @@ class relational_auto_encoder{
             m_factor_y_fx = prod(m_input_y, m_fx);
             
             // calculates encoder and projection of encoder
-            m_encoded  = logistic(global_max_pool(mat_plus_vec(
-                                prod(m_factor_x * m_factor_y, m_fh, 'n', 't')
-                                , m_bias_h, 1)));
+            m_encoded  = logistic(mat_plus_vec(
+                               prod(m_factor_x * m_factor_y, m_fh, 'n', 't')
+                               , m_bias_h, 1));
+            //m_encoded  = logistic(global_max_pool(mat_plus_vec(
+            //                   prod(m_factor_x * m_factor_y, m_fh, 'n', 't')
+            //                   , m_bias_h, 1)));
             m_factor_h = prod(m_encoded, m_fh);
 
 
@@ -133,17 +136,12 @@ class relational_auto_encoder{
          * @param decode_y a function that determines the reconstruction of y of the relational auto-encoder
          * @return a function that measures the quality of reconstruction 
          */
-        op_ptr reconstruction_loss(op_ptr& teacher, op_ptr& decode_y){
-        //    if(!m_binary)  // squared loss
-                return   // mean( sum_to_vec(pow(axpby(decode_x, -1.f, input_x), 2.f), 0) ) ;
-                          mean( sum_to_vec(pow(axpby(decode_y, -1.f, teacher), 2.f), 0) );
-            //else         // cross-entropy
-            //{
-            //    return   mean( sum_to_vec(neg_log_cross_entropy_of_logistic(input_x,decode_x),0))
-            //           + mean( sum_to_vec(neg_log_cross_entropy_of_logistic(input_y,decode_y),0));
-
-            //}
-        }
+       op_ptr reconstruction_loss(op_ptr& teacher, op_ptr& decode_y){
+           if(!m_binary)  // squared loss
+               return   mean( sum_to_vec(pow(axpby(decode_y, -1.f, teacher), 2.f), 0) );
+           else         // cross-entropy
+               return mean( sum_to_vec(neg_log_cross_entropy_of_logistic(teacher, decode_y),0));
+       }
     
 
         /**
@@ -163,44 +161,53 @@ class relational_auto_encoder{
         virtual void reset_weights(){
             unsigned int input_dim_x = m_fx->data().shape(0);
             unsigned int factor_dim = m_fh->data().shape(1);
+            unsigned int hidden_dim = m_fh->data().shape(0);
             float diff_x = 4.f*std::sqrt(6.f/(input_dim_x + factor_dim));
+            float diff_h = 4.f*std::sqrt(6.f/(hidden_dim + factor_dim));
+            
             cuv::fill_rnd_uniform(m_fx->data());
-            //cuv::fill_rnd_uniform(m_fz->data());
+            cuv::fill_rnd_uniform(m_fy->data());
+            cuv::fill_rnd_uniform(m_fh->data());
             diff_x *= 0.01;
+            diff_h *= 0.01;
             m_fx->data() *= 2*diff_x;
             m_fx->data() -=   diff_x;
+            m_fh->data() *= 2*diff_h;
+            m_fh->data() -=   diff_h;
+            m_fy->data() *= 2*diff_x;
+            m_fy->data() -=   diff_x;
             //m_fz->data() *= 2*diff_x;
             //m_fz->data() -=   diff_x;
             
-            std::cout << "initialized min elem fx: " << cuv::minimum(m_fx->data()) << std::endl;
-            // makes identity submatrixes
-            //std::cout << " initializing matrix fy : " << std::endl;
-            for(unsigned int i = 0; i < m_fy->data().shape(0); i++){
-                for(unsigned int j = 0; j < m_fy->data().shape(1); j++){
-                    if(j % m_fy->data().shape(0) == i){
-                        m_fy->data()(i,j) = 1;
-                    }else
-                        m_fy->data()(i,j) = 0;
-                    //std::cout << "  " << m_fy->data()(i,j) ;
-                }
-                //std::cout << std::endl;
+            //std::cout << "initialized min elem fx: " << cuv::minimum(m_fx->data()) << std::endl;
+            //// makes identity submatrixes
+            ////std::cout << " initializing matrix fy : " << std::endl;
+            //for(unsigned int i = 0; i < m_fy->data().shape(0); i++){
+            //    for(unsigned int j = 0; j < m_fy->data().shape(1); j++){
+            //        if(j % m_fy->data().shape(0) == i){
+            //            m_fy->data()(i,j) = 1;
+            //        }else
+            //            m_fy->data()(i,j) = 0;
+            //        //std::cout << "  " << m_fy->data()(i,j) ;
+            //    }
+            //    //std::cout << std::endl;
 
-            }
+            //}
 
-              //  std::cout << std::endl;
+            //  //  std::cout << std::endl;
 
-            //std::cout << " initializing matrix fh : " << std::endl;
-            for(unsigned int i = 0; i < m_fh->data().shape(0); i++){
-                for(unsigned int j = 0; j < m_fh->data().shape(1); j++){
-                if(j < input_dim_x * (i+1) && j >= input_dim_x * i){
-                        m_fh->data()(i,j) = 1;
-                    }else
-                        m_fh->data()(i,j) = 0;
-                   // std::cout << "  " << m_fh->data()(i,j) ;
-                }
-                //std::cout << std::endl;
+            ////std::cout << " initializing matrix fh : " << std::endl;
+            //for(unsigned int i = 0; i < m_fh->data().shape(0); i++){
+            //    for(unsigned int j = 0; j < m_fh->data().shape(1); j++){
+            //    if(j < input_dim_x * (i+1) && j >= input_dim_x * i){
+            //            m_fh->data()(i,j) = 1;
+            //        }else
+            //            m_fh->data()(i,j) = 0;
+            //       // std::cout << "  " << m_fh->data()(i,j) ;
+            //    }
+            //    //std::cout << std::endl;
 
-            }
+            //}
             
             
             //m_fy->data() *= 2*diff_y;
@@ -217,9 +224,9 @@ class relational_auto_encoder{
      */
     std::vector<Op*> unsupervised_params(){
         //return boost::assign::list_of(m_fx.get())(m_fz.get());
-        return boost::assign::list_of(m_fx.get());
+        //return boost::assign::list_of(m_fx.get());
         //return boost::assign::list_of(m_fx.get())(m_bias_h.get())(m_bias_x.get());
-        //return boost::assign::list_of(m_fx.get())(m_fy.get())(m_fh.get())(m_bias_h.get())(m_bias_x.get())(m_bias_y.get());
+        return boost::assign::list_of(m_fx.get())(m_fy.get())(m_fh.get())(m_bias_h.get())(m_bias_y.get());
     }
     
     /**
