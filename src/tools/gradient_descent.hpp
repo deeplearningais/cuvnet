@@ -268,7 +268,7 @@ namespace cuvnet
                     // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
                     //       we're changing the underlying object all cow_ptrs pointing to it!!!
                     cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->delta(), -lr, wd);
-                    inp->delta() = 0.f;
+                    inp->delta().dealloc();
                     m_learnrate *= m_learnrate_decay;
                 }
             }
@@ -457,7 +457,7 @@ namespace cuvnet
                 if(m_n_batches > 1)
                     dW /= (float) m_n_batches;
                 cuv::rprop(*param->data_ptr().ptr(), dW, m_old_dw[i], m_learnrates[i], m_weightdecay, 0.0000000f);
-                param->delta() = 0.f;
+                param->delta().dealloc();
             }
             m_n_batches = 0;
         }
