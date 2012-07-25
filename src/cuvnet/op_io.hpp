@@ -70,6 +70,10 @@ namespace cuvnet
             ar.template register_type<ReorderForConv>();
             ar.template register_type<ReorderFromConv>();
             ar.template register_type<LocalPooling>();
+            ar.template register_type<ResponseNormalization>();
+            ar.template register_type<ContrastNormalization>();
+            ar.template register_type<SeparableFilter>();
+            ar.template register_type<ResizeBilinear>();
 
             // misc
             ar.template register_type<Identity>();
@@ -78,6 +82,7 @@ namespace cuvnet
             ar.template register_type<Reshape>();
             ar.template register_type<Abs>();
             ar.template register_type<RowSelector>();
+            ar.template register_type<RectifiedLinear>();
         } 
 }
 
