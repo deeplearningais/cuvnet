@@ -635,6 +635,7 @@ namespace cuvnet
                 }
                 virtual void release_data(){
                     m_denom.dealloc();
+                    m_meandiffs.dealloc();
                     m_orig_out.reset();
                     Op::release_data();
                 }
@@ -658,6 +659,7 @@ namespace cuvnet
                     if(!p0.need_derivative) {
                         m_denom.dealloc();
                         m_orig_out.reset();
+                        m_meandiffs.dealloc();
                     }
                 }
                 void bprop(){
@@ -677,6 +679,7 @@ namespace cuvnet
                     }
                     r0.delta.reset();
                     m_orig_out.reset();
+                    m_meandiffs.dealloc();
                     m_denom.dealloc();
                 }
 
