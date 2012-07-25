@@ -1,10 +1,13 @@
 #include<iostream>
 #include<fstream>
 #include<queue>
+#include<iterator>
 #include<boost/tuple/tuple.hpp>
 #include <boost/foreach.hpp>
 #include <boost/thread/thread.hpp>
+#include <boost/format.hpp>
 #include <cuv.hpp>
+#include <cuv/libs/cimg/cuv_cimg.hpp>
 
 #define cimg_use_jpeg
 #include <CImg.h>
@@ -15,15 +18,18 @@
 namespace cuvnet
 {
 
-    void square(cimg_library::CImg<unsigned char>& orig, unsigned int sq_size, voc_detection_dataset::image_meta_info& meta){
-        unsigned int orig_rows = orig.height();
-        unsigned int orig_cols = orig.width();
+    void square(cimg_library::CImg<unsigned char>& orig, int sq_size, voc_detection_dataset::image_meta_info& meta){
+        int orig_rows = orig.height();
+        int orig_cols = orig.width();
 
-        unsigned int new_rows = orig.height() >= orig.width()  ? sq_size : orig.height()/(float)orig.width() * sq_size;
-        unsigned int new_cols = orig.width() >= orig.height() ? sq_size : orig.width()/(float)orig.height() * sq_size;
+        int new_rows = orig.height() >= orig.width()  ? sq_size : orig.height()/(float)orig.width() * sq_size;
+        int new_cols = orig.width() >= orig.height() ? sq_size : orig.width()/(float)orig.height() * sq_size;
+
+        //orig.blur(0.5f*orig_cols/(float)new_cols, 0.5f*orig_rows/(float)new_rows, 0, 1);
+        //orig.blur(orig_cols/(float)new_cols, orig_rows/(float)new_rows, 0, 1);
 
         // downsample
-        orig.resize(new_cols, new_rows, -100/* z */, -100 /* c */, 3 /* 3: linear interpolation */);
+        //orig.resize(new_cols, new_rows, -100[> z */, -100 /* c */, 3 /* 3: linear interpolation <]);
 
         // square
         orig.resize(sq_size, sq_size, -100, -100, 0 /* no interpolation */, 1 /* 0: zero border, 1: nearest neighbor */, 0.5f, 0.5f);
@@ -43,42 +49,50 @@ namespace cuvnet
         BOOST_FOREACH(voc_detection_dataset::object& o, meta.objects){
             o.xmin = stretchx * o.xmin + offx;
             o.ymin = stretchy * o.ymin + offy;
-            o.xmax = std::min((float)orig.width()-1, stretchx * o.xmax + offx);
-            o.ymax = std::min((float)orig.height()-1, stretchy * o.ymax + offy);
+            o.xmax = stretchx * o.xmax + offx;
+            o.ymax = stretchy * o.ymax + offy;
+
             assert(o.xmin < o.xmax);
             assert(o.ymin < o.ymax);
-            assert(o.xmin >= 0);
-            assert(o.ymin >= 0);
-            assert(o.xmax < sq_size);
-            assert(o.ymin < sq_size);
+            //assert(o.xmin >= 0);
+            //assert(o.ymin >= 0);
+            //assert(o.xmax < sq_size);
+            //assert(o.ymin < sq_size);
         }
     }
 
     void bb_teacher(
             cimg_library::CImg<unsigned char>& dst,
+            int sq_size,
             voc_detection_dataset::image_meta_info& meta,
             unsigned int n_classes, float bbsize, int ttype)
     {
-        dst.resize(172, 172, n_classes, 1, -1 /* -1: no interpolation, raw memory resize!*/);
+        dst.resize(sq_size, sq_size, n_classes, 1, -1 /* -1: no interpolation, raw memory resize!*/);
         dst = (unsigned char) 0; // initialize w/ 0
         unsigned char color = 255;
         bbsize /= 2.f;
         BOOST_FOREACH(voc_detection_dataset::object& o, meta.objects){
-            unsigned int w  = o.xmax - o.xmin;
-            unsigned int h  = o.ymax - o.ymin;
             unsigned int cx = 0.5 * (o.xmax + o.xmin) + 0.5;
             unsigned int cy = 0.5 * (o.ymax + o.ymin) + 0.5;
-            unsigned int xmin = cx - bbsize * w;
-            unsigned int xmax = cx + bbsize * w;
-            unsigned int ymin = cy - bbsize * h;
-            unsigned int ymax = cy + bbsize * h;
+            /*
+             *unsigned int w  = o.xmax - o.x@;
+             *unsigned int h  = o.ymax - o.ymin;
+             *unsigned int xmin = cx - bbsize * w;
+             *unsigned int xmax = cx + bbsize * w;
+             *unsigned int ymin = cy - bbsize * h;
+             *unsigned int ymax = cy + bbsize * h;
+             *if(ttype == 0)
+             *    dst.get_shared_plane(o.klass).draw_rectangle(
+             *            xmin, ymin, 0, 0, 
+             *            xmax, ymax, 0, 0, 
+             *            color);
+             *else if(ttype == 1)
+             *    dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, bbsize * w, bbsize * h, 0.f, &color);
+             */
             if(ttype == 0)
-                dst.get_shared_plane(o.klass).draw_rectangle(
-                        xmin, ymin, 0, 0, 
-                        xmax, ymax, 0, 0, 
-                        color);
+                dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, 20, 20, 0.f, &color);
             else if(ttype == 1)
-                dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, bbsize * w, bbsize * h, 0.f, &color);
+                dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, 10, 10, 0.f, &color);
         }
     }
 
@@ -105,22 +119,164 @@ namespace cuvnet
         std::queue<voc_detection_dataset::pattern>* loaded_data;
         const voc_detection_dataset::image_meta_info* meta;
         voc_detection_file_loader(boost::mutex* m, std::queue<voc_detection_dataset::pattern>* dest, const voc_detection_dataset::image_meta_info* _meta)
-        : mutex(m)
-        , loaded_data(dest)
-        , meta(_meta)
+            : mutex(m)
+              , loaded_data(dest)
+              , meta(_meta)
         {
         }
-        void operator()(){
-            cimg_library::CImg<unsigned char> img;
+        void split_up_scales2(cimg_library::CImg<unsigned char>& img, unsigned int crop_square_size){
+            static const unsigned int n_scales = 3;
+            cimg_library::CImg<unsigned char> pyramid[n_scales];
+            std::list<voc_detection_dataset::pattern> storage;
+
+            // size of resulting (square) patches
+            int min_crop_square_overlap = crop_square_size / 3;
+            int max_crop_square_overlap = crop_square_size / 2;
+            
+            // split longest edge in N-1 subimages at highest resolution
+            int N = 5;
+            int pyr0_size = crop_square_size*N - (N-1)*min_crop_square_overlap;
+            float orig_to_pyr0 = pyr0_size / (float) std::max(img.width(), img.height());
+
+            // create a Gaussian pyramid
+            pyramid[0] = img.get_blur(0.5f * orig_to_pyr0, 0.5f * orig_to_pyr0, 0, 1);
+            pyramid[0].resize(orig_to_pyr0*img.width(), orig_to_pyr0*img.height(), -100, -100, 3);
+            for(unsigned int scale=1; scale < n_scales; scale++){
+                pyramid[scale] = pyramid[scale-1].get_blur(1.f, 1.f, 0, 1);
+                pyramid[scale].resize(pyramid[scale].width()/2, pyramid[scale].height()/2, -100, -100, 3);
+            }
+
+            // take apart images from each scale of the pyramid
+            for (unsigned int scale = 0; scale < n_scales; ++scale){
+                cimg_library::CImg<unsigned char>& pimg = pyramid[scale];
+                int scaled_height = pimg.height();
+                int scaled_width  = pimg.width();
+                int n_subimages_y = ceil((scaled_height-min_crop_square_overlap) / (float)(crop_square_size-min_crop_square_overlap));
+                int n_subimages_x = ceil((scaled_width -min_crop_square_overlap) / (float)(crop_square_size-min_crop_square_overlap));
+
+                // determine the /actual/ overlap we get
+                int overlap_y = -(scaled_height - n_subimages_y*crop_square_size) / std::max(1,n_subimages_y-1);
+                int overlap_x = -(scaled_width  - n_subimages_x*crop_square_size) / std::max(1,n_subimages_x-1);
+
+                // adjust number of images if overlap not good
+                if(n_subimages_y > 1  &&  overlap_y > max_crop_square_overlap)
+                    n_subimages_y --;
+                if(n_subimages_x > 1  &&  overlap_x > max_crop_square_overlap)
+                    n_subimages_x --;
+
+                // re-determine the /actual/ overlap we get
+                overlap_y = -(scaled_height - n_subimages_y*crop_square_size) / std::max(1,n_subimages_y-1);
+                overlap_x = -(scaled_width  - n_subimages_x*crop_square_size) / std::max(1,n_subimages_x-1);
+
+                // determine the /actual/ stride we need to move at
+                int stride_y = scaled_height / ((float)n_subimages_y);
+                int stride_x = scaled_width  / ((float)n_subimages_x);
+
+                assert(n_subimages_y == 1 || overlap_y > 0);
+                assert(n_subimages_x == 1 || overlap_x > 0);
+
+                for (int sy = 0; sy < n_subimages_y; ++sy)
+                {
+                    // determine starting point of square in y-direction
+                    int ymin = std::max(0, sy * stride_y - sy * overlap_y);
+                    int ymax = ymin + crop_square_size;
+
+                    // move towards top if growing over bottom
+                    if(ymax >= pimg.height()){
+                        int diff = ymax - pimg.height() - 1;
+                        ymax  = std::max(0, ymax - diff);
+                        ymin  = std::max(0, ymin - diff);
+                        if(ymin == 0) // we hit both edges: use whole range
+                            ymax = pimg.height()-1;
+                    }
+
+                    for (int sx = 0; sx < n_subimages_x; ++sx)
+                    {
+                        // determine starting point of square in x-direction
+                        int xmin = std::max(0, sx * stride_x - sx * overlap_x);
+                        int xmax = xmin + crop_square_size;
+
+                        // move towards top if growing over bottom
+                        if(xmax >= pimg.width()){
+                            int diff = xmax - pimg.width() - 1;
+                            xmax  = std::max(0, xmax - diff);
+                            xmin  = std::max(0, xmin - diff);
+                            if(xmin == 0) // we hit both edges: use whole range
+                                xmax = pimg.width()-1;
+                        }
+
+                        cimg_library::CImg<unsigned char> simg = pimg.get_crop(xmin, ymin, 0, 0, xmax, ymax, 0, 3);
+
+                        voc_detection_dataset::pattern pat;
+                        pat.meta_info = *meta;
+
+                        // remember where current crop came from
+                        pat.meta_info.orig_xmin = xmin;
+                        pat.meta_info.orig_ymin = ymin;
+                        pat.meta_info.orig_xmax = xmax;
+                        pat.meta_info.orig_ymax = ymax;
+
+                        pat.meta_info.n_scales    = n_scales;
+                        pat.meta_info.n_subimages = n_subimages_x * n_subimages_y;
+                        pat.meta_info.scale_id    = scale;
+                        pat.meta_info.subimage_id = sy * n_subimages_x + sx;
+
+                        // adjust object positions according to crop
+                        BOOST_FOREACH(voc_detection_dataset::object& o, pat.meta_info.objects){
+                            o.xmin -= xmin;
+                            o.xmax -= xmin;
+
+                            o.ymin -= ymin;
+                            o.ymax -= ymin;
+                        }
+
+#define STORE_IMAGES_SEQUENTIALLY 1
+#if STORE_IMAGES_SEQUENTIALLY
+                        // store images into a local storage and put them in
+                        // the queue as one block after the loops
+                        typedef std::list<voc_detection_dataset::pattern> list_type;
+                        typedef voc_detection_dataset::pattern arg_type;
+                        ensure_square_and_enqueue(
+                                boost::bind(static_cast<void (list_type::*)(const arg_type&)>(&list_type::push_back), &storage, _1), 
+                                simg, crop_square_size, pat, false /* no locking */);
+
+                        {
+                            voc_detection_dataset::pattern pat = storage.back();
+                            cuv::tensor<float, cuv::host_memory_space> tmp = pat.img.copy();
+                            tmp -= cuv::minimum(tmp);
+                            tmp /= cuv::maximum(tmp) + 0.0001f;
+                            tmp *= 255.f;
+                            cuv::libs::cimg::save(tmp, boost::str(boost::format("image-s%02d-c%05d.png") % pat.meta_info.scale_id % pat.meta_info.subimage_id ));
+                        }
+#else
+                        // store images into the queue as soon as they are ready
+                        typedef std::queue<voc_detection_dataset::pattern> queue_type;
+                        typedef voc_detection_dataset::pattern arg_type;
+
+                        ensure_square_and_enqueue(
+                                boost::bind( static_cast<void (queue_type::*)(const arg_type&)>(&queue_type::push)
+                                    , loaded_data, _1),
+                                img, crop_square_size, pat, true /* locking */);
+#endif
+                    }
+                }
+            }
+#if STORE_IMAGES_SEQUENTIALLY
+            boost::mutex::scoped_lock lock(*mutex);
+            BOOST_FOREACH(voc_detection_dataset::pattern& pat, storage){
+                loaded_data->push(pat);
+            }
+#endif
+            exit(0);
+
+        }
+        template<class T>
+        void ensure_square_and_enqueue(T output, cimg_library::CImg<unsigned char>& img, unsigned int sq_size, voc_detection_dataset::pattern& pat, bool lock){
             cimg_library::CImg<unsigned char> tch;
             cimg_library::CImg<unsigned char> ign;
-            img.load_jpeg(meta->filename.c_str()); // load image from file
-
-            voc_detection_dataset::pattern pat;
-            pat.meta_info = *meta;
-            square(img, 172, pat.meta_info);    // ensure image size is 172 x 172
-            bb_teacher(tch, pat.meta_info, 20, .6, 1); // generate teacher for image (ellipse)
-            bb_teacher(ign, pat.meta_info, 20, 1., 0); // generate teacher for image (rect)
+            square(img, sq_size, pat.meta_info);    // ensure image size is sq_size x sq_size
+            bb_teacher(tch, sq_size, pat.meta_info, 20, .6, 1); // generate teacher for image (ellipse)
+            bb_teacher(ign, sq_size, pat.meta_info, 20, 1., 0); // generate teacher for image (rect)
 
             ignore_margin(ign, pat.meta_info);
             ign = 255 - (ign - tch).cut(0,255);
@@ -129,21 +285,62 @@ namespace cuvnet
             //tch.blur(5.f);
 
             // convert to cuv
-            pat.img.resize(cuv::extents[3][172* 172]);
-            cuv::convert(pat.img, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[3][172* 172] , img.data()));
-            pat.tch.resize(cuv::extents[20][172* 172]);
-            cuv::convert(pat.tch, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[20][172* 172], tch.data()));
-            pat.ign.resize(cuv::extents[20][172* 172]);
-            cuv::convert(pat.ign, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[20][172* 172], ign.data()));
+            pat.img.resize(cuv::extents[3][sq_size][sq_size]);
+            //img.RGBtoYCbCr();
+            cuv::convert(pat.img, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[3][sq_size][sq_size] , img.data()));
+            pat.tch.resize(cuv::extents[20][sq_size][sq_size]);
+            cuv::convert(pat.tch, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[20][sq_size][sq_size], tch.data()));
+            pat.ign.resize(cuv::extents[20][sq_size][sq_size]);
+            cuv::convert(pat.ign, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[20][sq_size][sq_size], ign.data()));
             pat.img /= 255.f;
             pat.img -= 0.5f;
+            pat.ign /= 255.f;
+
+#if 1
             pat.tch /= 127.f;
             pat.tch -=   1.f;
-            pat.ign /= 255.f;
-            
+#else
+            pat.tch /= 255.f;
+#endif
+
             // put in pipe
-            boost::mutex::scoped_lock lock(*mutex);
-            loaded_data->push(pat);
+            if(lock) {
+                boost::mutex::scoped_lock lock(*mutex);
+                //loaded_data->push(pat);
+                output(pat);
+            }else
+                output(pat);
+        }
+
+
+        void operator()(){
+            cimg_library::CImg<unsigned char> img;
+            img.load_jpeg(meta->filename.c_str()); // load image from file
+
+            if(0){
+                voc_detection_dataset::pattern pat;
+                pat.meta_info = *meta;
+
+                // a single crop!
+                pat.meta_info.orig_xmin = 0;
+                pat.meta_info.orig_ymin = 0;
+                pat.meta_info.orig_xmax = img.width()-1;
+                pat.meta_info.orig_ymax = img.height()-1;
+                pat.meta_info.n_scales    = 1;
+                pat.meta_info.n_subimages = 1;
+                pat.meta_info.scale_id    = 0;
+                pat.meta_info.subimage_id = 0;
+
+                typedef std::queue<voc_detection_dataset::pattern> queue_type;
+                typedef voc_detection_dataset::pattern arg_type;
+                
+                ensure_square_and_enqueue(
+                        boost::bind( static_cast<void (queue_type::*)(const arg_type&)>(&queue_type::push)
+                            , loaded_data, _1),
+                        img, 128, pat, true);
+            }else{
+                split_up_scales2(img, 128);
+            }
         }
     };
     
@@ -188,6 +385,7 @@ namespace cuvnet
             {
                 if(m_n_threads == 0)
                     m_n_threads = boost::thread::hardware_concurrency();
+                m_n_threads = 1;
             }
 
             /**
@@ -208,6 +406,10 @@ namespace cuvnet
             }
 
             void get_batch(std::list<voc_detection_dataset::pattern>& dest, unsigned int n){
+                if(m_min_pipe_len < n){
+                    m_min_pipe_len = n;
+                    m_max_pipe_len = 3 * n;
+                }
                 // TODO: use boost condition_variable!
                 while(size() < n)
                     boost::this_thread::sleep(boost::posix_time::millisec(10));
@@ -284,6 +486,7 @@ namespace cuvnet
     {
         read_meta_info(m_training_set, train_filename, verbose);
         read_meta_info(m_test_set, test_filename, verbose);
+        srand(time(NULL));
         std::random_shuffle(m_training_set.begin(), m_training_set.end());
         switch_dataset(SS_TRAIN);
     }
@@ -319,6 +522,39 @@ namespace cuvnet
         }
         if(verbose){
             std::cout << "VOC:" << filename << " cnt_imgs:" << cnt_imgs << " cnt_objs:" << cnt_objs << std::endl;
+        }
+    }
+    void voc_detection_dataset::save_results(std::list<pattern>& results){
+        BOOST_FOREACH(pattern& pat, results){
+            m_return_queue.push_back(pat);
+            std::cout << " saving result for: "<<pat.meta_info.filename << std::endl;
+            std::cout << "             scale: "<<pat.meta_info.scale_id+1 << " of " << pat.meta_info.n_scales << std::endl;
+            std::cout << "             crop : "<<pat.meta_info.subimage_id+1 << " of " << pat.meta_info.n_subimages << std::endl;
+
+            if(pat.meta_info.scale_id != pat.meta_info.n_scales - 1)
+                continue;
+            if(pat.meta_info.subimage_id != pat.meta_info.n_subimages - 1)
+                continue;
+
+            // the image has been completely processed. Collect all cropped parts.
+            std::list<pattern> ready_image;
+
+            // move patterns from m_return_queue to ready_image w/o copying (using splice)
+            // http://stackoverflow.com/questions/501962/erasing-items-from-an-stl-list
+            std::list<pattern>::iterator it = m_return_queue.begin();
+            while (it != m_return_queue.end()) {
+                bool filename_matches = it->meta_info.filename == pat.meta_info.filename;
+                if (filename_matches)
+                {
+                    std::list<pattern>::iterator old_it = it++;
+                    ready_image.splice(ready_image.end(), m_return_queue, old_it);
+                }
+                else
+                    ++it;
+            }
+
+            // TODO: dispatch resulting image
+            std::cout << "Done with  image `" << pat.meta_info.filename << "'" << std::endl;
         }
     }
 }

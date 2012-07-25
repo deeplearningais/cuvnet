@@ -15,8 +15,6 @@ namespace cuvnet
      */
     class voc_detection_pipe;
     class voc_detection_dataset{
-        private:
-            int m_n_threads;
         public:
             struct object {
                 unsigned int klass;  ///< the index of the class this object belongs to
@@ -24,10 +22,10 @@ namespace cuvnet
 
                 /// a 4-tuple of box coordinates
                 /// @{
-                unsigned int xmin;
-                unsigned int xmax;
-                unsigned int ymin;
-                unsigned int ymax;
+                int xmin;
+                int xmax;
+                int ymin;
+                int ymax;
                 /// @}
             };
             struct image_meta_info{
@@ -36,11 +34,29 @@ namespace cuvnet
 
                 /// a 4-tuple: coordinates of original image in squared image
                 /// @{
-                unsigned int xmin;
-                unsigned int xmax;
-                unsigned int ymin;
-                unsigned int ymax;
+                int xmin;
+                int xmax;
+                int ymin;
+                int ymax;
                 /// @}
+
+                /// a 4-tuple: coordinate of \c xmin, \c xmax, etc in original image
+                /// (relevant when a large image is split up for processing).
+                /// @{
+                int orig_xmin;
+                int orig_xmax;
+                int orig_ymin;
+                int orig_ymax;
+                /// @}
+
+                /// the total number of scales at which original image is processed
+                unsigned int n_scales;
+                /// the total number of (sub-) images at current scale
+                unsigned int n_subimages;
+                /// a running number indicating at which scale of the original image we're processing
+                unsigned int scale_id;
+                /// a running number of images at this scale (relevant when large image is split up for processing)
+                unsigned int subimage_id;
             };
 
             /// a fully loaded pattern 
@@ -49,7 +65,12 @@ namespace cuvnet
                 cuv::tensor<float,cuv::host_memory_space> img;
                 cuv::tensor<float,cuv::host_memory_space> tch;
                 cuv::tensor<float,cuv::host_memory_space> ign;
+
+                cuv::tensor<float,cuv::host_memory_space> result;
             };
+        private:
+            int m_n_threads;
+            std::list<pattern> m_return_queue;
 
         public:
             /**
@@ -78,11 +99,17 @@ namespace cuvnet
              */
             void switch_dataset(subset ss, int n_threads=0);
 
+            /// number of elements currently in the queue waiting to be processed
             unsigned int size_available()const;
 
+            /// get a batch of n elements
             void get_batch(std::list<pattern>& dest, unsigned int n);
 
+            /// return the number of images in the training set
             unsigned int trainset_size()const{ return m_training_set.size(); }
+
+            /// save results for processing (eg by combining cropped subimages)
+            void save_results(std::list<pattern>& results);
 
         private:
             /**
