@@ -108,10 +108,10 @@ namespace cuvnet
                     // TODO: forget m_data now?
                 }
                 void bprop(){
-                    if(!m_delta)
+                    //if(!m_delta)
                         m_delta = m_results[0]->delta;
-                    else 
-                        *m_delta += m_results[0]->delta.cdata();
+                    //else 
+                        //*m_delta += m_results[0]->delta.cdata();
 
                     m_results[0]->delta.reset();
                 }
