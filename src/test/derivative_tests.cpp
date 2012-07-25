@@ -527,9 +527,21 @@ TEST(derivative_test, derivative_test_response_normalization){
     unsigned int nImg     = 1;
 
     boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg]);
+    for(unsigned int i=0; i<nImgChan; i++){
+        for (unsigned int j = 0; j < nImg; ++j)
+        {
+            for (unsigned int y = 0; y < nImgPixY; ++y)
+            {
+                for (unsigned int x = 0; x < nImgPixX; ++x)
+                {
+                    inp0->data()(i,y,x,j) = ((x%2)==0) && ((y%2)==1);
+                }
+            }
+        }
+    }
     {
 	    ptr_t func		               = boost::make_shared<ResponseNormalization>(inp0->result(), 3, 1.f, 1.f);
-	    derivative_tester(*func);
+	    derivative_tester(*func,0,true);
     }
 }
 
@@ -543,9 +555,22 @@ TEST(derivative_test, derivative_test_contrast_normalization){
     unsigned int nImg     = 1;
 
     boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg]);
+    //inp0->data() = 1.f;
+    for(unsigned int i=0; i<nImgChan; i++){
+        for (unsigned int j = 0; j < nImg; ++j)
+        {
+            for (unsigned int y = 0; y < nImgPixY; ++y)
+            {
+                for (unsigned int x = 0; x < nImgPixX; ++x)
+                {
+                    inp0->data()(i,y,x,j) = ((x%2)==0) && ((y%2)==1);
+                }
+            }
+        }
+    }
     {
-	    ptr_t func		               = boost::make_shared<ContrastNormalization>(inp0->result(), 3, 1.f, 1.f);
-	    derivative_tester(*func);
+	    ptr_t func		               = boost::make_shared<ContrastNormalization>(inp0->result(), 4, 1.f, 1.f);
+	    derivative_tester(*func, 0, false, 0.03, 0,0);
     }
 }
 
