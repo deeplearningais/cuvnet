@@ -439,7 +439,7 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int fb=110,bs=  64*50, subsampling = 2, max_trans = 4, gauss_dist = 12, min_width = 12, max_width = 25, max_growing = 2;
+    unsigned int fb=110,bs=  64*10, subsampling = 2, max_trans = 4, gauss_dist = 12, min_width = 24, max_width = 45, max_growing = 4;
     unsigned int fa = (max_growing * 2 + 1) * (max_trans * 2 + 1)  ;
     unsigned int num_factors = 600;
     float sigma = gauss_dist / 3; 
@@ -499,7 +499,7 @@ int main(int argc, char **argv)
         //rprop_gradient_descent gd(ae.loss(), 0, params, 0.000001, 0.00005f);
         rprop_gradient_descent gd(ae.loss(), 0, params, 0.00001);
         //gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.45f,350);
-        //gd.setup_early_stopping(boost::bind(test_phase, &gd, &ds,  &ae, fa, fb,  input_x,  input_y, teacher,  bs), 100, 1.f, 2.f);
+        gd.setup_early_stopping(boost::bind(test_phase, &gd, &ds,  &ae, fa, fb,  input_x,  input_y, teacher,  bs), 100, 1.f, 2.f);
         // register the monitor so that it receives learning events
         gd.register_monitor(mon);
 
@@ -516,9 +516,9 @@ int main(int argc, char **argv)
         // (whatever comes first)
         std::cout << std::endl << " Training phase: " << std::endl;
         //gd.minibatch_learning(2000, 100*60); // 10 minutes maximum
-        load_batch(input_x, input_y, teacher, &train_data,bs,0);
-        gd.batch_learning(6000, 100*60);
-        //gd.minibatch_learning(5000, 100*60, 0);
+        //load_batch(input_x, input_y, teacher, &train_data,bs,0);
+        //gd.batch_learning(6000, 100*60);
+        gd.minibatch_learning(5000, 100*60, 0);
     }
     std::cout << std::endl << " Test phase: " << std::endl;
     //// evaluates test data. We use minibatch learning with learning rate zero and only one epoch.
