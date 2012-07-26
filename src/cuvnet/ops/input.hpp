@@ -105,13 +105,13 @@ namespace cuvnet
                 }
                 void fprop(){
                     m_results[0]->push(m_data);
-                    // TODO: forget m_data now?
+                    // TODO: forget m_data now? (Inputs only, not weights)
                 }
                 void bprop(){
-                    //if(!m_delta)
+                    if(!m_delta || m_delta.cdata().ndim()==0)
                         m_delta = m_results[0]->delta;
-                    //else 
-                        //*m_delta += m_results[0]->delta.cdata();
+                    else 
+                        *m_delta += m_results[0]->delta.cdata();
 
                     m_results[0]->delta.reset();
                 }
@@ -120,7 +120,8 @@ namespace cuvnet
                     //Input::_determine_shapes();
                     m_results[0]->shape = m_data->shape();
                 }
-                inline void reset_delta(){ if(!!m_delta) m_delta.data()=0.f; }
+                //inline void reset_delta(){ if(!!m_delta) m_delta.data()=0.f; }
+                inline void reset_delta(){ m_delta.reset(); }
                 inline value_ptr&        data_ptr()     { return m_data; }
                 inline const value_ptr&  data_ptr()const{ return m_data; }
 
