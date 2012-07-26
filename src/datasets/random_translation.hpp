@@ -8,7 +8,9 @@ namespace cuvnet
     void growing_data(cuv::tensor<float,cuv::host_memory_space>  &data, int dim, bool translated, const std::vector<int> &rand_growing);
     void normalize_data_set(cuv::tensor<float,cuv::host_memory_space> &data);
     void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set, int num_examples, int dim);
-    void initialize_data_set_iter(int max_size, int min_size, cuv::tensor<float,cuv::host_memory_space>& data, int m_dim);
+    void initialize_data_set_iter(int max_size, int min_size, cuv::tensor<float,cuv::host_memory_space>& data, int m_dim, int max_translation);
+    // shuffles the examples in the dataset
+    void shuffle(cuv::tensor<float,cuv::host_memory_space>& data);
 
     /**
      * creates gauss filter \f[ exp(-distance^2 / sigma^2) \f]

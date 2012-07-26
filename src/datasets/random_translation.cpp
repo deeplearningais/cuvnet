@@ -15,6 +15,7 @@ namespace cuvnet
             m_distance(distance),
             m_sigma(sigma)
         {
+            bool translated = max_translation > 0;
             srand ( time(NULL) );
             train_data.resize(cuv::extents[3][m_num_train_example][m_dim]);
             test_data.resize(cuv::extents[3][m_num_test_example][m_dim]);
@@ -30,10 +31,10 @@ namespace cuvnet
             // initializes the data in the way that ones are next to each other
             //initialize_data_set(max_size, min_size, train_data, m_dim);
             //initialize_data_set(max_size, min_size, test_data, m_dim);
-            cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * (max_size - min_size)][m_dim]);
-            initialize_data_set_iter(max_size, min_size, data, m_dim);
+            cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * (max_size - min_size) * (max_translation * 2 + 1)][m_dim]);
+            initialize_data_set_iter(max_size, min_size, data, m_dim, max_translation);
             split_data_set(data, train_data, test_data, m_num_train_example, m_dim);
-
+            translated = true;
 
             // creates the vector for random translation. It is used to randomly translate each example vector
             vector<int> random_translations_train(train_data.shape(1));
@@ -64,12 +65,11 @@ namespace cuvnet
             }
 
             
-            bool translated = max_translation > 0;
             // translate train data
-            if(translated){ 
-                translate_data(train_data, 1, random_translations_train);
-                translate_data(test_data, 1, random_translations_test);
-            }
+            //if(translated){ 
+            //    translate_data(train_data, 1, random_translations_train);
+            //    translate_data(test_data, 1, random_translations_test);
+            //}
             if(max_growing > 0 && translated){
                 growing_data(train_data, 1, true, random_growing_train);
                 growing_data(test_data, 1, true, random_growing_test);
@@ -78,10 +78,19 @@ namespace cuvnet
                 growing_data(train_data, 1, false, random_growing_train);
                 growing_data(test_data, 1, false, random_growing_test);
             }
-            if(translated){
-                translate_data(train_data, 2, random_translations_train);
-                translate_data(test_data, 2, random_translations_test);
+            //if(translated){
+            //    translate_data(train_data, 2, random_translations_train);
+            //    translate_data(test_data, 2, random_translations_test);
+            //}
+            //
+
+            for (unsigned int i = 0; i < random_growing_train.size();i++){
+                random_growing_train[i] *=2;
             }
+            for (unsigned int i = 0; i < random_growing_test.size();i++){
+                random_growing_test[i] *=2;
+            }
+
             if(max_growing > 0 && translated){
                 growing_data(train_data, 2, true, random_growing_train);
                 growing_data(test_data, 2, true, random_growing_test);
@@ -115,37 +124,86 @@ namespace cuvnet
         void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set, int num_examples, int dim){
             std::cout << " num_examples " << num_examples << " total num " << data.shape(1) << std::endl;
             assert((unsigned int)num_examples * 2 < data.shape(1));
+            shuffle(data);
             for(int ex = 0; ex < num_examples * 2; ex+=2){
                 for(int d = 0; d < dim; d++){
-                    train_set(0,ex / 2,d) = data(0,ex,d);
-                    test_set(0,ex / 2,d) = data(0,ex + 1,d);
+                    for(int s = 0; s < 3; s++){
+                        train_set(s,ex / 2,d) = data(s,ex,d);
+                        test_set(s,ex / 2,d) = data(s,ex + 1,d);
+                    }
                 }
             }
+        }
+        
+        // shuffles the examples in the dataset
+        void shuffle(cuv::tensor<float,cuv::host_memory_space>& data){
+            srand ( time(NULL) );
+            int r = 0;
+            float temp = 0.f;
+            for(int ex = 0; ex < data.shape(1); ex++){
+                r = ex + (rand() % (data.shape(1) - ex));
+                for(int s = 0; s < data.shape(0); s++){
+                    for(int dim = 0; dim < data.shape(2); dim++){
+                        temp = data(s,ex,dim);
+                        data(s,ex,dim) = data(s,r,dim);
+                        data(s,r,dim) = temp;
+                    }   
+
+                }   
+
+            }   
         }
 
         // initializes the data in the way that ones are next to each other
-        void initialize_data_set_iter(int max_size, int min_size, cuv::tensor<float,cuv::host_memory_space>& data, int m_dim){
+        void initialize_data_set_iter(int max_size, int min_size, cuv::tensor<float,cuv::host_memory_space>& data, int m_dim, int max_trans){
             int example = 0;
+            int width = 0;
             int diff = max_size - min_size;
+            int index = 0;
+            int index_2 = 0;
             for(int w = 0; w < diff; w++){
+                width = min_size + w;     // width of the signal
                 for(int dim = 0; dim < m_dim; dim++){
-                    for(int d = 0; d < m_dim; d++){
-                        int width = min_size + w;
-                        if(dim + width < m_dim){
-                            if(d >= dim && d <= dim+width){
-                                data(0,example, d) = 1.f;
+                    for(int tran = -max_trans; tran <= max_trans; tran++){
+                        for(int d = 0; d < m_dim; d++){
+
+                            index = d + tran;           // index of the translated element
+                            // wrap around if the index goes out of border
+                            if(index < 0)
+                                index = m_dim + index;
+                            else if(index >= m_dim)
+                                index = index - m_dim;
+
+                            if(dim + width < m_dim){
+                                if(d >= dim && d <= dim+width){
+                                    data(0,example, d) = 1.f;
+                                }
+                            }else{
+                                if(d >=dim || d <= (dim + width - m_dim)){
+                                    data(0,example, d) = 1.f;
+                                }
                             }
-                        }else{
-                            if(d >=dim || d <= (dim + width - m_dim)){
-                                data(0,example, d) = 1.f;
-                            }
-                        }
-                    }    
-                    example++;
+
+                            data(1, example, index) = data(0,example, d);  //translating first dimension
+
+                            //translating second dimension
+                            index_2 = index + tran;           // index of the translated element
+                            // wrap around if the index goes out of border
+                            if(index_2 < 0)
+                                index_2 = m_dim + index_2;
+                            else if(index_2 >= m_dim)
+                                index_2 = index_2 - m_dim;
+                            data(2, example, index_2) = data(1,example, index);  //translating first dimension
+
+                        }    
+                        example++;
+                    }
                 }
 
             }
         }
+
+
 
         // initializes the data in the way that ones are next to each other
         void initialize_data_set(int max_size, int min_size, cuv::tensor<float,cuv::host_memory_space>& data, int m_dim){

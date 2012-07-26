@@ -326,7 +326,8 @@ arrange_single_filter(const tensor& fx_ ,  unsigned int dstMapCount, unsigned in
     return img;
 }
 void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb, input_ptr input_x, input_ptr input_y, input_ptr teacher, bool is_train_set, unsigned int epoch){
-    if((epoch%1000 != 0 || epoch <= 1) && is_train_set)
+    //if((epoch%1000 != 0 || epoch <= 1) && is_train_set)
+    if(epoch%5000 != 0   && is_train_set)
         return;
     //{
     // std::string base = (boost::format("fx&y-%06d-")%epoch).str();
@@ -352,12 +353,12 @@ void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb,
      tensor in_x = input_x->data().copy();
      tensor in_y = input_y->data().copy();
      tensor prediction = (*mon)["decoded"].copy();
-     apply_scalar_functor(prediction,cuv::SF_SIGM);
+     //apply_scalar_functor(prediction,cuv::SF_SIGM);
      tensor teacher_ = teacher->data().copy();
 
-     fa = 8;
+     fa = 10;
      //fb = in_x.shape(0) / 10;
-     fb =  16;
+     fb =  64;
      cuvAssert(!cuv::has_nan(in_x));
      cuvAssert(!cuv::has_inf(in_x));
      auto wvis      = arrange_inputs_and_prediction(in_x, in_y, teacher_, prediction, fa, fb, (int)in_x.shape(1),true);
@@ -422,7 +423,7 @@ float test_phase(gradient_descent* orig_gd, random_translation* ds, relational_a
         std::vector<Op*> params; // empty!
         gradient_descent gd(ae->loss(), 0, params, 0);
         gd.register_monitor(mon);
-        gd.after_epoch.connect(boost::bind(visualize_filters,ae,&mon,fa,fb, input_x, input_y, teacher, true,_1));
+        //gd.after_epoch.connect(boost::bind(visualize_filters,ae,&mon,fa,fb, input_x, input_y, teacher, true,_1));
         gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
         gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
         std::cout << std::endl << " testing phase ";
@@ -438,17 +439,17 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int fb=200,bs=  64*10, subsampling = 1, max_trans = 5, gauss_dist = 12, min_width = 5, max_width = 45, max_growing = 0;
-    unsigned int fa = (max_growing * 2 + 1) * (max_trans * 2 + 1) + 25;
-    unsigned int num_factors = 300;
+    unsigned int fb=110,bs=  64*50, subsampling = 2, max_trans = 4, gauss_dist = 12, min_width = 12, max_width = 25, max_growing = 2;
+    unsigned int fa = (max_growing * 2 + 1) * (max_trans * 2 + 1)  ;
+    unsigned int num_factors = 600;
     float sigma = gauss_dist / 3; 
     float learning_rate = 0.2f;
     // generate random translation datas
-    unsigned int data_set_size = 64 * 50;
+    unsigned int data_set_size = 64 * 100;
     std::cout << "generating dataset: "<<std::endl;
     random_translation ds(fb * subsampling,  data_set_size, data_set_size, 0.1f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width);
-    //ds.binary   = true;
     ds.binary   = false;
+    //ds.binary   = true;
 
 
     std::cout << "Traindata: "<<std::endl;
@@ -496,9 +497,9 @@ int main(int argc, char **argv)
         // w.r.t. \c params and has learning rate 0.001f
         //gradient_descent gd(ae.loss(),0,params, learning_rate);
         //rprop_gradient_descent gd(ae.loss(), 0, params, 0.000001, 0.00005f);
-        rprop_gradient_descent gd(ae.loss(), 0, params, 0.000001);
+        rprop_gradient_descent gd(ae.loss(), 0, params, 0.00001);
         //gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.45f,350);
-        gd.setup_early_stopping(boost::bind(test_phase, &gd, &ds,  &ae, fa, fb,  input_x,  input_y, teacher,  bs), 100, 1.f, 2.f);
+        //gd.setup_early_stopping(boost::bind(test_phase, &gd, &ds,  &ae, fa, fb,  input_x,  input_y, teacher,  bs), 100, 1.f, 2.f);
         // register the monitor so that it receives learning events
         gd.register_monitor(mon);
 
@@ -515,9 +516,9 @@ int main(int argc, char **argv)
         // (whatever comes first)
         std::cout << std::endl << " Training phase: " << std::endl;
         //gd.minibatch_learning(2000, 100*60); // 10 minutes maximum
-        //load_batch(input_x, input_y, teacher, &train_data,bs,0);
-        //gd.batch_learning(5000, 100*60);
-        gd.minibatch_learning(10000, 100*60, 0);
+        load_batch(input_x, input_y, teacher, &train_data,bs,0);
+        gd.batch_learning(6000, 100*60);
+        //gd.minibatch_learning(5000, 100*60, 0);
     }
     std::cout << std::endl << " Test phase: " << std::endl;
     //// evaluates test data. We use minibatch learning with learning rate zero and only one epoch.
@@ -529,7 +530,7 @@ int main(int argc, char **argv)
        gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,fa,fb, input_x, input_y, teacher, false,_1));
        gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
        gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
-       gd.minibatch_learning(1, 100, 0);
+       gd.minibatch_learning(3, 100, 0);
     }
     return 0;
 }
