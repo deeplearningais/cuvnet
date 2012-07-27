@@ -16,7 +16,8 @@
 #include <cuvnet/ops.hpp>
 #include <cuv/tools/device_tools.hpp>
 #include <tools/function.hpp>
-
+#include <iostream>
+#include <fstream>
 namespace cuvnet
 {
     /**
@@ -53,6 +54,15 @@ namespace cuvnet
 
             /// counts the number of epochs we've seen
             unsigned int m_epochs;
+
+            /// if true we're in train phase, otherwise test phase
+            bool m_is_train_phase;
+
+            /// file where we write the loss
+            std::ofstream m_logfile;
+            
+            /// if true the header needs to be written in the file
+            bool need_header_log_file;
 
             /// a catch-all representation of a watch point
             struct watchpoint{
@@ -97,9 +107,12 @@ namespace cuvnet
             /**
              * default ctor
              */
-            monitor(bool verbose=false)
+            monitor(bool verbose=false, const std::string& file_name = "loss.csv")
                 :m_batch_presentations(0)
                 ,m_epochs(0)
+                ,m_is_train_phase(true)
+                ,m_logfile(file_name.c_str(), std::ios::out | std::ios::app)
+                ,need_header_log_file(true)
                 ,m_verbose(verbose){ }
 
             /**
@@ -122,6 +135,16 @@ namespace cuvnet
                 m_watchpoints.push_back(new watchpoint(type,op,name));
                 m_wpmap[name] = m_watchpoints.back();
                 return *this;
+            }
+
+
+            /**
+             * it is set to true if it is training phase, otherwise is test phase 
+             *
+             * @param is_train true if it is training phase, otherwise is test phase 
+             */
+            void set_is_train_phase(bool is_train){
+                m_is_train_phase = is_train;
             }
 
             /**
@@ -180,9 +203,12 @@ namespace cuvnet
 
             /// increases number of epochs
             void after_epoch(){
-                m_epochs ++;
-                if(m_verbose)
+                if(m_is_train_phase)
+                    m_epochs ++;
+                if(m_verbose){
+                    log_to_file();
                     simple_logging();
+                }
             }
 
             /// @return the number of epochs this monitor has observed
@@ -257,6 +283,31 @@ namespace cuvnet
                         return p->sink->cdata();
                 }
                 throw std::runtime_error("Unknown watchpoint requested");
+            }
+
+
+            /**
+             * plain text logging of all epochstats to the file 
+             */
+            void log_to_file(){
+                assert(m_logfile.is_open());
+                if(need_header_log_file){
+                    m_logfile << "is_train,epoch,mem";
+                    need_header_log_file = false;
+                    BOOST_FOREACH(const watchpoint* p, m_watchpoints){
+                        m_logfile << "," << p->name;
+                    }
+                    m_logfile << std::endl;
+                }
+                    
+                m_logfile << m_is_train_phase << "," << m_epochs << "," << cuv::getFreeDeviceMemory();
+                BOOST_FOREACH(const watchpoint* p, m_watchpoints){
+                    if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
+                        // writes to the file the loss
+                            m_logfile  << "," <<  mean(p->name)  << "," << stddev(p->name);
+                    }
+                }
+                m_logfile << std::endl;
             }
 
             /**
