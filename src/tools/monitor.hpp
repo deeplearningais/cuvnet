@@ -209,6 +209,7 @@ namespace cuvnet
                     log_to_file();
                     simple_logging();
                 }
+                m_batch_presentations = 0;
             }
 
             /// @return the number of epochs this monitor has observed
