@@ -239,6 +239,12 @@ namespace cuvnet
             float best_perf(){
                 return m_best_perf;
             }
+            /**
+             * return the epoch where \c best_perf was attained.
+             */
+            unsigned int best_perf_epoch(){
+                return m_epoch_of_saved_params;
+            }
 
             /**
              * decay learnrate by factor
