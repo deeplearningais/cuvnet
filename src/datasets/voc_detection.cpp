@@ -52,8 +52,8 @@ namespace cuvnet
             o.xmax = stretchx * o.xmax + offx;
             o.ymax = stretchy * o.ymax + offy;
 
-            assert(o.xmin < o.xmax);
-            assert(o.ymin < o.ymax);
+            assert(o.xmin <= o.xmax);
+            assert(o.ymin <= o.ymax);
             //assert(o.xmin >= 0);
             //assert(o.ymin >= 0);
             //assert(o.xmax < sq_size);
@@ -65,7 +65,7 @@ namespace cuvnet
             cimg_library::CImg<unsigned char>& dst,
             int sq_size,
             voc_detection_dataset::image_meta_info& meta,
-            unsigned int n_classes, float bbsize, int ttype)
+            unsigned int n_classes, float bbsize, int ttype /* 1: teacher, 0: ignore*/)
     {
         dst.resize(sq_size, sq_size, n_classes, 1, -1 /* -1: no interpolation, raw memory resize!*/);
         dst = (unsigned char) 0; // initialize w/ 0
@@ -74,6 +74,11 @@ namespace cuvnet
         BOOST_FOREACH(voc_detection_dataset::object& o, meta.objects){
             unsigned int cx = 0.5 * (o.xmax + o.xmin) + 0.5;
             unsigned int cy = 0.5 * (o.ymax + o.ymin) + 0.5;
+
+            unsigned int w = o.xmax - o.xmin;
+            unsigned int h = o.ymax - o.ymin;
+            float ignore_amount = 1.f - std::max(0.f, std::min(1.f, 4.f*std::pow(std::max(h,w)/(float)sq_size - 0.5f, 2.f)));
+
             /*
              *unsigned int w  = o.xmax - o.x@;
              *unsigned int h  = o.ymax - o.ymin;
@@ -89,8 +94,10 @@ namespace cuvnet
              *else if(ttype == 1)
              *    dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, bbsize * w, bbsize * h, 0.f, &color);
              */
-            if(ttype == 0)
-                dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, 20, 20, 0.f, &color);
+            if(ttype == 0) {
+                unsigned char strength = ignore_amount * 255;
+                dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, 20, 20, 0.f, &strength);
+            }
             else if(ttype == 1)
                 dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, 10, 10, 0.f, &color);
         }
@@ -134,7 +141,7 @@ namespace cuvnet
             int max_crop_square_overlap = crop_square_size / 2;
             
             // split longest edge in N-1 subimages at highest resolution
-            int N = 5;
+            int N = 3;
             int pyr0_size = crop_square_size*N - (N-1)*min_crop_square_overlap;
             float orig_to_pyr0 = pyr0_size / (float) std::max(img.width(), img.height());
 
@@ -171,6 +178,9 @@ namespace cuvnet
                 // determine the /actual/ stride we need to move at
                 int stride_y = scaled_height / ((float)n_subimages_y);
                 int stride_x = scaled_width  / ((float)n_subimages_x);
+
+                n_subimages_y = std::max(1, n_subimages_y);
+                n_subimages_x = std::max(1, n_subimages_x);
 
                 assert(n_subimages_y == 1 || overlap_y > 0);
                 assert(n_subimages_x == 1 || overlap_x > 0);
@@ -210,11 +220,14 @@ namespace cuvnet
                         voc_detection_dataset::pattern pat;
                         pat.meta_info = *meta;
 
+                        float scale_x = img.width() / (float)scaled_width;
+                        float scale_y = img.height() / (float)scaled_height;
+
                         // remember where current crop came from
-                        pat.meta_info.orig_xmin = xmin;
-                        pat.meta_info.orig_ymin = ymin;
-                        pat.meta_info.orig_xmax = xmax;
-                        pat.meta_info.orig_ymax = ymax;
+                        pat.meta_info.orig_xmin = xmin * scale_x;
+                        pat.meta_info.orig_ymin = ymin * scale_y;
+                        pat.meta_info.orig_xmax = xmax * scale_x;
+                        pat.meta_info.orig_ymax = ymax * scale_y;
 
                         pat.meta_info.n_scales    = n_scales;
                         pat.meta_info.n_subimages = n_subimages_x * n_subimages_y;
@@ -223,14 +236,14 @@ namespace cuvnet
 
                         // adjust object positions according to crop
                         BOOST_FOREACH(voc_detection_dataset::object& o, pat.meta_info.objects){
-                            o.xmin -= xmin;
-                            o.xmax -= xmin;
+                            o.xmin = o.xmin/scale_x - xmin;
+                            o.xmax = o.xmax/scale_x - xmin;
 
-                            o.ymin -= ymin;
-                            o.ymax -= ymin;
+                            o.ymin = o.ymin/scale_y - ymin;
+                            o.ymax = o.ymax/scale_y - ymin;
                         }
 
-#define STORE_IMAGES_SEQUENTIALLY 1
+#define STORE_IMAGES_SEQUENTIALLY 0
 #if STORE_IMAGES_SEQUENTIALLY
                         // store images into a local storage and put them in
                         // the queue as one block after the loops
@@ -240,7 +253,7 @@ namespace cuvnet
                                 boost::bind(static_cast<void (list_type::*)(const arg_type&)>(&list_type::push_back), &storage, _1), 
                                 simg, crop_square_size, pat, false /* no locking */);
 
-                        {
+                        if(0){
                             voc_detection_dataset::pattern pat = storage.back();
                             cuv::tensor<float, cuv::host_memory_space> tmp = pat.img.copy();
                             tmp -= cuv::minimum(tmp);
@@ -267,7 +280,7 @@ namespace cuvnet
                 loaded_data->push(pat);
             }
 #endif
-            exit(0);
+            //exit(0);
 
         }
         template<class T>
@@ -385,7 +398,6 @@ namespace cuvnet
             {
                 if(m_n_threads == 0)
                     m_n_threads = boost::thread::hardware_concurrency();
-                m_n_threads = 1;
             }
 
             /**
@@ -527,9 +539,9 @@ namespace cuvnet
     void voc_detection_dataset::save_results(std::list<pattern>& results){
         BOOST_FOREACH(pattern& pat, results){
             m_return_queue.push_back(pat);
-            std::cout << " saving result for: "<<pat.meta_info.filename << std::endl;
-            std::cout << "             scale: "<<pat.meta_info.scale_id+1 << " of " << pat.meta_info.n_scales << std::endl;
-            std::cout << "             crop : "<<pat.meta_info.subimage_id+1 << " of " << pat.meta_info.n_subimages << std::endl;
+            //std::cout << " saving result for: "<<pat.meta_info.filename << std::endl;
+            //std::cout << "             scale: "<<pat.meta_info.scale_id+1 << " of " << pat.meta_info.n_scales << std::endl;
+            //std::cout << "             crop : "<<pat.meta_info.subimage_id+1 << " of " << pat.meta_info.n_subimages << std::endl;
 
             if(pat.meta_info.scale_id != pat.meta_info.n_scales - 1)
                 continue;
@@ -554,7 +566,7 @@ namespace cuvnet
             }
 
             // TODO: dispatch resulting image
-            std::cout << "Done with  image `" << pat.meta_info.filename << "'" << std::endl;
+            //std::cout << "Done with  image `" << pat.meta_info.filename << "'" << std::endl;
         }
     }
 }
