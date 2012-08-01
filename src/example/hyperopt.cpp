@@ -38,16 +38,33 @@ void load_batch(
     target->data() = (*labels)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
 }
 
+/**
+ * demonstrate how to use hyperopt to optimize the hyper-parameters for
+ * logistic regression.
+ */
 struct hyperopt_client                                                                       
 : public Client{                                                                             
-    int id;                                                                                  
-    boost::asio::io_service ios;                                                             
-    monitor* m_mon;
-    gradient_descent* m_gd;
-    op_ptr m_loss;
-    hyperopt_client(int i, std::string a, std::string b)                                     
-        : Client(a,b), id(i){                                                                    
-        }                                                                                        
+    int id;                      /// a unique ID for this client 
+    boost::asio::io_service ios; /// for serializing operations within client
+    monitor* m_mon;              /// monitor to keep track of learning progress
+    gradient_descent* m_gd;      /// gradient_descent object used for TRAINING
+    op_ptr m_loss;               /// the loss to be optimized
+    unsigned int m_n_epochs;     /// number of epochs until best VALIDATION attained
+    /**
+     * create a client.
+     * @param i    a unique identifier of the client
+     * @param host where database is hosted
+     * @param db name of the database
+     */
+    hyperopt_client(int i, std::string host, std::string db)
+        : Client(host, db, BSON("exp_key" << "sample_bandit.SampleBandit/hyperopt.tpe.TreeParzenEstimator"))
+        , id(i), m_n_epochs(0){ }                                                                                        
+    /**
+     * evaluate the loss on the validation set.
+     * @param in parameter of loss containing inputs
+     * @param tch parameter of loss containing teachers
+     * @param bs batch size
+     */
     float test_phase(input_ptr in, input_ptr tch, dataset* ds, int bs){
         float mean = 0.f;
         {
@@ -66,6 +83,13 @@ struct hyperopt_client
         m_gd->repair_swiper();
         return mean;
     }
+    /**
+     * determine the loss for the given *hyper parameters*.
+     *
+     * @param learnrate the learnrate used in weight updates
+     * @param wd weight decay strength
+     * @param bs batch size
+     */
     float loss(float learnrate, float wd, int bs){
         // see logistic_regression.cpp for details
         mnist_dataset mnist("/home/local/datasets/MNIST");
@@ -94,22 +118,23 @@ struct hyperopt_client
         gd.setup_early_stopping(boost::bind(&hyperopt_client::test_phase, this, input, target, &ds, bs), 5, 1.f, 2.f);
         gd.minibatch_learning(100000, 60*60); // 10 minutes maximum
         
+        m_n_epochs = gd.best_perf_epoch();
         return gd.best_perf();
     }
+
+    /**
+     * Handle a mongodb task specified by the hyper parameters.
+     * This method is called from the framework.
+     * @param o the task specification
+     */
     void handle_task(const mongo::BSONObj& o){                                               
-        std::string cmd0 = o["cmd"].Array()[0].String();                                     
-        std::string cmd1 = o["cmd"].Array()[1].String();                                     
-
-        if(cmd0 != "bandit_json evaluate")                                                   
-            throw std::runtime_error("HOC: do not understand cmd: `" + cmd0 +"'");           
-        if(cmd1 != "sample_bandit.SampleBandit")                                            
-            throw std::runtime_error("HOC: do not know bandit: `" + cmd1 +"'");              
-
         float lr = o["vals"]["lr"].Array()[0].Double();
         float wd = o["vals"]["wd"].Array()[0].Double();
-        int   bs = std::pow(2.0,o["vals"]["bs"].Array()[0].Int());
+        int   bs = o["vals"]["bs"].Array()[0].Int();
 
-        finish(BSON("status"<<"ok"<<"loss"<<loss(lr,wd,bs)));
+        finish(BSON(  "status"  << "ok"
+                    <<"loss"    << loss(lr,wd,bs)
+                    <<"n_epochs"<< m_n_epochs));
     }
     void run(){
         cuv::initCUDA(id);
