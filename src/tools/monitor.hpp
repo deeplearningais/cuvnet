@@ -314,7 +314,7 @@ namespace cuvnet
              * plain text logging of all epochstats 
              */
             void simple_logging()const{
-                std::cout << "\r epoch "<<m_epochs<<":  free_mb="<<cuv::getFreeDeviceMemory()/*/1024/1024*/<<",  ";
+                std::cout << "\r epoch "<<m_epochs<<"/"<<m_batch_presentations<<":  free_mb="<<cuv::getFreeDeviceMemory()/1024/1024<<",  ";
                 BOOST_FOREACH(const watchpoint* p, m_watchpoints){
                     if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
                         std::cout  << p->name<<"="
