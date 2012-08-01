@@ -194,7 +194,6 @@ namespace cuvnet
                                 m_swipe.bprop(); // backward pass
 
                                 if(iter % update_every == 0)
-                                    // TODO: accumulation does not work, currently delta is always overwritten!
                                     update_weights(); 
                             }
                             after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
