@@ -233,6 +233,12 @@ namespace cuvnet
                     m_learnrate *= m_learnrate_decay;
                 }
             }
+            /**
+             * return the best value we got during early_stopping
+             */
+            float best_perf(){
+                return m_best_perf;
+            }
 
             /**
              * decay learnrate by factor
