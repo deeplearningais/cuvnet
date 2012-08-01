@@ -10,9 +10,9 @@ def cfg(ax):
 
 def generic_filters(x, trans=True, maxx=16, maxy=12, sepnorm=False):
     """ visualize an generic filter matrix """
-    if trans:
-        x = np.rollaxis(x, 2)
     print x.shape
+    if len(x.shape) == 4:
+        x = x.reshape(x.shape[0], x.shape[1], -1)  # collapse last dimensions.
     #x -= x.min()
     #x /= x.max() + 0.000001
     n_filters_x = min(x.shape[0], maxy)
@@ -40,8 +40,6 @@ def generic_filters(x, trans=True, maxx=16, maxy=12, sepnorm=False):
 
 def rgb_filters(x, trans=True, sepnorm=False):
     """ visualize an RGB filter matrix """
-    if trans:
-        x = np.rollaxis(x, 2)
     print x.min(), x.mean(), x.max()
     print x.shape
     n_filters = x.shape[0]
@@ -92,8 +90,10 @@ class MyDotWindow(xdot.DotWindow):
             data = node.data.np
             print "got shape: ", data.shape
             print "    stats: ", data.min(), data.mean(), data.max()
+            #import pdb; pdb.set_trace()
             if "weight" in node.name:
                 is_rgb = data.shape[0] == 3
+                data = np.rollaxis(data, 2)
                 if is_rgb:
                     rgb_filters(data)
                 else:
@@ -101,20 +101,21 @@ class MyDotWindow(xdot.DotWindow):
             else:
                 is_rgb = data.shape[1] == 3
                 if is_rgb:
-                    rgb_filters(data, False)
+                    rgb_filters(data)
                 else:
-                    generic_filters(data, False)
+                    generic_filters(data)
             plt.ion()
             plt.show()
         elif typ == "sink":
             node = self.op.get_sink(long(ptr, 0))
             data = node.cdata.np
-            if len(data.shape) == 3:
+            if len(data.shape) == 4:
                 is_rgb = data.shape[1] == 3
+                data = np.rollaxis(data, 3)
                 if is_rgb:
-                    rgb_filters(data, True)
+                    rgb_filters(data)
                 else:
-                    generic_filters(data, True)
+                    generic_filters(data)
                 plt.ion()
                 plt.show()
             else:
@@ -124,12 +125,9 @@ class MyDotWindow(xdot.DotWindow):
             data = node.evaluate().np
             #data = 1 / (1 + np.exp(-data))
             #data = np.clip(data,-1,1)
-            if len(data.shape) == 3:
-                is_rgb = data.shape[1] == 3
-                if is_rgb:
-                    rgb_filters(data, True)
-                else:
-                    generic_filters(data, True)
+            if len(data.shape) == 4:
+                data = np.rollaxis(data, 3)
+                generic_filters(data)
                 plt.ion()
                 plt.show()
             else:
@@ -156,7 +154,7 @@ def evaluate_bioid(loss, load_batch, n_batches):
         target = loss.get_parameter("target")
         tch = target.data.np
 
-        out = np.rollaxis(out, 2)
+        out = np.rollaxis(out, 3)
 
         for i in xrange(out.shape[0]):
             o0, o1 = out[i].reshape(2, 30, 30)
