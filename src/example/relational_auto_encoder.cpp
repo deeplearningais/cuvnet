@@ -99,7 +99,7 @@ arrange_inputs_and_prediction(const tensor_type& input_x_, const tensor_type& in
 
     // the image which is visualized
     tensor_type img(cuv::extents[srcMapCount*5][dstMapCount*(fs + 1)]);
-    img = 0.f;
+    img = 0.5f;
 
     for(unsigned int sm=0; sm<srcMapCount; sm++){
         for (unsigned int dm = 0; dm < dstMapCount; ++dm) {
@@ -327,7 +327,7 @@ arrange_single_filter(const tensor_type& fx_ ,  unsigned int dstMapCount, unsign
 }
 void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb, input_ptr input_x, input_ptr input_y, input_ptr teacher, bool is_train_set, unsigned int epoch){
     //if((epoch%1000 != 0 || epoch <= 1) && is_train_set)
-    if(epoch%900 != 0   && is_train_set)
+    if(epoch%300 != 0   && is_train_set)
         return;
      std::cout << " visualizing inputs " << std::endl;
     //{
@@ -353,7 +353,7 @@ void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb,
      tensor_type in_x = input_x->data().copy();
      tensor_type in_y = input_y->data().copy();
      tensor_type prediction = (*mon)["decoded"].copy();
-     //apply_scalar_functor(prediction,cuv::SF_SIGM);
+     apply_scalar_functor(prediction,cuv::SF_SIGM);
      tensor_type teacher_ = teacher->data().copy();
 
      fa = 8;
@@ -378,16 +378,16 @@ void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb,
     ////  cuv::libs::cimg::save(wvis, base+".png");
 
     //}
-    {
-    std::string base = (boost::format("encoder-%06d-")%epoch).str();
-    tensor_type encoder = (*mon)["encoded"].copy();
-    fa = 8;
-    fb =  8;
+    //{
+    //std::string base = (boost::format("encoder-%06d-")%epoch).str();
+    //tensor_type encoder = (*mon)["encoded"].copy();
+    //fa = 8;
+    //fb =  8;
 
-    auto wvis = arrange_single_filter(encoder, fa, fb, (int)encoder.shape(1), false);
-    cuv::libs::cimg::save(wvis, base+".png");
+    //auto wvis = arrange_single_filter(encoder, fa, fb, (int)encoder.shape(1), false);
+    //cuv::libs::cimg::save(wvis, base+".png");
 
-    }
+    //}
 
 }
 
@@ -411,6 +411,10 @@ void load_batch(
 float test_phase(monitor* mon, gradient_descent* orig_gd, random_translation* ds, relational_auto_encoder* ae, input_ptr input_x, input_ptr input_y, input_ptr teacher, int bs){
     float mean = 0.f;
     {
+        tensor_type fx = ae->get_fx()->data();
+        tensor_type fy = ae->get_fy()->data();
+        std::cout << " min fx = " << cuv::minimum(fx) << " min fy " << cuv::minimum(fy) << std::endl;
+
         matrix data = ds->test_data;
         std::vector<Op*> params; // empty!
         gradient_descent gd(ae->loss(), 0, params, 0);
@@ -430,7 +434,7 @@ float test_phase(monitor* mon, gradient_descent* orig_gd, random_translation* ds
 void generate_data(monitor* mon, input_ptr input_x, input_ptr input_y, int epoch){
     if(epoch > 0){
         tensor_type prediction = (*mon)["decoded"].copy();
-        //apply_scalar_functor(prediction,cuv::SF_SIGM);
+        apply_scalar_functor(prediction,cuv::SF_SIGM);
         for(unsigned int i = 0; i < prediction.shape(1); i++){
             for(unsigned int ex = 0; ex < prediction.shape(0); ex++){
                 input_x->data()(ex,i) = input_y->data()(ex,i);
@@ -533,7 +537,7 @@ void visualize_prediction(monitor* mon, vector<tensor_type>& img, input_ptr inpu
            tensor_type encoder = (*mon)["encoded"].copy();
            tensor_type factor_x = (*mon)["factorx"].copy();
            tensor_type factor_y = (*mon)["factory"].copy();
-           //apply_scalar_functor(prediction,cuv::SF_SIGM);
+           apply_scalar_functor(prediction,cuv::SF_SIGM);
 
            for(int ex = 0; ex < num_examples; ex++){
                img[ex] = arrange_predictions(img[ex], prediction, encoder, factor_x, factor_y, (int)prediction.shape(1), epoch, base, num_examples, num_epochs,ex);
@@ -546,15 +550,16 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int fb=100,bs=  64*10 , subsampling = 1, max_trans = 3, gauss_dist = 12, min_width = 5, max_width = 30, max_growing = 0;
-    unsigned int fa = (max_growing * 2 + 1) * (max_trans * 2 + 1)   + 20;
+    unsigned int fb=100,bs=  1000 , subsampling = 1, max_trans = 3, gauss_dist = 12, min_width = 10, max_width = 30, max_growing = 0;
+    //unsigned int fa = (max_growing * 2 + 1) * (max_trans * 2 + 1) ;
+    unsigned int fa = 30;
     unsigned int num_factors = 300;
     float sigma = gauss_dist / 3; 
-    //float learning_rate = 0.2f;
+    //float learning_rate = 0.001f;
     // generate random translation datas
-    unsigned int data_set_size = 64 * 100;
+    unsigned int data_set_size = 6000;
     std::cout << "generating dataset: "<<std::endl;
-    random_translation ds(fb * subsampling,  data_set_size, data_set_size, 0.1f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width);
+    random_translation ds(fb * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width);
     ds.binary   = false;
     //ds.binary   = true;
 
@@ -603,10 +608,10 @@ int main(int argc, char **argv)
         // create a \c gradient_descent object that derives the auto-encoder loss
         // w.r.t. \c params and has learning rate 0.001f
         //gradient_descent gd(ae.loss(),0,params, learning_rate);
-        //rprop_gradient_descent gd(ae.loss(), 0, params, 0.000001, 0.00005f);
-        rprop_gradient_descent gd(ae.loss(), 0, params, 0.00001);
+        //rprop_gradient_descent gd(ae.loss(), 0, params, 0.00001, 0.005f);
+        rprop_gradient_descent gd(ae.loss(), 0, params,   0.00001);
         //gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.45f,350);
-        gd.setup_early_stopping(boost::bind(test_phase, &mon, &gd, &ds,  &ae,  input_x,  input_y, teacher,bs), 300, 1.f, 2.f);
+        gd.setup_early_stopping(boost::bind(test_phase, &mon, &gd, &ds,  &ae,  input_x,  input_y, teacher,bs), 100, 1.f, 2.f);
         // register the monitor so that it receives learning events
         gd.register_monitor(mon);
 
@@ -622,11 +627,12 @@ int main(int argc, char **argv)
         // do mini-batch learning for at most 6000 epochs, or 10 minutes
         // (whatever comes first)
         std::cout << std::endl << " Training phase: " << std::endl;
-        //gd.minibatch_learning(2000, 100*60); // 10 minutes maximum
+        //gd.minibatch_learning(5000, 100*60); // 10 minutes maximum
         //load_batch(input_x, input_y, teacher, &train_data,bs,0);
         //gd.batch_learning(1000, 100*60);
 
         gd.minibatch_learning(20000, 100*60, 0);
+
     }
     std::cout << std::endl << " Test phase: " << std::endl;
     //// evaluates test data. We use minibatch learning with learning rate zero and only one epoch.
@@ -683,144 +689,144 @@ int main(int argc, char **argv)
         //gd.minibatch_learning(num_epochs, 100, 0);
         //load_batch(input_x, input_y, teacher, &train_data,bs,0);
 
-        for (unsigned int i = 0; i < input_x->data().shape(1);i++){
-            //translation by two to the left
-            if(i >=20 && i <= 25) 
-                input_x->data()(0,i) = 1.f; 
-            else
-                input_x->data()(0,i) = 0.f; 
+        //for (unsigned int i = 0; i < input_x->data().shape(1);i++){
+        //    //translation by two to the left
+        //    if(i >=20 && i <= 25) 
+        //        input_x->data()(0,i) = 1.f; 
+        //    else
+        //        input_x->data()(0,i) = 0.f; 
             
-            if(i >= 18 && i <= 23) 
-                input_y->data()(0,i) = 1.f; 
-            else
-                input_y->data()(0,i) = 0.f; 
+        //    if(i >= 18 && i <= 23) 
+        //        input_y->data()(0,i) = 1.f; 
+        //    else
+        //        input_y->data()(0,i) = 0.f; 
 
-            if(i >=40 && i <= 47) 
-                input_x->data()(1,i) = 1.f; 
-            else
-                input_x->data()(1,i) = 0.f; 
+        //    if(i >=40 && i <= 47) 
+        //        input_x->data()(1,i) = 1.f; 
+        //    else
+        //        input_x->data()(1,i) = 0.f; 
             
-            if(i >= 38 && i <= 45) 
-                input_y->data()(1,i) = 1.f; 
-            else
-                input_y->data()(1,i) = 0.f; 
+        //    if(i >= 38 && i <= 45) 
+        //        input_y->data()(1,i) = 1.f; 
+        //    else
+        //        input_y->data()(1,i) = 0.f; 
 
-            if(i >=60 && i <= 69) 
-                input_x->data()(2,i) = 1.f; 
-            else
-                input_x->data()(2,i) = 0.f; 
+        //    if(i >=60 && i <= 69) 
+        //        input_x->data()(2,i) = 1.f; 
+        //    else
+        //        input_x->data()(2,i) = 0.f; 
             
-            if(i >= 58 && i <= 67) 
-                input_y->data()(2,i) = 1.f; 
-            else
-                input_y->data()(2,i) = 0.f; 
+        //    if(i >= 58 && i <= 67) 
+        //        input_y->data()(2,i) = 1.f; 
+        //    else
+        //        input_y->data()(2,i) = 0.f; 
 
 
 
 
-            //translation by two to the right
-            if(i >=20 && i <= 25) 
-                input_x->data()(3,i) = 1.f; 
-            else
-                input_x->data()(3,i) = 0.f; 
+        //    //translation by two to the right
+        //    if(i >=20 && i <= 25) 
+        //        input_x->data()(3,i) = 1.f; 
+        //    else
+        //        input_x->data()(3,i) = 0.f; 
             
-            if(i >= 22 && i <= 27) 
-                input_y->data()(3,i) = 1.f; 
-            else
-                input_y->data()(3,i) = 0.f; 
+        //    if(i >= 22 && i <= 27) 
+        //        input_y->data()(3,i) = 1.f; 
+        //    else
+        //        input_y->data()(3,i) = 0.f; 
 
-            if(i >=40 && i <= 48) 
-                input_x->data()(4,i) = 1.f; 
-            else
-                input_x->data()(4,i) = 0.f; 
+        //    if(i >=40 && i <= 48) 
+        //        input_x->data()(4,i) = 1.f; 
+        //    else
+        //        input_x->data()(4,i) = 0.f; 
             
-            if(i >= 42 && i <= 50) 
-                input_y->data()(4,i) = 1.f; 
-            else
-                input_y->data()(4,i) = 0.f; 
+        //    if(i >= 42 && i <= 50) 
+        //        input_y->data()(4,i) = 1.f; 
+        //    else
+        //        input_y->data()(4,i) = 0.f; 
 
 
-            if(i >=60 && i <= 70) 
-                input_x->data()(5,i) = 1.f; 
-            else
-                input_x->data()(5,i) = 0.f; 
+        //    if(i >=60 && i <= 70) 
+        //        input_x->data()(5,i) = 1.f; 
+        //    else
+        //        input_x->data()(5,i) = 0.f; 
             
-            if(i >= 62 && i <= 72) 
-                input_y->data()(5,i) = 1.f; 
-            else
-                input_y->data()(5,i) = 0.f; 
+        //    if(i >= 62 && i <= 72) 
+        //        input_y->data()(5,i) = 1.f; 
+        //    else
+        //        input_y->data()(5,i) = 0.f; 
 
 
 
 
-            //translation by 1 to the right
-            if(i >=20 && i <= 25) 
-                input_x->data()(6,i) = 1.f; 
-            else
-                input_x->data()(6,i) = 0.f; 
+        //    //translation by 1 to the right
+        //    if(i >=20 && i <= 25) 
+        //        input_x->data()(6,i) = 1.f; 
+        //    else
+        //        input_x->data()(6,i) = 0.f; 
             
-            if(i >= 21 && i <= 26) 
-                input_y->data()(6,i) = 1.f; 
-            else
-                input_y->data()(6,i) = 0.f; 
-            
-
-            if(i >=40 && i <= 49) 
-                input_x->data()(7,i) = 1.f; 
-            else
-                input_x->data()(7,i) = 0.f; 
-            
-            if(i >= 41 && i <= 50) 
-                input_y->data()(7,i) = 1.f; 
-            else
-                input_y->data()(7,i) = 0.f; 
+        //    if(i >= 21 && i <= 26) 
+        //        input_y->data()(6,i) = 1.f; 
+        //    else
+        //        input_y->data()(6,i) = 0.f; 
             
 
-            if(i >=30 && i <= 37) 
-                input_x->data()(8,i) = 1.f; 
-            else
-                input_x->data()(8,i) = 0.f; 
+        //    if(i >=40 && i <= 49) 
+        //        input_x->data()(7,i) = 1.f; 
+        //    else
+        //        input_x->data()(7,i) = 0.f; 
             
-            if(i >= 31 && i <= 38) 
-                input_y->data()(8,i) = 1.f; 
-            else
-                input_y->data()(8,i) = 0.f; 
-
-
-
-            //translation by 1 to the left
-            if(i >=20 && i <= 25) 
-                input_x->data()(9,i) = 1.f; 
-            else
-                input_x->data()(9,i) = 0.f; 
+        //    if(i >= 41 && i <= 50) 
+        //        input_y->data()(7,i) = 1.f; 
+        //    else
+        //        input_y->data()(7,i) = 0.f; 
             
-            if(i >= 19 && i <= 24) 
-                input_y->data()(9,i) = 1.f; 
-            else
-                input_y->data()(9,i) = 0.f; 
 
-            if(i >=40 && i <= 48) 
-                input_x->data()(10,i) = 1.f; 
-            else
-                input_x->data()(10,i) = 0.f; 
+        //    if(i >=30 && i <= 37) 
+        //        input_x->data()(8,i) = 1.f; 
+        //    else
+        //        input_x->data()(8,i) = 0.f; 
             
-            if(i >= 39 && i <= 47) 
-                input_y->data()(10,i) = 1.f; 
-            else
-                input_y->data()(10,i) = 0.f; 
+        //    if(i >= 31 && i <= 38) 
+        //        input_y->data()(8,i) = 1.f; 
+        //    else
+        //        input_y->data()(8,i) = 0.f; 
 
 
-            if(i >=60 && i <= 69) 
-                input_x->data()(11,i) = 1.f; 
-            else
-                input_x->data()(11,i) = 0.f; 
+
+        //    //translation by 1 to the left
+        //    if(i >=20 && i <= 25) 
+        //        input_x->data()(9,i) = 1.f; 
+        //    else
+        //        input_x->data()(9,i) = 0.f; 
             
-            if(i >= 59 && i <= 68) 
-                input_y->data()(11,i) = 1.f; 
-            else
-                input_y->data()(11,i) = 0.f; 
+        //    if(i >= 19 && i <= 24) 
+        //        input_y->data()(9,i) = 1.f; 
+        //    else
+        //        input_y->data()(9,i) = 0.f; 
 
-        }
+        //    if(i >=40 && i <= 48) 
+        //        input_x->data()(10,i) = 1.f; 
+        //    else
+        //        input_x->data()(10,i) = 0.f; 
+            
+        //    if(i >= 39 && i <= 47) 
+        //        input_y->data()(10,i) = 1.f; 
+        //    else
+        //        input_y->data()(10,i) = 0.f; 
+
+
+        //    if(i >=60 && i <= 69) 
+        //        input_x->data()(11,i) = 1.f; 
+        //    else
+        //        input_x->data()(11,i) = 0.f; 
+            
+        //    if(i >= 59 && i <= 68) 
+        //        input_y->data()(11,i) = 1.f; 
+        //    else
+        //        input_y->data()(11,i) = 0.f; 
+
+        //}
         gd.batch_learning(num_epochs, 100*60);
 
     }
