@@ -54,13 +54,14 @@ zoom(const tensor_type& img, int zf=16){
 /**
  * arrange inputs stored in rows/columns of a matrix nicely for viewing
  *
- * @param input_x_          the matrix containing the first inputs
- * @param input_y_          the matrix containing the second inputs
- * @param recon_          the matrix containing the reconstruction of second input
- * @param pred_           the matrix containing the prediction 
- * @param dstMapCount number of columns in the arrangement
- * @param srcMapCount number of rows in the arrangement
- * @param fs          input size
+ * @param input_x_             the matrix containing the first inputs
+ * @param input_y_             the matrix containing the second inputs
+ * @param recon_               the matrix containing the reconstruction of second input
+ * @param pred_                the matrix containing the prediction 
+ * @param dstMapCount          number of columns in the arrangement
+ * @param srcMapCount          number of rows in the arrangement
+ * @param fs                   input size
+ * @param normalize_separately if true, normalizes each example separately  
  *
  * @return rearranged view
  *
@@ -143,6 +144,7 @@ arrange_inputs_and_prediction(const tensor_type& input_x_, const tensor_type& in
  * @param dstMapCount number of columns in the arrangement
  * @param srcMapCount number of rows in the arrangement
  * @param fs          input size
+ * @param normalize_separately if true, normalizes each example separately  
  *
  * @return rearranged view
  *
@@ -217,6 +219,7 @@ arrange_input_filters(const tensor_type& input_x_, const tensor_type& input_y_, 
  * @param dstMapCount number of columns in the arrangement
  * @param srcMapCount number of rows in the arrangement
  * @param fs          input size
+ * @param normalize_separately if true, normalizes each example separately  
  *
  * @return rearranged view
  *
@@ -279,6 +282,7 @@ arrange_filters(const tensor_type& fx_, const tensor_type& fy_,  unsigned int ds
  * @param dstMapCount number of columns in the arrangement
  * @param srcMapCount number of rows in the arrangement
  * @param fs          input size
+ * @param normalize_separately if true, normalizes each example separately  
  *
  * @return rearranged view
  *
@@ -286,16 +290,6 @@ arrange_filters(const tensor_type& fx_, const tensor_type& fy_,  unsigned int ds
 tensor_type
 arrange_single_filter(const tensor_type& fx_ ,  unsigned int dstMapCount, unsigned int srcMapCount, unsigned int fs, bool normalize_separately=false){
     tensor_type fx = fx_.copy();
-    // normalize the values of the tensor between 0..1
-    //float max_ = cuv::maximum(fx);
-    //float min_ = cuv::minimum(fx);
-    //// ensures that we don't devide by zero
-    //if(max_ <  0.00001f)
-    //    max_ = 0.00001f;
-
-    //fx -= min_;
-    //fx /= max_;
-
 
     // the image which is visualized
     tensor_type img(cuv::extents[srcMapCount * 2][dstMapCount*(fs + 1)]);
@@ -325,6 +319,24 @@ arrange_single_filter(const tensor_type& fx_ ,  unsigned int dstMapCount, unsign
     img = zoom(img);
     return img;
 }
+
+
+/**
+ * visualizes inputs, hidden layer, factors, filters 
+ *
+ * @param ae          the relational auto-encoder
+ * @param mon         monitor, which is storing the intermediete values of loss
+ * @param fa          number of columns in the arrangement
+ * @param fb          number of rows in the arrangement
+ * @param input_x     first input of the relational auto-encoder
+ * @param input_y     second input of the relational auto-encoder
+ * @param teacher     teacher of the relational auto-encoder
+ * @param is_train_set if true, sets the file name for the train set, otherwise for the test set  
+ * @param epoch        the current number of epoch  
+ *
+ * @return rearranged view
+ *
+ */
 void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb, input_ptr input_x, input_ptr input_y, input_ptr teacher, bool is_train_set, unsigned int epoch){
     //if((epoch%1000 != 0 || epoch <= 1) && is_train_set)
     if(epoch%300 != 0   && is_train_set)
@@ -353,7 +365,7 @@ void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb,
      tensor_type in_x = input_x->data().copy();
      tensor_type in_y = input_y->data().copy();
      tensor_type prediction = (*mon)["decoded"].copy();
-     apply_scalar_functor(prediction,cuv::SF_SIGM);
+     //apply_scalar_functor(prediction,cuv::SF_SIGM);
      tensor_type teacher_ = teacher->data().copy();
 
      fa = 8;
@@ -393,6 +405,11 @@ void visualize_filters(relational_auto_encoder* ae, monitor* mon, int fa,int fb,
 
 /**
  * load a batch from the dataset
+ *
+ * @param input_x     first input of the relational auto-encoder
+ * @param input_y     second input of the relational auto-encoder
+ * @param teacher     teacher of the relational auto-encoder
+ * @param data        the dataset, from which the batches are loaded
  */
 void load_batch(
         boost::shared_ptr<ParameterInput> input_x,
@@ -408,7 +425,20 @@ void load_batch(
 }
 
 
-float test_phase(monitor* mon, gradient_descent* orig_gd, random_translation* ds, relational_auto_encoder* ae, input_ptr input_x, input_ptr input_y, input_ptr teacher, int bs){
+/**
+ * calculates the loss on the test set, used in the early stopping of the gradient descent
+ *
+ * @param mon         monitor, which is storing the intermediete values of loss
+ * @param orig_gd     gradient descent of the training phase, its swiper is repaiered at the end of the function 
+ * @param ds          dataset
+ * @param ae          relational auto encoder
+ * @param input_x     first input of the relational auto-encoder
+ * @param input_y     second input of the relational auto-encoder
+ * @param teacher     teacher of the relational auto-encoder
+ * @param bs          batch size
+ *
+ */
+float test_phase_early_stoping(monitor* mon, gradient_descent* orig_gd, random_translation* ds, relational_auto_encoder* ae, input_ptr input_x, input_ptr input_y, input_ptr teacher, int bs){
     float mean = 0.f;
     {
         tensor_type fx = ae->get_fx()->data();
@@ -431,10 +461,20 @@ float test_phase(monitor* mon, gradient_descent* orig_gd, random_translation* ds
     return mean;
 }
 
+
+/**
+ * during the prediction phase, replaces the first input with second, and second input with prediction
+ *
+ * @param mon         monitor, which is storing the intermediete values of loss
+ * @param input_x     first input of the relational auto-encoder
+ * @param input_y     second input of the relational auto-encoder
+ * @param epoch       current epoch
+ *
+ */
 void generate_data(monitor* mon, input_ptr input_x, input_ptr input_y, int epoch){
     if(epoch > 0){
         tensor_type prediction = (*mon)["decoded"].copy();
-        apply_scalar_functor(prediction,cuv::SF_SIGM);
+        //apply_scalar_functor(prediction,cuv::SF_SIGM);
         for(unsigned int i = 0; i < prediction.shape(1); i++){
             for(unsigned int ex = 0; ex < prediction.shape(0); ex++){
                 input_x->data()(ex,i) = input_y->data()(ex,i);
@@ -449,14 +489,16 @@ void generate_data(monitor* mon, input_ptr input_x, input_ptr input_y, int epoch
 
 
 /**
- * arrange inputs stored in rows/columns of a matrix nicely for viewing
+ * arrange  predictions, hidden units, factorx and factory in one image
  *
- * @param input_x_          the matrix containing the first inputs
- * @param input_y_          the matrix containing the second inputs
+ * @param img             the matrix containing the image where everything is visualized
  * @param recon_          the matrix containing the reconstruction of second input
- * @param dstMapCount number of columns in the arrangement
- * @param srcMapCount number of rows in the arrangement
- * @param fs          input size
+ * @param encoder         the matrix containing the hidden units 
+ * @param factor_x        the matrix containing the factor_x for each example in the batch 
+ * @param factor_y        the matrix containing the factor_y for each example in the batch 
+ * @param fs              input size
+ * @param epoch           current epoch
+ * @param file_name       file name of the image
  *
  * @return rearranged view
  *
@@ -517,6 +559,22 @@ arrange_predictions(tensor_type& img, const tensor_type& recon, const tensor_typ
     return img;
 }
 
+
+/**
+ * arrange  predictions, hidden units, factorx and factory in one image
+ *
+ * @param mon             the monitor where intermediate values of loss, predictions, factors are saved
+ * @param img             the matrix containing the image where everything is visualized
+ * @param input_x         the matrix containing the first input
+ * @param input_y         the matrix containing the second input
+ * @param teacher         the matrix containing the teacher
+ * @param num_examples    how many examples are visiualized
+ * @param ex              current example which is visiualized
+ * @param epoch           current epoch
+ *
+ * @return rearranged view
+ *
+ */
 void visualize_prediction(monitor* mon, vector<tensor_type>& img, input_ptr input_x, input_ptr input_y, input_ptr teacher, int num_examples, int num_epochs, int ex, int epoch){
         {
            std::cout << " visualizing predictions " << std::endl;
@@ -537,7 +595,7 @@ void visualize_prediction(monitor* mon, vector<tensor_type>& img, input_ptr inpu
            tensor_type encoder = (*mon)["encoded"].copy();
            tensor_type factor_x = (*mon)["factorx"].copy();
            tensor_type factor_y = (*mon)["factory"].copy();
-           apply_scalar_functor(prediction,cuv::SF_SIGM);
+           //apply_scalar_functor(prediction,cuv::SF_SIGM);
 
            for(int ex = 0; ex < num_examples; ex++){
                img[ex] = arrange_predictions(img[ex], prediction, encoder, factor_x, factor_y, (int)prediction.shape(1), epoch, base, num_examples, num_epochs,ex);
@@ -545,21 +603,280 @@ void visualize_prediction(monitor* mon, vector<tensor_type>& img, input_ptr inpu
         }
 }
 
+
+/**
+ * does minibatch learning on the training set
+ *
+ * @param ds          dataset
+ * @param mon         monitor, which is storing the intermediete values of loss
+ * @param ae          relational auto encoder
+ * @param input_x     first input of the relational auto-encoder
+ * @param input_y     second input of the relational auto-encoder
+ * @param teacher     teacher of the relational auto-encoder
+ * @param bs          batch size
+ * @param input_size  the size of the input
+ * @param num_hidden  number of hidden units 
+ * @param params      parameters which are used during the learning 
+ */
+void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& ae, input_ptr input_x,input_ptr input_y, input_ptr teacher, int bs, int input_size, int num_hidden, std::vector<Op*>& params){
+        // copy training data to the device
+        matrix train_data = ds.train_data;
+
+        // create a \c gradient_descent object that derives the auto-encoder loss
+        // w.r.t. \c params and has learning rate 0.001f
+        //gradient_descent gd(ae.loss(),0,params, learning_rate);
+        //rprop_gradient_descent gd(ae.loss(), 0, params, 0.00001, 0.005f);
+        rprop_gradient_descent gd(ae.loss(), 0, params,   0.00001);
+        //gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.45f,350);
+        gd.setup_early_stopping(boost::bind(test_phase_early_stoping, &mon, &gd, &ds,  &ae,  input_x,  input_y, teacher,bs), 100, 1.f, 2.f);
+        // register the monitor so that it receives learning events
+        gd.register_monitor(mon);
+
+        // after each epoch, run \c visualize_filters
+        //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon, num_hidden, input_size, input_x, input_y, teacher, true,_1));
+
+        // before each batch, load data into \c input
+        gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &train_data,bs,_2));
+
+        // the number of batches is constant in our case (but has to be supplied as a function)
+        gd.current_batch_num.connect(ds.train_data.shape(1)/ll::constant(bs));
+
+        // do mini-batch learning for at most 6000 epochs, or 10 minutes
+        // (whatever comes first)
+        std::cout << std::endl << " Training phase: " << std::endl;
+        //gd.minibatch_learning(5000, 100*60); // 10 minutes maximum
+        //load_batch(input_x, input_y, teacher, &train_data,bs,0);
+        //gd.batch_learning(1000, 100*60);
+
+        gd.minibatch_learning(2000, 100*60, 0);
+}
+
+/**
+ * does minibatch learning on the test set
+ *
+ * @param ds          dataset
+ * @param mon         monitor, which is storing the intermediete values of loss
+ * @param ae          relational auto encoder
+ * @param input_x     first input of the relational auto-encoder
+ * @param input_y     second input of the relational auto-encoder
+ * @param teacher     teacher of the relational auto-encoder
+ * @param bs          batch size
+ * @param input_size  the size of the input
+ * @param num_hidden  number of hidden units 
+ */
+void test_phase(random_translation& ds, monitor& mon, relational_auto_encoder& ae, input_ptr input_x,input_ptr input_y, input_ptr teacher, int bs, int input_size, int num_hidden){
+    std::cout << std::endl << " Test phase: " << std::endl;
+    //// evaluates test data. We use minibatch learning with learning rate zero and only one epoch.
+    matrix data = ds.test_data;
+    std::vector<Op*> params; // empty!
+    rprop_gradient_descent gd(ae.loss(), 0, params, 0);
+    //gradient_descent gd(ae.loss(),0,params,0.f);
+    gd.register_monitor(mon);
+    gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,num_hidden,input_size, input_x, input_y, teacher, false,_1));
+    gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
+    gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
+    gd.minibatch_learning(1, 100, 0);
+    //load_batch(input_x, input_y, teacher, &data,bs,0);
+    //gd.batch_learning(1, 10);
+}
+
+/**
+ * makes multiple predictions of inputs
+ *
+ * @param ds          dataset
+ * @param mon         monitor, which is storing the intermediete values of loss
+ * @param ae          relational auto encoder
+ * @param input_x     first input of the relational auto-encoder
+ * @param input_y     second input of the relational auto-encoder
+ * @param teacher     teacher of the relational auto-encoder
+ * @param bs          batch size
+ * @param input_size  the size of the input
+ * @param num_hidden  number of hidden units 
+ */
+void prediction_phase(random_translation& ds, monitor& mon, relational_auto_encoder& ae, input_ptr input_x,input_ptr input_y, input_ptr teacher, int bs, int input_size, int num_hidden, int num_factors){
+    std::cout << std::endl << " Prediction phase: " << std::endl;
+    // the image which is visualized
+    int num_epochs = 3;
+    int num_examples = 12;
+    matrix train_data = ds.train_data;
+
+    //initializing image with first two inputs, later predictions are added
+    int img_width = max(num_factors, max(num_hidden, input_size)); 
+    vector<tensor_type> images;
+    for(int ex = 0; ex < num_examples; ex++){
+        tensor_type my_img(cuv::extents[4 * (num_epochs + 1 + 2)][img_width]);
+        my_img = 0.f;
+        images.push_back(my_img);
+    }
+
+    std::vector<Op*> params; // empty!
+    rprop_gradient_descent gd(ae.loss(), 0, params, 0);
+    //gradient_descent gd(ae.loss(),0,params,0.f);
+    gd.register_monitor(mon);
+    gd.before_epoch.connect(boost::bind(generate_data,&mon,input_x, input_y,_1));
+    gd.current_batch_num.connect(ds.test_data.shape(1)/ll::constant(bs));
+    gd.after_epoch.connect(boost::bind(visualize_prediction, &mon, images, input_x, input_y, teacher, num_examples, num_epochs, num_examples,  _1));
+    //gd.minibatch_learning(num_epochs, 100, 0);
+    //load_batch(input_x, input_y, teacher, &train_data,bs,0);
+
+    //for (unsigned int i = 0; i < input_x->data().shape(1);i++){
+    //    //translation by two to the left
+    //    if(i >=20 && i <= 25) 
+    //        input_x->data()(0,i) = 1.f; 
+    //    else
+    //        input_x->data()(0,i) = 0.f; 
+
+    //    if(i >= 18 && i <= 23) 
+    //        input_y->data()(0,i) = 1.f; 
+    //    else
+    //        input_y->data()(0,i) = 0.f; 
+
+    //    if(i >=40 && i <= 47) 
+    //        input_x->data()(1,i) = 1.f; 
+    //    else
+    //        input_x->data()(1,i) = 0.f; 
+
+    //    if(i >= 38 && i <= 45) 
+    //        input_y->data()(1,i) = 1.f; 
+    //    else
+    //        input_y->data()(1,i) = 0.f; 
+
+    //    if(i >=60 && i <= 69) 
+    //        input_x->data()(2,i) = 1.f; 
+    //    else
+    //        input_x->data()(2,i) = 0.f; 
+
+    //    if(i >= 58 && i <= 67) 
+    //        input_y->data()(2,i) = 1.f; 
+    //    else
+    //        input_y->data()(2,i) = 0.f; 
+
+
+
+
+    //    //translation by two to the right
+    //    if(i >=20 && i <= 25) 
+    //        input_x->data()(3,i) = 1.f; 
+    //    else
+    //        input_x->data()(3,i) = 0.f; 
+
+    //    if(i >= 22 && i <= 27) 
+    //        input_y->data()(3,i) = 1.f; 
+    //    else
+    //        input_y->data()(3,i) = 0.f; 
+
+    //    if(i >=40 && i <= 48) 
+    //        input_x->data()(4,i) = 1.f; 
+    //    else
+    //        input_x->data()(4,i) = 0.f; 
+
+    //    if(i >= 42 && i <= 50) 
+    //        input_y->data()(4,i) = 1.f; 
+    //    else
+    //        input_y->data()(4,i) = 0.f; 
+
+
+    //    if(i >=60 && i <= 70) 
+    //        input_x->data()(5,i) = 1.f; 
+    //    else
+    //        input_x->data()(5,i) = 0.f; 
+
+    //    if(i >= 62 && i <= 72) 
+    //        input_y->data()(5,i) = 1.f; 
+    //    else
+    //        input_y->data()(5,i) = 0.f; 
+
+
+
+
+    //    //translation by 1 to the right
+    //    if(i >=20 && i <= 25) 
+    //        input_x->data()(6,i) = 1.f; 
+    //    else
+    //        input_x->data()(6,i) = 0.f; 
+
+    //    if(i >= 21 && i <= 26) 
+    //        input_y->data()(6,i) = 1.f; 
+    //    else
+    //        input_y->data()(6,i) = 0.f; 
+
+
+    //    if(i >=40 && i <= 49) 
+    //        input_x->data()(7,i) = 1.f; 
+    //    else
+    //        input_x->data()(7,i) = 0.f; 
+
+    //    if(i >= 41 && i <= 50) 
+    //        input_y->data()(7,i) = 1.f; 
+    //    else
+    //        input_y->data()(7,i) = 0.f; 
+
+
+    //    if(i >=30 && i <= 37) 
+    //        input_x->data()(8,i) = 1.f; 
+    //    else
+    //        input_x->data()(8,i) = 0.f; 
+
+    //    if(i >= 31 && i <= 38) 
+    //        input_y->data()(8,i) = 1.f; 
+    //    else
+    //        input_y->data()(8,i) = 0.f; 
+
+
+
+    //    //translation by 1 to the left
+    //    if(i >=20 && i <= 25) 
+    //        input_x->data()(9,i) = 1.f; 
+    //    else
+    //        input_x->data()(9,i) = 0.f; 
+
+    //    if(i >= 19 && i <= 24) 
+    //        input_y->data()(9,i) = 1.f; 
+    //    else
+    //        input_y->data()(9,i) = 0.f; 
+
+    //    if(i >=40 && i <= 48) 
+    //        input_x->data()(10,i) = 1.f; 
+    //    else
+    //        input_x->data()(10,i) = 0.f; 
+
+    //    if(i >= 39 && i <= 47) 
+    //        input_y->data()(10,i) = 1.f; 
+    //    else
+    //        input_y->data()(10,i) = 0.f; 
+
+
+    //    if(i >=60 && i <= 69) 
+    //        input_x->data()(11,i) = 1.f; 
+    //    else
+    //        input_x->data()(11,i) = 0.f; 
+
+    //    if(i >= 59 && i <= 68) 
+    //        input_y->data()(11,i) = 1.f; 
+    //    else
+    //        input_y->data()(11,i) = 0.f; 
+
+    //}
+    gd.batch_learning(num_epochs, 100*60);
+}
+
+
+
 int main(int argc, char **argv)
 {
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int fb=100,bs=  1000 , subsampling = 1, max_trans = 3, gauss_dist = 12, min_width = 10, max_width = 30, max_growing = 0;
+    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 3, gauss_dist = 12, min_width = 10, max_width = 30, max_growing = 0;
     //unsigned int fa = (max_growing * 2 + 1) * (max_trans * 2 + 1) ;
-    unsigned int fa = 30;
+    unsigned int num_hidden = 30;
     unsigned int num_factors = 300;
     float sigma = gauss_dist / 3; 
     //float learning_rate = 0.001f;
     // generate random translation datas
     unsigned int data_set_size = 6000;
     std::cout << "generating dataset: "<<std::endl;
-    random_translation ds(fb * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width);
+    random_translation ds(input_size * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width);
     ds.binary   = false;
     //ds.binary   = true;
 
@@ -582,8 +899,8 @@ int main(int argc, char **argv)
     input_ptr teacher(
             new ParameterInput(cuv::extents[bs][ds.train_data.shape(2)],"teacher")); 
     
-    std::cout << "creating relational auto-encoder with " << fa << " hidden units and " << num_factors << " number of factors." << std::endl;
-    relational_auto_encoder ae(fa, num_factors, ds.binary); // creates simple autoencoder
+    std::cout << "creating relational auto-encoder with " << num_hidden << " hidden units and " << num_factors << " number of factors." << std::endl;
+    relational_auto_encoder ae(num_hidden, num_factors, ds.binary); // creates simple autoencoder
     ae.init(input_x, input_y, teacher);
     
 
@@ -601,234 +918,15 @@ int main(int argc, char **argv)
     mon.add(monitor::WP_SINK,               ae.get_factor_y(), "factory");
     mon.add(monitor::WP_SINK,               ae.get_encoded(), "encoded");
 
-    {
-        // copy training data to the device
-        matrix train_data = ds.train_data;
+    // does minibatch learning on the train set
+    train_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden,  params);
+    
+    // evaluates the test set
+    test_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden);
 
-        // create a \c gradient_descent object that derives the auto-encoder loss
-        // w.r.t. \c params and has learning rate 0.001f
-        //gradient_descent gd(ae.loss(),0,params, learning_rate);
-        //rprop_gradient_descent gd(ae.loss(), 0, params, 0.00001, 0.005f);
-        rprop_gradient_descent gd(ae.loss(), 0, params,   0.00001);
-        //gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.45f,350);
-        gd.setup_early_stopping(boost::bind(test_phase, &mon, &gd, &ds,  &ae,  input_x,  input_y, teacher,bs), 100, 1.f, 2.f);
-        // register the monitor so that it receives learning events
-        gd.register_monitor(mon);
+    // makes multiple predictions and visualizes inputs, predictions, hidden units, and factors 
+    prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
+    
 
-        // after each epoch, run \c visualize_filters
-        //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,fa,fb, input_x, input_y, teacher, true,_1));
-
-        // before each batch, load data into \c input
-        gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &train_data,bs,_2));
-
-        // the number of batches is constant in our case (but has to be supplied as a function)
-        gd.current_batch_num.connect(ds.train_data.shape(1)/ll::constant(bs));
-
-        // do mini-batch learning for at most 6000 epochs, or 10 minutes
-        // (whatever comes first)
-        std::cout << std::endl << " Training phase: " << std::endl;
-        //gd.minibatch_learning(5000, 100*60); // 10 minutes maximum
-        //load_batch(input_x, input_y, teacher, &train_data,bs,0);
-        //gd.batch_learning(1000, 100*60);
-
-        gd.minibatch_learning(20000, 100*60, 0);
-
-    }
-    std::cout << std::endl << " Test phase: " << std::endl;
-    //// evaluates test data. We use minibatch learning with learning rate zero and only one epoch.
-    {
-       matrix data = ds.test_data;
-       std::vector<Op*> params; // empty!
-       rprop_gradient_descent gd(ae.loss(), 0, params, 0);
-       //gradient_descent gd(ae.loss(),0,params,0.f);
-       gd.register_monitor(mon);
-       gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,fa,fb, input_x, input_y, teacher, false,_1));
-       gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
-       gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
-       gd.minibatch_learning(1, 100, 0);
-       //load_batch(input_x, input_y, teacher, &data,bs,0);
-       //gd.batch_learning(1, 10);
-    }
-
-
-    std::cout << std::endl << "Predicting: " << std::endl;
-    //// evaluates test data. We use minibatch learning with learning rate zero and only one epoch.
-    {
-        // the image which is visualized
-        int num_epochs = 3;
-        int num_examples = 12;
-        //int input_size = ds.test_data.shape(2);
-        matrix train_data = ds.train_data;
-
-        //float max_ = max(cuv::maximum(fx), cuv::maximum(fy));
-        //float min_ = min(cuv::minimum(fx), cuv::minimum(fx));
-        //// ensures that we don't devide by zero
-        //if(max_ <  0.00001f)
-        //   max_ = 0.00001f;
-        //fx -= min_;
-        //fy -= min_;
-        //fx /= max_;
-        //fy /= max_;
-
-        //initializing image with first two inputs, later predictions are added
-        int img_width = max(num_factors, max(fa, fb)); 
-        vector<tensor_type> images;
-        for(int ex = 0; ex < num_examples; ex++){
-            tensor_type my_img(cuv::extents[4 * (num_epochs + 1 + 2)][img_width]);
-            my_img = 0.f;
-            images.push_back(my_img);
-        }
-        
-        std::vector<Op*> params; // empty!
-        rprop_gradient_descent gd(ae.loss(), 0, params, 0);
-        //gradient_descent gd(ae.loss(),0,params,0.f);
-        gd.register_monitor(mon);
-        gd.before_epoch.connect(boost::bind(generate_data,&mon,input_x, input_y,_1));
-        gd.current_batch_num.connect(ds.test_data.shape(1)/ll::constant(bs));
-        gd.after_epoch.connect(boost::bind(visualize_prediction, &mon, images, input_x, input_y, teacher, num_examples, num_epochs, num_examples,  _1));
-        //gd.minibatch_learning(num_epochs, 100, 0);
-        //load_batch(input_x, input_y, teacher, &train_data,bs,0);
-
-        //for (unsigned int i = 0; i < input_x->data().shape(1);i++){
-        //    //translation by two to the left
-        //    if(i >=20 && i <= 25) 
-        //        input_x->data()(0,i) = 1.f; 
-        //    else
-        //        input_x->data()(0,i) = 0.f; 
-            
-        //    if(i >= 18 && i <= 23) 
-        //        input_y->data()(0,i) = 1.f; 
-        //    else
-        //        input_y->data()(0,i) = 0.f; 
-
-        //    if(i >=40 && i <= 47) 
-        //        input_x->data()(1,i) = 1.f; 
-        //    else
-        //        input_x->data()(1,i) = 0.f; 
-            
-        //    if(i >= 38 && i <= 45) 
-        //        input_y->data()(1,i) = 1.f; 
-        //    else
-        //        input_y->data()(1,i) = 0.f; 
-
-        //    if(i >=60 && i <= 69) 
-        //        input_x->data()(2,i) = 1.f; 
-        //    else
-        //        input_x->data()(2,i) = 0.f; 
-            
-        //    if(i >= 58 && i <= 67) 
-        //        input_y->data()(2,i) = 1.f; 
-        //    else
-        //        input_y->data()(2,i) = 0.f; 
-
-
-
-
-        //    //translation by two to the right
-        //    if(i >=20 && i <= 25) 
-        //        input_x->data()(3,i) = 1.f; 
-        //    else
-        //        input_x->data()(3,i) = 0.f; 
-            
-        //    if(i >= 22 && i <= 27) 
-        //        input_y->data()(3,i) = 1.f; 
-        //    else
-        //        input_y->data()(3,i) = 0.f; 
-
-        //    if(i >=40 && i <= 48) 
-        //        input_x->data()(4,i) = 1.f; 
-        //    else
-        //        input_x->data()(4,i) = 0.f; 
-            
-        //    if(i >= 42 && i <= 50) 
-        //        input_y->data()(4,i) = 1.f; 
-        //    else
-        //        input_y->data()(4,i) = 0.f; 
-
-
-        //    if(i >=60 && i <= 70) 
-        //        input_x->data()(5,i) = 1.f; 
-        //    else
-        //        input_x->data()(5,i) = 0.f; 
-            
-        //    if(i >= 62 && i <= 72) 
-        //        input_y->data()(5,i) = 1.f; 
-        //    else
-        //        input_y->data()(5,i) = 0.f; 
-
-
-
-
-        //    //translation by 1 to the right
-        //    if(i >=20 && i <= 25) 
-        //        input_x->data()(6,i) = 1.f; 
-        //    else
-        //        input_x->data()(6,i) = 0.f; 
-            
-        //    if(i >= 21 && i <= 26) 
-        //        input_y->data()(6,i) = 1.f; 
-        //    else
-        //        input_y->data()(6,i) = 0.f; 
-            
-
-        //    if(i >=40 && i <= 49) 
-        //        input_x->data()(7,i) = 1.f; 
-        //    else
-        //        input_x->data()(7,i) = 0.f; 
-            
-        //    if(i >= 41 && i <= 50) 
-        //        input_y->data()(7,i) = 1.f; 
-        //    else
-        //        input_y->data()(7,i) = 0.f; 
-            
-
-        //    if(i >=30 && i <= 37) 
-        //        input_x->data()(8,i) = 1.f; 
-        //    else
-        //        input_x->data()(8,i) = 0.f; 
-            
-        //    if(i >= 31 && i <= 38) 
-        //        input_y->data()(8,i) = 1.f; 
-        //    else
-        //        input_y->data()(8,i) = 0.f; 
-
-
-
-        //    //translation by 1 to the left
-        //    if(i >=20 && i <= 25) 
-        //        input_x->data()(9,i) = 1.f; 
-        //    else
-        //        input_x->data()(9,i) = 0.f; 
-            
-        //    if(i >= 19 && i <= 24) 
-        //        input_y->data()(9,i) = 1.f; 
-        //    else
-        //        input_y->data()(9,i) = 0.f; 
-
-        //    if(i >=40 && i <= 48) 
-        //        input_x->data()(10,i) = 1.f; 
-        //    else
-        //        input_x->data()(10,i) = 0.f; 
-            
-        //    if(i >= 39 && i <= 47) 
-        //        input_y->data()(10,i) = 1.f; 
-        //    else
-        //        input_y->data()(10,i) = 0.f; 
-
-
-        //    if(i >=60 && i <= 69) 
-        //        input_x->data()(11,i) = 1.f; 
-        //    else
-        //        input_x->data()(11,i) = 0.f; 
-            
-        //    if(i >= 59 && i <= 68) 
-        //        input_y->data()(11,i) = 1.f; 
-        //    else
-        //        input_y->data()(11,i) = 0.f; 
-
-        //}
-        gd.batch_learning(num_epochs, 100*60);
-
-    }
     return 0;
 }
