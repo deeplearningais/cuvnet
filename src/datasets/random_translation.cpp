@@ -10,8 +10,10 @@ namespace cuvnet
 
 class Morse_code{
     private:
+        // data where the code is written 
         cuv::tensor<float,cuv::host_memory_space> data;
     public:
+        // constructor
         Morse_code(cuv::tensor<float,cuv::host_memory_space> data_):
         data(data_.copy())
         {
@@ -25,6 +27,8 @@ class Morse_code{
                 return pos;
             }
         }
+
+        // writes value 1 at position pos, and 0 after it
         int write_dot(int dim, int ex, int pos){
             int size = data.shape(2);
             data(dim,ex, pos) = 1.f;
@@ -32,6 +36,7 @@ class Morse_code{
             return get_wrap_index(size, pos + 2);
         }
 
+        // writes at position pos 3 times 1 and once 0
         int write_dash(int dim, int ex, int pos){
             int size = data.shape(2);
             data(dim,ex, pos) = 1.f;
@@ -405,7 +410,7 @@ class Morse_code{
 };
 
 
-        random_translation::random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int max_translation, int max_growing,int min_size, int max_size):
+        random_translation::random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int max_translation, int max_growing,int min_size, int max_size, int flag):
             m_num_train_example(num_train_examples),
             m_num_test_example(num_test_examples),
             m_dim(dim),
@@ -413,95 +418,10 @@ class Morse_code{
             m_distance(distance),
             m_sigma(sigma)
         {
-            bool translated = max_translation > 0;
             srand ( time(NULL) );
-            train_data.resize(cuv::extents[3][m_num_train_example][m_dim]);
-            test_data.resize(cuv::extents[3][m_num_test_example][m_dim]);
-            
-            // fills the train and test sets with random uniform numbers
-           
-            //cuv::fill_rnd_uniform(train_data);
-            //cuv::fill_rnd_uniform(test_data);
-            //cuv::apply_scalar_functor(train_data,cuv::SF_LT,m_thres);
-            //cuv::apply_scalar_functor(test_data,cuv::SF_LT,m_thres);
-          
-            
-            // initializes the data in the way that ones are next to each other
-            //initialize_data_set(max_size, min_size, train_data, m_dim);
-            //initialize_data_set(max_size, min_size, test_data, m_dim);
 
-            //cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * (max_size - min_size) * (max_translation * 2 + 1)][m_dim]);
-            //initialize_data_set_iter(max_size, min_size, data, m_dim, max_translation);
-            //split_data_set(data, train_data, test_data, m_num_train_example, m_dim);
-            //translated = true;
-            cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * 36 * (2 * max_translation + 1)][m_dim]);
-            initialize_morse_code(data, m_dim, max_translation);
-            split_data_set(data, train_data, test_data, m_num_train_example, m_dim);
-            translated = false;
 
-            // creates the vector for random translation. It is used to randomly translate each example vector
-            vector<int> random_translations_train(train_data.shape(1));
-            for(unsigned int i = 0; i < train_data.shape(1); i++){
-                // For each example, the random translation is a number from  [- max_translation, + max_translation]
-                random_translations_train[i] = rand() % (2 * max_translation  + 1) - max_translation;
-            }
-
-            vector<int> random_translations_test(test_data.shape(1));
-            for(unsigned int i = 0; i < test_data.shape(1); i++){
-                // For each example, the random translation is a number from  [- max_translation, + max_translation]
-                random_translations_test[i] = rand() % (2 * max_translation  + 1) - max_translation;
-            }
-            
-            
-            // creates the vector for random growing/shrinking. It is used to randomly grow each example vector
-            vector<int> random_growing_train(train_data.shape(1));
-            for(unsigned int i = 0; i < train_data.shape(1); i++){
-                // For each example, the random growing is a number from  [- max_growing, + max_growing]
-                random_growing_train[i] = rand() % (2 * max_growing  + 1) - max_growing;
-            }
-            
-            // creates the vector for random growing/shrinking. It is used to randomly grow each example vector
-            vector<int> random_growing_test(test_data.shape(1));
-            for(unsigned int i = 0; i < test_data.shape(1); i++){
-                // For each example, the random growing is a number from  [- max_growing, + max_growing]
-                random_growing_test[i] = rand() % (2 * max_growing  + 1) - max_growing;
-            }
-
-            
-            // translate train data
-            if(translated){ 
-               translate_data(train_data, 1, random_translations_train);
-               translate_data(test_data, 1, random_translations_test);
-            }
-            if(max_growing > 0 && translated){
-                growing_data(train_data, 1, true, random_growing_train);
-                growing_data(test_data, 1, true, random_growing_test);
-            }
-            else if(max_growing > 0 && !translated){
-                growing_data(train_data, 1, false, random_growing_train);
-                growing_data(test_data, 1, false, random_growing_test);
-            }
-            if(translated){
-               translate_data(train_data, 2, random_translations_train);
-               translate_data(test_data, 2, random_translations_test);
-            }
-            
-
-            //for (unsigned int i = 0; i < random_growing_train.size();i++){
-            //    random_growing_train[i] *=2;
-            //}
-            //for (unsigned int i = 0; i < random_growing_test.size();i++){
-            //    random_growing_test[i] *=2;
-            //}
-
-            if(max_growing > 0 && translated){
-                growing_data(train_data, 2, true, random_growing_train);
-                growing_data(test_data, 2, true, random_growing_test);
-            }
-            else if(max_growing > 0 && !translated){
-                growing_data(train_data, 2, false, random_growing_train);
-                growing_data(test_data, 2, false, random_growing_test);
-            }
+            initialize_data_sets( train_data,  test_data, m_num_train_example,  m_num_test_example,  m_dim,  m_thres,  max_size,  min_size,  max_translation,  max_growing, flag);
 
 
             if(subsample > 1){
@@ -522,6 +442,99 @@ class Morse_code{
             normalize_data_set(train_data);
             normalize_data_set(test_data); 
         }
+
+
+        // creates the vector, which is used to randomly translate/grow each example in the dataset which is being created
+        void init_transformations(vector<int>& src, unsigned int num_examples, int max_offset){
+            srand ( time(NULL) );
+            src = vector<int>(num_examples);
+            for(unsigned int i = 0; i < num_examples; i++){
+                src[i] = rand() % (2 * max_offset  + 1) - max_offset;
+            }
+        }
+
+        void initialize_data_sets(cuv::tensor<float,cuv::host_memory_space>& train_data, cuv::tensor<float,cuv::host_memory_space>& test_data, 
+                int m_num_train_example, int m_num_test_example, int m_dim, float m_thres, int max_size, int min_size, int max_translation, int max_growing, int flag){
+
+            bool translated = max_translation > 0;
+
+            train_data.resize(cuv::extents[3][m_num_train_example][m_dim]);
+            test_data.resize(cuv::extents[3][m_num_test_example][m_dim]);
+            
+            if (flag == 0){
+                // fills the train and test sets with random uniform numbers
+                cuv::fill_rnd_uniform(train_data);
+                cuv::fill_rnd_uniform(test_data);
+                cuv::apply_scalar_functor(train_data,cuv::SF_LT,m_thres);
+                cuv::apply_scalar_functor(test_data,cuv::SF_LT,m_thres);
+            }else if(flag == 1){
+                // initializes the data by randomly writing a single bars with random dimension between min_size and max_size 
+                cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * (max_size - min_size) * (max_translation * 2 + 1)][m_dim]);
+                initialize_data_set_iter(max_size, min_size, data, m_dim, max_translation);
+                split_data_set(data, train_data, test_data, m_num_train_example, m_dim);
+                translated = false;
+            }else{
+                // morse code
+                cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * 36 * (2 * max_translation + 1)][m_dim]);
+                initialize_morse_code(data, m_dim, max_translation);
+                split_data_set(data, train_data, test_data, m_num_train_example, m_dim);
+                translated = false;
+            }
+          
+            vector<int> random_translations_train;
+            vector<int> random_translations_test;
+            vector<int> random_growing_train;
+            vector<int> random_growing_test;
+            // creates the vectors for random translation/growing. It is used to randomly translate/grow each example in dataset 
+            if(max_translation > 0){
+                init_transformations(random_translations_train, train_data.shape(1), max_translation);
+                init_transformations(random_translations_test, test_data.shape(1), max_translation);
+            }
+            if(max_growing > 0){
+                init_transformations(random_growing_train, train_data.shape(1), max_growing);
+                init_transformations(random_growing_test, test_data.shape(1), max_growing);
+            }
+            
+            // translate and grow train and test data for the first dimension
+            if(translated){ 
+               translate_data(train_data, 1, random_translations_train);
+               translate_data(test_data, 1, random_translations_test);
+            }
+            if(max_growing > 0 && translated){
+                growing_data(train_data, 1, true, random_growing_train);
+                growing_data(test_data, 1, true, random_growing_test);
+            }
+            else if(max_growing > 0 && !translated){
+                growing_data(train_data, 1, false, random_growing_train);
+                growing_data(test_data, 1, false, random_growing_test);
+            }
+            if(translated){
+               translate_data(train_data, 2, random_translations_train);
+               translate_data(test_data, 2, random_translations_test);
+            }
+            
+
+            if(flag != 0 && max_growing > 0){
+                for (unsigned int i = 0; i < random_growing_train.size();i++){
+                    random_growing_train[i] *=2;
+                }
+                for (unsigned int i = 0; i < random_growing_test.size();i++){
+                    random_growing_test[i] *=2;
+                }
+            }
+
+            // translate and grow train and test data for the second dimension
+            if(max_growing > 0 && translated){
+                growing_data(train_data, 2, true, random_growing_train);
+                growing_data(test_data, 2, true, random_growing_test);
+            }
+            else if(max_growing > 0 && !translated){
+                growing_data(train_data, 2, false, random_growing_train);
+                growing_data(test_data, 2, false, random_growing_test);
+            }
+
+        }
+
 
         // initializes the data in the way that ones are next to each other
         void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set, int num_examples, int dim){
@@ -810,33 +823,6 @@ class Morse_code{
                 }
             }
             data = morse.get_data().copy();
-        }
-
-        // initializes the data in the way that ones are next to each other
-        void initialize_data_set(int max_size, int min_size, cuv::tensor<float,cuv::host_memory_space>& data, int m_dim){
-            srand ( time(NULL) );
-            int random_elem;
-            int diff = max_size - min_size + 1;
-            int wrap_index;
-            int max_index;
-            for(unsigned int ex = 0; ex < data.shape(1); ex++){
-               random_elem = rand() % m_dim;
-               //makes the size of the ones between the min_size and max_size
-               int size = rand() % diff + min_size;  
-               //int size = max_size  ;  
-               max_index = random_elem + size;
-               if(max_index >= m_dim)
-                   wrap_index = max_index - m_dim;
-               else
-                   wrap_index = -1;
-
-               for(int elem = 0; elem < m_dim; elem++){
-                   if((elem >= random_elem && elem <= max_index) || (elem <= wrap_index) ){
-                       data(0,ex,elem) = 1;
-                   }else
-                       data(0,ex, elem) = 0;
-               }
-            }
         }
 
 

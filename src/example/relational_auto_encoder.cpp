@@ -867,7 +867,7 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 3, gauss_dist = 12, min_width = 10, max_width = 30, max_growing = 0;
+    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 3, gauss_dist = 12, min_width = 10, max_width = 30, max_growing = 0, flag = 3;
     //unsigned int fa = (max_growing * 2 + 1) * (max_trans * 2 + 1) ;
     unsigned int num_hidden = 30;
     unsigned int num_factors = 300;
@@ -876,7 +876,7 @@ int main(int argc, char **argv)
     // generate random translation datas
     unsigned int data_set_size = 6000;
     std::cout << "generating dataset: "<<std::endl;
-    random_translation ds(input_size * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width);
+    random_translation ds(input_size * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width, flag);
     ds.binary   = false;
     //ds.binary   = true;
 

@@ -4,16 +4,88 @@
 #include "dataset.hpp"
 namespace cuvnet
 {
-    // returns the wrap around index
+    /**
+     * returns the wrap around index
+     * @param size the size of the input
+     * @param pos the current position in the input        
+     * @return wrap around index
+     */
     int get_wrap_index(int size, int pos);
-    void initialize_data_set(int max_size, int min_size, cuv::tensor<float,cuv::host_memory_space>& data, int m_dim);
+
+
+    /**
+     * performs growing transformation on data
+     * @param data data which is initialized   
+     * @param m_dim the size of the input
+     * @param max_trans        
+     */
     void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, int m_dim, int max_trans);
+
+
+
+    /**
+     * performs growing transformation on data
+     * @param data data on which the transformation is applied  
+     * @param dim on which dim of data the transformation is applied 
+     * @param translated true, if the translation transformation is applied on data
+     * @param rand_growing consist the values of growing transformation which is applied on different examples
+     */
     void growing_data(cuv::tensor<float,cuv::host_memory_space>  &data, int dim, bool translated, const std::vector<int> &rand_growing);
+    
+
+    /**
+     * normalizes the data, such that values are between 0 and 1
+     * @param data data which is normalized  
+     */
     void normalize_data_set(cuv::tensor<float,cuv::host_memory_space> &data);
+
+
+
+    /**
+     * splits data into test and train set
+     * @param data  data which is split
+     * @param train_set train data which is initialized
+     * @param test_set test data which is initialized
+     */
     void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set, int num_examples, int dim);
+
+
+    /**
+     * initializes the training and test set with bar of random width and position in the input
+     * @param data  data which is initialized
+     * @param m_dim the input size  
+     * @param max_size the maximum size of the bar in the inputs
+     * @param min_size the minimum size of the bar in the inputs
+     * @param max_translation the maximum translation allowed
+     *
+     */
     void initialize_data_set_iter(int max_size, int min_size, cuv::tensor<float,cuv::host_memory_space>& data, int m_dim, int max_translation);
-    // shuffles the examples in the dataset
+
+
+    /**
+     * shuffles the examples in the dataset
+     * @param data data which examples are shuffled
+     */
     void shuffle(cuv::tensor<float,cuv::host_memory_space>& data);
+
+
+    /**
+     * initializes the training and test set
+     * @param train_data train data which is initialized
+     * @param test_data test data which is initialized
+     * @param m_num_train_example the number of training examples which will be generated
+     * @param m_num_test_example the number of test examples which will be generated
+     * @param m_dim the input size  
+     * @param m_thres the threshold for percentage of zeros in the input 
+     * @param max_size the maximum size of the bar in the inputs
+     * @param min_size the minimum size of the bar in the inputs
+     * @param max_translation the maximum translation allowed
+     * @param max_growing the maximum growing allowed
+     * @param flag for value 0, the data set is initialized uniformly with m_thresh percentage of zeros. If 1, the data has random bars, and if 2, the data is morse code
+     *
+     */
+    void initialize_data_sets(cuv::tensor<float,cuv::host_memory_space>& train_data, cuv::tensor<float,cuv::host_memory_space>& test_data, 
+                int m_num_train_example, int m_num_test_example, int m_dim, float m_thres, int max_size, int min_size, int max_translation, int max_growing, int flag);
 
     /**
      * creates gauss filter \f[ exp(-distance^2 / sigma^2) \f]
@@ -61,12 +133,12 @@ namespace cuvnet
  */
     class random_translation: public dataset{
         private:
-            int m_num_train_example;
-            int m_num_test_example;
-            int m_dim;
-            float m_thres;
-            int m_distance;
-            float m_sigma;
+            int m_num_train_example;        ///< the number of training examples 
+            int m_num_test_example;         ///< the number of test examples 
+            int m_dim;                      ///< the size of the inputs 
+            float m_thres;                  ///< the threshold for percentage of zeros in the input 
+            int m_distance;                 ///< the distance used in smoothing (convolution) 
+            float m_sigma;                  ///< the sigma used in smoothing (convolution)
         public:
         /**
          * Constructor
@@ -80,7 +152,7 @@ namespace cuvnet
          * @param subsample each subsample element is subsampled from the data.
          * @param translate_size how many elements to translate the data (with wrap-around).
          */
-        random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int translate_size, int max_growing, int min_size, int max_size);
+        random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int translate_size, int max_growing, int min_size, int max_size, int flag);
         random_translation(){}
     };
 

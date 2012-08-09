@@ -36,7 +36,7 @@ class relational_auto_encoder{
         bool m_binary;
         unsigned int m_num_factors; ///< the dimension of factors
         // these are the parametrs of the model
-        input_ptr  m_fx, m_fy, m_fh, m_bias_x, m_bias_y, m_bias_h, m_fz;
+        input_ptr  m_fx, m_fy, m_fh, m_bias_x, m_bias_y, m_bias_h;
 
         op_ptr m_loss;      ///< the loss of the relational auto-encoder
 
@@ -74,7 +74,6 @@ class relational_auto_encoder{
             // initialize weights and biases
             m_fx.reset(new ParameterInput(cuv::extents[input_x_dim][m_num_factors],"w_fx"));
             m_fy.reset(new ParameterInput(cuv::extents[input_y_dim][m_num_factors],"w_fy"));
-            //m_fz.reset(new ParameterInput(cuv::extents[input_y_dim][m_num_factors],"w_fz"));
             m_fh.reset(new ParameterInput(cuv::extents[m_hidden_dim][m_num_factors],"w_fh"));
             m_bias_h.reset(new ParameterInput(cuv::extents[m_hidden_dim],            "bias_h"));
             m_bias_x.reset(new ParameterInput(cuv::extents[input_x_dim],             "bias_x"));
@@ -85,7 +84,6 @@ class relational_auto_encoder{
             std::cout << " w_fh has dim: [" << m_hidden_dim << "][" << m_num_factors << "]" << std::endl;
             
             // calculates the projections of x and y
-            //m_factor_x = prod(m_input_x, square(m_fx));
             m_factor_x = prod(m_input_x, m_fx);
             m_factor_y = prod(m_input_y, m_fy);
             m_factor_y_fx = prod(m_input_y, m_fx);
@@ -94,16 +92,11 @@ class relational_auto_encoder{
             m_encoded  = logistic(mat_plus_vec(
                                prod(m_factor_x * m_factor_y, m_fh, 'n', 't')
                                , m_bias_h, 1));
-            //m_encoded  = logistic(global_max_pool(mat_plus_vec(
-            //                   prod(m_factor_x * m_factor_y, m_fh, 'n', 't')
-            //                   , m_bias_h, 1)));
             m_factor_h = prod(m_encoded, m_fh);
 
 
             // calculates the prediction
-            //m_decoded_y = decode(m_factor_y, m_factor_h, m_fz, m_bias_y);
             m_decoded_y = decode(m_factor_y_fx, m_factor_h, m_fy, m_bias_y);
-            
 
             // calculates the reconstruction loss
             m_loss  = reconstruction_loss(m_teacher,  m_decoded_y);
@@ -161,7 +154,7 @@ class relational_auto_encoder{
         virtual void reset_weights(){
             unsigned int input_dim_x = m_fx->data().shape(0);
             unsigned int factor_dim = m_fh->data().shape(1);
-            unsigned int hidden_dim = m_fh->data().shape(0);
+            //unsigned int hidden_dim = m_fh->data().shape(0);
             float diff_x = 4.f*std::sqrt(6.f/(input_dim_x + factor_dim));
             //float diff_h = 4.f*std::sqrt(6.f/(hidden_dim + factor_dim));
             
@@ -179,8 +172,6 @@ class relational_auto_encoder{
             m_fy->data() *= 0.01f; 
             m_fx->data() *= 0.01f; 
             //m_fh->data() *= 0.01f; 
-            //m_fz->data() *= 2*diff_x;
-            //m_fz->data() -=   diff_x;
             
            
             unsigned int num_hidd =  m_fh->data().shape(0);
@@ -200,7 +191,7 @@ class relational_auto_encoder{
               for(unsigned int j = 0; j < num_fact; j++){
                   for(unsigned int k = 0; k < 2*stride; k++){
                       int index = j - (k - stride);
-                      if(index >= 0 && index < num_fact){
+                      if(index >= 0 && index < (int)num_fact){
                           sum += m_fh->data()(i, index) * conv_kernel(k);
                       }
 
@@ -223,9 +214,6 @@ class relational_auto_encoder{
      * Determine the unsupervised parameters learned during training
      */
     std::vector<Op*> unsupervised_params(){
-        //return boost::assign::list_of(m_fx.get())(m_fz.get());
-        //return boost::assign::list_of(m_fx.get());
-        //return boost::assign::list_of(m_fx.get())(m_bias_h.get())(m_bias_x.get());
         return boost::assign::list_of(m_fx.get())(m_fy.get())(m_fh.get())(m_bias_h.get())(m_bias_y.get());
     }
     
