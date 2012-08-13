@@ -9,6 +9,10 @@
 
 #include <datasets/random_translation.hpp>
 #include "cuvnet/models/relational_auto_encoder.hpp"
+#include <cuvnet/models/auto_encoder_stack.hpp>
+#include <cuvnet/models/simple_auto_encoder.hpp>
+#include <cuvnet/models/logistic_regression.hpp>
+#include <cuvnet/models/linear_regression.hpp>
 #include <vector>
 using namespace cuvnet;
 namespace ll = boost::lambda;
@@ -618,7 +622,7 @@ void visualize_prediction(monitor* mon, vector<tensor_type>& img, input_ptr inpu
  * @param num_hidden  number of hidden units 
  * @param params      parameters which are used during the learning 
  */
-void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& ae, input_ptr input_x,input_ptr input_y, input_ptr teacher, int bs, int input_size, int num_hidden, std::vector<Op*>& params){
+tensor_type train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& ae, input_ptr input_x,input_ptr input_y, input_ptr teacher, int bs, int input_size, int num_hidden, std::vector<Op*>& params){
         // copy training data to the device
         matrix train_data = ds.train_data;
 
@@ -636,7 +640,7 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
         //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon, num_hidden, input_size, input_x, input_y, teacher, true,_1));
 
         // before each batch, load data into \c input
-        gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &train_data,bs,_2));
+        //gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &train_data,bs,_2));
 
         // the number of batches is constant in our case (but has to be supplied as a function)
         gd.current_batch_num.connect(ds.train_data.shape(1)/ll::constant(bs));
@@ -645,10 +649,11 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
         // (whatever comes first)
         std::cout << std::endl << " Training phase: " << std::endl;
         //gd.minibatch_learning(5000, 100*60); // 10 minutes maximum
-        //load_batch(input_x, input_y, teacher, &train_data,bs,0);
-        //gd.batch_learning(1000, 100*60);
-
-        gd.minibatch_learning(2000, 100*60, 0);
+        load_batch(input_x, input_y, teacher, &train_data,bs,0);
+        gd.batch_learning(1000, 100*60);
+        tensor_type encoder_train = mon[("encoded")];
+        return encoder_train;
+        //gd.minibatch_learning(2000, 100*60, 0);
 }
 
 /**
@@ -664,7 +669,7 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
  * @param input_size  the size of the input
  * @param num_hidden  number of hidden units 
  */
-void test_phase(random_translation& ds, monitor& mon, relational_auto_encoder& ae, input_ptr input_x,input_ptr input_y, input_ptr teacher, int bs, int input_size, int num_hidden){
+tensor_type test_phase(random_translation& ds, monitor& mon, relational_auto_encoder& ae, input_ptr input_x,input_ptr input_y, input_ptr teacher, int bs, int input_size, int num_hidden){
     std::cout << std::endl << " Test phase: " << std::endl;
     //// evaluates test data. We use minibatch learning with learning rate zero and only one epoch.
     matrix data = ds.test_data;
@@ -673,11 +678,13 @@ void test_phase(random_translation& ds, monitor& mon, relational_auto_encoder& a
     //gradient_descent gd(ae.loss(),0,params,0.f);
     gd.register_monitor(mon);
     gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,num_hidden,input_size, input_x, input_y, teacher, false,_1));
-    gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
+    //gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
     gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
-    gd.minibatch_learning(1, 100, 0);
-    //load_batch(input_x, input_y, teacher, &data,bs,0);
-    //gd.batch_learning(1, 10);
+    //gd.minibatch_learning(1, 100, 0);
+    load_batch(input_x, input_y, teacher, &data,bs,0);
+    gd.batch_learning(1, 10);
+    tensor_type encoder_test = mon[("encoded")];
+    return encoder_test;
 }
 
 /**
@@ -861,13 +868,105 @@ void prediction_phase(random_translation& ds, monitor& mon, relational_auto_enco
 }
 
 
+/**
+ * load a batch from the dataset for the logistic regression
+ */
+void load_batch_logistic(
+        boost::shared_ptr<ParameterInput> input,
+        boost::shared_ptr<ParameterInput> target,
+        cuv::tensor<float,cuv::dev_memory_space>* data,
+        cuv::tensor<float,cuv::dev_memory_space>* labels,
+        unsigned int bs, unsigned int batch){
+    //std::cout <<"."<<std::flush;
+    input->data() = (*data)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
+    target->data() = (*labels)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
+}
+
+
+void regression(random_translation& ds, tensor_type& encoder_train, tensor_type& encoder_test){
+    assert(encoder_train.shape(0) % 10 == 0);
+    unsigned int bs = encoder_train.shape(0) / 10;
+    std::cout << " size enc " << encoder_train.shape(0) << " size bs " << bs << std::endl; 
+
+    // an \c Input is a function with 0 parameters and 1 output.
+    // here we only need to specify the shape of the input and target correctly
+    // \c load_batch will put values in it.
+    boost::shared_ptr<ParameterInput> input(
+            new ParameterInput(cuv::extents[bs][encoder_train.shape(1)],"input"));
+    boost::shared_ptr<ParameterInput> target(
+            new ParameterInput(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
+
+    //creates stacked autoencoder with one simple autoencoder. has fa*fb number of hidden units
+    auto_encoder_stack<> ae_s(false);
+    typedef simple_auto_encoder<simple_auto_encoder_weight_decay> ae_type;
+    ae_s.add<ae_type>(16*8, ds.binary);
+    ae_s.init(input, 0.01f);
+
+    // creates the logistic regression on the top of the stacked autoencoder
+    logistic_regression lr(ae_s.get_encoded(), target);
+
+    // puts the supervised parameters of the stacked autoencoder and logistic regression parameters in one vector
+    std::vector<Op*> params = ae_s.supervised_params();
+    std::vector<Op*> params_log = lr.params();
+    std::copy(params_log.begin(), params_log.end(), std::back_inserter(params));
+
+    // create a verbose monitor, so we can see progress 
+    // and register the decoded activations, so they can be displayed
+    // in \c visualize_filters
+    monitor mon(true); // verbose
+    mon.add(monitor::WP_SCALAR_EPOCH_STATS, lr.get_loss(),        "total loss");
+    mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, lr.classification_error(),        "classification error");
+
+    // copy training data and labels to the device, and converts train_labels from int to float
+    matrix train_data = encoder_train;
+    matrix train_labels(ds.train_labels);
+    
+    std::cout << std::endl << " Training phase of logistic regression: " << std::endl;
+    {
+        // create a \c gradient_descent object that derives the logistic loss
+        // w.r.t. \c params and has learning rate 0.1f
+        rprop_gradient_descent gd(lr.get_loss(), 0, params,   0.00001);
+        
+        // register the monitor so that it receives learning events
+        gd.register_monitor(mon);
+        
+        // after each epoch, run \c visualize_filters
+        //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&normalizer,fa,fb,ds.image_size,ds.channels, input,_1));
+        
+        // before each batch, load data into \c input
+        gd.before_batch.connect(boost::bind(load_batch_logistic,input, target,&train_data, &train_labels, bs,_2));
+        
+        // the number of batches is constant in our case (but has to be supplied as a function)
+        gd.current_batch_num.connect(encoder_train.shape(0) / ll::constant(bs));
+        
+        // do mini-batch learning for at most 100 epochs, or 10 minutes
+        // (whatever comes first)
+        //gd.minibatch_learning(10000, 10*60); // 10 minutes maximum
+        gd.minibatch_learning(1000, 100*60, 0);
+    }
+    std::cout << std::endl << " Test phase: " << std::endl;
+
+    // evaluates test data, does it similary as with train data, minibatch_learing is running only one epoch
+    {
+        matrix train_data = encoder_test;
+        matrix train_labels(ds.test_labels);
+        gradient_descent gd(lr.get_loss(),0,params,0.f);
+        gd.register_monitor(mon);
+        gd.before_batch.connect(boost::bind(load_batch_logistic,input, target,&train_data, &train_labels, bs,_2));
+        gd.current_batch_num.connect(encoder_test.shape(0)/ll::constant(bs));
+        gd.minibatch_learning(1);
+    }
+
+    std::cout <<  std::endl;
+}
+
 
 int main(int argc, char **argv)
 {
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 3, gauss_dist = 12, min_width = 10, max_width = 30, max_growing = 0, flag = 3;
+    unsigned int input_size=100,bs=  6000 , subsampling = 2, max_trans = 3, gauss_dist = 12, min_width = 10, max_width = 30, max_growing = 0, flag = 3;
     //unsigned int fa = (max_growing * 2 + 1) * (max_trans * 2 + 1) ;
     unsigned int num_hidden = 30;
     unsigned int num_factors = 300;
@@ -882,9 +981,8 @@ int main(int argc, char **argv)
 
 
     std::cout << "Traindata: "<<std::endl;
-    std::cout << ds.train_data.shape(0)<<std::endl;
-    std::cout << ds.train_data.shape(1)<<std::endl;
-    std::cout << ds.train_data.shape(2)<<std::endl;
+    std::cout << "Number of examples : " << ds.train_data.shape(1)<<std::endl;
+    std::cout << "Input size: " << ds.train_data.shape(2)<<std::endl;
     
 
     // an \c Input is a function with 0 parameters and 1 output.
@@ -919,14 +1017,14 @@ int main(int argc, char **argv)
     mon.add(monitor::WP_SINK,               ae.get_encoded(), "encoded");
 
     // does minibatch learning on the train set
-    train_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden,  params);
+    tensor_type encoder_train = train_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden,  params);
     
     // evaluates the test set
-    test_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden);
+    tensor_type encoder_test = test_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden);
 
     // makes multiple predictions and visualizes inputs, predictions, hidden units, and factors 
-    prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
+    //prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
     
-
+    regression(ds, encoder_train, encoder_test);
     return 0;
 }
