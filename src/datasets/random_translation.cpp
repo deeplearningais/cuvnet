@@ -421,7 +421,7 @@ class Morse_code{
             srand ( time(NULL) );
 
 
-            initialize_data_sets( train_data,  test_data, m_num_train_example,  m_num_test_example,  m_dim,  m_thres,  max_size,  min_size,  max_translation,  max_growing, flag);
+            initialize_data_sets( train_data,  test_data, train_labels, test_labels,  m_num_train_example,  m_num_test_example,  m_dim,  m_thres,  max_size,  min_size,  max_translation,  max_growing, flag);
 
 
             if(subsample > 1){
@@ -454,12 +454,17 @@ class Morse_code{
         }
 
         void initialize_data_sets(cuv::tensor<float,cuv::host_memory_space>& train_data, cuv::tensor<float,cuv::host_memory_space>& test_data, 
-                int m_num_train_example, int m_num_test_example, int m_dim, float m_thres, int max_size, int min_size, int max_translation, int max_growing, int flag){
+                                  cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels,
+                                  int m_num_train_example, int m_num_test_example, int m_dim, float m_thres, int max_size, int min_size, 
+                                  int max_translation, int max_growing, int flag){
 
             bool translated = max_translation > 0;
+            int num_transformations = 2 * max_translation + 1;
 
             train_data.resize(cuv::extents[3][m_num_train_example][m_dim]);
             test_data.resize(cuv::extents[3][m_num_test_example][m_dim]);
+            train_labels.resize(cuv::extents[m_num_train_example][num_transformations]);
+            test_labels.resize(cuv::extents[m_num_test_example][num_transformations]);
             
             if (flag == 0){
                 // fills the train and test sets with random uniform numbers
@@ -470,14 +475,16 @@ class Morse_code{
             }else if(flag == 1){
                 // initializes the data by randomly writing a single bars with random dimension between min_size and max_size 
                 cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * (max_size - min_size) * (max_translation * 2 + 1)][m_dim]);
+                cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[m_dim * (max_size - min_size) * (max_translation * 2 + 1)][num_transformations]);
                 initialize_data_set_iter(max_size, min_size, data, m_dim, max_translation);
-                split_data_set(data, train_data, test_data, m_num_train_example, m_dim);
+                split_data_set(data, labels, train_data, test_data, train_labels, test_labels, m_num_train_example, m_dim);
                 translated = false;
             }else{
                 // morse code
-                cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * 36 * (2 * max_translation + 1)][m_dim]);
-                initialize_morse_code(data, m_dim, max_translation);
-                split_data_set(data, train_data, test_data, m_num_train_example, m_dim);
+                cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * 36 * num_transformations][m_dim]);
+                cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[m_dim * 36 * num_transformations][num_transformations]);
+                initialize_morse_code(data, labels, m_dim, max_translation);
+                split_data_set(data, labels, train_data, test_data, train_labels, test_labels, m_num_train_example, m_dim);
                 translated = false;
             }
           
@@ -486,7 +493,7 @@ class Morse_code{
             vector<int> random_growing_train;
             vector<int> random_growing_test;
             // creates the vectors for random translation/growing. It is used to randomly translate/grow each example in dataset 
-            if(max_translation > 0){
+            if(max_translation > 0 && translated){
                 init_transformations(random_translations_train, train_data.shape(1), max_translation);
                 init_transformations(random_translations_test, test_data.shape(1), max_translation);
             }
@@ -537,11 +544,17 @@ class Morse_code{
 
 
         // initializes the data in the way that ones are next to each other
-        void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set, int num_examples, int dim){
+        void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set, cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels, int num_examples, int dim){
             std::cout << " num_examples " << num_examples << " total num " << data.shape(1) << std::endl;
             assert((unsigned int)num_examples * 2 < data.shape(1));
-            shuffle(data);
+            shuffle(data, labels);
             for(int ex = 0; ex < num_examples * 2; ex+=2){
+                for(unsigned int i = 0; i < labels.shape(1); i++){
+                    train_labels(ex/2,i) = labels(ex,i);
+                    test_labels(ex/2,i) = labels(ex + 1,i);
+                }
+
+
                 for(int d = 0; d < dim; d++){
                     for(int s = 0; s < 3; s++){
                         train_set(s,ex / 2,d) = data(s,ex,d);
@@ -552,12 +565,21 @@ class Morse_code{
         }
         
         // shuffles the examples in the dataset
-        void shuffle(cuv::tensor<float,cuv::host_memory_space>& data){
+        void shuffle(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels){
             srand ( time(NULL) );
             int r = 0;
             float temp = 0.f;
             for(unsigned int ex = 0; ex < data.shape(1); ex++){
                 r = ex + (rand() % (data.shape(1) - ex));
+
+                // shuffle labels
+                for(unsigned int i = 0; i < labels.shape(1); i++){
+                    temp = labels(ex,i);
+                    labels(ex,i) = labels(r,i);
+                    labels(r,i) = temp;
+                }
+
+                // shuffle data
                 for(unsigned int s = 0; s < data.shape(0); s++){
                     for(unsigned int dim = 0; dim < data.shape(2); dim++){
                         temp = data(s,ex,dim);
@@ -633,192 +655,228 @@ class Morse_code{
         }
 
         // initializes the morse code
-        void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, int m_dim, int max_trans){
+        void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans){
             data = 0.f;
+            labels = 0.f;
             Morse_code morse(data);
-
             int example = 0;
             for(int tran = -max_trans; tran <= max_trans; tran++){
                 for(int dim = 0; dim < m_dim; dim++){
                     morse.write_a(0, example, dim);
                     morse.write_a(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_a(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_b(0, example, dim);
                     morse.write_b(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_b(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_c(0, example, dim);
                     morse.write_c(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_c(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_d(0, example, dim);
                     morse.write_d(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_d(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_e(0, example, dim);
                     morse.write_e(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_e(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_f(0, example, dim);
                     morse.write_f(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_f(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_g(0, example, dim);
                     morse.write_g(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_g(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_h(0, example, dim);
                     morse.write_h(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_h(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_i(0, example, dim);
                     morse.write_i(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_i(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_j(0, example, dim);
                     morse.write_j(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_j(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_k(0, example, dim);
                     morse.write_k(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_k(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_l(0, example, dim);
                     morse.write_l(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_l(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_m(0, example, dim);
                     morse.write_m(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_m(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_n(0, example, dim);
                     morse.write_n(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_n(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_o(0, example, dim);
                     morse.write_o(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_o(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_p(0, example, dim);
                     morse.write_p(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_p(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_q(0, example, dim);
                     morse.write_q(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_q(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_r(0, example, dim);
                     morse.write_r(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_r(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_s(0, example, dim);
                     morse.write_s(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_s(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_t(0, example, dim);
                     morse.write_t(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_t(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_u(0, example, dim);
                     morse.write_u(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_u(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_v(0, example, dim);
                     morse.write_v(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_v(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_w(0, example, dim);
                     morse.write_w(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_w(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_x(0, example, dim);
                     morse.write_x(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_x(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_y(0, example, dim);
                     morse.write_y(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_y(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_z(0, example, dim);
                     morse.write_z(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_z(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
 
                     morse.write_0(0, example, dim);
                     morse.write_0(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_0(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_1(0, example, dim);
                     morse.write_1(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_1(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_2(0, example, dim);
                     morse.write_2(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_2(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_3(0, example, dim);
                     morse.write_3(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_3(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_4(0, example, dim);
                     morse.write_4(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_4(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_5(0, example, dim);
                     morse.write_5(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_5(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_6(0, example, dim);
                     morse.write_6(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_6(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_7(0, example, dim);
                     morse.write_7(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_7(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_8(0, example, dim);
                     morse.write_8(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_8(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
 
                     morse.write_9(0, example, dim);
                     morse.write_9(1, example, get_wrap_index(m_dim, dim + tran));
                     morse.write_9(2, example, get_wrap_index(m_dim, dim +  2*tran));
+                    labels(example, tran + max_trans) = 1.f;
                     example++;
                 }
             }

@@ -19,7 +19,7 @@ namespace cuvnet
      * @param m_dim the size of the input
      * @param max_trans        
      */
-    void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, int m_dim, int max_trans);
+    void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans);
 
 
 
@@ -47,7 +47,7 @@ namespace cuvnet
      * @param train_set train data which is initialized
      * @param test_set test data which is initialized
      */
-    void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set, int num_examples, int dim);
+    void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set, cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels, int num_examples, int dim);
 
 
     /**
@@ -66,7 +66,7 @@ namespace cuvnet
      * shuffles the examples in the dataset
      * @param data data which examples are shuffled
      */
-    void shuffle(cuv::tensor<float,cuv::host_memory_space>& data);
+    void shuffle(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels);
 
 
     /**
@@ -85,7 +85,10 @@ namespace cuvnet
      *
      */
     void initialize_data_sets(cuv::tensor<float,cuv::host_memory_space>& train_data, cuv::tensor<float,cuv::host_memory_space>& test_data, 
-                int m_num_train_example, int m_num_test_example, int m_dim, float m_thres, int max_size, int min_size, int max_translation, int max_growing, int flag);
+            cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels,
+            int m_num_train_example, int m_num_test_example, int m_dim, float m_thres, int max_size, int min_size, 
+            int max_translation, int max_growing, int flag);
+
 
     /**
      * creates gauss filter \f[ exp(-distance^2 / sigma^2) \f]
