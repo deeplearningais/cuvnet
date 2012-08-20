@@ -13,7 +13,8 @@ namespace cuvnet{
  *
  * @ingroup models
  */
-class generic_auto_encoder {
+template<class Base>
+class generic_auto_encoder : public Base {
     public:
         /** 
          * this is the type of a `function', e.g. the output or the loss of
@@ -66,11 +67,6 @@ class generic_auto_encoder {
          * @return a function that decodes the encoded values
          */
         virtual op_ptr decode(op_ptr& enc)=0;
-
-        /**
-         * Regularizer.
-         */
-        virtual op_ptr regularize()=0;
 
         /**
          * Loss
@@ -143,7 +139,7 @@ class generic_auto_encoder {
             m_rec_loss  = reconstruction_loss(m_input, m_decoded);
 
             if(regularization_strength != 0.0f){
-                m_reg_loss  = regularize();
+                m_reg_loss  = Base::regularize(unsupervised_params()); /// if you get an error here, try using no_regularization for Base
                 if(!m_reg_loss){
                     m_loss = m_rec_loss;
                 }else{

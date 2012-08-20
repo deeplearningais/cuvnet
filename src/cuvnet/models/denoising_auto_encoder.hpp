@@ -39,8 +39,7 @@ class denoising_auto_encoder
      * @param noise if >0, add this much noise to input (type of noise depends on \c binary)
      */
     denoising_auto_encoder(unsigned int hidden_dim, bool binary, float noise)
-    :generic_auto_encoder(binary)
-    ,simple_auto_encoder<Regularizer>(hidden_dim,binary)
+    :simple_auto_encoder<Regularizer>(hidden_dim,binary)
     ,m_noise(noise)
     {
     }

@@ -17,7 +17,7 @@
 
 using namespace cuvnet;
 namespace ll = boost::lambda;
-typedef simple_auto_encoder<simple_auto_encoder_weight_decay> ae_type;
+typedef simple_auto_encoder<simple_weight_decay> ae_type;
 
 /// convenient transpose for a matrix (used in visualization only)
 matrix trans(matrix& m){

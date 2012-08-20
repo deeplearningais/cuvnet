@@ -15,7 +15,9 @@ namespace cuvnet
  *
  * @ingroup models
  */
+template<class Base>
 class generic_regression 
+: public Base
 {
     public:
         /** 
@@ -28,8 +30,11 @@ class generic_regression
        op_ptr m_target;   ///< y
        input_ptr m_weights;  ///< W 
        input_ptr m_bias;     ///< b_y
-       op_ptr m_loss;       ///< loss
+       op_ptr m_loss;       ///< accumulated loss (user-supplied plus regularization)
+       op_ptr m_user_loss;       ///<  user-supplied loss function
+       op_ptr m_regularization_loss;       ///< regularization loss
        op_ptr m_est;      ///< \f$ \hat{y} = x W + b_y \f$
+       float m_regularization_strength; /// constant with which regularizer is multiplied
 
     public: 
        
@@ -38,10 +43,12 @@ class generic_regression
          *
          * @param input a function that generates the input
          * @param target a function that generates the target
+         * @param regularization_strength value with which regularization loss is multiplied
          */
-        generic_regression(op_ptr input, op_ptr target)
+        generic_regression(op_ptr input, op_ptr target, float regularization_strength = 0.f)
             : m_input(input)
             , m_target(target)
+            , m_regularization_strength(regularization_strength)
         {
             // initialize the weights and bias 
             m_input->visit(determine_shapes_visitor()); 
@@ -63,8 +70,18 @@ class generic_regression
          * @return loss function
          */
         op_ptr get_loss(){
-            if(!m_loss)
-                m_loss = loss();
+            if(!m_loss){
+                m_user_loss = loss();
+                if(m_regularization_strength > 0.f)
+                {
+                    m_regularization_loss = Base::regularize(params());
+                    if(m_regularization_loss) 
+                        m_loss = m_user_loss + m_regularization_strength * m_regularization_loss;
+                    else
+                        m_loss = m_user_loss;
+                }else
+                    m_loss = m_user_loss;
+            }
             return m_loss;
         }
 

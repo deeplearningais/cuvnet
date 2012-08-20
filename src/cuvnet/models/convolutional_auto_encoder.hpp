@@ -20,13 +20,13 @@ using boost::make_shared;
  *
  * @ingroup models
  */
-template<class Regularizer>
+template<class Base>
 class conv_auto_encoder
-: virtual public generic_auto_encoder
-, public Regularizer
+: public generic_auto_encoder<Base>
 {
     public:
 
+        typedef boost::shared_ptr<Op>     op_ptr;
         boost::shared_ptr<ParameterInput> m_weights1, m_weights2;
         boost::shared_ptr<ParameterInput> m_bias1, m_bias2;
 
@@ -88,8 +88,7 @@ class conv_auto_encoder
          * @param n_filters the number filters in the hidden layer
          */
         conv_auto_encoder(bool binary, unsigned int filter_size, unsigned int n_filters)
-            : generic_auto_encoder(binary)
-              , Regularizer(binary)
+            : generic_auto_encoder<Base>(binary)
               , m_filter_size(filter_size)
               , m_n_filters(n_filters)
     {
@@ -169,8 +168,7 @@ class denoising_conv_auto_encoder
      * @param noise if >0, add this much noise to input (type of noise depends on \c binary)
      */
     denoising_conv_auto_encoder(bool binary, unsigned int filter_size, unsigned int n_filters, float noise)
-    :generic_auto_encoder(binary)
-    ,conv_auto_encoder<Regularizer>(binary, filter_size, n_filters)
+    :conv_auto_encoder<Regularizer>(binary, filter_size, n_filters)
     ,m_noise(noise)
     {
     }

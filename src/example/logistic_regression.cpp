@@ -45,7 +45,7 @@ void load_batch(
  * writes the results to a file.
  *
  */
-void visualize_filters(logistic_regression* lr, monitor* mon, int fa,int fb, int image_size, int channels, boost::shared_ptr<ParameterInput> input, unsigned int epoch){
+void visualize_filters(logistic_regression<>* lr, monitor* mon, int fa,int fb, int image_size, int channels, boost::shared_ptr<ParameterInput> input, unsigned int epoch){
     if(epoch%50 != 0)
         return;
     {
@@ -95,7 +95,7 @@ int main(int argc, char **argv)
             new ParameterInput(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
 
     // creates the logistic regression 
-    logistic_regression lr(input, target);
+    logistic_regression<no_regularization> lr(input, target);
 
     std::vector<Op*> params = lr.params();
 

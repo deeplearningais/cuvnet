@@ -900,13 +900,13 @@ void regression(random_translation& ds, tensor_type& encoder_train, tensor_type&
             new ParameterInput(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
 
     //creates stacked autoencoder with one simple autoencoder. has fa*fb number of hidden units
-    auto_encoder_stack<> ae_s(false);
-    typedef simple_auto_encoder<simple_auto_encoder_weight_decay> ae_type;
+    auto_encoder_stack<simple_weight_decay> ae_s(false);
+    typedef simple_auto_encoder<simple_weight_decay> ae_type;
     ae_s.add<ae_type>(16*8, ds.binary);
     ae_s.init(input, 0.01f);
 
     // creates the logistic regression on the top of the stacked autoencoder
-    logistic_regression lr(ae_s.get_encoded(), target);
+    logistic_regression<> lr(ae_s.get_encoded(), target);
 
     // puts the supervised parameters of the stacked autoencoder and logistic regression parameters in one vector
     std::vector<Op*> params = ae_s.supervised_params();

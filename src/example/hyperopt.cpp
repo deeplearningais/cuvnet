@@ -100,7 +100,7 @@ struct hyperopt_client
         dataset ds = splits[0];
         boost::shared_ptr<ParameterInput> input( new ParameterInput(cuv::extents[bs][ds.train_data.shape(1)],"input"));
         boost::shared_ptr<ParameterInput> target( new ParameterInput(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
-        logistic_regression lr(input, target);
+        logistic_regression<> lr(input, target);
         std::vector<Op*> params = lr.params();
 
         monitor mon(false);

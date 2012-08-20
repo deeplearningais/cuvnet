@@ -5,8 +5,7 @@
 
 namespace cuvnet
 {
-class simple_auto_encoder_no_regularization;
-template<class Regularizer=simple_auto_encoder_no_regularization>
+class no_regularization;
 
 /**
  * A stack of auto-encoders.
@@ -20,21 +19,21 @@ template<class Regularizer=simple_auto_encoder_no_regularization>
  * @see denoising_auto_encoder
  * @ingroup models
  */
+template<class Base=no_regularization>
 class auto_encoder_stack
-: virtual public generic_auto_encoder
-, public Regularizer
+: public generic_auto_encoder<Base>
 {
     public:
-        typedef boost::shared_ptr<generic_auto_encoder> ae_type;
+        typedef boost::shared_ptr<generic_auto_encoder<Base> > ae_type;
         typedef std::vector<ae_type> ae_vec_type;
+        typedef boost::shared_ptr<Op>     op_ptr;
 
     private:
         ae_vec_type m_stack;
     public:
 
         auto_encoder_stack(bool binary)
-        :generic_auto_encoder(binary)
-        ,Regularizer(binary)
+        :generic_auto_encoder<Base>(binary)
         {
         }
 
@@ -44,7 +43,7 @@ class auto_encoder_stack
          */
         virtual std::vector<Op*> unsupervised_params(){
             std::vector<Op*> v;
-            for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
+            for (typename ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
                 std::vector<Op*> tmp = (*it)->unsupervised_params();
                 std::copy(tmp.begin(),tmp.end(),std::back_inserter(v));
             }
@@ -57,7 +56,7 @@ class auto_encoder_stack
          */
         virtual std::vector<Op*> supervised_params(){
             std::vector<Op*> v;
-            for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
+            for (typename ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
                 std::vector<Op*> tmp = (*it)->supervised_params();
                 std::copy(tmp.begin(),tmp.end(),std::back_inserter(v));
             }
@@ -69,7 +68,7 @@ class auto_encoder_stack
          * @overload
          */
         virtual void reset_weights(){
-            for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
+            for (typename ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
                 (*it)->reset_weights();
             }
         }
@@ -81,7 +80,7 @@ class auto_encoder_stack
         virtual op_ptr  encode(op_ptr& inp){
             assert(m_stack.size());
             op_ptr op;
-            for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
+            for (typename ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
                 bool is_first = it == m_stack.begin();
 
                 if(is_first)
@@ -103,7 +102,7 @@ class auto_encoder_stack
         virtual op_ptr  decode(op_ptr& enc){ 
             assert(m_stack.size());
             op_ptr op;
-            for (ae_vec_type::reverse_iterator  it = m_stack.rbegin(); it != m_stack.rend(); ++it) {
+            for (typename ae_vec_type::reverse_iterator  it = m_stack.rbegin(); it != m_stack.rend(); ++it) {
                 bool is_first = it == m_stack.rend()-1;
                 bool is_last  = it == m_stack.rbegin();
 
@@ -137,14 +136,14 @@ class auto_encoder_stack
          * @overload
          */
         virtual void init(op_ptr input, float regularization_strength=0.f){
-            for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
+            for (typename ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
                 bool is_first = it == m_stack.begin();
                 if(is_first)
                     (*it)->init(input, regularization_strength);
                 else
                     (*it)->init(boost::dynamic_pointer_cast<Op>((*(it-1))->get_encoded()),regularization_strength);
             }
-            generic_auto_encoder::init(input, regularization_strength);
+            generic_auto_encoder<Base>::init(input, regularization_strength);
             reset_weights();
         }
 };

@@ -1,6 +1,7 @@
 #ifndef __LOGISTIC_REGRESSION_HPP__
 #     define __LOGISTIC_REGRESSION_HPP__
 
+#include <cuvnet/models/simple_auto_encoder.hpp> /* for no_regularization */
 #include <cuvnet/models/generic_regression.hpp>
 #include <cuvnet/ops.hpp>
 
@@ -14,8 +15,12 @@ namespace cuvnet
  *
  * @ingroup models
  */
-class logistic_regression:  public generic_regression{
+template<class Base=no_regularization>
+class logistic_regression:  public generic_regression<Base>{
     public:
+        typedef boost::shared_ptr<Op> op_ptr;
+        using generic_regression<Base>::get_estimator;
+        using generic_regression<Base>::get_target;
     
      /**
       * Constructor
@@ -23,7 +28,7 @@ class logistic_regression:  public generic_regression{
       * @param input a function that generates the input 
       * @param target a function that generates the target
       */   
-    logistic_regression(op_ptr input, op_ptr target): generic_regression(input, target){
+    logistic_regression(op_ptr input, op_ptr target): generic_regression<Base>(input, target){
     }
 
     protected:

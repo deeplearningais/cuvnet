@@ -14,13 +14,13 @@
 #include <datasets/splitter.hpp>
 #include <tools/monitor.hpp>
 
-/// for simple_auto_encoder_no_regularization
+/// for no_regularization
 #include <cuvnet/models/simple_auto_encoder.hpp>
 #include <cuvnet/models/convolutional_auto_encoder.hpp>
 
 using namespace boost::assign;
 namespace ll = boost::lambda;
-typedef denoising_conv_auto_encoder<simple_auto_encoder_no_regularization> ae_type;
+typedef denoising_conv_auto_encoder<no_regularization> ae_type;
 
 /// convenient transpose for a matrix (used in visualization only)
 template<class T>
