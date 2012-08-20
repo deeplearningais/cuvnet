@@ -4,21 +4,27 @@
 #include <cuv.hpp>
 #include "random_translation.hpp"
 #include <algorithm>
+#include <iostream>
+#include <sstream>
+#include <string>
 using namespace std;
 namespace cuvnet
 {
 
-class Morse_code{
+class morse_code{
     private:
         // data where the code is written 
-        cuv::tensor<float,cuv::host_memory_space> data;
-        int factor;
+        cuv::tensor<float,cuv::host_memory_space> m_data;
+        int m_factor;
+        int m_grow;
+        std::vector<std::string>  m_morse_code;
     public:
         // constructor
-        Morse_code(cuv::tensor<float,cuv::host_memory_space> data_, int factor_):
-        data(data_.copy()),
-        factor(factor_)
+        morse_code(cuv::tensor<float,cuv::host_memory_space> data, int factor):
+        m_data(data.copy()),
+        m_factor(factor)
         {
+            init_morse_code_data_structure();
         }
 
         // returns wrap around index
@@ -30,391 +36,98 @@ class Morse_code{
             }
         }
 
+        std::vector<std::string> get_morse_code(){
+            return m_morse_code;
+        }
+
+        void init_morse_code_data_structure(){
+            string morse = ".- -... -.-. -.. . ..-. --. .... .. .--- -.- .-.. -- -. --- .--. --.- .-. ... - ..- ...- "
+                ".-- -..- -.-- --.. ----- .---- ..--- ...-- ....- ..... -.... --... ---.. ----. .-.-.- --..--";
+
+            std::istringstream ss(morse, std::istringstream::in);
+            while(ss){
+                std::string s;
+                ss >> s;
+                if(s.size())
+                    m_morse_code.push_back(s);
+            }
+            //char letter = 'D';
+            //std::cout << v[letter - 'A'];
+        }
+        int char_to_morse_index(char c){
+            if(c >= 'A' && c <= 'Z')
+                return c-'A';
+            if(c >= '0' && c <= '9')
+                return char_to_morse_index('Z') + (c-'0');
+            if(c == ' ')
+                return char_to_morse_index('9') + 1;
+            if(c == ',')
+                return char_to_morse_index('9') + 2;
+            throw std::runtime_error("unrecognized character");
+        }
+
+        void set_grow(int grow){
+            m_grow = grow;
+        }
+
         // writes value 1 at position pos, and 0 after it
         int write_dot(int dim, int ex, int pos){
-            int size = data.shape(2);
-            for(int i = 0; i < factor; i++){
-                data(dim,ex, get_wrap_index(size,pos + i)) = 1.f;
+            int size = m_data.shape(2);
+
+            int new_grow;
+            new_grow = m_grow * dim;
+            int new_factor = m_factor + 2 * new_grow;
+
+            for(int i = 0; i < new_factor; i++){
+                m_data(dim,ex, get_wrap_index(size,pos + i)) = 1.f;
             }
-            int new_pos = pos + factor;
-            for(int i = 0; i < factor; i++){
-                data(dim,ex, get_wrap_index(size, new_pos + i)) = 0.f;
+            int new_pos = pos + new_factor;
+            for(int i = 0; i < new_factor; i++){
+                m_data(dim,ex, get_wrap_index(size, new_pos + i)) = 0.f;
             }
-            return get_wrap_index(size,new_pos + factor);
+            return get_wrap_index(size,new_pos + new_factor);
         }
 
         // writes at position pos 3 times 1 and once 0
         int write_dash(int dim, int ex, int pos){
-            int size = data.shape(2);
-            for(int i = 0; i < 2 * factor; i++){
-                data(dim,ex, get_wrap_index(size,pos + i)) = 1.f;
+            int size = m_data.shape(2);
+
+            int new_grow;
+            new_grow =  m_grow * dim;
+            int new_factor = 2 * m_factor + 2 * new_grow;
+
+            for(int i = 0; i <  new_factor; i++){
+                m_data(dim,ex, get_wrap_index(size,pos + i)) = 1.f;
             }
-            int new_pos = pos + 2 * factor;
-            for(int i = 0; i < factor; i++){
-                data(dim,ex, get_wrap_index(size, new_pos + i)) = 0.f;
+            int new_pos = pos +  new_factor;
+            new_factor = m_factor + 2 * new_grow;
+            for(int i = 0; i < new_factor; i++){
+                m_data(dim,ex, get_wrap_index(size, new_pos + i)) = 0.f;
             }
-            return get_wrap_index(size,new_pos + factor);
-        }
-
-        // writes letter A and returns the index where the cursor is 
-        int write_a(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-            
-        }
-
-        // writes letter B and returns the index where the cursor is 
-        int write_b(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-        // writes letter C and returns the index where the cursor is 
-        int write_c(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-        // writes letter D and returns the index where the cursor is 
-        int write_d(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-        
-        // writes letter E and returns the index where the cursor is 
-        int write_e(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-
-        // writes letter F and returns the index where the cursor is 
-        int write_f(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
+            return get_wrap_index(size,new_pos + new_factor);
         }
 
 
-        // writes letter G and returns the index where the cursor is 
-        int write_g(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
+        int write_char(int ch, int dim, int ex, int pos){
+            const std::string& str = m_morse_code[ch];
+            string::const_iterator it;
+            for ( it = str.begin() ; it < str.end(); it++)
+            {
+                if(*it == '.'){
+                    pos = write_dot(dim, ex, pos);
+                }
+                else if(*it == '-'){
+                    pos = write_dash(dim, ex, pos);
+                }else{
+                    throw std::runtime_error("unrecognized character");
+                }
+            }
+            return pos;
         }
 
-
-        // writes letter H and returns the index where the cursor is 
-        int write_h(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-
-
-        // writes letter I and returns the index where the cursor is 
-        int write_i(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-
-        // writes letter J and returns the index where the cursor is 
-        int write_j(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-
-
-        // writes letter K and returns the index where the cursor is 
-        int write_k(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-
-
-        // writes letter l and returns the index where the cursor is 
-        int write_l(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-
-
-        // writes letter M and returns the index where the cursor is 
-        int write_m(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-        // writes letter N and returns the index where the cursor is 
-        int write_n(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-        // writes letter o and returns the index where the cursor is 
-        int write_o(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-        // writes letter p and returns the index where the cursor is 
-        int write_p(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-        // writes letter Q and returns the index where the cursor is 
-        int write_q(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-        // writes letter R and returns the index where the cursor is 
-        int write_r(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-        // writes letter S and returns the index where the cursor is 
-        int write_s(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-        // writes letter T and returns the index where the cursor is 
-        int write_t(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-
-
-        // writes letter U and returns the index where the cursor is 
-        int write_u(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-
-        // writes letter V and returns the index where the cursor is 
-        int write_v(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-        // writes letter W and returns the index where the cursor is 
-        int write_w(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-
-        // writes letter X and returns the index where the cursor is 
-        int write_x(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-
-
-        // writes letter Y and returns the index where the cursor is 
-        int write_y(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-
-
-        // writes letter Z and returns the index where the cursor is 
-        int write_z(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-
-        // writes letter 0 and returns the index where the cursor is 
-        int write_0(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-
-
-
-
-        // writes letter  and returns the index where the cursor is 
-        int write_1(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-
-
-        // writes letter 2 and returns the index where the cursor is 
-        int write_2(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-
-
-        // writes letter 3 and returns the index where the cursor is 
-        int write_3(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-
-
-        // writes letter 4 and returns the index where the cursor is 
-        int write_4(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            return pose_index;
-        }
-
-
-
-        // writes letter 5 and returns the index where the cursor is 
-        int write_5(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-
-        // writes letter 6 and returns the index where the cursor is 
-        int write_6(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-
-        // writes letter 7 and returns the index where the cursor is 
-        int write_7(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-
-        // writes letter 8 and returns the index where the cursor is 
-        int write_8(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
-
-
-        // writes letter Z and returns the index where the cursor is 
-        int write_9(int dim, int ex, int pos){
-            int pose_index = pos;
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dash(dim,ex,pose_index);
-            pose_index = write_dot(dim, ex, pose_index);
-            return pose_index;
-        }
 
         cuv::tensor<float,cuv::host_memory_space> get_data(){
-            return data;
+            return m_data;
         }
 
 };
@@ -469,7 +182,7 @@ class Morse_code{
                                   int max_translation, int max_growing, int flag, int morse_factor){
 
             bool translated = max_translation > 0;
-            int num_transformations = 2 * max_translation + 1;
+            int num_transformations = (2 * max_translation + 1) * ( max_growing + 1);
 
             train_data.resize(cuv::extents[3][m_num_train_example][m_dim]);
             test_data.resize(cuv::extents[3][m_num_test_example][m_dim]);
@@ -491,63 +204,65 @@ class Morse_code{
                 translated = false;
             }else{
                 // morse code
-                cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * 36 * num_transformations][m_dim]);
-                cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[m_dim * 36 * num_transformations][num_transformations]);
-                initialize_morse_code(data, labels, m_dim, max_translation, morse_factor);
+                cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * 38 * num_transformations][m_dim]);
+                cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[m_dim * 38 * num_transformations][num_transformations]);
+                initialize_morse_code(data, labels, m_dim, max_translation, morse_factor, max_growing);
                 split_data_set(data, labels, train_data, test_data, train_labels, test_labels, m_num_train_example, m_dim);
                 translated = false;
             }
           
-            vector<int> random_translations_train;
-            vector<int> random_translations_test;
-            vector<int> random_growing_train;
-            vector<int> random_growing_test;
-            // creates the vectors for random translation/growing. It is used to randomly translate/grow each example in dataset 
-            if(max_translation > 0 && translated){
-                init_transformations(random_translations_train, train_data.shape(1), max_translation);
-                init_transformations(random_translations_test, test_data.shape(1), max_translation);
-            }
-            if(max_growing > 0){
-                init_transformations(random_growing_train, train_data.shape(1), max_growing);
-                init_transformations(random_growing_test, test_data.shape(1), max_growing);
-            }
-            
-            // translate and grow train and test data for the first dimension
-            if(translated){ 
-               translate_data(train_data, 1, random_translations_train);
-               translate_data(test_data, 1, random_translations_test);
-            }
-            if(max_growing > 0 && !translated){
-                growing_data(train_data, 1, true, random_growing_train);
-                growing_data(test_data, 1, true, random_growing_test);
-            }
-            else if(max_growing > 0 && translated){
-                growing_data(train_data, 1, false, random_growing_train);
-                growing_data(test_data, 1, false, random_growing_test);
-            }
-            if(translated){
-               translate_data(train_data, 2, random_translations_train);
-               translate_data(test_data, 2, random_translations_test);
-            }
-            
-
-            if(flag != 0 && max_growing > 0){
-                for (unsigned int i = 0; i < random_growing_train.size();i++){
-                    random_growing_train[i] *=2;
+            if(flag !=2){
+                vector<int> random_translations_train;
+                vector<int> random_translations_test;
+                vector<int> random_growing_train;
+                vector<int> random_growing_test;
+                // creates the vectors for random translation/growing. It is used to randomly translate/grow each example in dataset 
+                if(max_translation > 0 && translated){
+                    init_transformations(random_translations_train, train_data.shape(1), max_translation);
+                    init_transformations(random_translations_test, test_data.shape(1), max_translation);
                 }
-                for (unsigned int i = 0; i < random_growing_test.size();i++){
-                    random_growing_test[i] *=2;
+                if(max_growing > 0){
+                    init_transformations(random_growing_train, train_data.shape(1), max_growing);
+                    init_transformations(random_growing_test, test_data.shape(1), max_growing);
                 }
-            }
 
-            // translate and grow train and test data for the second dimension
-            if(max_growing > 0 && !translated){
-                growing_data(train_data, 2, true, random_growing_train);
-                growing_data(test_data, 2, true, random_growing_test);
-            }
-            else if(max_growing > 0 && translated){
-                growing_data(train_data, 2, false, random_growing_train);
-                growing_data(test_data, 2, false, random_growing_test);
+                // translate and grow train and test data for the first dimension
+                if(translated){ 
+                    translate_data(train_data, 1, random_translations_train);
+                    translate_data(test_data, 1, random_translations_test);
+                }
+                if(max_growing > 0 && !translated){
+                    growing_data(train_data, 1, true, random_growing_train);
+                    growing_data(test_data, 1, true, random_growing_test);
+                }
+                else if(max_growing > 0 && translated){
+                    growing_data(train_data, 1, false, random_growing_train);
+                    growing_data(test_data, 1, false, random_growing_test);
+                }
+                if(translated){
+                    translate_data(train_data, 2, random_translations_train);
+                    translate_data(test_data, 2, random_translations_test);
+                }
+
+
+                if(flag != 0 && max_growing > 0){
+                    for (unsigned int i = 0; i < random_growing_train.size();i++){
+                        random_growing_train[i] *=2;
+                    }
+                    for (unsigned int i = 0; i < random_growing_test.size();i++){
+                        random_growing_test[i] *=2;
+                    }
+                }
+
+                // translate and grow train and test data for the second dimension
+                if(max_growing > 0 && !translated){
+                    growing_data(train_data, 2, true, random_growing_train);
+                    growing_data(test_data, 2, true, random_growing_test);
+                }
+                else if(max_growing > 0 && translated){
+                    growing_data(train_data, 2, false, random_growing_train);
+                    growing_data(test_data, 2, false, random_growing_test);
+                }
             }
 
         }
@@ -663,231 +378,26 @@ class Morse_code{
                 return pos;
             }
         }
-
         // initializes the morse code
-        void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans, int morse_factor){
+        void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans, int morse_factor, int max_grow){
             data = 0.f;
             labels = 0.f;
-            Morse_code morse(data, morse_factor);
+            morse_code morse(data, morse_factor);
             int example = 0;
+            std::vector<std::string> morse_code = morse.get_morse_code();
+
             for(int tran = -max_trans; tran <= max_trans; tran++){
-                for(int dim = 0; dim < m_dim; dim++){
-                    morse.write_a(0, example, dim);
-                    morse.write_a(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_a(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_b(0, example, dim);
-                    morse.write_b(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_b(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_c(0, example, dim);
-                    morse.write_c(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_c(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_d(0, example, dim);
-                    morse.write_d(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_d(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_e(0, example, dim);
-                    morse.write_e(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_e(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_f(0, example, dim);
-                    morse.write_f(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_f(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_g(0, example, dim);
-                    morse.write_g(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_g(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_h(0, example, dim);
-                    morse.write_h(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_h(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_i(0, example, dim);
-                    morse.write_i(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_i(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_j(0, example, dim);
-                    morse.write_j(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_j(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_k(0, example, dim);
-                    morse.write_k(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_k(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_l(0, example, dim);
-                    morse.write_l(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_l(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_m(0, example, dim);
-                    morse.write_m(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_m(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_n(0, example, dim);
-                    morse.write_n(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_n(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_o(0, example, dim);
-                    morse.write_o(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_o(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_p(0, example, dim);
-                    morse.write_p(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_p(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_q(0, example, dim);
-                    morse.write_q(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_q(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_r(0, example, dim);
-                    morse.write_r(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_r(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_s(0, example, dim);
-                    morse.write_s(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_s(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_t(0, example, dim);
-                    morse.write_t(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_t(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_u(0, example, dim);
-                    morse.write_u(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_u(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_v(0, example, dim);
-                    morse.write_v(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_v(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_w(0, example, dim);
-                    morse.write_w(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_w(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_x(0, example, dim);
-                    morse.write_x(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_x(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_y(0, example, dim);
-                    morse.write_y(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_y(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_z(0, example, dim);
-                    morse.write_z(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_z(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-
-                    morse.write_0(0, example, dim);
-                    morse.write_0(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_0(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_1(0, example, dim);
-                    morse.write_1(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_1(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_2(0, example, dim);
-                    morse.write_2(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_2(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_3(0, example, dim);
-                    morse.write_3(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_3(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_4(0, example, dim);
-                    morse.write_4(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_4(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_5(0, example, dim);
-                    morse.write_5(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_5(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_6(0, example, dim);
-                    morse.write_6(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_6(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_7(0, example, dim);
-                    morse.write_7(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_7(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_8(0, example, dim);
-                    morse.write_8(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_8(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
-
-                    morse.write_9(0, example, dim);
-                    morse.write_9(1, example, get_wrap_index(m_dim, dim + tran));
-                    morse.write_9(2, example, get_wrap_index(m_dim, dim +  2*tran));
-                    labels(example, tran + max_trans) = 1.f;
-                    example++;
+                for(int grow = 0; grow <= max_grow; grow++){
+                    for(int dim = 0; dim < m_dim; dim++){
+                        morse.set_grow(grow);
+                        for(unsigned int ch = 0; ch < morse_code.size(); ch++){
+                            morse.write_char(ch, 0, example, get_wrap_index(m_dim, dim));
+                            morse.write_char(ch, 1, example, get_wrap_index(m_dim, dim + tran));
+                            morse.write_char(ch, 2, example, get_wrap_index(m_dim, dim + 2*tran));
+                            labels(example, tran + max_trans) = 1.f;
+                            example++;
+                        }
+                    }
                 }
             }
             data = morse.get_data().copy();
