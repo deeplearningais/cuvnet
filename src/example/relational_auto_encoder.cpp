@@ -451,13 +451,16 @@ float test_phase_early_stoping(monitor* mon, gradient_descent* orig_gd, random_t
 
         matrix data = ds->test_data;
         std::vector<Op*> params; // empty!
-        gradient_descent gd(ae->loss(), 0, params, 0);
+        rprop_gradient_descent gd(ae->loss(), 0, params,   0.00001);
+        //gradient_descent gd(ae->loss(), 0, params, 0);
         gd.register_monitor(*mon);
-        gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
+        //gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
         gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
         std::cout << std::endl << " testing phase ";
         mon->set_is_train_phase(false);
-        gd.minibatch_learning(1, 100, 0);
+        //gd.minibatch_learning(1, 100, 0);
+        load_batch(input_x, input_y, teacher, &data,bs,0);
+        gd.batch_learning(1, 100*60);
         mon->set_is_train_phase(true);
         mean = mon->mean("total loss");
     }
@@ -622,7 +625,7 @@ void visualize_prediction(monitor* mon, vector<tensor_type>& img, input_ptr inpu
  * @param num_hidden  number of hidden units 
  * @param params      parameters which are used during the learning 
  */
-tensor_type train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& ae, input_ptr input_x,input_ptr input_y, input_ptr teacher, int bs, int input_size, int num_hidden, std::vector<Op*>& params){
+tensor_type train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& ae, input_ptr input_x,input_ptr input_y, input_ptr teacher, int bs, int input_size, int num_hidden, std::vector<Op*>& params, unsigned int max_num_epochs){
         // copy training data to the device
         matrix train_data = ds.train_data;
 
@@ -650,7 +653,7 @@ tensor_type train_phase(random_translation& ds, monitor& mon, relational_auto_en
         std::cout << std::endl << " Training phase: " << std::endl;
         //gd.minibatch_learning(5000, 100*60); // 10 minutes maximum
         load_batch(input_x, input_y, teacher, &train_data,bs,0);
-        gd.batch_learning(1000, 100*60);
+        gd.batch_learning(max_num_epochs, 100*60);
         tensor_type encoder_train = mon[("encoded")];
         return encoder_train;
         //gd.minibatch_learning(2000, 100*60, 0);
@@ -966,16 +969,18 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int input_size=100,bs=  6000 , subsampling = 2, max_trans = 3, gauss_dist = 12, min_width = 10, max_width = 30, max_growing = 0, flag = 3;
+    unsigned int input_size=100,bs=  3500 , subsampling = 2, max_trans = 3, gauss_dist = 6, min_width = 10, max_width = 30, max_growing = 0, flag = 2, morse_factor = 6;
+    unsigned max_num_epochs = 3000;
     //unsigned int fa = (max_growing * 2 + 1) * (max_trans * 2 + 1) ;
-    unsigned int num_hidden = 30;
+    unsigned int num_hidden = 5;
+
     unsigned int num_factors = 300;
     float sigma = gauss_dist / 3; 
     //float learning_rate = 0.001f;
     // generate random translation datas
-    unsigned int data_set_size = 6000;
+    unsigned int data_set_size = 3500;
     std::cout << "generating dataset: "<<std::endl;
-    random_translation ds(input_size * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width, flag);
+    random_translation ds(input_size * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width, flag, morse_factor);
     ds.binary   = false;
     //ds.binary   = true;
 
@@ -1017,13 +1022,13 @@ int main(int argc, char **argv)
     mon.add(monitor::WP_SINK,               ae.get_encoded(), "encoded");
 
     // does minibatch learning on the train set
-    tensor_type encoder_train = train_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden,  params);
+    tensor_type encoder_train = train_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden,  params, max_num_epochs);
     
     // evaluates the test set
     tensor_type encoder_test = test_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden);
 
     // makes multiple predictions and visualizes inputs, predictions, hidden units, and factors 
-    //prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
+    prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
     
     regression(ds, encoder_train, encoder_test);
     return 0;

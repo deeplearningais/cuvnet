@@ -18,8 +18,9 @@ namespace cuvnet
      * @param data data which is initialized   
      * @param m_dim the size of the input
      * @param max_trans        
+     * @param morse_factor the width of the morse input
      */
-    void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans);
+    void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans, int morse_factor);
 
 
 
@@ -82,12 +83,13 @@ namespace cuvnet
      * @param max_translation the maximum translation allowed
      * @param max_growing the maximum growing allowed
      * @param flag for value 0, the data set is initialized uniformly with m_thresh percentage of zeros. If 1, the data has random bars, and if 2, the data is morse code
+     * @param morse_factor the width of the morse input
      *
      */
     void initialize_data_sets(cuv::tensor<float,cuv::host_memory_space>& train_data, cuv::tensor<float,cuv::host_memory_space>& test_data, 
             cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels,
             int m_num_train_example, int m_num_test_example, int m_dim, float m_thres, int max_size, int min_size, 
-            int max_translation, int max_growing, int flag);
+            int max_translation, int max_growing, int flag, int morse_factor);
 
 
     /**
@@ -154,8 +156,11 @@ namespace cuvnet
          * @param sigma sigma of the gaussian filter
          * @param subsample each subsample element is subsampled from the data.
          * @param translate_size how many elements to translate the data (with wrap-around).
+         * @param flag indicates which input pattern types are created. if set to 0, inputs are randomly uniformly sampled. If 1, the bars of random width are created, and if set to 2, morse code is initialized
+         * @param morse_factor the width of the morse input
+         *
          */
-        random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int translate_size, int max_growing, int min_size, int max_size, int flag);
+        random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int translate_size, int max_growing, int min_size, int max_size, int flag, int morse_factor);
         random_translation(){}
     };
 

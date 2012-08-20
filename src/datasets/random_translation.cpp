@@ -12,10 +12,12 @@ class Morse_code{
     private:
         // data where the code is written 
         cuv::tensor<float,cuv::host_memory_space> data;
+        int factor;
     public:
         // constructor
-        Morse_code(cuv::tensor<float,cuv::host_memory_space> data_):
-        data(data_.copy())
+        Morse_code(cuv::tensor<float,cuv::host_memory_space> data_, int factor_):
+        data(data_.copy()),
+        factor(factor_)
         {
         }
 
@@ -31,19 +33,27 @@ class Morse_code{
         // writes value 1 at position pos, and 0 after it
         int write_dot(int dim, int ex, int pos){
             int size = data.shape(2);
-            data(dim,ex, pos) = 1.f;
-            data(dim,ex, get_wrap_index(size, pos + 1)) = 0.f;
-            return get_wrap_index(size, pos + 2);
+            for(int i = 0; i < factor; i++){
+                data(dim,ex, get_wrap_index(size,pos + i)) = 1.f;
+            }
+            int new_pos = pos + factor;
+            for(int i = 0; i < factor; i++){
+                data(dim,ex, get_wrap_index(size, new_pos + i)) = 0.f;
+            }
+            return get_wrap_index(size,new_pos + factor);
         }
 
         // writes at position pos 3 times 1 and once 0
         int write_dash(int dim, int ex, int pos){
             int size = data.shape(2);
-            data(dim,ex, pos) = 1.f;
-            data(dim,ex, get_wrap_index(size, pos + 1)) = 1.f;
-            data(dim,ex, get_wrap_index(size, pos + 2)) = 1.f;
-            data(dim,ex, get_wrap_index(size, pos + 3)) = 0.f;
-            return get_wrap_index(size,pos + 4);
+            for(int i = 0; i < 2 * factor; i++){
+                data(dim,ex, get_wrap_index(size,pos + i)) = 1.f;
+            }
+            int new_pos = pos + 2 * factor;
+            for(int i = 0; i < factor; i++){
+                data(dim,ex, get_wrap_index(size, new_pos + i)) = 0.f;
+            }
+            return get_wrap_index(size,new_pos + factor);
         }
 
         // writes letter A and returns the index where the cursor is 
@@ -410,7 +420,7 @@ class Morse_code{
 };
 
 
-        random_translation::random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int max_translation, int max_growing,int min_size, int max_size, int flag):
+        random_translation::random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int max_translation, int max_growing,int min_size, int max_size, int flag, int morse_factor):
             m_num_train_example(num_train_examples),
             m_num_test_example(num_test_examples),
             m_dim(dim),
@@ -421,7 +431,7 @@ class Morse_code{
             srand ( time(NULL) );
 
 
-            initialize_data_sets( train_data,  test_data, train_labels, test_labels,  m_num_train_example,  m_num_test_example,  m_dim,  m_thres,  max_size,  min_size,  max_translation,  max_growing, flag);
+            initialize_data_sets( train_data,  test_data, train_labels, test_labels,  m_num_train_example,  m_num_test_example,  m_dim,  m_thres,  max_size,  min_size,  max_translation,  max_growing, flag, morse_factor);
 
 
             if(subsample > 1){
@@ -456,7 +466,7 @@ class Morse_code{
         void initialize_data_sets(cuv::tensor<float,cuv::host_memory_space>& train_data, cuv::tensor<float,cuv::host_memory_space>& test_data, 
                                   cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels,
                                   int m_num_train_example, int m_num_test_example, int m_dim, float m_thres, int max_size, int min_size, 
-                                  int max_translation, int max_growing, int flag){
+                                  int max_translation, int max_growing, int flag, int morse_factor){
 
             bool translated = max_translation > 0;
             int num_transformations = 2 * max_translation + 1;
@@ -483,7 +493,7 @@ class Morse_code{
                 // morse code
                 cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * 36 * num_transformations][m_dim]);
                 cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[m_dim * 36 * num_transformations][num_transformations]);
-                initialize_morse_code(data, labels, m_dim, max_translation);
+                initialize_morse_code(data, labels, m_dim, max_translation, morse_factor);
                 split_data_set(data, labels, train_data, test_data, train_labels, test_labels, m_num_train_example, m_dim);
                 translated = false;
             }
@@ -507,11 +517,11 @@ class Morse_code{
                translate_data(train_data, 1, random_translations_train);
                translate_data(test_data, 1, random_translations_test);
             }
-            if(max_growing > 0 && translated){
+            if(max_growing > 0 && !translated){
                 growing_data(train_data, 1, true, random_growing_train);
                 growing_data(test_data, 1, true, random_growing_test);
             }
-            else if(max_growing > 0 && !translated){
+            else if(max_growing > 0 && translated){
                 growing_data(train_data, 1, false, random_growing_train);
                 growing_data(test_data, 1, false, random_growing_test);
             }
@@ -531,11 +541,11 @@ class Morse_code{
             }
 
             // translate and grow train and test data for the second dimension
-            if(max_growing > 0 && translated){
+            if(max_growing > 0 && !translated){
                 growing_data(train_data, 2, true, random_growing_train);
                 growing_data(test_data, 2, true, random_growing_test);
             }
-            else if(max_growing > 0 && !translated){
+            else if(max_growing > 0 && translated){
                 growing_data(train_data, 2, false, random_growing_train);
                 growing_data(test_data, 2, false, random_growing_test);
             }
@@ -655,10 +665,10 @@ class Morse_code{
         }
 
         // initializes the morse code
-        void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans){
+        void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans, int morse_factor){
             data = 0.f;
             labels = 0.f;
-            Morse_code morse(data);
+            Morse_code morse(data, morse_factor);
             int example = 0;
             for(int tran = -max_trans; tran <= max_trans; tran++){
                 for(int dim = 0; dim < m_dim; dim++){
