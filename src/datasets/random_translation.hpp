@@ -19,8 +19,9 @@ namespace cuvnet
      * @param m_dim the size of the input
      * @param max_trans        
      * @param morse_factor the width of the morse input
+     * @param max_grow the input can grow from -max_grow to +max_grow
      */
-    void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans, int morse_factor);
+    void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans, int morse_factor, int max_grow);
 
 
 

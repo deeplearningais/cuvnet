@@ -969,10 +969,10 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int input_size=100,bs=  3500 , subsampling = 2, max_trans = 3, gauss_dist = 6, min_width = 10, max_width = 30, max_growing = 0, flag = 2, morse_factor = 6;
-    unsigned max_num_epochs = 3000;
+    unsigned int input_size=100,bs=  3500 , subsampling = 2, max_trans =4, gauss_dist = 6, min_width = 10, max_width = 30, max_growing = 0, flag = 2, morse_factor = 6;
+    unsigned max_num_epochs = 5000;
     //unsigned int fa = (max_growing * 2 + 1) * (max_trans * 2 + 1) ;
-    unsigned int num_hidden = 5;
+    unsigned int num_hidden = 6;
 
     unsigned int num_factors = 300;
     float sigma = gauss_dist / 3; 
