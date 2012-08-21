@@ -143,7 +143,7 @@ namespace cuvnet
              *
              * @param is_train true if it is training phase, otherwise is test phase 
              */
-            void set_is_train_phase(bool is_train){
+            void set_training_phase(bool is_train){
                 m_is_train_phase = is_train;
             }
 

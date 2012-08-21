@@ -457,11 +457,11 @@ float test_phase_early_stoping(monitor* mon, gradient_descent* orig_gd, random_t
         //gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
         gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
         std::cout << std::endl << " testing phase ";
-        mon->set_is_train_phase(false);
+        mon->set_training_phase(false);
         //gd.minibatch_learning(1, 100, 0);
         load_batch(input_x, input_y, teacher, &data,bs,0);
         gd.batch_learning(1, 100*60);
-        mon->set_is_train_phase(true);
+        mon->set_training_phase(true);
         mean = mon->mean("total loss");
     }
     orig_gd->repair_swiper();

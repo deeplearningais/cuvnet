@@ -75,9 +75,9 @@ struct hyperopt_client
             gd.register_monitor(*m_mon);
             gd.before_batch.connect(boost::bind(load_batch,in,tch, &data, &labels, bs, _2));
             gd.current_batch_num.connect(data.shape(0)/ll::constant(bs));
-            m_mon->set_is_train_phase(false);
+            m_mon->set_training_phase(false);
             gd.minibatch_learning(1, 100, 0);
-            m_mon->set_is_train_phase(true);
+            m_mon->set_training_phase(true);
             mean = m_mon->mean("classification error");
         }
         m_gd->repair_swiper();
