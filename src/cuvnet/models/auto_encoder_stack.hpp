@@ -35,6 +35,11 @@ class auto_encoder_stack
         }
 
         /**
+         * return the number of auto-encoders in the stack.
+         */
+        inline unsigned int size(){ return m_stack.size(); }
+
+        /**
          * Determine the parameters learned during pre-training
          * @overload
          */
@@ -143,6 +148,16 @@ class auto_encoder_stack
             generic_auto_encoder::init(input);
             reset_weights();
         }
+
+        /**
+         * return the n-th auto-encoder
+         */
+        inline generic_auto_encoder& get_ae(unsigned int i){ return *m_stack[i]; }
+
+        /**
+         * return the input to the stack
+         */
+        inline op_ptr input(){ return m_stack.front()->input(); }
 };
 
 } // namespace cuvnet
