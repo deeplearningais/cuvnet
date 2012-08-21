@@ -35,6 +35,12 @@ class generic_auto_encoder{
     public:
 
         /**
+         * Accessor for input object
+         */
+        inline op_ptr input(){ return m_input; }
+
+
+        /**
          * Determine the parameters to be learned during unsupervised training.
          *
          * All Ops in the returned vector should be instances of class \c Input
