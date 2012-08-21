@@ -80,7 +80,7 @@ class generic_auto_encoder{
         virtual op_ptr& loss(){ return m_loss; };
 
         /**
-         * Reset the weights so that the model can be retrained (e.g. for Crossvalidation).
+         * Reset the weights so that the model can be retrained (eg for Crossvalidation).
          */
         virtual void reset_weights(){};
 
