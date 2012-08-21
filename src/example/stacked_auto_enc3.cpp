@@ -219,7 +219,7 @@ namespace cuvnet{
             gd.register_monitor(mon);
     
             if(m_sdl.can_earlystop()){
-                gd.setup_early_stopping(boost::bind(&monitor::mean,&mon, "total loss"), 10, 1.f, 2.f);
+                gd.setup_early_stopping(boost::bind(&monitor::mean, &mon, "classification error"), 10, 1.f, 2.f);
     
                 gd.before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
                 gd.before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, false));
