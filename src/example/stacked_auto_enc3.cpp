@@ -2,6 +2,7 @@
 //#include <boost/asio.hpp>
 //#include <boost/bind.hpp>
 //#include <boost/thread.hpp>                                                                  
+#include <boost/lambda/lambda.hpp>                                                                  
 #include <mdbq/client.hpp>
 
 #include <cuvnet/ops.hpp>
@@ -50,6 +51,7 @@ namespace cuvnet{
     : public simple_crossvalidatable_learner{
         private:
             friend class boost::serialization::access;
+            std::vector<int>   m_epochs; ///< number of epochs learned
             std::vector<float> m_aes_lr; ///< auto encoder learning rates
             float m_mlp_lr; ///< learning rate of regression
             auto_encoder_stack m_aes; ///< contains all auto-encoders
@@ -108,6 +110,7 @@ namespace cuvnet{
     pretrained_mlp_learner<R>::constructFromBSON(const mongo::BSONObj& o){
         m_sdl.constructFromBSON(o);
         int n_layers = 2;
+        m_mlp_lr = o["mlp_lr"].Double();
         for (int l = 0; l < n_layers; ++l)
         {
             m_aes_lr.push_back(o["aes_lr"].Double());
@@ -128,6 +131,11 @@ namespace cuvnet{
 
         m_aes.init(input);
         m_regression.init(m_aes.get_encoded(), target);
+        
+        // set the initial number of epochs to zero
+        m_epochs.resize(n_layers+1);
+        for (int i = 0; i < n_layers+1; ++i)
+            m_epochs[i] = 0;
     }
 
     template<class R>
@@ -148,11 +156,14 @@ namespace cuvnet{
         gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches, &m_sdl));
         if(mon) {
             gd.register_monitor(*mon);
-            return mon->mean("total loss");
+            gd.minibatch_learning(1, INT_MAX);
+            return mon->mean("classification error");
         }else{
             monitor mon;
+            mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, m_regression.classification_error(), "classification error");
             gd.register_monitor(mon);
-            return mon.mean("total loss");
+            gd.minibatch_learning(1, INT_MAX);
+            return mon.mean("classification error");
         }
     }
 
@@ -165,6 +176,7 @@ namespace cuvnet{
         for (unsigned int ae_id = 0; ae_id < n_ae; ++ae_id)
         {
     
+            // set the initial number of epochs to zero
             generic_auto_encoder& ae = m_aes.get_ae(ae_id);
     
             // set up gradient descent
@@ -173,17 +185,20 @@ namespace cuvnet{
             gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
     
             // set up monitor
-            monitor mon(true);
+            monitor mon(false);
             mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.loss(), "total loss");
             gd.register_monitor(mon);
 
-            gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.995f, 3);
-    
             // do the actual learning
-            if(in_trainall)
-                throw std::runtime_error("Not implemented: Training for same number of epochs as in validation phase");
-            else
+            if(in_trainall) {
+                int n = m_epochs[ae_id] / m_sdl.n_splits();
+                gd.minibatch_learning(n, INT_MAX);
+            }
+            else {
+                gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.95f, 6, 1.3);
                 gd.minibatch_learning(1000, INT_MAX);
+                m_epochs[ae_id] += gd.iters();
+            }
         }
     
         
@@ -204,20 +219,24 @@ namespace cuvnet{
             gd.register_monitor(mon);
     
             if(m_sdl.can_earlystop()){
-                gd.setup_early_stopping(boost::bind(&pretrained_mlp_learner<R>::perf,this, &mon), 100, 1.f, 2.f);
+                gd.setup_early_stopping(boost::bind(&monitor::mean,&mon, "total loss"), 10, 1.f, 2.f);
     
                 gd.before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
-                gd.before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase,&mon, false));
+                gd.before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, false));
     
                 gd.after_early_stopping_epoch.connect(0,boost::bind(&sdl_t::after_early_stopping_epoch,&m_sdl));
                 gd.after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, true));
-                gd.after_early_stopping_epoch.connect(2,boost::bind(&gradient_descent::repair_swiper,&gd));
             }
             // do the actual learning
             if(in_trainall)
-                throw std::runtime_error("Not implemented: Training for same number of epochs as in validation phase");
-            else
+            {
+                int n = m_epochs.back() / m_sdl.n_splits();
+                gd.minibatch_learning(n, INT_MAX);
+            }
+            else {
                 gd.minibatch_learning(1000, INT_MAX);
+                m_epochs.back() += gd.iters();
+            }
             m_sdl.set_early_stopping_frac(0.f);
         }
     
@@ -241,7 +260,7 @@ main(int argc, char **argv)
         }
 
         mongo::BSONObjBuilder bob;
-        bob<<"nsplits"<<1;
+        bob<<"nsplits"<<3;
         bob<<"dataset"<<"mnist";
         bob<<"bs"     <<64;
 
