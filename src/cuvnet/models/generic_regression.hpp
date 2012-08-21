@@ -1,6 +1,7 @@
 #ifndef __GENERIC_REGRESSION_HPP__
 #     define __GENERIC_REGRESSION_HPP__
 
+#include <boost/tuple/tuple.hpp>
 #include <boost/assign.hpp>
 #include <cuv.hpp>
 #include <cuvnet/ops.hpp>
@@ -15,9 +16,7 @@ namespace cuvnet
  *
  * @ingroup models
  */
-template<class Base>
 class generic_regression 
-: public Base
 {
     public:
         /** 
@@ -28,13 +27,14 @@ class generic_regression
     protected:
        op_ptr m_input;    ///< x 
        op_ptr m_target;   ///< y
-       input_ptr m_weights;  ///< W 
-       input_ptr m_bias;     ///< b_y
-       op_ptr m_loss;       ///< accumulated loss (user-supplied plus regularization)
        op_ptr m_user_loss;       ///<  user-supplied loss function
        op_ptr m_regularization_loss;       ///< regularization loss
-       op_ptr m_est;      ///< \f$ \hat{y} = x W + b_y \f$
-       float m_regularization_strength; /// constant with which regularizer is multiplied
+
+    private:
+       input_ptr m_weights;  ///< W 
+       input_ptr m_bias;     ///< b_y
+       op_ptr    m_loss;     ///< accumulated loss (user-supplied plus regularization)
+       op_ptr    m_est;      ///< \f$ \hat{y} = x W + b_y \f$
 
     public: 
        
@@ -43,12 +43,10 @@ class generic_regression
          *
          * @param input a function that generates the input
          * @param target a function that generates the target
-         * @param regularization_strength value with which regularization loss is multiplied
          */
-        generic_regression(op_ptr input, op_ptr target, float regularization_strength = 0.f)
+        generic_regression(op_ptr input, op_ptr target)
             : m_input(input)
             , m_target(target)
-            , m_regularization_strength(regularization_strength)
         {
             // initialize the weights and bias 
             m_input->visit(determine_shapes_visitor()); 
@@ -58,11 +56,17 @@ class generic_regression
             m_weights.reset(new ParameterInput(cuv::extents[input_dim][m_target_dim],"regression_weights"));
             m_bias.reset(new ParameterInput(cuv::extents[m_target_dim],             "regression_bias"));
 
-            m_est      = estimator(input);
-
             // inits weights with random numbers,sets bias to zero
             reset_weights();
             
+        }
+
+        /**
+         * Returns the (additive) regularizer for the auto-encoder.
+         * Defaults to no regularization.
+         */
+        virtual boost::tuple<float,op_ptr> regularize(){
+            return boost::make_tuple(0.f,op_ptr());
         }
 
         /**
@@ -72,14 +76,11 @@ class generic_regression
         op_ptr get_loss(){
             if(!m_loss){
                 m_user_loss = loss();
-                if(m_regularization_strength > 0.f)
-                {
-                    m_regularization_loss = Base::regularize(params());
-                    if(m_regularization_loss) 
-                        m_loss = m_user_loss + m_regularization_strength * m_regularization_loss;
-                    else
-                        m_loss = m_user_loss;
-                }else
+                float lambda;
+                boost::tie(lambda, m_regularization_loss) = regularize();
+                if(lambda && m_regularization_loss) 
+                    m_loss = axpby(m_user_loss, lambda, m_regularization_loss);
+                else
                     m_loss = m_user_loss;
             }
             return m_loss;
@@ -107,16 +108,17 @@ class generic_regression
          */
         virtual ~generic_regression(){}
 
-        /**
-         * @return the input
-         */
-        op_ptr get_estimator(){return m_est;}
 
-        /// \f$  x W + b_y \f$
-        op_ptr  estimator(op_ptr& input){ 
-            return mat_plus_vec(
-                prod( input, m_weights)
-                ,m_bias,1);
+        /**
+         * Returns the linear part of the estimator.
+         * \f$  x W + b_y \f$
+         */
+        op_ptr  get_estimator(){ 
+            if(!m_est)
+                m_est = mat_plus_vec(
+                        prod( m_input, m_weights)
+                        ,m_bias,1);
+            return m_est;
         }
         
 

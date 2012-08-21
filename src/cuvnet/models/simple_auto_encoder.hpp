@@ -2,60 +2,12 @@
 #     define __SIMPLE_AUTO_ENCODER_HPP__
 
 #include <boost/assign.hpp>
+#include "regularizers.hpp"
 #include "generic_auto_encoder.hpp"
 
 namespace cuvnet
 {
 
-/**
- * Implements a weight decay to be mixed into a simple auto encoder (etc)
- *
- * @ingroup models
- */
-class simple_weight_decay
-{
-    public:
-        simple_weight_decay(){}
-        typedef boost::shared_ptr<Op>     op_ptr;
-    /**
-     * L2 regularization of all two-dimensional parameter matrices 
-     */
-    virtual op_ptr regularize(const std::vector<Op*>& unsupervised_params){ 
-        op_ptr regloss;
-        int cnt = 0;
-        BOOST_FOREACH(Op* op, unsupervised_params){
-            if(dynamic_cast<ParameterInput*>(op)->data().ndim()==2){
-                op_ptr tmp = mean(pow(op->shared_from_this(),2.f)); 
-                if(cnt == 0)
-                    regloss = tmp;
-                else if(cnt == 1)
-                    regloss = regloss + tmp;
-                else
-                    regloss = add_to_param(regloss, tmp);
-                cnt ++ ;
-            }
-        }
-        return regloss;
-    }
-};
-
-/**
- * No regularization (mixin for auto-encoders etc).
- *
- * @ingroup models
- */
-class no_regularization
-{
-    public:
-        no_regularization(){}
-        typedef boost::shared_ptr<Op>     op_ptr;
-    /**
-     * no regularization
-     */
-    virtual op_ptr regularize(const std::vector<Op*>& unsupervised_params){ 
-        return op_ptr();
-    }
-};
 
 
 /**
@@ -64,9 +16,8 @@ class no_regularization
  * @example auto_enc.cpp
  * @ingroup models
  */
-template<class Base=no_regularization>
 class simple_auto_encoder 
-: public generic_auto_encoder<Base>
+: public generic_auto_encoder
 {
     // these are the parametrs of the model
     boost::shared_ptr<ParameterInput>  m_weights, m_bias_h, m_bias_y;
@@ -130,7 +81,7 @@ class simple_auto_encoder
      * @param binary if true, assumes inputs are bernoulli distributed
      */
     simple_auto_encoder(unsigned int hidden_dim, bool binary)
-    :generic_auto_encoder<Base>(binary)
+    :generic_auto_encoder(binary)
     ,m_hidden_dim(hidden_dim)
     {
     }
@@ -151,6 +102,32 @@ class simple_auto_encoder
     }
 };
 
+struct l2reg_simple_auto_encoder
+: public simple_auto_encoder
+, public simple_weight_decay
+{
+    typedef boost::shared_ptr<Op>     op_ptr;
+    /**
+     * constructor
+     * 
+     * @param hidden_dim the number of dimensions of the hidden layer
+     * @param binary if true, assumes inputs are bernoulli distributed
+     * @param l2 regularization strength
+     */
+    l2reg_simple_auto_encoder(unsigned int hidden_dim, bool binary, float l2)
+    :simple_auto_encoder(hidden_dim, binary)
+    ,simple_weight_decay(l2)
+    {
+    }
+    /**
+     * Returns the L2 regularization loss.
+     */
+    virtual boost::tuple<float,op_ptr> regularize(){
+        return boost::make_tuple(
+                simple_weight_decay::strength(),
+                simple_weight_decay::regularize(unsupervised_params()));
+    }
+};
 
 } // namespace cuvnet
 #endif /* __SIMPLE_AUTO_ENCODER_HPP__ */

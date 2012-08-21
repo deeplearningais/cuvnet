@@ -14,12 +14,9 @@ namespace cuvnet
  *
  * @ingroup models
  */
-template<class Base>
-class linear_regression:  public generic_regression<Base>{
+class linear_regression:  public generic_regression{
     public:
         typedef boost::shared_ptr<Op>     op_ptr;
-        using generic_regression<Base>::get_target;
-        using generic_regression<Base>::get_estimator;
 
      /**
       * Constructor
@@ -27,7 +24,7 @@ class linear_regression:  public generic_regression<Base>{
       * @param input a function that generates the input 
       * @param target a function that generates the target
       */
-    linear_regression(op_ptr input, op_ptr target): generic_regression<Base>(input, target){}
+    linear_regression(op_ptr input, op_ptr target): generic_regression(input, target){}
    
 
     protected:

@@ -5,8 +5,6 @@
 
 namespace cuvnet
 {
-class no_regularization;
-
 /**
  * A stack of auto-encoders.
  *
@@ -19,12 +17,11 @@ class no_regularization;
  * @see denoising_auto_encoder
  * @ingroup models
  */
-template<class Base=no_regularization>
 class auto_encoder_stack
-: public generic_auto_encoder<Base>
+: public generic_auto_encoder
 {
     public:
-        typedef boost::shared_ptr<generic_auto_encoder<Base> > ae_type;
+        typedef boost::shared_ptr<generic_auto_encoder > ae_type;
         typedef std::vector<ae_type> ae_vec_type;
         typedef boost::shared_ptr<Op>     op_ptr;
 
@@ -33,7 +30,7 @@ class auto_encoder_stack
     public:
 
         auto_encoder_stack(bool binary)
-        :generic_auto_encoder<Base>(binary)
+        :generic_auto_encoder(binary)
         {
         }
 
@@ -43,7 +40,7 @@ class auto_encoder_stack
          */
         virtual std::vector<Op*> unsupervised_params(){
             std::vector<Op*> v;
-            for (typename ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
+            for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
                 std::vector<Op*> tmp = (*it)->unsupervised_params();
                 std::copy(tmp.begin(),tmp.end(),std::back_inserter(v));
             }
@@ -56,7 +53,7 @@ class auto_encoder_stack
          */
         virtual std::vector<Op*> supervised_params(){
             std::vector<Op*> v;
-            for (typename ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
+            for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
                 std::vector<Op*> tmp = (*it)->supervised_params();
                 std::copy(tmp.begin(),tmp.end(),std::back_inserter(v));
             }
@@ -68,7 +65,7 @@ class auto_encoder_stack
          * @overload
          */
         virtual void reset_weights(){
-            for (typename ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
+            for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
                 (*it)->reset_weights();
             }
         }
@@ -80,7 +77,7 @@ class auto_encoder_stack
         virtual op_ptr  encode(op_ptr& inp){
             assert(m_stack.size());
             op_ptr op;
-            for (typename ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
+            for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
                 bool is_first = it == m_stack.begin();
 
                 if(is_first)
@@ -102,7 +99,7 @@ class auto_encoder_stack
         virtual op_ptr  decode(op_ptr& enc){ 
             assert(m_stack.size());
             op_ptr op;
-            for (typename ae_vec_type::reverse_iterator  it = m_stack.rbegin(); it != m_stack.rend(); ++it) {
+            for (ae_vec_type::reverse_iterator  it = m_stack.rbegin(); it != m_stack.rend(); ++it) {
                 bool is_first = it == m_stack.rend()-1;
                 bool is_last  = it == m_stack.rbegin();
 
@@ -135,15 +132,15 @@ class auto_encoder_stack
          *
          * @overload
          */
-        virtual void init(op_ptr input, float regularization_strength=0.f){
-            for (typename ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
+        virtual void init(op_ptr input){
+            for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
                 bool is_first = it == m_stack.begin();
                 if(is_first)
-                    (*it)->init(input, regularization_strength);
+                    (*it)->init(input);
                 else
-                    (*it)->init(boost::dynamic_pointer_cast<Op>((*(it-1))->get_encoded()),regularization_strength);
+                    (*it)->init(boost::dynamic_pointer_cast<Op>((*(it-1))->get_encoded()));
             }
-            generic_auto_encoder<Base>::init(input, regularization_strength);
+            generic_auto_encoder::init(input);
             reset_weights();
         }
 };

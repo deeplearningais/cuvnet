@@ -1,6 +1,7 @@
 #ifndef __GENERIC_AUTO_ENCODER_HPP__
 #     define __GENERIC_AUTO_ENCODER_HPP__
 
+#include <boost/tuple/tuple.hpp>
 #include <cuv.hpp>
 
 #include <cuvnet/ops.hpp>
@@ -13,8 +14,7 @@ namespace cuvnet{
  *
  * @ingroup models
  */
-template<class Base>
-class generic_auto_encoder : public Base {
+class generic_auto_encoder{
     public:
         /** 
          * this is the type of a `function', e.g. the output or the loss of
@@ -129,25 +129,29 @@ class generic_auto_encoder : public Base {
         }
 
         /**
+         * Returns the (additive) regularizer for the auto-encoder.
+         * Defaults to no regularization.
+         */
+        virtual boost::tuple<float,op_ptr> regularize(){
+            return boost::make_tuple(0.f,op_ptr());
+        }
+
+        /**
          * construct encoder, decoder and loss; initialize weights.
          *
          */
-        virtual void init(op_ptr input, float regularization_strength=0.f){
+        virtual void init(op_ptr input){
             m_input     = input;
             m_encoded   = encode(m_input);
             m_decoded   = decode(m_encoded);
             m_rec_loss  = reconstruction_loss(m_input, m_decoded);
 
-            if(regularization_strength != 0.0f){
-                m_reg_loss  = Base::regularize(unsupervised_params()); /// if you get an error here, try using no_regularization for Base
-                if(!m_reg_loss){
-                    m_loss = m_rec_loss;
-                }else{
-                    m_loss          = axpby(m_rec_loss, regularization_strength, m_reg_loss);
-                }
-            }else{
+            float lambda;
+            boost::tie(lambda, m_reg_loss)  = regularize();
+            if(!lambda || !m_reg_loss)
                 m_loss = m_rec_loss;
-            }
+            else
+                m_loss = axpby(m_rec_loss, lambda, m_reg_loss);
             reset_weights();
         }
 

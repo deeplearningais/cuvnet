@@ -111,14 +111,14 @@ TEST_F(RandomNumberUsingTest, simple_ae_loss_derivative){
    boost::shared_ptr<Op>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
 
    {
-       simple_auto_encoder<simple_weight_decay> ae(4, true);
-       ae.init(inp, .01f);
+       l2reg_simple_auto_encoder ae(4, true, 0.01f);
+       ae.init(inp);
        derivative_tester(*ae.loss(),0,false,.01f, 0.f, 1.f); // generate inputs in interval 0,1
    }
 
    {
-       simple_auto_encoder<simple_weight_decay> ae(4, false);
-       ae.init(inp, .01f);
+       l2reg_simple_auto_encoder ae(4, false,0.01f);
+       ae.init(inp);
        derivative_tester(*ae.loss(),0,false,.01f);
    }
 }
@@ -130,7 +130,7 @@ TEST_F(RandomNumberUsingTest, convolutional_auto_encoder_derivative ){
    //inp->set_derivable(false);
 
    {
-       conv_auto_encoder<no_regularization> ae(false, 3, 2);
+       conv_auto_encoder ae(false, 3, 2);
        ae.init(inp);
 
        std::cout << "-encoded" << std::endl;
@@ -147,21 +147,21 @@ TEST_F(RandomNumberUsingTest, convolutional_auto_encoder_derivative ){
 TEST_F(RandomNumberUsingTest, denoising_ae_loss_derivative){
    boost::shared_ptr<Op>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
 
-   denoising_auto_encoder<simple_weight_decay> ae(4, true, .0f); // zero noise
-   ae.init(inp, 0.00f);
+   denoising_auto_encoder ae(4, true, .0f); // zero noise
+   ae.init(inp);
    derivative_tester(*ae.loss(),0,true,.01);
 }
 
 TEST_F(RandomNumberUsingTest, stack_derivative){
    boost::shared_ptr<Op>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
 
-   auto_encoder_stack<simple_weight_decay> ae(true); // zero noise
+   auto_encoder_stack ae(true); // zero noise
 
-   typedef denoising_auto_encoder<simple_weight_decay> ae_type;
-   ae.add<ae_type>(4, true, .0f); 
-   ae.add<ae_type>(4, true, .0f);
+   typedef l2reg_denoising_auto_encoder ae_type;
+   ae.add<ae_type>(4, true, .0f, 0.01f); 
+   ae.add<ae_type>(4, true, .0f, 0.01f);
 
-   ae.init(inp, 0.01f);
+   ae.init(inp);
 
    derivative_tester(*ae.loss(), 0, true, .01);
 }
@@ -170,7 +170,7 @@ TEST_F(RandomNumberUsingTest, linear_regression_derivative){
    boost::shared_ptr<ParameterInput>  inp    = boost::make_shared<ParameterInput>(cuv::extents[3][5], "input");
    boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[3][5], "target");
 
-   linear_regression<no_regularization> lg(inp, target); 
+   linear_regression lg(inp, target); 
    derivative_tester(*lg.get_loss(), 0, false, .01);
 }
 
@@ -179,7 +179,7 @@ TEST_F(RandomNumberUsingTest, logistic_regression_derivative){
    boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[3][5], "target");
    target->set_derivable(false); // cannot derive for target of logistic regression
 
-   logistic_regression<> lg(inp, target); 
+   logistic_regression lg(inp, target); 
    derivative_tester(*lg.get_loss(), 0, false, .03, 0.1, 0.9);
 }
 

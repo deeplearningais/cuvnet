@@ -60,14 +60,14 @@ int main(int argc, char **argv)
             new ParameterInput(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
 
     //creates stacked autoencoder with one simple autoencoder. has fa*fb number of hidden units
-    auto_encoder_stack<simple_weight_decay> ae_s(ds.binary);
-    typedef simple_auto_encoder<simple_weight_decay> ae_type;
-    ae_s.add<ae_type>(fa*fb, ds.binary);
-    ae_s.init(input, 0.01f);
+    auto_encoder_stack ae_s(ds.binary);
+    typedef l2reg_simple_auto_encoder ae_type;
+    ae_s.add<ae_type>(fa*fb, ds.binary, 0.01f);
+    ae_s.init(input);
 
     // creates the logistic regression on the top of the stacked autoencoder
     //linear_regression lr(ae_s.get_encoded(), target);
-    logistic_regression<> lr(ae_s.get_encoded(), target);
+    logistic_regression lr(ae_s.get_encoded(), target);
 
     // puts the supervised parameters of the stacked autoencoder and logistic regression parameters in one vector
     std::vector<Op*> params = ae_s.supervised_params();

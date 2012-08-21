@@ -2,6 +2,7 @@
 #     define __CONVOLUTIONAL_AUTO_ENCODER_HPP__
 
 #include <cuvnet/ops.hpp>
+#include "regularizers.hpp"
 #include "generic_auto_encoder.hpp"
 #include <tools/orthonormalization.hpp>
 
@@ -20,9 +21,8 @@ using boost::make_shared;
  *
  * @ingroup models
  */
-template<class Base>
 class conv_auto_encoder
-: public generic_auto_encoder<Base>
+: public generic_auto_encoder
 {
     public:
 
@@ -88,7 +88,7 @@ class conv_auto_encoder
          * @param n_filters the number filters in the hidden layer
          */
         conv_auto_encoder(bool binary, unsigned int filter_size, unsigned int n_filters)
-            : generic_auto_encoder<Base>(binary)
+            : generic_auto_encoder(binary)
               , m_filter_size(filter_size)
               , m_n_filters(n_filters)
     {
@@ -136,15 +136,14 @@ class conv_auto_encoder
 /**
  * Adds noise before calling the encoder of the conv_auto_encoder
  */
-template<class Regularizer>
 class denoising_conv_auto_encoder 
-: public conv_auto_encoder<Regularizer>
+: public conv_auto_encoder
 {
     /// how much noise to add to inputs
     float m_noise;
 
-    typedef typename conv_auto_encoder<Regularizer>::op_ptr op_ptr;
-    using   typename conv_auto_encoder<Regularizer>::m_binary;
+    typedef conv_auto_encoder::op_ptr op_ptr;
+    using   conv_auto_encoder::m_binary;
 
     public:
 
@@ -156,7 +155,7 @@ class denoising_conv_auto_encoder
         Op::op_ptr corrupt               = inp;
         if( m_binary && m_noise>0.f) corrupt =       zero_out(inp,m_noise);
         if(!m_binary && m_noise>0.f) corrupt = add_rnd_normal(inp,m_noise);
-        return conv_auto_encoder<Regularizer>::encode(corrupt);
+        return conv_auto_encoder::encode(corrupt);
     }
 
     /**
@@ -168,9 +167,38 @@ class denoising_conv_auto_encoder
      * @param noise if >0, add this much noise to input (type of noise depends on \c binary)
      */
     denoising_conv_auto_encoder(bool binary, unsigned int filter_size, unsigned int n_filters, float noise)
-    :conv_auto_encoder<Regularizer>(binary, filter_size, n_filters)
+    :conv_auto_encoder(binary, filter_size, n_filters)
     ,m_noise(noise)
     {
+    }
+};
+
+struct l2reg_denoising_conv_auto_encoder
+: public denoising_conv_auto_encoder
+, public simple_weight_decay
+{
+    typedef conv_auto_encoder::op_ptr op_ptr;
+    /**
+     * constructor
+     * 
+     * @param binary if true, assumes inputs are bernoulli distributed
+     * @param filter_size the size of filters in the hidden layer
+     * @param n_filters the number filters in the hidden layer
+     * @param noise if >0, add this much noise to input (type of noise depends on \c binary)
+     * @param l2 l2 regularization strength
+     */
+    l2reg_denoising_conv_auto_encoder(bool binary, unsigned int filter_size, unsigned int n_filters, float noise, float l2)
+    :denoising_conv_auto_encoder(binary, filter_size, n_filters, noise)
+    ,simple_weight_decay(l2)
+    {
+    }
+    /**
+     * Returns the L2 regularization loss.
+     */
+    virtual boost::tuple<float,op_ptr> regularize(){
+        return boost::make_tuple(
+                simple_weight_decay::strength(),
+                simple_weight_decay::regularize(unsupervised_params()));
     }
 };
 
