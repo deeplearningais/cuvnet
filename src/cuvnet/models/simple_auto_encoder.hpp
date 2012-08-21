@@ -3,6 +3,7 @@
 
 #include <boost/assign.hpp>
 #include "regularizers.hpp"
+#include <cuvnet/op_utils.hpp>
 #include "generic_auto_encoder.hpp"
 
 namespace cuvnet
