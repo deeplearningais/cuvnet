@@ -27,6 +27,12 @@ class auto_encoder_stack
 
     private:
         ae_vec_type m_stack;
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & boost::serialization::base_object<generic_auto_encoder>(*this);
+                ar & m_stack;
+            }
     public:
 
         auto_encoder_stack(bool binary)

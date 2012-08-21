@@ -21,6 +21,11 @@ class generic_auto_encoder{
          * the autoencoder
          */
         typedef boost::shared_ptr<Op>     op_ptr;
+    private:
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & m_input & m_encoded & m_decoded & m_reg_loss & m_rec_loss & m_loss & m_binary;
+            }
     protected:
         op_ptr m_input;     ///< the input of the auto-encoder (might be different from what is supplied in \c init())
         op_ptr m_encoded;   ///< the encoder function
