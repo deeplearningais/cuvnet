@@ -28,6 +28,11 @@ class logistic_regression:  public generic_regression{
     logistic_regression(op_ptr input, op_ptr target): generic_regression(input, target){
     }
 
+     /**
+      * Default Constructor: You need to call init() to finish initialization.
+      */   
+    logistic_regression(){ }
+
     protected:
 
     /**

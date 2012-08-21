@@ -25,6 +25,11 @@ class linear_regression:  public generic_regression{
       * @param target a function that generates the target
       */
     linear_regression(op_ptr input, op_ptr target): generic_regression(input, target){}
+
+     /**
+      * Default Constructor: You need to call init() to finish initialization.
+      */
+    linear_regression(){}
    
 
     protected:

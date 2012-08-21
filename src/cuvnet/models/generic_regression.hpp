@@ -45,9 +45,28 @@ class generic_regression
          * @param target a function that generates the target
          */
         generic_regression(op_ptr input, op_ptr target)
-            : m_input(input)
-            , m_target(target)
         {
+            init(input,target);
+        }
+
+        /**
+         * Default Constructor: You need to call init() to finish initialization.
+         */
+        generic_regression()
+        {
+        }
+
+        /**
+         * Constructor
+         *
+         * @param input a function that generates the input
+         * @param target a function that generates the target
+         */
+        void init(op_ptr input, op_ptr target)
+        {
+            m_input = input;
+            m_target = target;
+
             // initialize the weights and bias 
             m_input->visit(determine_shapes_visitor()); 
             unsigned int input_dim = m_input->result()->shape[1]; 
@@ -58,7 +77,6 @@ class generic_regression
 
             // inits weights with random numbers,sets bias to zero
             reset_weights();
-            
         }
 
         /**
