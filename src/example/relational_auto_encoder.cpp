@@ -442,7 +442,7 @@ void load_batch(
  * @param bs          batch size
  *
  */
-float test_phase_early_stoping(monitor* mon, gradient_descent* orig_gd, random_translation* ds, relational_auto_encoder* ae, input_ptr input_x, input_ptr input_y, input_ptr teacher, int bs){
+float test_phase_early_stopping(monitor* mon, gradient_descent* orig_gd, random_translation* ds, relational_auto_encoder* ae, input_ptr input_x, input_ptr input_y, input_ptr teacher, int bs){
     float mean = 0.f;
     {
         tensor_type fx = ae->get_fx()->data();
@@ -635,7 +635,7 @@ tensor_type train_phase(random_translation& ds, monitor& mon, relational_auto_en
         //rprop_gradient_descent gd(ae.loss(), 0, params, 0.00001, 0.005f);
         rprop_gradient_descent gd(ae.loss(), 0, params,   0.00001);
         //gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.45f,350);
-        gd.setup_early_stopping(boost::bind(test_phase_early_stoping, &mon, &gd, &ds,  &ae,  input_x,  input_y, teacher,bs), 100, 1.f, 2.f);
+        gd.setup_early_stopping(boost::bind(test_phase_early_stopping, &mon, &gd, &ds,  &ae,  input_x,  input_y, teacher,bs), 100, 1.f, 2.f);
         // register the monitor so that it receives learning events
         gd.register_monitor(mon);
 
