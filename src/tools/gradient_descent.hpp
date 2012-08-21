@@ -266,6 +266,7 @@ namespace cuvnet
                 after_epoch.connect( boost::bind(&M::after_epoch,&m));
                 after_batch.connect( boost::bind(&M::after_batch,&m));
                 before_epoch.connect(boost::bind(&M::before_epoch,&m));
+                before_early_stopping_epoch.connect(boost::bind(&M::before_epoch,&m));
 
                 // the user probably registered variables with the monitor,
                 // which attaches sinks. We need to recreate the swiper,
