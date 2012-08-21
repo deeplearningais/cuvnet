@@ -121,20 +121,22 @@ namespace cuvnet
             /**
              * set up stopping by convergence check
              *
-             * Stops when new value is more than thresh*best_value for max_fail epochs
+             * Stops when new value is more than thresh*best_value for `many` epochs.
              *
              * Tested on /training/ set, which should always improve, except
              * for too large/too small learning rates.
              *
              * @param performance a function which determines how good we are after an epoch
-             * @param thresh stop when new value is more than thresh*best_value
-             * @param maxfail stop when thresh was not attained for this many tries
+             * @param thresh stop when new value is more than thresh*best_value and no patience left
+             * @param min_epochs initial value for patience
+             * @param patience_inc_fact patience is multiplied by this when better performance is found
              */
             template<class T>
-            void setup_convergence_stopping(T performance, float thresh, unsigned int maxfail){
+            void setup_convergence_stopping(T performance, float thresh, unsigned int min_epochs, float patience_inc_fact=2.f){
                 m_performance = performance;
                 m_convergence_checking = true;
-                after_epoch.connect(boost::bind(&gradient_descent::convergence_test,this, thresh, maxfail, _1), boost::signals::at_front);
+                cuvAssert(patience_inc_fact > 1.);
+                after_epoch.connect(boost::bind(&gradient_descent::convergence_test,this, thresh, min_epochs, patience_inc_fact, _1), boost::signals::at_front);
             }
 
 
@@ -381,20 +383,20 @@ namespace cuvnet
              * test for convergence. 
              * use @see setup_convergence_stopping to use this function.
              */
-            void convergence_test(float thresh, unsigned int maxfail, unsigned int current_epoch){
+            void convergence_test(float thresh, unsigned int min_epochs, float patience_inc_factor, unsigned int current_epoch){
                 float perf = m_performance();
                 if(current_epoch == 0){
                     m_initial_performance = perf;
                     m_last_perf = perf;
-                    m_convcheck_patience = maxfail;
+                    m_convcheck_patience = min_epochs;
                     return;
                 }
+                std::cout << "\r epoch: "<<current_epoch<<":  "<<perf<<" (ratio:"<<(perf / m_last_perf)<<" patience: "<<m_convcheck_patience<<")                  " << std::flush;
                 if(perf < thresh * m_last_perf){
                     m_last_perf = perf;
-                    m_convcheck_patience = std::max(m_convcheck_patience, 2*current_epoch);
+                    m_convcheck_patience = std::max(m_convcheck_patience, (unsigned int)(patience_inc_factor*current_epoch));
                 }
 
-                std::cout << "\r epoch: "<<current_epoch<<":  "<<perf<<" (delta:"<<(perf - m_last_perf)<<")                  " << std::flush;
                 if(current_epoch >= m_convcheck_patience){
                     std::cout << std::endl << "Stopping due to convergence after "<<current_epoch<<" epochs, perf: "<< perf << std::endl;
                     throw convergence_stop();
