@@ -1,4 +1,9 @@
-#include <iterator>
+#include <mongo/client/dbclient.h>
+//#include <boost/asio.hpp>
+//#include <boost/bind.hpp>
+//#include <boost/thread.hpp>                                                                  
+#include <mdbq/client.hpp>
+
 #include <cuvnet/ops.hpp>
 #include <cuvnet/models/auto_encoder_stack.hpp>
 #include <cuvnet/models/logistic_regression.hpp>
@@ -100,7 +105,29 @@ namespace cuvnet{
     
     template<class R>
     void
-    pretrained_mlp_learner<R>::constructFromBSON(const mongo::BSONObj&){
+    pretrained_mlp_learner<R>::constructFromBSON(const mongo::BSONObj& o){
+        m_sdl.constructFromBSON(o);
+        int n_layers = 2;
+        for (int l = 0; l < n_layers; ++l)
+        {
+            m_aes_lr.push_back(o["aes_lr"].Double());
+            m_aes.add<simple_auto_encoder>(128, m_sdl.get_ds().binary);
+        }
+
+        // create a ParameterInput for the input
+        cuvAssert(m_sdl.get_ds().train_data.ndim() == 2);
+        boost::shared_ptr<ParameterInput> input
+            = boost::make_shared<ParameterInput>(
+                    cuv::extents[m_sdl.batchsize()][m_sdl.get_ds().train_data.shape(1)]);
+
+        // create a ParameterInput for the target
+        cuvAssert(m_sdl.get_ds().train_labels.ndim() == 2);
+        boost::shared_ptr<ParameterInput> target 
+            = boost::make_shared<ParameterInput>(
+                    cuv::extents[m_sdl.batchsize()][m_sdl.get_ds().train_labels.shape(1)]);
+
+        m_aes.init(input);
+        m_regression.init(m_aes.get_encoded(), target);
     }
 
     template<class R>
@@ -111,9 +138,8 @@ namespace cuvnet{
     }
     template<class R>
     float
-    pretrained_mlp_learner<R>::predict(){
-        return perf();
-    }
+    pretrained_mlp_learner<R>::predict(){ return perf(); }
+
     template<class R>
     float 
     pretrained_mlp_learner<R>::perf(monitor* mon){
@@ -129,6 +155,7 @@ namespace cuvnet{
             return mon.mean("total loss");
         }
     }
+
     template<class R>
     void pretrained_mlp_learner<R>::fit(){
         using namespace boost::assign;
@@ -198,13 +225,36 @@ namespace cuvnet{
     }
 }
 
+
 int
 main(int argc, char **argv)
 {
-    cuvnet::pretrained_mlp_learner<cuvnet::logistic_regression> ml(true);
 
 
 
-    
+
+    if(std::string("test") == argv[1]){
+        cuvAssert(argc==3);
+        if(cuv::IsSame<cuvnet::matrix::memory_space_type,cuv::dev_memory_space>::Result::value){
+            cuv::initCUDA(boost::lexical_cast<int>(argv[2]));
+            cuv::initialize_mersenne_twister_seeds(time(NULL));
+        }
+
+        mongo::BSONObjBuilder bob;
+        bob<<"nsplits"<<1;
+        bob<<"dataset"<<"mnist";
+        bob<<"bs"     <<64;
+
+        bob<<"nlayers"<<2;
+        bob<<"aes_lr" <<0.01f;
+        bob<<"mlp_lr" <<0.01f;
+
+        auto ml = boost::make_shared<cuvnet::pretrained_mlp_learner<cuvnet::logistic_regression> >(true);
+        ml->constructFromBSON(bob.obj());
+
+        cuvnet::cv::all_splits_evaluator ase(ml);
+        ase();
+    }
+
     return 0;
 }
