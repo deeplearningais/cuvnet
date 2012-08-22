@@ -111,10 +111,11 @@ namespace cuvnet{
         m_sdl.constructFromBSON(o);
         int n_layers = 2;
         m_mlp_lr = o["mlp_lr"].Double();
+        m_sdl.set_early_stopping_frac(o["es_frac"].Double());
         for (int l = 0; l < n_layers; ++l)
         {
             m_aes_lr.push_back(o["aes_lr"].Double());
-            m_aes.add<simple_auto_encoder>(128, m_sdl.get_ds().binary);
+            m_aes.add<simple_auto_encoder>(512, m_sdl.get_ds().binary);
         }
 
         // create a ParameterInput for the input
@@ -154,6 +155,7 @@ namespace cuvnet{
         std::vector<Op*> params; // empty!
         gradient_descent gd(m_regression.get_loss(), 0, params, 0.0f); // learning rate 0
         gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches, &m_sdl));
+        std::cout << m_sdl.describe_current_mode_split(true) << std::endl;
         if(mon) {
             gd.register_monitor(*mon);
             gd.minibatch_learning(1, INT_MAX);
@@ -172,6 +174,7 @@ namespace cuvnet{
         using namespace boost::assign;
         unsigned int n_ae = m_aes.size();
         bool in_trainall = m_sdl.get_current_cv_mode() == CM_TRAINALL;
+        std::cout << m_sdl.describe_current_mode_split(true) << std::endl;
 
         for (unsigned int ae_id = 0; ae_id < n_ae; ++ae_id)
         {
@@ -186,6 +189,8 @@ namespace cuvnet{
     
             // set up monitor
             monitor mon(false);
+            mon.set_training_phase(m_sdl.get_current_cv_mode(), m_sdl.get_current_split());
+            mon.add("layer", ae_id);
             mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.loss(), "total loss");
             gd.register_monitor(mon);
 
@@ -195,8 +200,8 @@ namespace cuvnet{
                 gd.minibatch_learning(n, INT_MAX);
             }
             else {
-                gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.95f, 6, 1.3);
-                gd.minibatch_learning(1000, INT_MAX);
+                gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.95f, 6, 2.0);
+                gd.minibatch_learning(2, INT_MAX);
                 m_epochs[ae_id] += gd.iters();
             }
         }
@@ -213,19 +218,21 @@ namespace cuvnet{
             gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
     
             // set up monitor
-            monitor mon(true);
+            monitor mon(false);
+            mon.add("layer", n_ae);
+            mon.set_training_phase(m_sdl.get_current_cv_mode(), m_sdl.get_current_split());
             mon.add(monitor::WP_SCALAR_EPOCH_STATS, m_regression.get_loss(), "total loss");
             mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, m_regression.classification_error(), "classification error");
             gd.register_monitor(mon);
     
             if(m_sdl.can_earlystop()){
-                gd.setup_early_stopping(boost::bind(&monitor::mean, &mon, "classification error"), 10, 1.f, 2.f);
+                gd.setup_early_stopping(boost::bind(&monitor::mean, &mon, "classification error"), 10, 0.995f, 2.f);
     
                 gd.before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
-                gd.before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, false));
+                gd.before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, m_sdl.get_current_split()));
     
                 gd.after_early_stopping_epoch.connect(0,boost::bind(&sdl_t::after_early_stopping_epoch,&m_sdl));
-                gd.after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, true));
+                gd.after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, CM_TRAIN, m_sdl.get_current_split()));
             }
             // do the actual learning
             if(in_trainall)
@@ -234,7 +241,7 @@ namespace cuvnet{
                 gd.minibatch_learning(n, INT_MAX);
             }
             else {
-                gd.minibatch_learning(1000, INT_MAX);
+                gd.minibatch_learning(100, INT_MAX);
                 m_epochs.back() += gd.iters();
             }
             m_sdl.set_early_stopping_frac(0.f);
@@ -260,13 +267,14 @@ main(int argc, char **argv)
         }
 
         mongo::BSONObjBuilder bob;
-        bob<<"nsplits"<<3;
+        bob<<"nsplits"<<5;
         bob<<"dataset"<<"mnist";
-        bob<<"bs"     <<64;
+        bob<<"bs"     <<128;
 
         bob<<"nlayers"<<2;
         bob<<"aes_lr" <<0.01f;
         bob<<"mlp_lr" <<0.01f;
+        bob<<"es_frac"<<.1f;
 
         auto ml = boost::make_shared<cuvnet::pretrained_mlp_learner<cuvnet::logistic_regression> >(true);
         ml->constructFromBSON(bob.obj());
