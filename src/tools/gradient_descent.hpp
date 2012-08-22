@@ -382,7 +382,7 @@ namespace cuvnet
                         cuvAssert(p);
                         std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >::iterator mit = m_best_perf_params.find(*it);
                         if(mit != m_best_perf_params.end()) {
-                            std::cout << "...loading best `"<<p->name()<<"'"<<std::endl;
+                            //std::cout << "...loading best `"<<p->name()<<"'"<<std::endl;
                             p->data() = m_best_perf_params[*it];
                             did_load_something = true;
                         }
