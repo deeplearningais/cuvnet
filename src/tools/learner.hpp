@@ -77,6 +77,9 @@ namespace cuvnet
             /// @return the current cv-mode
             inline unsigned int get_current_split(){ return m_current_split; }
 
+            /// @return a string describing the current mode/split
+            std::string describe_current_mode_split(bool verbose);
+
             void before_early_stopping_epoch(); ///< sets m_in_validation_mode to true
             void after_early_stopping_epoch();  ///< sets m_in_validation_mode to false
             

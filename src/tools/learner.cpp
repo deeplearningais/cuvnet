@@ -41,6 +41,23 @@ namespace cuvnet
     }
 
     template<class StorageSpace>
+    std::string SimpleDatasetLearner<StorageSpace>::describe_current_mode_split(bool verbose){
+        std::string desc;
+        if(verbose){
+            desc = " patterns: "+boost::lexical_cast<std::string>(n_batches()*m_bs);
+        }
+        if(m_current_mode == CM_TRAINALL)
+            return "TRAINALL"+desc;
+        if(m_current_mode == CM_TRAIN)
+            return "TRAIN_SPLIT" + boost::lexical_cast<std::string>(m_current_split)+desc;
+        if(m_current_mode == CM_VALID)
+            return "VALID_SPLIT" + boost::lexical_cast<std::string>(m_current_split)+desc;
+        if(m_current_mode == CM_TEST)
+            return "TEST"+desc;
+        throw std::runtime_error("SimpleDatasetLearner: Unknown mode!");
+    }
+
+    template<class StorageSpace>
     void SimpleDatasetLearner<StorageSpace>::switch_dataset(unsigned int split, cv_mode mode){
         cuv::tensor<float,cuv::host_memory_space> data, vdata;
         cuv::tensor<float,  cuv::host_memory_space> labels, vlabels;
