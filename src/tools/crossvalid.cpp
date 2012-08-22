@@ -73,10 +73,13 @@ namespace cuvnet
             if(m_ptr->refit_for_test()){
                 if(m_perf < m_ptr->refit_thresh()){ // save time!
                     // retrain on TRAINALL (incl. VAL) and test on TEST
+					std::cout << "Training on TRAINVAL..." << std::endl;
                     m_ptr->reset_params();
                     m_ptr->switch_dataset(0,CM_TRAINALL);
                     m_ptr->fit();
-                }
+                }else{
+					std::cout << "Skipping training on TRAINVAL: not good enough." << std::endl;
+				}
                 m_ptr->switch_dataset(0,CM_TEST);
                 m_test_perf = m_ptr->predict();
                 std::cout << "Test error:" << m_test_perf << std::endl;
