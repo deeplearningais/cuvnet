@@ -103,6 +103,7 @@ namespace cuvnet
                 acc_t           scalar_stats;
             };
 
+            std::vector<std::pair<std::string,std::string> > m_constants; ///< keeps all constants
             std::vector<watchpoint*> m_watchpoints; ///< keeps all watchpoints 
             std::map<std::string, watchpoint*> m_wpmap;  ///< access watchpoints by name
             bool m_verbose; ///< if true, log to stdout after each epoch
@@ -139,6 +140,12 @@ namespace cuvnet
             monitor& add(watchpoint_type type, boost::shared_ptr<Op> op, const std::string& name){
                 m_watchpoints.push_back(new watchpoint(type,op,name));
                 m_wpmap[name] = m_watchpoints.back();
+                return *this;
+            }
+
+            template<class ValueType>
+            monitor& add(const std::string& name, const ValueType& value){
+                m_constants.push_back(std::make_pair(name, boost::lexical_cast<std::string>(value)));
                 return *this;
             }
 
@@ -305,10 +312,14 @@ namespace cuvnet
              * plain text logging of all epochstats to the file 
              */
             void log_to_file(){
+                typedef std::pair<std::string, std::string> ss_t;
                 assert(m_logfile.is_open());
                 if(need_header_log_file){
                     m_logfile << "mode\tsplit\tepoch\tmem";
                     need_header_log_file = false;
+                    BOOST_FOREACH(const ss_t& p, m_constants){
+                        m_logfile << '\t' << p.first;
+                    }
                     BOOST_FOREACH(const watchpoint* p, m_watchpoints){
                         m_logfile << '\t' << p->name;
                     }
@@ -316,6 +327,9 @@ namespace cuvnet
                 }
                     
                 m_logfile << m_cv_mode << '\t' << m_split << '\t' << m_epochs << '\t' << cuv::getFreeDeviceMemory();
+                BOOST_FOREACH(const ss_t& p, m_constants){
+                    m_logfile << '\t' << p.second;
+                }
                 BOOST_FOREACH(const watchpoint* p, m_watchpoints){
                     if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
                         // writes to the file the loss
@@ -330,6 +344,10 @@ namespace cuvnet
              */
             void simple_logging()const{
                 std::cout << "\r epoch "<<m_epochs<<"/"<<m_batch_presentations<<":  free_mb="<<cuv::getFreeDeviceMemory()/1024/1024<<",  ";
+                typedef std::pair<std::string, std::string> ss_t;
+                BOOST_FOREACH(const ss_t& p, m_constants){
+                    std::cout << p.first<<"="<<p.second<<" ";
+                }
                 BOOST_FOREACH(const watchpoint* p, m_watchpoints){
                     if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
                         std::cout  << p->name<<"="
