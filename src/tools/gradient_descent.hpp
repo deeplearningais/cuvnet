@@ -339,9 +339,9 @@ namespace cuvnet
                     m_initial_performance = perf;
 
                 if(perf < m_best_perf)
-                    std::cout << " * early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<n_batches<<" batches): "<< perf<<std::endl;
+                    std::cout << "\r * early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<n_batches<<" batches "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
                 else
-                    std::cout << " - early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<n_batches<<" batches): "<< perf<<std::endl;
+                    std::cout << "\r - early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<n_batches<<" batches "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
 
                 if(perf < m_best_perf) {
                     // save the (now best) parameters
