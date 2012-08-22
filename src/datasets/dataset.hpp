@@ -7,8 +7,8 @@ namespace cuvnet
 {
     enum cv_mode {
         CM_TRAIN,
-        CM_TRAINALL,
         CM_VALID,
+        CM_TRAINALL,
         CM_TEST
     };
 
