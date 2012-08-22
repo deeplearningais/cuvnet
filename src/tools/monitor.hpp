@@ -219,10 +219,10 @@ namespace cuvnet
             void after_epoch(){
                 if(m_cv_mode == CM_TRAIN || m_cv_mode == CM_TRAINALL)
                     m_epochs ++;
-                if(m_verbose){
-                    log_to_file();
+                if(m_verbose)
                     simple_logging();
-                }
+                if(m_logfile.is_open())
+                    log_to_file();
                 m_batch_presentations = 0;
             }
 
