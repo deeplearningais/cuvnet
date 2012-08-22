@@ -268,6 +268,11 @@ namespace cuvnet
                 before_epoch.connect(boost::bind(&M::before_epoch,&m));
                 before_early_stopping_epoch.connect(boost::bind(&M::before_epoch,&m));
 
+                // do this at front, since it contains the logging and monitor
+                // state (is_training_phase) might be changed with a later
+                // signal so that logging is incorrect.
+                after_early_stopping_epoch.connect(boost::signals::at_front, boost::bind(&M::after_epoch,&m));
+
                 // the user probably registered variables with the monitor,
                 // which attaches sinks. We need to recreate the swiper,
                 // so that the sinks are updated accordingly.
