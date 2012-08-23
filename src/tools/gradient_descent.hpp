@@ -342,9 +342,9 @@ namespace cuvnet
                     m_initial_performance = perf;
 
                 if(perf < m_best_perf)
-                    std::cout << "\r * early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<n_batches<<" batches "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
+                    std::cout << "\r * early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
                 else
-                    std::cout << "\r - early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<n_batches<<" batches "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
+                    std::cout << "\r - early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
 
                 if(perf < m_best_perf) {
                     // save the (now best) parameters
@@ -385,13 +385,15 @@ namespace cuvnet
                         cuvAssert(p);
                         std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >::iterator mit = m_best_perf_params.find(*it);
                         if(mit != m_best_perf_params.end()) {
-                            //std::cout << "...loading best `"<<p->name()<<"'"<<std::endl;
                             p->data() = m_best_perf_params[*it];
                             did_load_something = true;
                         }
                     }
                     if(did_load_something)
+                    {
+                        std::cout << "...loaded best params (epoch "<< m_epoch_of_saved_params <<")"<<std::endl;
                         m_epoch = m_epoch_of_saved_params;
+                    }
             }
             /**
              * test for convergence. 
@@ -405,14 +407,14 @@ namespace cuvnet
                     m_convcheck_patience = min_epochs;
                     return;
                 }
-                std::cout << "\r epoch: "<<current_epoch<<":  "<<perf<<" (ratio:"<<(perf / m_last_perf)<<" patience: "<<m_convcheck_patience<<")                  " << std::flush;
+                std::cout << "\rconvergence-test("<<current_epoch<<"/"<<m_convcheck_patience<<", "<<(perf/m_last_perf)<<"): "<<perf<<"                  " << std::flush;
                 if(perf < thresh * m_last_perf){
                     m_last_perf = perf;
                     m_convcheck_patience = std::max(m_convcheck_patience, (unsigned int)(patience_inc_factor*current_epoch));
                 }
 
                 if(current_epoch >= m_convcheck_patience){
-                    std::cout << std::endl << "Stopping due to convergence after "<<current_epoch<<" epochs, perf: "<< perf << std::endl;
+                    std::cout << "\rconvergence-test(stopping after "<<current_epoch<<" epochs):"<< perf << "                "<< std::endl;
                     throw convergence_stop();
                 }
             }
@@ -422,7 +424,6 @@ namespace cuvnet
              * @return number of early-stopping batches
              */
             unsigned int early_stopping_epoch(unsigned int current_epoch){
-                before_early_stopping_epoch(current_epoch);
                 unsigned int n_batches = current_batch_num();
                 for (unsigned int  batch = 0; batch < n_batches; ++batch) {
                     before_batch(current_epoch, batch);
