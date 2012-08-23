@@ -4,10 +4,6 @@
 #include <datasets/dataset.hpp>
 #include <datasets/splitter.hpp>
 
-namespace mongo
-{
-    class BSONObj;
-}
 namespace cuvnet
 {
     /**
@@ -41,31 +37,16 @@ namespace cuvnet
             /// the current split
             unsigned int m_current_split;
 
-            /**
-             *  Portion of training set which is reserved for early stopping.
-             *  this is always taken from the beginning of the current split
-             *  and should have values between 1/batchsize and (batchsize-1)/batchsize
-             */
-            float m_early_stopping_frac;
-
             cuv::tensor<float,StorageSpace> m_current_data, m_current_vdata;
             cuv::tensor<float,StorageSpace> m_current_labels, m_current_vlabels;
 
         public:
-            /**
-             * create this object from a BSONObj
-             */
-            void constructFromBSON(const mongo::BSONObj& o);
 
             /**
-             * set a new value for early stopping fraction
-             *
-             * @param new early stopping fraction
+             * initialize 
              */
-            void set_early_stopping_frac(float es_frac){
-                m_early_stopping_frac = es_frac;
-            }
-
+            void init(int bs, std::string ds, unsigned int nsplits, float es_frac=0.1f);
+            
             /**
              * switch to a split and a cross-validation mode
              */
