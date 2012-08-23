@@ -329,6 +329,11 @@ namespace cuvnet
                 init();
         }
 
+        void dump(const std::string& filename){
+            std::ofstream os(filename);
+            write_graphviz(*m_op, os, m_topo.plist );
+        }
+
         void init()
         {
                 Op& op = *m_op;
@@ -349,8 +354,7 @@ namespace cuvnet
 
                 op.visit(determine_shapes_visitor());
 
-                std::ofstream os("swiper-initial.dot");
-                write_graphviz(op, os, m_topo.plist );
+                dump("swiper-initial.dot");
             }
 
         /**
