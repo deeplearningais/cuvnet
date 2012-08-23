@@ -165,6 +165,37 @@ namespace cuvnet
         random_translation(){}
     };
 
+/**
+ * implements morse code dataset.  
+ */
+    class morse_code{
+        private:
+            // data where the code is written 
+            cuv::tensor<float,cuv::host_memory_space> m_data;
+            int m_factor;
+            int m_grow;
+            std::vector<std::string>  m_morse_code;
+        public:
+        /**
+         * Constructor
+         *
+         * @param data the data where the morse code is stored
+         * @param morse_factor the width of the morse input
+         *
+         */
+            morse_code(cuv::tensor<float,cuv::host_memory_space> data, int factor);
+            int get_wrap_index(int size, int pos);
+            std::vector<std::string> get_morse_code();
+            void init_morse_code_data_structure();
+            int char_to_morse_index(char c);
+            int get_width_char(int ch, int factor);
+            void set_grow(int grow);
+            int write_dot(int dim, int ex, int pos);
+            int write_dash(int dim, int ex, int pos);
+            int write_char(int ch, int dim, int ex, int pos);
+            unsigned int get_size();
+            cuv::tensor<float,cuv::host_memory_space> get_data();
+    };
 
 }
 

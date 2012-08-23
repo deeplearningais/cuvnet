@@ -7,28 +7,23 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <stdio.h>
+#include <stdlib.h>
 using namespace std;
 namespace cuvnet
 {
 
-class morse_code{
-    private:
-        // data where the code is written 
-        cuv::tensor<float,cuv::host_memory_space> m_data;
-        int m_factor;
-        int m_grow;
-        std::vector<std::string>  m_morse_code;
-    public:
         // constructor
-        morse_code(cuv::tensor<float,cuv::host_memory_space> data, int factor):
+    morse_code::morse_code(cuv::tensor<float,cuv::host_memory_space> data, int factor):
         m_data(data.copy()),
-        m_factor(factor)
-        {
-            init_morse_code_data_structure();
-        }
+        m_factor(factor),
+        m_grow(0)
+    {
+        init_morse_code_data_structure();
+    }
 
         // returns wrap around index
-        int get_wrap_index(int size, int pos){
+        int morse_code::get_wrap_index(int size, int pos){
             if(pos >= size){
                 return pos - size;
             }else{
@@ -36,11 +31,11 @@ class morse_code{
             }
         }
 
-        std::vector<std::string> get_morse_code(){
+        std::vector<std::string> morse_code::get_morse_code(){
             return m_morse_code;
         }
 
-        void init_morse_code_data_structure(){
+        void morse_code::init_morse_code_data_structure(){
             string morse = ".- -... -.-. -.. . ..-. --. .... .. .--- -.- .-.. -- -. --- .--. --.- .-. ... - ..- ...- "
                 ".-- -..- -.-- --.. ----- .---- ..--- ...-- ....- ..... -.... --... ---.. ----. .-.-.- --..--";
 
@@ -54,7 +49,7 @@ class morse_code{
             //char letter = 'D';
             //std::cout << v[letter - 'A'];
         }
-        int char_to_morse_index(char c){
+        int morse_code::char_to_morse_index(char c){
             if(c >= 'A' && c <= 'Z')
                 return c-'A';
             if(c >= '0' && c <= '9')
@@ -65,18 +60,43 @@ class morse_code{
                 return char_to_morse_index('9') + 2;
             throw std::runtime_error("unrecognized character");
         }
+        
+        int morse_code::get_width_char(int ch, int factor){
+            int width = 0;
+            const std::string& str = m_morse_code[ch];
+            string::const_iterator it;
+            for ( it = str.begin() ; it < str.end(); it++)
+            {
+                if(*it == '.'){
+                    width += 2 * factor;
+                }
+                else if(*it == '-'){
+                    width += 3 * factor;
+                }else{
+                    throw std::runtime_error("unrecognized character");
+                }
+            }
+            return width - factor;
+            
+        }
 
-        void set_grow(int grow){
+        void morse_code::set_grow(int grow){
             m_grow = grow;
         }
 
         // writes value 1 at position pos, and 0 after it
-        int write_dot(int dim, int ex, int pos){
+        int morse_code::write_dot(int dim, int ex, int pos){
             int size = m_data.shape(2);
 
             int new_grow;
             new_grow = m_grow * dim;
-            int new_factor = m_factor + 2 * new_grow;
+            if(new_grow == 0){
+                new_grow = 1;
+            }else{
+                new_grow *=2;
+            }
+
+            int new_factor = m_factor * new_grow;
 
             for(int i = 0; i < new_factor; i++){
                 m_data(dim,ex, get_wrap_index(size,pos + i)) = 1.f;
@@ -89,18 +109,24 @@ class morse_code{
         }
 
         // writes at position pos 3 times 1 and once 0
-        int write_dash(int dim, int ex, int pos){
+        int morse_code::write_dash(int dim, int ex, int pos){
             int size = m_data.shape(2);
 
             int new_grow;
             new_grow =  m_grow * dim;
-            int new_factor = 2 * m_factor + 2 * new_grow;
+            if(new_grow == 0){
+                new_grow = 1;
+            }else{
+                new_grow *=2;
+            }
+
+            int new_factor = 2 * m_factor  * new_grow;
 
             for(int i = 0; i <  new_factor; i++){
                 m_data(dim,ex, get_wrap_index(size,pos + i)) = 1.f;
             }
             int new_pos = pos +  new_factor;
-            new_factor = m_factor + 2 * new_grow;
+            new_factor = m_factor * new_grow;
             for(int i = 0; i < new_factor; i++){
                 m_data(dim,ex, get_wrap_index(size, new_pos + i)) = 0.f;
             }
@@ -108,7 +134,7 @@ class morse_code{
         }
 
 
-        int write_char(int ch, int dim, int ex, int pos){
+        int morse_code::write_char(int ch, int dim, int ex, int pos){
             const std::string& str = m_morse_code[ch];
             string::const_iterator it;
             for ( it = str.begin() ; it < str.end(); it++)
@@ -125,12 +151,13 @@ class morse_code{
             return pos;
         }
 
-
-        cuv::tensor<float,cuv::host_memory_space> get_data(){
+        unsigned int morse_code::get_size(){
+            return m_morse_code.size();
+        }
+        cuv::tensor<float,cuv::host_memory_space> morse_code::get_data(){
             return m_data;
         }
 
-};
 
 
         random_translation::random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int max_translation, int max_growing,int min_size, int max_size, int flag, int morse_factor):
@@ -145,7 +172,6 @@ class morse_code{
 
 
             initialize_data_sets( train_data,  test_data, train_labels, test_labels,  m_num_train_example,  m_num_test_example,  m_dim,  m_thres,  max_size,  min_size,  max_translation,  max_growing, flag, morse_factor);
-
 
             if(subsample > 1){
                 //creates gaussian filter
@@ -165,6 +191,7 @@ class morse_code{
             normalize_data_set(train_data);
             normalize_data_set(test_data); 
         }
+
 
 
         // creates the vector, which is used to randomly translate/grow each example in the dataset which is being created
@@ -384,16 +411,30 @@ class morse_code{
             labels = 0.f;
             morse_code morse(data, morse_factor);
             int example = 0;
-            std::vector<std::string> morse_code = morse.get_morse_code();
+            int width_char_1;
+            int width_char_2;
+            int width_char_3;
 
             for(int tran = -max_trans; tran <= max_trans; tran++){
                 for(int grow = 0; grow <= max_grow; grow++){
                     for(int dim = 0; dim < m_dim; dim++){
                         morse.set_grow(grow);
-                        for(unsigned int ch = 0; ch < morse_code.size(); ch++){
+                        for(unsigned int ch = 0; ch < morse.get_size(); ch++){
+                            width_char_1 = morse.get_width_char(ch, morse_factor);
+                            width_char_2 = morse.get_width_char(ch, 2*morse_factor);
+                            width_char_3 = morse.get_width_char(ch, 4*morse_factor);
+
+                            int diff = width_char_1 - width_char_2;
+                            int diff_2 = width_char_2 - width_char_3;
+                            if(grow == 0){
+                                diff = 0;
+                                diff_2 = 0;
+                            }
                             morse.write_char(ch, 0, example, get_wrap_index(m_dim, dim));
-                            morse.write_char(ch, 1, example, get_wrap_index(m_dim, dim + tran));
-                            morse.write_char(ch, 2, example, get_wrap_index(m_dim, dim + 2*tran));
+                            int pos2 = dim + diff / 2 + tran;
+                            morse.write_char(ch, 1, example, get_wrap_index(m_dim, pos2));
+
+                            morse.write_char(ch, 2, example, get_wrap_index(m_dim, pos2 + diff_2 / 2  + tran));
                             labels(example, tran + max_trans) = 1.f;
                             example++;
                         }

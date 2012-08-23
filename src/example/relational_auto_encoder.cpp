@@ -14,6 +14,10 @@
 #include <cuvnet/models/logistic_regression.hpp>
 #include <cuvnet/models/linear_regression.hpp>
 #include <vector>
+#include <map>
+#include <exception>
+
+
 using namespace cuvnet;
 namespace ll = boost::lambda;
 using namespace std;
@@ -25,7 +29,7 @@ using namespace std;
 
 typedef boost::shared_ptr<ParameterInput> input_ptr;
 typedef cuv::tensor<float,cuv::host_memory_space> tensor_type;
-
+typedef boost::shared_ptr<Op>     op_ptr;
 
 
 /// convenient transpose for a matrix (used in visualization only)
@@ -442,7 +446,7 @@ void load_batch(
  * @param bs          batch size
  *
  */
-float test_phase_early_stoping(monitor* mon, gradient_descent* orig_gd, random_translation* ds, relational_auto_encoder* ae, input_ptr input_x, input_ptr input_y, input_ptr teacher, int bs){
+float test_phase_early_stopping(monitor* mon, gradient_descent* orig_gd, random_translation* ds, relational_auto_encoder* ae, input_ptr input_x, input_ptr input_y, input_ptr teacher, int bs){
     float mean = 0.f;
     {
         tensor_type fx = ae->get_fx()->data();
@@ -451,16 +455,16 @@ float test_phase_early_stoping(monitor* mon, gradient_descent* orig_gd, random_t
 
         matrix data = ds->test_data;
         std::vector<Op*> params; // empty!
-        rprop_gradient_descent gd(ae->loss(), 0, params,   0.00001);
+        rprop_gradient_descent gd(ae->loss(), 0, params,   0);
         //gradient_descent gd(ae->loss(), 0, params, 0);
         gd.register_monitor(*mon);
-        //gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
+        gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
         gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
         std::cout << std::endl << " testing phase ";
         mon->set_is_train_phase(false);
-        //gd.minibatch_learning(1, 100, 0);
-        load_batch(input_x, input_y, teacher, &data,bs,0);
-        gd.batch_learning(1, 100*60);
+        gd.minibatch_learning(1, 100, 0);
+        //load_batch(input_x, input_y, teacher, &data,bs,0);
+        //gd.batch_learning(1, 100*60);
         mon->set_is_train_phase(true);
         mean = mon->mean("total loss");
     }
@@ -635,7 +639,7 @@ tensor_type train_phase(random_translation& ds, monitor& mon, relational_auto_en
         //rprop_gradient_descent gd(ae.loss(), 0, params, 0.00001, 0.005f);
         rprop_gradient_descent gd(ae.loss(), 0, params,   0.00001);
         //gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.45f,350);
-        gd.setup_early_stopping(boost::bind(test_phase_early_stoping, &mon, &gd, &ds,  &ae,  input_x,  input_y, teacher,bs), 100, 1.f, 2.f);
+        gd.setup_early_stopping(boost::bind(test_phase_early_stopping, &mon, &gd, &ds,  &ae,  input_x,  input_y, teacher,bs), 100, 1.f, 2.f);
         // register the monitor so that it receives learning events
         gd.register_monitor(mon);
 
@@ -643,7 +647,7 @@ tensor_type train_phase(random_translation& ds, monitor& mon, relational_auto_en
         //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon, num_hidden, input_size, input_x, input_y, teacher, true,_1));
 
         // before each batch, load data into \c input
-        //gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &train_data,bs,_2));
+        gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &train_data,bs,_2));
 
         // the number of batches is constant in our case (but has to be supplied as a function)
         gd.current_batch_num.connect(ds.train_data.shape(1)/ll::constant(bs));
@@ -652,11 +656,11 @@ tensor_type train_phase(random_translation& ds, monitor& mon, relational_auto_en
         // (whatever comes first)
         std::cout << std::endl << " Training phase: " << std::endl;
         //gd.minibatch_learning(5000, 100*60); // 10 minutes maximum
-        load_batch(input_x, input_y, teacher, &train_data,bs,0);
-        gd.batch_learning(max_num_epochs, 100*60);
+        //load_batch(input_x, input_y, teacher, &train_data,bs,0);
+        //gd.batch_learning(max_num_epochs, 100*60);
+        gd.minibatch_learning(max_num_epochs, 100*60, 0);
         tensor_type encoder_train = mon[("encoded")];
         return encoder_train;
-        //gd.minibatch_learning(2000, 100*60, 0);
 }
 
 /**
@@ -680,7 +684,7 @@ tensor_type test_phase(random_translation& ds, monitor& mon, relational_auto_enc
     rprop_gradient_descent gd(ae.loss(), 0, params, 0);
     //gradient_descent gd(ae.loss(),0,params,0.f);
     gd.register_monitor(mon);
-    gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,num_hidden,input_size, input_x, input_y, teacher, false,_1));
+    //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,num_hidden,input_size, input_x, input_y, teacher, false,_1));
     //gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
     gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
     //gd.minibatch_learning(1, 100, 0);
@@ -964,21 +968,328 @@ void regression(random_translation& ds, tensor_type& encoder_train, tensor_type&
 }
 
 
+void initialize_pos_invariance_set(tensor_type& inv_data, int input_size, int ex, int trans, int factor, int subsample, int distance, float sigma){
+    input_size *= subsample;
+    inv_data.resize(cuv::extents[3][input_size * ex][input_size]);
+    inv_data = 0.f;
+    morse_code morse(inv_data, factor); 
+    for(int ch = 0; ch < ex; ch++){
+        morse.write_char(ch, 0, ch, 0); 
+        morse.write_char(ch, 1, ch, get_wrap_index(input_size,trans)); 
+        morse.write_char(ch, 2, ch, get_wrap_index(input_size, 2*trans)); 
+    }
+    inv_data = morse.get_data();
+
+    for(int e = ex; e < input_size * ex; e++){
+        for(int pos = 0; pos < input_size; pos++){ 
+            for(int j = 0; j < 3; j++){ 
+                inv_data(j, e, pos) = inv_data(j, e - ex, get_wrap_index(input_size, pos - 1));
+            }
+        } 
+
+    }
+    
+    if(subsample > 1){
+       //creates gaussian filter
+       cuv::tensor<float,cuv::host_memory_space> gauss;
+       fill_gauss(gauss, distance, sigma);
+
+       // convolves last dim of both train and test data with the gauss filter
+       convolve_last_dim(inv_data, gauss);
+
+       // subsamples each "subsample" element
+       subsampling(inv_data, subsample);
+    }
+    normalize_data_set(inv_data); 
+
+
+}
+
+void initialize_pattern_invariance_set(tensor_type& inv_data, int num_examples, int input_size, int trans, int factor, int subsample, int distance, float sigma){
+    input_size *= subsample;
+    inv_data.resize(cuv::extents[3][num_examples][input_size]);
+    inv_data = 0.f;
+    morse_code morse(inv_data, factor); 
+    for(int ch = 0; ch < num_examples; ch++){
+        morse.write_char(ch, 0, ch, input_size / 2); 
+        morse.write_char(ch, 1, ch, get_wrap_index(input_size, input_size / 2 + trans)); 
+        morse.write_char(ch, 2, ch, get_wrap_index(input_size, input_size / 2 + 2*trans)); 
+    }
+    inv_data = morse.get_data();
+    
+    if(subsample > 1){
+       //creates gaussian filter
+       cuv::tensor<float,cuv::host_memory_space> gauss;
+       fill_gauss(gauss, distance, sigma);
+
+       // convolves last dim of both train and test data with the gauss filter
+       convolve_last_dim(inv_data, gauss);
+
+       // subsamples each "subsample" element
+       subsampling(inv_data, subsample);
+    }
+    normalize_data_set(inv_data); 
+}
+
+/**
+ * arrange   hidden units
+ *
+ * @param encoder         the matrix containing the hidden units 
+ *
+ * @return rearranged view
+ *
+ */
+tensor_type
+arrange_hidden_activations(const tensor_type& encoder){
+    unsigned int hidden_size = encoder.shape(1);
+    unsigned int num_examples = encoder.shape(0);
+    tensor_type img(cuv::extents[num_examples][hidden_size]);
+    img = 0.f;
+    for(unsigned int col = 0; col < hidden_size; col++){
+        for(unsigned int row = 0; row < num_examples; row++){
+            img(row, col) = encoder(row, col);
+        } 
+    }
+
+
+    img = zoom(img);
+    return img;
+}
+
+void visualize_invariance_set(monitor* mon, input_ptr input_x, input_ptr input_y, input_ptr teacher, int example, int trans){
+    std::cout << " visualizing inputs " << std::endl;
+    std::string base;
+    if(example > 0){
+        base = (boost::format("inputs-inv_%1%_%2%")% example % trans).str();
+    }else{
+        base = (boost::format("inputs-inv_%1%") % trans).str();
+    }
+    tensor_type in_x = input_x->data().copy();
+    tensor_type in_y = input_y->data().copy();
+    tensor_type prediction = (*mon)["decoded"].copy();
+    //apply_scalar_functor(prediction,cuv::SF_SIGM);
+    tensor_type teacher_ = teacher->data().copy();
+
+    int fa = 4;
+    int fb =  4;
+    cuvAssert(!cuv::has_nan(in_x));
+    cuvAssert(!cuv::has_inf(in_x));
+    auto wvis      = arrange_inputs_and_prediction(in_x, in_y, teacher_, prediction, fa, fb, (int)in_x.shape(1),true);
+    cuv::libs::cimg::save(wvis, base+".png");
+    
+    std::cout << " visualizing hidden activities " << endl;
+    tensor_type encoder = (*mon)["encoded"].copy();
+
+    if(example > 0){
+        base = (boost::format("hidden-inv-pos_%1%_%2%") % trans % example).str();
+    }else{
+        base = (boost::format("hidden_inv-pattern-invariance_%1%") % trans).str();
+    }
+
+    wvis      = arrange_hidden_activations(encoder);
+    cuv::libs::cimg::save(wvis, base+".png");
+
+    tensor_type squared_ecnoder(cuv::extents[encoder.shape(0)][encoder.shape(1)]);
+    tensor_type sqr_mean_enc(cuv::extents[encoder.shape(1)]);
+    tensor_type mean_sqr_enc(cuv::extents[encoder.shape(1)]);
+    tensor_type var(cuv::extents[encoder.shape(1)]);
+
+    // E(x^2)
+    apply_scalar_functor(squared_ecnoder, encoder,cuv::SF_SQUARE);
+    reduce_to_row(mean_sqr_enc, squared_ecnoder, cuv::RF_MEAN);
+    // E(x)^2
+    reduce_to_row(sqr_mean_enc, encoder, cuv::RF_MEAN);
+    apply_scalar_functor(sqr_mean_enc,cuv::SF_SQUARE);
+    var = mean_sqr_enc - sqr_mean_enc; 
+
+    std::cout << " Variance of hidden units " << std::endl;
+    for(unsigned int i= 0; i < encoder.shape(1); i++){
+        std::cout << "hidden unit " << i << ": " << var(i) << std::endl;
+    }
+
+}
+
+void measure_invariance_position(relational_auto_encoder& ae, tensor_type& test_data, monitor& mon, input_ptr input_x, input_ptr input_y, input_ptr teacher, int example, int trans, int factor, int subsample, int distance, float sigma){
+
+    std::cout << std::endl << " Measuring position invariance: " << std::endl;
+    tensor_type inv_data;
+    initialize_pos_invariance_set(inv_data,  test_data.shape(2), example, trans, factor, subsample, distance, sigma);
+    std::cout << " inv_data size " << inv_data.shape(2) <<  endl;
+
+    matrix data = inv_data;
+    int bs = 300;
+
+    std::vector<Op*> params; // empty!
+    rprop_gradient_descent gd(ae.loss(), 0, params, 0);
+    gd.register_monitor(mon);
+    gd.after_epoch.connect(boost::bind(visualize_invariance_set, &mon, input_x, input_y, teacher, example, trans));
+    gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
+    gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
+    gd.minibatch_learning(1, 100, 0);
+    //load_batch(input_x, input_y, teacher, &data, bs,0);
+    //gd.batch_learning(1, 100);
+}
+
+void measure_pattern_invariance(relational_auto_encoder& ae, tensor_type& test_data, monitor& mon, input_ptr input_x, input_ptr input_y, input_ptr teacher, int num_examples, int trans, int factor, int subsample, int distance, float sigma){
+    std::cout << std::endl << " Measuring pattern invariance: " << std::endl;
+    tensor_type inv_data;
+    initialize_pattern_invariance_set(inv_data, num_examples, test_data.shape(2),  trans, factor, subsample, distance, sigma);
+    std::cout << " inv_data size " << inv_data.shape(2) <<  endl;
+
+    matrix data = inv_data;
+    int bs = inv_data.shape(1);
+    std::cout << " bs " << bs <<  endl;
+
+    std::vector<Op*> params; // empty!
+    rprop_gradient_descent gd(ae.loss(), 0, params, 0);
+    gd.register_monitor(mon);
+    gd.after_epoch.connect(boost::bind(visualize_invariance_set, &mon, input_x, input_y, teacher, -1,  trans));
+    gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
+    gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
+    gd.minibatch_learning(1, 100, 0);
+    //load_batch(input_x, input_y, teacher, &data, bs,0);
+    //gd.batch_learning(1, 100);
+}
+
+class max_example_reached_exception: public exception{
+};
+
+class analyse{
+    private:
+        /// file where we write the hidden activations and parameters
+        std::ofstream m_logfile;
+
+        /// if true the header needs to be written in the file
+        bool need_header_log_file;
+        
+        /// the name of the file
+        string m_file_name;
+
+    public:
+        analyse(std::string file_name):
+        need_header_log_file(true),
+        m_file_name(file_name)
+        {
+        }
+        void analyse_invariance(op_ptr op, boost::function<map<string,int>()> data_gen, int num_data=INT_MAX){
+            // open file
+            m_logfile.open(m_file_name.c_str(), std::ios::out);
+            try{
+                for(int i=0;i<num_data; i++){
+                    map<string, int> param = data_gen();
+                    cuvnet::function f(op);
+                    matrix hidden_act = f.evaluate();
+                    log_to_file(hidden_act, param); // write to file (repeatedly)
+                }
+            }catch(max_example_reached_exception){
+            }
+            m_logfile.close();
+        }
+
+        void log_to_file(matrix& hidden_act, map<string, int>& param){
+            assert(m_logfile.is_open());
+            map<string,int>::iterator it;
+            if(need_header_log_file){
+                for ( it=param.begin() ; it != param.end(); it++ ){
+                    m_logfile << it->first << ",";
+                }
+                for (unsigned int i = 0; i < hidden_act.shape(1); ++i)
+                {
+                    if(i == hidden_act.shape(1)){
+                        m_logfile << "h" << i;
+                    }else{
+                        m_logfile << "h" << i << ",";
+                    }
+                }
+                need_header_log_file = false;
+                m_logfile << std::endl;
+            }
+
+            for ( it=param.begin() ; it != param.end(); it++ ){
+                m_logfile << it->second << ",";
+            }
+            for (unsigned int i = 0; i < hidden_act.shape(1); ++i)
+            {
+                if(i == hidden_act.shape(1)){
+                    m_logfile << hidden_act(0,i);
+                }else{
+                    m_logfile << hidden_act(0,i) << ",";
+                }
+            }
+
+            m_logfile << std::endl;
+        }
+};
+
+struct morse_pat_gen{
+    private:
+    input_ptr m_input_x, m_input_y;
+    
+    int m_min_trans, m_max_trans;
+    int m_min_pos, m_max_pos;
+    int m_min_ex_type, m_max_ex_type;
+    int m_factor, m_input_size;
+    int m_max_num_examples;
+    int m_current_example;
+    public:
+
+    morse_pat_gen(input_ptr input_x, input_ptr input_y, int min_trans, int max_trans, int min_pos, int max_pos, int min_ex_type, int max_ex_type, int factor, int input_size, int max_num_examples):
+        m_input_x(input_x),
+        m_input_y(input_y),
+        m_min_trans(min_trans),
+        m_max_trans(max_trans),
+        m_min_pos(min_pos),
+        m_max_pos(max_pos),
+        m_min_ex_type(min_ex_type),
+        m_max_ex_type(max_ex_type),
+        m_factor(factor),
+        m_input_size(input_size),
+        m_max_num_examples(max_num_examples),
+        m_current_example(0)
+    {}
+    map<string,int> operator()(){
+        if(m_current_example == m_max_num_examples){
+            throw max_example_reached_exception();
+        }
+        m_current_example++;
+        srand ( time(NULL) );
+        int trans = (rand() % (m_max_trans - m_min_trans + 1)) + m_min_trans;
+        int pos = (rand() % (m_max_pos - m_min_pos + 1)) + m_min_pos;
+        int ex_type = (rand() % (m_max_ex_type - m_min_ex_type + 1)) + m_min_ex_type;
+
+        tensor_type example;                              
+        morse_code morse(example, m_factor);
+        morse.write_char(ex_type, 0, 0, pos);
+        morse.write_char(ex_type, 0, 0, get_wrap_index(m_input_size, pos + trans));
+        example = morse.get_data();
+        m_input_x->data() = example[cuv::indices[0][cuv::index_range()][cuv::index_range()]];
+        m_input_y->data() = example[cuv::indices[1][cuv::index_range()][cuv::index_range()]];
+        map<string,int> param_map;
+        param_map["translation"] = trans;
+        param_map["position"] = pos;
+        param_map["input_type"] = ex_type;
+        return param_map;
+    }
+};
+
+
+
 int main(int argc, char **argv)
 {
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int input_size=100,bs=  3500 , subsampling = 2, max_trans =4, gauss_dist = 6, min_width = 10, max_width = 30, max_growing = 0, flag = 2, morse_factor = 6;
-    unsigned max_num_epochs = 5000;
-    //unsigned int fa = (max_growing * 2 + 1) * (max_trans * 2 + 1) ;
-    unsigned int num_hidden = 6;
+    unsigned int input_size=100,bs=  300 , subsampling = 2, max_trans = 2, gauss_dist = 6, min_width = 10, max_width = 30, max_growing = 0, flag = 2, morse_factor = 6;
+    unsigned max_num_epochs = 200;
 
-    unsigned int num_factors = 300;
+    //unsigned int fa = (max_growing * 2 + 1) * (max_trans * 2 + 1) ;
+    unsigned int num_hidden = 10;
+
+    unsigned int num_factors = 200;
     float sigma = gauss_dist / 3; 
     //float learning_rate = 0.001f;
     // generate random translation datas
-    unsigned int data_set_size = 3500;
+    unsigned int data_set_size = 3000;
     std::cout << "generating dataset: "<<std::endl;
     random_translation ds(input_size * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width, flag, morse_factor);
     ds.binary   = false;
@@ -1028,8 +1339,24 @@ int main(int argc, char **argv)
     tensor_type encoder_test = test_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden);
 
     // makes multiple predictions and visualizes inputs, predictions, hidden units, and factors 
-    prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
+    //prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
     
-    regression(ds, encoder_train, encoder_test);
+    //regression(ds, encoder_train, encoder_test);
+
+
+    analyse a("invariance_test.txt");
+    
+    morse_pat_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, 100);
+    a.analyse_invariance(ae.get_encoded(), m); 
+
+    //boost::bind(morse_pat_gen());
+
+    //for(int trans = - max_trans; trans <= (int)max_trans; trans++){
+    //    measure_invariance_position(ae,  ds.test_data,  mon,  input_x,  input_y,  teacher, num_examples, trans, morse_factor, subsampling, gauss_dist, sigma);
+    //}
+    //for(int trans = - max_trans; trans <= (int)max_trans; trans++){
+    //   measure_pattern_invariance(ae,  ds.test_data,  mon,  input_x,  input_y,  teacher, num_examples , trans, morse_factor, subsampling, gauss_dist, sigma);
+    //}
+
     return 0;
 }
