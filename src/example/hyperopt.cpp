@@ -3,7 +3,6 @@
 #include <boost/bind.hpp>
 #include <boost/thread.hpp>                                                                  
 #include <boost/lambda/lambda.hpp>
-#include <boost/lambda/bind.hpp>
 
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/derivative_test.hpp>
@@ -64,6 +63,9 @@ struct hyperopt_client
         : Client(host, db, BSON("exp_key" << "sample_bandit.SampleBandit/hyperopt.tpe.TreeParzenEstimator"))
         , id(i), m_n_epochs(0){ }                                                                                        
 
+    unsigned int n_batches(unsigned int bs){
+        return m_data.shape(0)/bs;
+    }
     void before_validation_epoch(monitor* mon){
         mon->set_training_phase(CM_VALID,0);
         m_data = m_ds.val_data;
@@ -99,23 +101,23 @@ struct hyperopt_client
         mon.add(monitor::WP_SCALAR_EPOCH_STATS, lr.get_loss(), "total loss");
         mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, lr.classification_error(), "classification error");
 
-        m_data = m_ds.train_data;
+        m_data   = m_ds.train_data;
         m_labels = m_ds.train_labels;
 
         gradient_descent gd(lr.get_loss(),0,params, learnrate, -wd);
         m_mon = &mon; m_gd = &gd; m_loss = lr.get_loss();
         gd.register_monitor(mon);
         gd.before_batch.connect(boost::bind(load_batch,input, target,&m_data, &m_labels, bs,_2));
-        gd.current_batch_num.connect(
-                boost::lambda::bind((unsigned int (matrix::*)(const int&)const)&matrix::shape, &m_data, 0) / bs);
+        gd.current_batch_num.connect(boost::bind(&hyperopt_client::n_batches, this, bs));
 
         gd.setup_early_stopping(boost::bind(&monitor::mean, &mon, "classification error"), 5, 1.f, 2.f);
         gd.before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, 0));
         gd.after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, CM_TRAIN, 0));
 
-        gd.minibatch_learning(100000, 60*60); // 10 minutes maximum
+        gd.minibatch_learning(2, 60*60); // 10 minutes maximum
         
         m_n_epochs = gd.best_perf_epoch();
+        std::cout << "gd.best_perf():" << gd.best_perf() << std::endl;
         return gd.best_perf();
     }
 
@@ -128,6 +130,8 @@ struct hyperopt_client
         float lr = o["vals"]["lr"].Array()[0].Double();
         float wd = o["vals"]["wd"].Array()[0].Double();
         int   bs = o["vals"]["bs"].Array()[0].Int();
+
+        bs = pow(2, bs);
 
         finish(BSON(  "status"  << "ok"
                     <<"loss"    << loss(lr,wd,bs)
