@@ -157,6 +157,13 @@ class generic_regression
         
 
         /**
+         * @return the classification error, not assuming that intermediate
+         * results are pre-calculated through a loss calculation.
+         */
+        op_ptr classification_error_direct(){
+            return classification_loss(m_est, m_target);
+        }
+        /**
          * @return the classification error 
          */
         op_ptr classification_error(){
