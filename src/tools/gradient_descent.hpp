@@ -27,7 +27,7 @@ namespace cuvnet
         protected:
             Op::op_ptr       m_loss;     ///< the loss op we want to minimize
             unsigned int     m_result;   ///< the number of the result of the loss op we want to minimize
-            paramvec_t       m_params;   ///< all parameters w.r.t. which we optimize
+            paramvec_t       m_params;   ///< all parameters wrt which we optimize
             float            m_learnrate; ///< learnrate for weight updates
             float            m_learnrate_decay; ///< factor by which lr is multiplied after each epoch
             float            m_weightdecay; ///< weight decay for weight updates
