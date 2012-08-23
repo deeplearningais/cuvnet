@@ -49,6 +49,47 @@ TEST(Function, simple){
     EXPECT_EQ(31, func2.result()[0]);
 
 }
+
+TEST(Function, applied){
+   boost::shared_ptr<ParameterInput>  inp    = boost::make_shared<ParameterInput>(cuv::extents[30][5], "input");
+   boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[30][5], "target");
+   target->set_derivable(false); // cannot derive for target of logistic regression
+
+   cuv::sequence(inp->data());
+
+   target->data() = 0.f;
+   target->data()(0,0) = 1.f;
+   target->data()(1,1) = 1.f;
+   target->data()(2,2) = 1.f;
+
+   logistic_regression lg(inp, target); 
+
+   cuv::fill_rnd_uniform(lg.get_weights()->data()); // ensure non-trivial function
+
+   boost::shared_ptr<Op>  loss = lg.get_loss();
+   boost::shared_ptr<Op>  cerr = lg.classification_error();
+
+   cuvnet::function f_loss(loss);
+   cuvnet::function f_cerr(cerr);
+
+   // evaluate losses once
+   matrix loss0 = f_loss.evaluate().copy();
+   matrix cerr0 = f_cerr.evaluate().copy();
+
+   // simulate creation of another gradient-descent object
+   f_loss.repair_swiper();
+   matrix loss1 = f_loss.evaluate().copy();
+   matrix cerr1 = f_cerr.evaluate().copy();
+
+   std::cout << "loss0:" << loss0 << " loss1:" << loss1 << std::endl;
+   std::cout << "cerr0:" << cerr0 << " cerr1:" << cerr1 << std::endl;
+
+   // ensure that the difference between the evaluations is negligible
+   EXPECT_NEAR(0.f,cuv::norm2(loss0-loss1), 0.0001f);
+   EXPECT_NEAR(0.f,cuv::norm2(cerr0-cerr1), 0.0001f);
+
+}
+
 TEST(Monitor, simple){
     boost::shared_ptr<ParameterInput> inp(new ParameterInput(cuv::extents[3][5]));
     boost::shared_ptr<Op> func(new Sum(inp->result()));
