@@ -65,6 +65,16 @@ namespace cuvnet
                 m_swipe.init();
             }
 
+            /// @return the swiper object (e.g. for dumping function graph to file)
+            inline swiper& get_swiper(){
+                return m_swipe;
+            }
+
+            /// return the loss currently being optimized
+            inline Op::op_ptr loss(){
+                return m_loss;
+            }
+
             /// a vector containing all validation set results for smoothing
             std::vector<float> m_val_perfs;
 
