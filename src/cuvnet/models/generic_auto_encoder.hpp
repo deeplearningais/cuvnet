@@ -1,6 +1,7 @@
 #ifndef __GENERIC_AUTO_ENCODER_HPP__
 #     define __GENERIC_AUTO_ENCODER_HPP__
 
+#include <boost/tuple/tuple.hpp>
 #include <cuv.hpp>
 
 #include <cuvnet/ops.hpp>
@@ -13,13 +14,18 @@ namespace cuvnet{
  *
  * @ingroup models
  */
-class generic_auto_encoder {
+class generic_auto_encoder{
     public:
         /** 
          * this is the type of a `function', e.g. the output or the loss of
          * the autoencoder
          */
         typedef boost::shared_ptr<Op>     op_ptr;
+    private:
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & m_input & m_encoded & m_decoded & m_reg_loss & m_rec_loss & m_loss & m_binary;
+            }
     protected:
         op_ptr m_input;     ///< the input of the auto-encoder (might be different from what is supplied in \c init())
         op_ptr m_encoded;   ///< the encoder function
@@ -32,6 +38,12 @@ class generic_auto_encoder {
         bool m_binary; ///< if \c m_binary is true, use logistic loss
 
     public:
+
+        /**
+         * Accessor for input object
+         */
+        inline op_ptr input(){ return m_input; }
+
 
         /**
          * Determine the parameters to be learned during unsupervised training.
@@ -68,11 +80,6 @@ class generic_auto_encoder {
         virtual op_ptr decode(op_ptr& enc)=0;
 
         /**
-         * Regularizer.
-         */
-        virtual op_ptr regularize()=0;
-
-        /**
          * Loss
          *
          * The loss depends on whether this is a binary auto-encoder or not
@@ -84,7 +91,7 @@ class generic_auto_encoder {
         virtual op_ptr& loss(){ return m_loss; };
 
         /**
-         * Reset the weights so that the model can be retrained (e.g. for Crossvalidation).
+         * Reset the weights so that the model can be retrained (eg for Crossvalidation).
          */
         virtual void reset_weights(){};
 
@@ -133,25 +140,29 @@ class generic_auto_encoder {
         }
 
         /**
+         * Returns the (additive) regularizer for the auto-encoder.
+         * Defaults to no regularization.
+         */
+        virtual boost::tuple<float,op_ptr> regularize(){
+            return boost::make_tuple(0.f,op_ptr());
+        }
+
+        /**
          * construct encoder, decoder and loss; initialize weights.
          *
          */
-        virtual void init(op_ptr input, float regularization_strength=0.f){
+        virtual void init(op_ptr input){
             m_input     = input;
             m_encoded   = encode(m_input);
             m_decoded   = decode(m_encoded);
             m_rec_loss  = reconstruction_loss(m_input, m_decoded);
 
-            if(regularization_strength != 0.0f){
-                m_reg_loss  = regularize();
-                if(!m_reg_loss){
-                    m_loss = m_rec_loss;
-                }else{
-                    m_loss          = axpby(m_rec_loss, regularization_strength, m_reg_loss);
-                }
-            }else{
+            float lambda;
+            boost::tie(lambda, m_reg_loss)  = regularize();
+            if(!lambda || !m_reg_loss)
                 m_loss = m_rec_loss;
-            }
+            else
+                m_loss = axpby(m_rec_loss, lambda, m_reg_loss);
             reset_weights();
         }
 

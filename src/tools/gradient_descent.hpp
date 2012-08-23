@@ -27,7 +27,7 @@ namespace cuvnet
         protected:
             Op::op_ptr       m_loss;     ///< the loss op we want to minimize
             unsigned int     m_result;   ///< the number of the result of the loss op we want to minimize
-            paramvec_t       m_params;   ///< all parameters w.r.t. which we optimize
+            paramvec_t       m_params;   ///< all parameters wrt which we optimize
             float            m_learnrate; ///< learnrate for weight updates
             float            m_learnrate_decay; ///< factor by which lr is multiplied after each epoch
             float            m_weightdecay; ///< weight decay for weight updates
@@ -63,6 +63,16 @@ namespace cuvnet
             /// to dump parameters to a file
             void repair_swiper(){
                 m_swipe.init();
+            }
+
+            /// @return the swiper object (e.g. for dumping function graph to file)
+            inline swiper& get_swiper(){
+                return m_swipe;
+            }
+
+            /// return the loss currently being optimized
+            inline Op::op_ptr loss(){
+                return m_loss;
             }
 
             /// a vector containing all validation set results for smoothing
@@ -121,20 +131,22 @@ namespace cuvnet
             /**
              * set up stopping by convergence check
              *
-             * Stops when new value is more than thresh*best_value for max_fail epochs
+             * Stops when new value is more than thresh*best_value for `many` epochs.
              *
              * Tested on /training/ set, which should always improve, except
              * for too large/too small learning rates.
              *
              * @param performance a function which determines how good we are after an epoch
-             * @param thresh stop when new value is more than thresh*best_value
-             * @param maxfail stop when thresh was not attained for this many tries
+             * @param thresh stop when new value is more than thresh*best_value and no patience left
+             * @param min_epochs initial value for patience
+             * @param patience_inc_fact patience is multiplied by this when better performance is found
              */
             template<class T>
-            void setup_convergence_stopping(T performance, float thresh, unsigned int maxfail){
+            void setup_convergence_stopping(T performance, float thresh, unsigned int min_epochs, float patience_inc_fact=2.f){
                 m_performance = performance;
                 m_convergence_checking = true;
-                after_epoch.connect(boost::bind(&gradient_descent::convergence_test,this, thresh, maxfail, _1), boost::signals::at_front);
+                cuvAssert(patience_inc_fact > 1.);
+                after_epoch.connect(boost::bind(&gradient_descent::convergence_test,this, thresh, min_epochs, patience_inc_fact, _1), boost::signals::at_front);
             }
 
 
@@ -207,7 +219,9 @@ namespace cuvnet
                 }catch(max_iter_stop){
                 }
 
-                load_best_params();    // may also restore m_epoch
+                // Restore parameters.
+                // - may also restore m_epoch
+                load_best_params();    
                 //m_epoch *= n_batches; // number of batch presentations
             }
             /**
@@ -264,6 +278,17 @@ namespace cuvnet
                 after_epoch.connect( boost::bind(&M::after_epoch,&m));
                 after_batch.connect( boost::bind(&M::after_batch,&m));
                 before_epoch.connect(boost::bind(&M::before_epoch,&m));
+                before_early_stopping_epoch.connect(boost::bind(&M::before_epoch,&m));
+
+                // do this at front, since it contains the logging and monitor
+                // state (is_training_phase) might be changed with a later
+                // signal so that logging is incorrect.
+                after_early_stopping_epoch.connect(boost::signals::at_front, boost::bind(&M::after_epoch,&m));
+
+                // the user probably registered variables with the monitor,
+                // which attaches sinks. We need to recreate the swiper,
+                // so that the sinks are updated accordingly.
+                repair_swiper(); 
             }
             
         private:
@@ -302,11 +327,17 @@ namespace cuvnet
                     return;
 
                 // this does the actual work, it runs fprop on all ES batches
-                unsigned int n_batches = early_stopping_epoch(current_epoch);
+                before_early_stopping_epoch(current_epoch);
+                early_stopping_epoch(current_epoch);
 
                 // determine how good we've been (usually set to some perf()
                 // function of the construct you're trying to minimize)
                 float perf = m_performance();
+
+                // call after_early_stopping_epoch() HERE, so that
+                // m_performance can rely on still being in validation mode!
+                after_early_stopping_epoch(current_epoch);
+
                 m_val_perfs.push_back(perf);
 
                 perf = 0.f;
@@ -321,9 +352,9 @@ namespace cuvnet
                     m_initial_performance = perf;
 
                 if(perf < m_best_perf)
-                    std::cout << " * early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<n_batches<<" batches): "<< perf<<std::endl;
+                    std::cout << "\r * early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
                 else
-                    std::cout << " - early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<n_batches<<" batches): "<< perf<<std::endl;
+                    std::cout << "\r - early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
 
                 if(perf < m_best_perf) {
                     // save the (now best) parameters
@@ -364,34 +395,36 @@ namespace cuvnet
                         cuvAssert(p);
                         std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >::iterator mit = m_best_perf_params.find(*it);
                         if(mit != m_best_perf_params.end()) {
-                            std::cout << "...loading best `"<<p->name()<<"'"<<std::endl;
                             p->data() = m_best_perf_params[*it];
                             did_load_something = true;
                         }
                     }
                     if(did_load_something)
+                    {
+                        std::cout << "...loaded best params (epoch "<< m_epoch_of_saved_params <<")"<<std::endl;
                         m_epoch = m_epoch_of_saved_params;
+                    }
             }
             /**
              * test for convergence. 
              * use @see setup_convergence_stopping to use this function.
              */
-            void convergence_test(float thresh, unsigned int maxfail, unsigned int current_epoch){
+            void convergence_test(float thresh, unsigned int min_epochs, float patience_inc_factor, unsigned int current_epoch){
                 float perf = m_performance();
                 if(current_epoch == 0){
                     m_initial_performance = perf;
                     m_last_perf = perf;
-                    m_convcheck_patience = maxfail;
+                    m_convcheck_patience = min_epochs;
                     return;
                 }
+                std::cout << "\rconvergence-test("<<current_epoch<<"/"<<m_convcheck_patience<<", "<<(perf/m_last_perf)<<"): "<<perf<<"                  " << std::flush;
                 if(perf < thresh * m_last_perf){
                     m_last_perf = perf;
-                    m_convcheck_patience = std::max(m_convcheck_patience, 2*current_epoch);
+                    m_convcheck_patience = std::max(m_convcheck_patience, (unsigned int)(patience_inc_factor*current_epoch));
                 }
 
-                std::cout << "\r epoch: "<<current_epoch<<":  "<<perf<<" (delta:"<<(perf - m_last_perf)<<")                  " << std::flush;
                 if(current_epoch >= m_convcheck_patience){
-                    std::cout << std::endl << "Stopping due to convergence after "<<current_epoch<<" epochs, perf: "<< perf << std::endl;
+                    std::cout << "\rconvergence-test(stopping after "<<current_epoch<<" epochs):"<< perf << "                "<< std::endl;
                     throw convergence_stop();
                 }
             }
@@ -401,14 +434,12 @@ namespace cuvnet
              * @return number of early-stopping batches
              */
             unsigned int early_stopping_epoch(unsigned int current_epoch){
-                before_early_stopping_epoch(current_epoch);
                 unsigned int n_batches = current_batch_num();
                 for (unsigned int  batch = 0; batch < n_batches; ++batch) {
                     before_batch(current_epoch, batch);
                     m_swipe.fprop(); // fprop /only/
                     after_batch(current_epoch, batch);
                 }
-                after_early_stopping_epoch(current_epoch);
                 return n_batches;
             }
             

@@ -44,12 +44,15 @@ void load_batch(
  */
 struct hyperopt_client                                                                       
 : public Client{                                                                             
-    int id;                      /// a unique ID for this client 
-    boost::asio::io_service ios; /// for serializing operations within client
-    monitor* m_mon;              /// monitor to keep track of learning progress
-    gradient_descent* m_gd;      /// gradient_descent object used for TRAINING
-    op_ptr m_loss;               /// the loss to be optimized
-    unsigned int m_n_epochs;     /// number of epochs until best VALIDATION attained
+    int id;                      ///< a unique ID for this client 
+    boost::asio::io_service ios; ///< for serializing operations within client
+    monitor* m_mon;              ///< monitor to keep track of learning progress
+    gradient_descent* m_gd;      ///< gradient_descent object used for TRAINING
+    op_ptr m_loss;               ///< the loss to be optimized
+    unsigned int m_n_epochs;     ///< number of epochs until best VALIDATION attained
+    dataset m_ds;    ///< the dataset containing ALL data
+    matrix m_data;   ///< stores current inputs
+    matrix m_labels; ///< stores current teachers
     /**
      * create a client.
      * @param i    a unique identifier of the client
@@ -59,30 +62,21 @@ struct hyperopt_client
     hyperopt_client(int i, std::string host, std::string db)
         : Client(host, db, BSON("exp_key" << "sample_bandit.SampleBandit/hyperopt.tpe.TreeParzenEstimator"))
         , id(i), m_n_epochs(0){ }                                                                                        
-    /**
-     * evaluate the loss on the validation set.
-     * @param in parameter of loss containing inputs
-     * @param tch parameter of loss containing teachers
-     * @param bs batch size
-     */
-    float test_phase(input_ptr in, input_ptr tch, dataset* ds, int bs){
-        float mean = 0.f;
-        {
-            matrix data   = ds->val_data;
-            matrix labels = ds->val_labels;
-            std::vector<Op*> params; // empty!
-            gradient_descent gd(m_loss, 0, params, 0);
-            gd.register_monitor(*m_mon);
-            gd.before_batch.connect(boost::bind(load_batch,in,tch, &data, &labels, bs, _2));
-            gd.current_batch_num.connect(data.shape(0)/ll::constant(bs));
-            m_mon->set_is_train_phase(false);
-            gd.minibatch_learning(1, 100, 0);
-            m_mon->set_is_train_phase(true);
-            mean = m_mon->mean("classification error");
-        }
-        m_gd->repair_swiper();
-        return mean;
+
+    unsigned int n_batches(unsigned int bs){
+        return m_data.shape(0)/bs;
     }
+    void before_validation_epoch(monitor* mon){
+        mon->set_training_phase(CM_VALID,0);
+        m_data = m_ds.val_data;
+        m_labels = m_ds.val_labels;
+    }
+    void after_validation_epoch(monitor* mon){
+        mon->set_training_phase(CM_TRAIN,0);
+        m_data = m_ds.train_data;
+        m_labels = m_ds.train_labels;
+    }
+
     /**
      * determine the loss for the given *hyper parameters*.
      *
@@ -97,9 +91,9 @@ struct hyperopt_client
         n.fit_transform(mnist.train_data);
         n.transform(mnist.test_data);
         splitter splits(mnist, 1);
-        dataset ds = splits[0];
-        boost::shared_ptr<ParameterInput> input( new ParameterInput(cuv::extents[bs][ds.train_data.shape(1)],"input"));
-        boost::shared_ptr<ParameterInput> target( new ParameterInput(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
+        m_ds = splits[0];
+        boost::shared_ptr<ParameterInput> input( new ParameterInput(cuv::extents[bs][m_ds.train_data.shape(1)],"input"));
+        boost::shared_ptr<ParameterInput> target( new ParameterInput(cuv::extents[bs][m_ds.train_labels.shape(1)],"target"));
         logistic_regression lr(input, target);
         std::vector<Op*> params = lr.params();
 
@@ -107,18 +101,23 @@ struct hyperopt_client
         mon.add(monitor::WP_SCALAR_EPOCH_STATS, lr.get_loss(), "total loss");
         mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, lr.classification_error(), "classification error");
 
-        matrix train_data = ds.train_data;
-        matrix train_labels(ds.train_labels);
+        m_data   = m_ds.train_data;
+        m_labels = m_ds.train_labels;
 
         gradient_descent gd(lr.get_loss(),0,params, learnrate, -wd);
         m_mon = &mon; m_gd = &gd; m_loss = lr.get_loss();
         gd.register_monitor(mon);
-        gd.before_batch.connect(boost::bind(load_batch,input, target,&train_data, &train_labels, bs,_2));
-        gd.current_batch_num.connect(ds.train_data.shape(0)/ll::constant(bs));
-        gd.setup_early_stopping(boost::bind(&hyperopt_client::test_phase, this, input, target, &ds, bs), 5, 1.f, 2.f);
-        gd.minibatch_learning(100000, 60*60); // 10 minutes maximum
+        gd.before_batch.connect(boost::bind(load_batch,input, target,&m_data, &m_labels, bs,_2));
+        gd.current_batch_num.connect(boost::bind(&hyperopt_client::n_batches, this, bs));
+
+        gd.setup_early_stopping(boost::bind(&monitor::mean, &mon, "classification error"), 5, 1.f, 2.f);
+        gd.before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, 0));
+        gd.after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, CM_TRAIN, 0));
+
+        gd.minibatch_learning(2, 60*60); // 10 minutes maximum
         
         m_n_epochs = gd.best_perf_epoch();
+        std::cout << "gd.best_perf():" << gd.best_perf() << std::endl;
         return gd.best_perf();
     }
 
@@ -131,6 +130,8 @@ struct hyperopt_client
         float lr = o["vals"]["lr"].Array()[0].Double();
         float wd = o["vals"]["wd"].Array()[0].Double();
         int   bs = o["vals"]["bs"].Array()[0].Int();
+
+        bs = pow(2, bs);
 
         finish(BSON(  "status"  << "ok"
                     <<"loss"    << loss(lr,wd,bs)

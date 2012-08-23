@@ -39,7 +39,7 @@ namespace cuvnet
                 unsigned int                   param_number;
                 typename std::vector<boost::shared_ptr<op_result<T> > >::iterator  m_single_result;
                 //cow_ptr<T>                     delta;
-                op_param():need_derivative(false),op(NULL),value_set(false){}
+                op_param():need_derivative(false),op(NULL),value_set(false),m_single_result(param_uses.end()){}
 
                 void determine_single_results(){
                     m_single_result = param_uses.end();

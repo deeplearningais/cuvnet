@@ -41,6 +41,23 @@ namespace cuvnet
     }
 
     template<class StorageSpace>
+    std::string SimpleDatasetLearner<StorageSpace>::describe_current_mode_split(bool verbose){
+        std::string desc;
+        if(verbose){
+            desc = " patterns: "+boost::lexical_cast<std::string>(n_batches()*m_bs);
+        }
+        if(m_current_mode == CM_TRAINALL)
+            return "TRAINALL"+desc;
+        if(m_current_mode == CM_TRAIN)
+            return "TRAIN_SPLIT" + boost::lexical_cast<std::string>(m_current_split)+desc;
+        if(m_current_mode == CM_VALID)
+            return "VALID_SPLIT" + boost::lexical_cast<std::string>(m_current_split)+desc;
+        if(m_current_mode == CM_TEST)
+            return "TEST"+desc;
+        throw std::runtime_error("SimpleDatasetLearner: Unknown mode!");
+    }
+
+    template<class StorageSpace>
     void SimpleDatasetLearner<StorageSpace>::switch_dataset(unsigned int split, cv_mode mode){
         cuv::tensor<float,cuv::host_memory_space> data, vdata;
         cuv::tensor<float,  cuv::host_memory_space> labels, vlabels;
@@ -87,15 +104,8 @@ namespace cuvnet
     }
 
     template<class StorageSpace>
-    void SimpleDatasetLearner<StorageSpace>::constructFromBSON(const mongo::BSONObj& o){
-        m_bs                 = o["bs"].Int();
-        std::string ds       = o["dataset"].String();
-        unsigned int nsplits = o["nsplits"].Int();
-        if(o.hasField("es_frac"))
-            // early stopping fraction
-            m_early_stopping_frac = o["es_frac"].Double();
-        else
-            m_early_stopping_frac = 0.1f;
+    void SimpleDatasetLearner<StorageSpace>::init(int bs, std::string ds, unsigned int nsplits, float es_frac){
+        m_bs = bs;
         m_in_early_stopping = false;
         if(0);
         else if (ds == "mnist"){
@@ -184,24 +194,12 @@ namespace cuvnet
     SimpleDatasetLearner<StorageSpace>::get_data_batch(unsigned int batch){
         cuv::tensor<float,StorageSpace>& data = m_in_early_stopping ? m_current_vdata : m_current_data;
         return data[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
-        /*
-         *cuv::tensor<float,StorageSpace>& data = m_current_data;
-         *if(!m_in_early_stopping)
-         *    batch += (m_early_stopping_frac * data.shape(0))/m_bs;
-         *return data[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
-         */
     }
     template<class StorageSpace>
     cuv::tensor<float, StorageSpace> 
     SimpleDatasetLearner<StorageSpace>::get_label_batch(unsigned int batch){
         cuv::tensor<float,StorageSpace>& labl = m_in_early_stopping ? m_current_vlabels : m_current_labels;
         return labl[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
-        /*
-         *cuv::tensor<float,StorageSpace>& labl = m_current_labels;
-         *if(!m_in_early_stopping)
-         *    batch += (m_early_stopping_frac * labl.shape(0))/m_bs;
-         *return labl[cuv::indices[cuv::index_range(batch*m_bs,(batch+1)*m_bs)][cuv::index_range()]];
-         */
     }
 
     template<class StorageSpace>
@@ -224,24 +222,12 @@ namespace cuvnet
         }else{
             return m_current_data.shape(0)/m_bs;
         }
-        /*
-         *return  m_in_early_stopping 
-         *    ?  (     m_early_stopping_frac  * m_current_data.shape(0)) / m_bs
-         *    :  ((1.f-m_early_stopping_frac) * m_current_data.shape(0)) / m_bs;
-         */
     }
 
     template<class StorageSpace>
     bool 
     SimpleDatasetLearner<StorageSpace>::can_earlystop()const{ 
         return m_current_vdata.ptr();
-/*
- *        float f = m_early_stopping_frac * m_current_data.shape(0);
- *
- *        return f >= m_bs  // enough data for a earlystopping eval
- *            &&   // and enough data for regular learning
- *            (m_current_data.shape(0) - f) >= m_bs;
- */
     }
 
     template class SimpleDatasetLearner<cuv::dev_memory_space>;

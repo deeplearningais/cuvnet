@@ -12,6 +12,7 @@
 #include <boost/accumulators/statistics/min.hpp>
 #include <boost/accumulators/statistics/variance.hpp>
 
+#include <datasets/dataset.hpp> // for cv_mode
 #include <cuvnet/ops/output.hpp>
 #include <cuvnet/ops.hpp>
 #include <cuv/tools/device_tools.hpp>
@@ -55,8 +56,11 @@ namespace cuvnet
             /// counts the number of epochs we've seen
             unsigned int m_epochs;
 
-            /// if true we're in train phase, otherwise test phase
-            bool m_is_train_phase;
+            /// the training mode we're in currently
+            cv_mode m_cv_mode;
+
+            /// the split we're currently monitoring
+            int m_split;
 
             /// file where we write the loss
             std::ofstream m_logfile;
@@ -99,6 +103,7 @@ namespace cuvnet
                 acc_t           scalar_stats;
             };
 
+            std::vector<std::pair<std::string,std::string> > m_constants; ///< keeps all constants
             std::vector<watchpoint*> m_watchpoints; ///< keeps all watchpoints 
             std::map<std::string, watchpoint*> m_wpmap;  ///< access watchpoints by name
             bool m_verbose; ///< if true, log to stdout after each epoch
@@ -110,7 +115,8 @@ namespace cuvnet
             monitor(bool verbose=false, const std::string& file_name = "loss.csv")
                 :m_batch_presentations(0)
                 ,m_epochs(0)
-                ,m_is_train_phase(true)
+                ,m_cv_mode(CM_TRAIN)
+                ,m_split(0)
                 ,m_logfile(file_name.c_str(), std::ios::out | std::ios::app)
                 ,need_header_log_file(true)
                 ,m_verbose(verbose){ }
@@ -137,14 +143,29 @@ namespace cuvnet
                 return *this;
             }
 
+            template<class ValueType>
+            monitor& add(const std::string& name, const ValueType& value){
+                m_constants.push_back(std::make_pair(name, boost::lexical_cast<std::string>(value)));
+                return *this;
+            }
+
 
             /**
-             * it is set to true if it is training phase, otherwise is test phase 
+             * Sets the current mode of training.
              *
-             * @param is_train true if it is training phase, otherwise is test phase 
+             * @warning the epochs counter is resetted here under two conditions:
+             *    1) The split changes
+             *    2) The mode changes to TRAINALL (since there might only be
+             *       one split and condition 1 would not work)
+             *
+             * @param mode the mode we're in now
+             * @param split the split we're working on now
              */
-            void set_is_train_phase(bool is_train){
-                m_is_train_phase = is_train;
+            void set_training_phase(cv_mode mode, int split=0){
+                if(split != m_split || mode == CM_TRAINALL)
+                    m_epochs = 0;
+                m_cv_mode = mode;
+                m_split = split;
             }
 
             /**
@@ -203,12 +224,12 @@ namespace cuvnet
 
             /// increases number of epochs
             void after_epoch(){
-                if(m_is_train_phase)
+                if(m_cv_mode == CM_TRAIN || m_cv_mode == CM_TRAINALL)
                     m_epochs ++;
-                if(m_verbose){
-                    log_to_file();
+                if(m_verbose)
                     simple_logging();
-                }
+                if(m_logfile.is_open())
+                    log_to_file();
                 m_batch_presentations = 0;
             }
 
@@ -291,21 +312,28 @@ namespace cuvnet
              * plain text logging of all epochstats to the file 
              */
             void log_to_file(){
+                typedef std::pair<std::string, std::string> ss_t;
                 assert(m_logfile.is_open());
                 if(need_header_log_file){
-                    m_logfile << "is_train,epoch,mem";
+                    m_logfile << "mode\tsplit\tepoch\tmem";
                     need_header_log_file = false;
+                    BOOST_FOREACH(const ss_t& p, m_constants){
+                        m_logfile << '\t' << p.first;
+                    }
                     BOOST_FOREACH(const watchpoint* p, m_watchpoints){
-                        m_logfile << "," << p->name;
+                        m_logfile << '\t' << p->name;
                     }
                     m_logfile << std::endl;
                 }
                     
-                m_logfile << m_is_train_phase << "," << m_epochs << "," << cuv::getFreeDeviceMemory();
+                m_logfile << m_cv_mode << '\t' << m_split << '\t' << m_epochs << '\t' << cuv::getFreeDeviceMemory();
+                BOOST_FOREACH(const ss_t& p, m_constants){
+                    m_logfile << '\t' << p.second;
+                }
                 BOOST_FOREACH(const watchpoint* p, m_watchpoints){
                     if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
                         // writes to the file the loss
-                            m_logfile  << "," <<  mean(p->name)  << "," << stddev(p->name);
+                            m_logfile  << '\t' <<  mean(p->name)  << '\t' << stddev(p->name);
                     }
                 }
                 m_logfile << std::endl;
@@ -316,6 +344,10 @@ namespace cuvnet
              */
             void simple_logging()const{
                 std::cout << "\r epoch "<<m_epochs<<"/"<<m_batch_presentations<<":  free_mb="<<cuv::getFreeDeviceMemory()/1024/1024<<",  ";
+                typedef std::pair<std::string, std::string> ss_t;
+                BOOST_FOREACH(const ss_t& p, m_constants){
+                    std::cout << p.first<<"="<<p.second<<" ";
+                }
                 BOOST_FOREACH(const watchpoint* p, m_watchpoints){
                     if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
                         std::cout  << p->name<<"="

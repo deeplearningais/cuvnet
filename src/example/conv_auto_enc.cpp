@@ -14,13 +14,13 @@
 #include <datasets/splitter.hpp>
 #include <tools/monitor.hpp>
 
-/// for simple_auto_encoder_no_regularization
+/// for no_regularization
 #include <cuvnet/models/simple_auto_encoder.hpp>
 #include <cuvnet/models/convolutional_auto_encoder.hpp>
 
 using namespace boost::assign;
 namespace ll = boost::lambda;
-typedef denoising_conv_auto_encoder<simple_auto_encoder_no_regularization> ae_type;
+typedef l2reg_denoising_conv_auto_encoder ae_type;
 
 /// convenient transpose for a matrix (used in visualization only)
 template<class T>
@@ -156,8 +156,8 @@ int main(int argc, char **argv)
 
     // create a denoising convolutional auto-encoder
     // given filter-size, number of filters and noise standard deviation
-    ae_type ae(ds.binary, 5, fa*fb, 0.6); 
-    ae.init(input, 0.001f);
+    ae_type ae(ds.binary, 5, fa*fb, 0.6, 0.001f); 
+    ae.init(input);
     
     // obtain the parameters which we need to derive for in the unsupervised
     // learning phase

@@ -5,9 +5,6 @@
 
 namespace cuvnet
 {
-class simple_auto_encoder_no_regularization;
-template<class Regularizer=simple_auto_encoder_no_regularization>
-
 /**
  * A stack of auto-encoders.
  *
@@ -21,22 +18,32 @@ template<class Regularizer=simple_auto_encoder_no_regularization>
  * @ingroup models
  */
 class auto_encoder_stack
-: virtual public generic_auto_encoder
-, public Regularizer
+: public generic_auto_encoder
 {
     public:
-        typedef boost::shared_ptr<generic_auto_encoder> ae_type;
+        typedef boost::shared_ptr<generic_auto_encoder > ae_type;
         typedef std::vector<ae_type> ae_vec_type;
+        typedef boost::shared_ptr<Op>     op_ptr;
 
     private:
         ae_vec_type m_stack;
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & boost::serialization::base_object<generic_auto_encoder>(*this);
+                ar & m_stack;
+            }
     public:
 
         auto_encoder_stack(bool binary)
         :generic_auto_encoder(binary)
-        ,Regularizer(binary)
         {
         }
+
+        /**
+         * return the number of auto-encoders in the stack.
+         */
+        inline unsigned int size(){ return m_stack.size(); }
 
         /**
          * Determine the parameters learned during pre-training
@@ -136,17 +143,27 @@ class auto_encoder_stack
          *
          * @overload
          */
-        virtual void init(op_ptr input, float regularization_strength=0.f){
+        virtual void init(op_ptr input){
             for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
                 bool is_first = it == m_stack.begin();
                 if(is_first)
-                    (*it)->init(input, regularization_strength);
+                    (*it)->init(input);
                 else
-                    (*it)->init(boost::dynamic_pointer_cast<Op>((*(it-1))->get_encoded()),regularization_strength);
+                    (*it)->init(boost::dynamic_pointer_cast<Op>((*(it-1))->get_encoded()));
             }
-            generic_auto_encoder::init(input, regularization_strength);
+            generic_auto_encoder::init(input);
             reset_weights();
         }
+
+        /**
+         * return the n-th auto-encoder
+         */
+        inline generic_auto_encoder& get_ae(unsigned int i){ return *m_stack[i]; }
+
+        /**
+         * return the input to the stack
+         */
+        inline op_ptr input(){ return m_stack.front()->input(); }
 };
 
 } // namespace cuvnet

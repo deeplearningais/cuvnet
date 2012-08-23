@@ -461,11 +461,11 @@ float test_phase_early_stopping(monitor* mon, gradient_descent* orig_gd, random_
         gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
         gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
         std::cout << std::endl << " testing phase ";
-        mon->set_is_train_phase(false);
+        mon->set_training_phase(false);
         gd.minibatch_learning(1, 100, 0);
         //load_batch(input_x, input_y, teacher, &data,bs,0);
         //gd.batch_learning(1, 100*60);
-        mon->set_is_train_phase(true);
+        mon->set_training_phase(true);
         mean = mon->mean("total loss");
     }
     orig_gd->repair_swiper();
@@ -904,10 +904,10 @@ void regression(random_translation& ds, tensor_type& encoder_train, tensor_type&
             new ParameterInput(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
 
     //creates stacked autoencoder with one simple autoencoder. has fa*fb number of hidden units
-    auto_encoder_stack<> ae_s(false);
-    typedef simple_auto_encoder<simple_auto_encoder_weight_decay> ae_type;
-    ae_s.add<ae_type>(16*8, ds.binary);
-    ae_s.init(input, 0.01f);
+    auto_encoder_stack ae_s(false);
+    typedef l2reg_simple_auto_encoder ae_type;
+    ae_s.add<ae_type>(16*8, ds.binary, 0.01f);
+    ae_s.init(input);
 
     // creates the logistic regression on the top of the stacked autoencoder
     logistic_regression lr(ae_s.get_encoded(), target);

@@ -17,7 +17,7 @@
 
 using namespace cuvnet;
 namespace ll = boost::lambda;
-typedef simple_auto_encoder<simple_auto_encoder_weight_decay> ae_type;
+typedef l2reg_simple_auto_encoder ae_type;
 
 /// convenient transpose for a matrix (used in visualization only)
 matrix trans(matrix& m){
@@ -144,8 +144,8 @@ int main(int argc, char **argv)
             new ParameterInput(cuv::extents[bs][ds.train_data.shape(1)],"input")); 
 
 
-    ae_type ae(fa*fb, ds.binary); // creates simple autoencoder
-    ae.init(input, 0.001f);
+    ae_type ae(fa*fb, ds.binary, 0.001f); // creates simple autoencoder with L2 regularization
+    ae.init(input);
     
 
     // obtain the parameters which we need to derive for in the unsupervised

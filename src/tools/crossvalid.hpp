@@ -81,7 +81,7 @@ namespace cuvnet
 		struct all_splits_evaluator{
 			public:
 				all_splits_evaluator(boost::shared_ptr<crossvalidatable> p);
-				void operator()();
+				float operator()();
 
                 /// @return the average CV performance
 				inline float perf()const{return m_perf;}
