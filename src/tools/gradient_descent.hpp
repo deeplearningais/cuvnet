@@ -209,7 +209,9 @@ namespace cuvnet
                 }catch(max_iter_stop){
                 }
 
-                load_best_params();    // may also restore m_epoch
+                // Restore parameters.
+                // - may also restore m_epoch
+                load_best_params();    
                 //m_epoch *= n_batches; // number of batch presentations
             }
             /**
