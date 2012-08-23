@@ -3,3 +3,4 @@ build1
 build_bigcuda2
 build_cuda1
 .*.swp
+src/boost
