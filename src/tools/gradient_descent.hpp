@@ -317,7 +317,8 @@ namespace cuvnet
                     return;
 
                 // this does the actual work, it runs fprop on all ES batches
-                unsigned int n_batches = early_stopping_epoch(current_epoch);
+                before_early_stopping_epoch(current_epoch);
+                early_stopping_epoch(current_epoch);
 
                 // determine how good we've been (usually set to some perf()
                 // function of the construct you're trying to minimize)
