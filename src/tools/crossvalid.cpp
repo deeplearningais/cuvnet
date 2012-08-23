@@ -55,11 +55,10 @@ namespace cuvnet
 			m_test_perf0 = 0.f;
             m_perf       = 0.f;
 		}
-		void all_splits_evaluator::operator()(){
-			std::cout << "Cross-Validation of "<<m_ptr->n_splits()<<" splits"<<std::endl;
+		float all_splits_evaluator::operator()(){
 			for (unsigned int s = 0; s < m_ptr->n_splits(); ++s)
 			{
-                std::cout << "processing split "<<s<<std::endl;
+                std::cout << "Processing split "<<s<<"/"<<m_ptr->n_splits()<<std::endl;
 				m_ptr->switch_dataset(s,CM_TRAIN);
 				m_ptr->fit();
 				m_ptr->switch_dataset(s,CM_VALID);
@@ -89,6 +88,7 @@ namespace cuvnet
                 m_test_perf0 = m_ptr->predict();
                 std::cout << "Test0 error:" << m_test_perf0 << std::endl;
             }
+            return m_perf; /* return the X-val error for optimization! */
 		}
 
 		void crossvalidation_queue::dispatch(boost::shared_ptr<crossvalidatable> p, const mongo::BSONObj& desc){
