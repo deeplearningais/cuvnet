@@ -20,6 +20,9 @@ namespace cuvnet
             std::auto_ptr<swiper>   m_swiper;
         public:
             function(){}
+            inline void repair_swiper(){
+                m_swiper->init();
+            }
             /**
              * create a function object.
              * @param op the wrapped op
