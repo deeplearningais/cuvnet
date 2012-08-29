@@ -235,6 +235,7 @@ void swiper::init()
 
     m_topo.clear();    // remove possible previous ordering
     op.visit(m_topo);
+    check_param_existence();
 
     this->set_calculate_result();             // determine need_result
     op.set_calculate_derivative(m_paramlist); // determine need_derivative
@@ -315,6 +316,20 @@ swiper::debug(unsigned int cnt, Op* o, bool results, bool params, const char* id
         write_graphviz(*m_topo.plist.back(),os,m_topo.plist,o);
     }
 }
+
+
+void swiper::check_param_existence()const{
+    BOOST_FOREACH(Op* par, m_paramlist){
+        if (std::find(m_topo.plist.begin(), m_topo.plist.end(), par) == m_topo.plist.end()){
+            Input* inp = dynamic_cast<Input*>(par);
+            if(inp)
+                throw std::runtime_error("Parameter `" + inp->name() +  "' not found in the function graph");
+            else
+                throw std::runtime_error("Parameter not found in the function graph");
+        }
+    }
+} 
+
 void cuvnet::write_graphviz(Op& op, std::ostream& os){
 	os << "digraph { "<<std::endl;
 	define_graphviz_node_visitor dgnv(os);
@@ -330,3 +345,5 @@ void cuvnet::write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& l, Op* c
 	op.visit(dgnv,true);
 	os << "}"<<std::endl;
 }
+
+
