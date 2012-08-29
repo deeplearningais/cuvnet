@@ -179,6 +179,10 @@ namespace cuvnet
         inline void postorder(Op* o){
             plist.push_back(o);
         }
+        inline void clear(){
+            plist.clear();
+            visited.clear();
+        }
     };
 
     /**
@@ -334,28 +338,7 @@ namespace cuvnet
             write_graphviz(*m_op, os, m_topo.plist );
         }
 
-        void init()
-        {
-                Op& op = *m_op;
-
-                reset_needed_flags rnf;
-                op.visit(rnf);
-
-                op.result(m_result)->need_result = true; // this is the final res we're interested in
-                op.need_result(true);                  // this is a bit redundant
-
-                op.visit(m_topo);
-
-                this->set_calculate_result();             // determine need_result
-                op.set_calculate_derivative(m_paramlist); // determine need_derivative
-
-                cleanup_temp_vars_visitor ctvv;
-                op.visit(ctvv); 
-
-                op.visit(determine_shapes_visitor());
-
-                dump("swiper-initial.dot");
-            }
+        void init();
 
         /**
          * determine which results need to be calculated.

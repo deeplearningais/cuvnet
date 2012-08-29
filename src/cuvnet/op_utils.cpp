@@ -223,6 +223,29 @@ void define_graphviz_node_visitor::postorder(Op* o){
 		cnt++;
 	}
 }
+void swiper::init()
+{
+    Op& op = *m_op;
+
+    reset_needed_flags rnf;
+    op.visit(rnf);
+
+    op.result(m_result)->need_result = true; // this is the final res we're interested in
+    op.need_result(true);                  // this is a bit redundant
+
+    m_topo.clear();    // remove possible previous ordering
+    op.visit(m_topo);
+
+    this->set_calculate_result();             // determine need_result
+    op.set_calculate_derivative(m_paramlist); // determine need_derivative
+
+    cleanup_temp_vars_visitor ctvv;
+    op.visit(ctvv); 
+
+    op.visit(determine_shapes_visitor());
+
+    dump("swiper-initial.dot");
+}
 
 #define SWIPER_DEBUG 0
 void swiper::fprop(){
