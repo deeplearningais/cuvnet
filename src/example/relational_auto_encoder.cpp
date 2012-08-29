@@ -461,11 +461,11 @@ float test_phase_early_stopping(monitor* mon, gradient_descent* orig_gd, random_
         gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
         gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
         std::cout << std::endl << " testing phase ";
-        mon->set_training_phase(false);
+        mon->set_training_phase(CM_TEST);
         gd.minibatch_learning(1, 100, 0);
         //load_batch(input_x, input_y, teacher, &data,bs,0);
         //gd.batch_learning(1, 100*60);
-        mon->set_training_phase(true);
+        mon->set_training_phase(CM_TRAIN);
         mean = mon->mean("total loss");
     }
     orig_gd->repair_swiper();
@@ -684,7 +684,7 @@ tensor_type test_phase(random_translation& ds, monitor& mon, relational_auto_enc
     rprop_gradient_descent gd(ae.loss(), 0, params, 0);
     //gradient_descent gd(ae.loss(),0,params,0.f);
     gd.register_monitor(mon);
-    //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,num_hidden,input_size, input_x, input_y, teacher, false,_1));
+    gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,num_hidden,input_size, input_x, input_y, teacher, false,_1));
     //gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
     gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
     //gd.minibatch_learning(1, 100, 0);
@@ -968,22 +968,22 @@ void regression(random_translation& ds, tensor_type& encoder_train, tensor_type&
 }
 
 
-void initialize_pos_invariance_set(tensor_type& inv_data, int input_size, int ex, int trans, int factor, int subsample, int distance, float sigma){
+void initialize_pos_invariance_set(tensor_type& inv_data, int num_examples, int input_size, int trans, int factor, int subsample, int distance, float sigma){
     input_size *= subsample;
-    inv_data.resize(cuv::extents[3][input_size * ex][input_size]);
+    inv_data.resize(cuv::extents[3][num_examples *input_size][input_size]);
     inv_data = 0.f;
     morse_code morse(inv_data, factor); 
-    for(int ch = 0; ch < ex; ch++){
+    for(int ch = 0; ch < num_examples; ch++){
         morse.write_char(ch, 0, ch, 0); 
         morse.write_char(ch, 1, ch, get_wrap_index(input_size,trans)); 
         morse.write_char(ch, 2, ch, get_wrap_index(input_size, 2*trans)); 
     }
     inv_data = morse.get_data();
 
-    for(int e = ex; e < input_size * ex; e++){
+    for(int e = num_examples; e < input_size * num_examples; e++){
         for(int pos = 0; pos < input_size; pos++){ 
             for(int j = 0; j < 3; j++){ 
-                inv_data(j, e, pos) = inv_data(j, e - ex, get_wrap_index(input_size, pos - 1));
+                inv_data(j, e, pos) = inv_data(j, e - num_examples, get_wrap_index(input_size, pos - 1));
             }
         } 
 
@@ -1029,6 +1029,7 @@ void initialize_pattern_invariance_set(tensor_type& inv_data, int num_examples, 
        subsampling(inv_data, subsample);
     }
     normalize_data_set(inv_data); 
+    std::cout << " " << inv_data.shape(0) << " " << inv_data.shape(1)<< " " << inv_data.shape(2);
 }
 
 /**
@@ -1113,8 +1114,8 @@ void measure_invariance_position(relational_auto_encoder& ae, tensor_type& test_
 
     std::cout << std::endl << " Measuring position invariance: " << std::endl;
     tensor_type inv_data;
-    initialize_pos_invariance_set(inv_data,  test_data.shape(2), example, trans, factor, subsample, distance, sigma);
-    std::cout << " inv_data size " << inv_data.shape(2) <<  endl;
+    initialize_pos_invariance_set(inv_data,  example, test_data.shape(2), trans, factor, subsample, distance, sigma);
+    std::cout << " inv_data size " << inv_data.shape(1) << inv_data.shape(2) <<  endl;
 
     matrix data = inv_data;
     int bs = 300;
@@ -1166,23 +1167,24 @@ class analyse{
         string m_file_name;
 
     public:
-        analyse(std::string file_name):
-        need_header_log_file(true),
-        m_file_name(file_name)
+        analyse():
+        need_header_log_file(true)
         {
         }
-        void analyse_invariance(op_ptr op, boost::function<map<string,int>()> data_gen, int num_data=INT_MAX){
+        void analyse_invariance(op_ptr op, boost::function<map<string,int>()> data_gen, string file_name, int num_data=INT_MAX){
             // open file
-            m_logfile.open(m_file_name.c_str(), std::ios::out);
+            m_logfile.open(file_name.c_str(), std::ios::out);
+            cuvnet::function f(op);
+
             try{
                 for(int i=0;i<num_data; i++){
                     map<string, int> param = data_gen();
-                    cuvnet::function f(op);
                     matrix hidden_act = f.evaluate();
                     log_to_file(hidden_act, param); // write to file (repeatedly)
                 }
             }catch(max_example_reached_exception){
             }
+
             m_logfile.close();
         }
 
@@ -1195,7 +1197,7 @@ class analyse{
                 }
                 for (unsigned int i = 0; i < hidden_act.shape(1); ++i)
                 {
-                    if(i == hidden_act.shape(1)){
+                    if(i == hidden_act.shape(1) -1){
                         m_logfile << "h" << i;
                     }else{
                         m_logfile << "h" << i << ",";
@@ -1210,7 +1212,7 @@ class analyse{
             }
             for (unsigned int i = 0; i < hidden_act.shape(1); ++i)
             {
-                if(i == hidden_act.shape(1)){
+                if(i == hidden_act.shape(1) - 1){
                     m_logfile << hidden_act(0,i);
                 }else{
                     m_logfile << hidden_act(0,i) << ",";
@@ -1231,6 +1233,9 @@ struct morse_pat_gen{
     int m_factor, m_input_size;
     int m_max_num_examples;
     int m_current_example;
+    int m_current_pos;
+    int m_current_trans;
+    int m_current_ex_type;
     public:
 
     morse_pat_gen(input_ptr input_x, input_ptr input_y, int min_trans, int max_trans, int min_pos, int max_pos, int min_ex_type, int max_ex_type, int factor, int input_size, int max_num_examples):
@@ -1245,22 +1250,43 @@ struct morse_pat_gen{
         m_factor(factor),
         m_input_size(input_size),
         m_max_num_examples(max_num_examples),
-        m_current_example(0)
-    {}
+        m_current_example(0),
+        m_current_pos(min_pos),
+        m_current_trans(0),
+        m_current_ex_type(0)
+    {
+        srand ( time(NULL) );
+    }
     map<string,int> operator()(){
         if(m_current_example == m_max_num_examples){
             throw max_example_reached_exception();
         }
-        m_current_example++;
-        srand ( time(NULL) );
-        int trans = (rand() % (m_max_trans - m_min_trans + 1)) + m_min_trans;
-        int pos = (rand() % (m_max_pos - m_min_pos + 1)) + m_min_pos;
-        int ex_type = (rand() % (m_max_ex_type - m_min_ex_type + 1)) + m_min_ex_type;
+        if(m_current_pos == m_max_pos){
+            m_current_pos = m_min_pos;
+        }
 
-        tensor_type example;                              
+        // samples translation and input type only once, and iterates over all positions
+        int trans;
+        int ex_type;
+        if(m_current_pos == m_min_pos){
+            trans = (rand() % (m_max_trans - m_min_trans + 1)) + m_min_trans;
+            ex_type = (rand() % (m_max_ex_type - m_min_ex_type )) + m_min_ex_type;
+            m_current_trans = trans;
+            m_current_ex_type = ex_type;
+        }
+        else{
+            trans = m_current_trans;
+            ex_type = m_current_ex_type;
+        }
+        m_current_example++;
+        int pos = m_current_pos;
+        m_current_pos++;
+
+        tensor_type example(cuv::extents[3][1][m_input_size]);
+        example = 0.f;        
         morse_code morse(example, m_factor);
         morse.write_char(ex_type, 0, 0, pos);
-        morse.write_char(ex_type, 0, 0, get_wrap_index(m_input_size, pos + trans));
+        morse.write_char(ex_type, 1, 0, get_wrap_index(m_input_size, pos + trans));
         example = morse.get_data();
         m_input_x->data() = example[cuv::indices[0][cuv::index_range()][cuv::index_range()]];
         m_input_y->data() = example[cuv::indices[1][cuv::index_range()][cuv::index_range()]];
@@ -1279,11 +1305,11 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int input_size=100,bs=  300 , subsampling = 2, max_trans = 2, gauss_dist = 6, min_width = 10, max_width = 30, max_growing = 0, flag = 2, morse_factor = 6;
-    unsigned max_num_epochs = 200;
+    unsigned int input_size=50,bs=  300 , subsampling = 2, max_trans = 4, gauss_dist = 6, min_width = 10, max_width = 30, max_growing = 0, flag = 2, morse_factor = 6;
+    unsigned max_num_epochs = 5000;
 
     //unsigned int fa = (max_growing * 2 + 1) * (max_trans * 2 + 1) ;
-    unsigned int num_hidden = 10;
+    unsigned int num_hidden = 5;
 
     unsigned int num_factors = 200;
     float sigma = gauss_dist / 3; 
@@ -1344,18 +1370,21 @@ int main(int argc, char **argv)
     //regression(ds, encoder_train, encoder_test);
 
 
-    analyse a("invariance_test.txt");
+    input_x->data().resize(cuv::extents[1][input_size]); 
+    input_y->data().resize(cuv::extents[1][input_size]); 
     
-    morse_pat_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, 100);
-    a.analyse_invariance(ae.get_encoded(), m); 
+    analyse a;
+    
+    int num_examples = 100000;
+    morse_pat_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, num_examples);
+    a.analyse_invariance(ae.get_encoded(), m, "invariance_test.txt"); 
 
-    //boost::bind(morse_pat_gen());
-
+    //int num_examples = 10;
     //for(int trans = - max_trans; trans <= (int)max_trans; trans++){
-    //    measure_invariance_position(ae,  ds.test_data,  mon,  input_x,  input_y,  teacher, num_examples, trans, morse_factor, subsampling, gauss_dist, sigma);
+    //   measure_invariance_position(ae,  ds.test_data,  mon,  input_x,  input_y,  teacher, num_examples, trans, morse_factor, subsampling, gauss_dist, sigma);
     //}
     //for(int trans = - max_trans; trans <= (int)max_trans; trans++){
-    //   measure_pattern_invariance(ae,  ds.test_data,  mon,  input_x,  input_y,  teacher, num_examples , trans, morse_factor, subsampling, gauss_dist, sigma);
+    //  measure_pattern_invariance(ae,  ds.test_data,  mon,  input_x,  input_y,  teacher, num_examples , trans, morse_factor, subsampling, gauss_dist, sigma);
     //}
 
     return 0;
