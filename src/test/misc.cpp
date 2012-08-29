@@ -1,10 +1,11 @@
 #include <vector>
 #include <algorithm>
-#include <gtest/gtest.h>
 
 #include <tools/argsort.hpp>
 #include <tools/preprocess.hpp>
 #include <tools/orthonormalization.hpp>
+
+#include <boost/test/unit_test.hpp>
 
 #define V(X) #X<<":"<<(X)<<", "
 
@@ -22,25 +23,30 @@ double nrand(){
     return sum;
 }
 
-TEST(argsort, normal){
+
+BOOST_AUTO_TEST_SUITE( t_argsort )
+BOOST_AUTO_TEST_CASE(normal){
     std::vector<float> v(50);
     std::generate(v.begin(),v.end(),drand48);
     std::vector<unsigned int> idx = argsort(v.begin(), v.end());
-    EXPECT_EQ(50, idx.size());
+    BOOST_CHECK_EQUAL(50, idx.size());
     for(unsigned int i=1;i<50;i++){
-        EXPECT_LT(v[idx[i-1]] , v[idx[i]]);
+        BOOST_CHECK_LT(v[idx[i-1]] , v[idx[i]]);
     }
 }
-TEST(argsort, inv){
+BOOST_AUTO_TEST_CASE(inv){
     std::vector<float> v(50);
     std::generate(v.begin(),v.end(),drand48);
     std::vector<unsigned int> idx = argsort(v.begin(), v.end(), std::greater<float>());
-    EXPECT_EQ(50, idx.size());
+    BOOST_CHECK_EQUAL(50, idx.size());
     for(unsigned int i=1;i<50;i++){
-        EXPECT_GT(v[idx[i-1]] , v[idx[i]]);
+        BOOST_CHECK_GT(v[idx[i-1]] , v[idx[i]]);
     }
 }
-TEST(orthogonalization, everything){
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( orthogonalization )
+BOOST_AUTO_TEST_CASE(everything){
     {
         cuv::tensor<float,cuv::host_memory_space> m(cuv::extents[5][2]);
         for (unsigned int i = 0; i < m.shape(0); ++i)
@@ -57,10 +63,10 @@ TEST(orthogonalization, everything){
                 {
                     s += m(k,i)*m(k,j);
                 }
-                //EXPECT_NEAR(0.f, s, 0.001f);
+                //BOOST_CHECK_CLOSE(0.f, s, 0.001f);
                 if(fabs(s) > 0.001f){
                     std::cout << "error: " << s << std::endl;
-                    EXPECT_EQ(true,false);
+                    BOOST_CHECK_EQUAL(true,false);
                 }
             }
         }
@@ -77,17 +83,17 @@ TEST(orthogonalization, everything){
             {
                 s  += m(i,k)*m(j,k);
             }
-            //EXPECT_NEAR(0.f, s, 0.001f);
+            //BOOST_CHECK_CLOSE(0.f, s, 0.001f);
             if(fabs(s) > 0.001f){
                 std::cout << "error: " << s << std::endl;
-                EXPECT_EQ(true,false);
+                BOOST_CHECK_EQUAL(true,false);
             }
         }
     }
     
 }
 
-TEST(orthogonalization, pairs){
+BOOST_AUTO_TEST_CASE(pairs){
     cuv::tensor<float,cuv::dev_memory_space> m(cuv::extents[16*2][16*2]);
     for (unsigned int i = 0; i < m.shape(0); ++i)
     {
@@ -107,10 +113,10 @@ TEST(orthogonalization, pairs){
         {
             s += m(k,i)*m(k,j);
         }
-        //EXPECT_NEAR(0.f, s, 0.001f);
+        //BOOST_CHECK_CLOSE(0.f, s, 0.001f);
         if(fabs(s) > 0.001f){
             std::cout << "error: " << s << std::endl;
-            EXPECT_EQ(true,false);
+            BOOST_CHECK_EQUAL(true,false);
         }
     }
 
@@ -124,16 +130,18 @@ TEST(orthogonalization, pairs){
         {
             s  += m(i,k)*m(j,k);
         }
-        //EXPECT_NEAR(0.f, s, 0.001f);
+        //BOOST_CHECK_CLOSE(0.f, s, 0.001f);
         if(fabs(s) > 0.001f){
             std::cout << "error: " << s << std::endl;
-            EXPECT_EQ(true,false);
+            BOOST_CHECK_EQUAL(true,false);
         }
     }
     
 }
+BOOST_AUTO_TEST_SUITE_END()
 
-TEST(pca,normal){
+BOOST_AUTO_TEST_SUITE( pca )
+BOOST_AUTO_TEST_CASE(normal){
     typedef cuv::tensor<float,cuv::host_memory_space> tens_t;
 
     cuvnet::pca_whitening pp;
@@ -148,8 +156,8 @@ TEST(pca,normal){
     tens_t data2 = data.copy();
 
     pp.fit_transform(data);
-    EXPECT_EQ(data.shape(0),data2.shape(0));
-    EXPECT_EQ(data.shape(1),data2.shape(1));
+    BOOST_CHECK_EQUAL(data.shape(0),data2.shape(0));
+    BOOST_CHECK_EQUAL(data.shape(1),data2.shape(1));
 
     // check for identity matrix
     const tens_t&  rot = pp.rot();
@@ -159,18 +167,18 @@ TEST(pca,normal){
     for(unsigned int i=0;i<rot.shape(0);i++){
         res(i,i)-=1.f;
     }
-    EXPECT_NEAR(0.f, cuv::norm2(res), 0.01f);
+    BOOST_CHECK_CLOSE(0.f, cuv::norm2(res), 0.01f);
 
     // check for reverse_transform
     pp.reverse_transform(data);
-    EXPECT_TRUE(cuv::equal_shape(data,data2));
+    BOOST_CHECK(cuv::equal_shape(data,data2));
     for(unsigned int i=0;i<data.shape(0);i++)
         for(unsigned int j=0;j<data.shape(1);j++){
-            EXPECT_NEAR(data(i,j), data2(i,j),0.01f);
+            BOOST_CHECK_CLOSE((float)data(i,j), (float)data2(i,j),0.01f);
         }
 }
 
-TEST(pca,reduced_pca){
+BOOST_AUTO_TEST_CASE(reduced_pca){
     typedef cuv::tensor<float,cuv::host_memory_space> tens_t;
 
     cuvnet::pca_whitening pp(2,false); // 1 less than data dim
@@ -192,22 +200,22 @@ TEST(pca,reduced_pca){
     tens_t data2 = data.copy();
 
     pp.fit_transform(data);
-    EXPECT_EQ(data.shape(0),data2.shape(0));
-    EXPECT_EQ(data.shape(1),2);
+    BOOST_CHECK_EQUAL(data.shape(0),data2.shape(0));
+    BOOST_CHECK_EQUAL(data.shape(1),2);
 
     // check for identity matrix does not make sense (reduced!)
 
     // check for reverse_transform
     pp.reverse_transform(data);
-    EXPECT_TRUE(cuv::equal_shape(data,data2));
+    BOOST_CHECK(cuv::equal_shape(data,data2));
     for(unsigned int i=0;i<data.shape(0);i++)
         for(unsigned int j=0;j<data.shape(1);j++){
             //std::cout << "i, j = "<<i<<", "<<j<<std::endl;
-            EXPECT_NEAR(data(i,j), data2(i,j),0.01f);
+            BOOST_CHECK_CLOSE((float)data(i,j), (float)data2(i,j),0.01f);
         }
 }
 
-TEST(pca,reduced_whiten){
+BOOST_AUTO_TEST_CASE(reduced_whiten){
     typedef cuv::tensor<float,cuv::host_memory_space> tens_t;
 
     cuvnet::pca_whitening pp(2,true); // 1 less than data dim
@@ -229,22 +237,22 @@ TEST(pca,reduced_whiten){
     tens_t data2 = data.copy();
 
     pp.fit_transform(data);
-    EXPECT_EQ(data.shape(0),data2.shape(0));
-    EXPECT_EQ(data.shape(1),2);
+    BOOST_CHECK_EQUAL(data.shape(0),data2.shape(0));
+    BOOST_CHECK_EQUAL(data.shape(1),2);
 
     // check for identity matrix  not possible (not lossless)
 
     // check for reverse_transform
     pp.reverse_transform(data);
-    EXPECT_TRUE(cuv::equal_shape(data,data2));
+    BOOST_CHECK(cuv::equal_shape(data,data2));
     for(unsigned int i=0;i<data.shape(0);i++)
         for(unsigned int j=0;j<data.shape(1);j++){
             //std::cout << "i, j = "<<i<<", "<<j<<std::endl;
-            EXPECT_NEAR(data(i,j), data2(i,j),0.01f);
+            BOOST_CHECK_CLOSE((float)data(i,j), (float)data2(i,j),0.01f);
         }
 }
 
-TEST(pca,normal_zca){
+BOOST_AUTO_TEST_CASE(normal_zca){
     typedef cuv::tensor<float,cuv::host_memory_space> tens_t;
 
     cuvnet::pca_whitening pp(-1,true,true); // 1 less than data dim
@@ -266,8 +274,8 @@ TEST(pca,normal_zca){
     tens_t data2 = data.copy();
 
     pp.fit_transform(data);
-    EXPECT_EQ(data.shape(0),data2.shape(0));
-    EXPECT_EQ(data.shape(1),data2.shape(1));
+    BOOST_CHECK_EQUAL(data.shape(0),data2.shape(0));
+    BOOST_CHECK_EQUAL(data.shape(1),data2.shape(1));
 
     // check for identity matrix
     const tens_t&  rot = pp.rot();
@@ -277,18 +285,18 @@ TEST(pca,normal_zca){
     for(unsigned int i=0;i<rot.shape(0);i++){
         res(i,i)-=1.f;
     }
-    EXPECT_NEAR(0.f, cuv::norm2(res), 0.01f);
+    BOOST_CHECK_CLOSE(0.f, cuv::norm2(res), 0.01f);
 
     // check for reverse_transform
     pp.reverse_transform(data);
-    EXPECT_TRUE(cuv::equal_shape(data,data2));
+    BOOST_CHECK(cuv::equal_shape(data,data2));
     for(unsigned int i=0;i<data.shape(0);i++)
         for(unsigned int j=0;j<data.shape(1);j++){
             //std::cout << "i, j = "<<i<<", "<<j<<std::endl;
-            EXPECT_NEAR(data(i,j), data2(i,j),0.01f);
+            BOOST_CHECK_CLOSE((float)data(i,j), (float)data2(i,j),0.01f);
         }
 }
-TEST(pca,reduced_zca){
+BOOST_AUTO_TEST_CASE(reduced_zca){
     typedef cuv::tensor<float,cuv::host_memory_space> tens_t;
 
     cuvnet::pca_whitening pp(2,true,true); // 1 less than data dim
@@ -310,22 +318,24 @@ TEST(pca,reduced_zca){
     tens_t data2 = data.copy();
 
     pp.fit_transform(data);
-    EXPECT_EQ(data.shape(0),data2.shape(0));
-    EXPECT_EQ(data.shape(1),data2.shape(1));
+    BOOST_CHECK_EQUAL(data.shape(0),data2.shape(0));
+    BOOST_CHECK_EQUAL(data.shape(1),data2.shape(1));
 
     // check for identity matrix not possible: not lossless!
 
     // check for reverse_transform
     pp.reverse_transform(data);
-    EXPECT_TRUE(cuv::equal_shape(data,data2));
+    BOOST_CHECK(cuv::equal_shape(data,data2));
     for(unsigned int i=0;i<data.shape(0);i++)
         for(unsigned int j=0;j<data.shape(1);j++){
             //std::cout << "i, j = "<<i<<", "<<j<<std::endl;
-            EXPECT_NEAR(data(i,j), data2(i,j),0.01f);
+            BOOST_CHECK_CLOSE((float)data(i,j), (float)data2(i,j),0.01f);
         }
 }
+BOOST_AUTO_TEST_SUITE_END()
 
-TEST(pipeline, simple){
+BOOST_AUTO_TEST_SUITE( pipeline )
+BOOST_AUTO_TEST_CASE(simple){
     cuvnet::preprocessing_pipeline<> pp;
     pp.add(new cuvnet::global_min_max_normalize<>());
     pp.add(new cuvnet::zero_sample_mean<>());
@@ -336,8 +346,9 @@ TEST(pipeline, simple){
     v(1,0) = 0.f;
     v(1,1) = 400.f;
     pp.fit_transform(v);
-    EXPECT_NEAR(v(0,0), -0.25f, .01);
-    EXPECT_NEAR(v(0,1),  0.25f, .01);
-    EXPECT_NEAR(v(1,0), -0.5f, .01);
-    EXPECT_NEAR(v(1,1),  0.5f, .01);
+    BOOST_CHECK_CLOSE((float)v(0,0), -0.25f, .01);
+    BOOST_CHECK_CLOSE((float)v(0,1),  0.25f, .01);
+    BOOST_CHECK_CLOSE((float)v(1,0), -0.5f, .01);
+    BOOST_CHECK_CLOSE((float)v(1,1),  0.5f, .01);
 }
+BOOST_AUTO_TEST_SUITE_END()

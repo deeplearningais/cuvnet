@@ -1,8 +1,6 @@
 #include <cmath>
 #include <fstream>
 #include <cstdio>
-#include <gtest/gtest.h>
-
 
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
@@ -15,10 +13,14 @@
 #include <cuvnet/ops.hpp>
 #include <cuvnet/op_io.hpp>
 
+#include <boost/test/unit_test.hpp>
+
 using namespace cuvnet;
 using std::printf;
 
-TEST(op_test,io){
+BOOST_AUTO_TEST_SUITE(op_test)
+
+BOOST_AUTO_TEST_CASE(io){
 	typedef boost::shared_ptr<Op> ptr_t;
 	namespace bar= boost::archive;
 
@@ -37,14 +39,14 @@ TEST(op_test,io){
     register_objects(ia);
 	ptr_t id;
 	ia >> id;
-	EXPECT_FALSE(!id);
-	EXPECT_FALSE(!boost::dynamic_pointer_cast<Identity>(id));
-	EXPECT_EQ(id->param()->param_uses.size(),1);
+	BOOST_CHECK(id != NULL);
+	BOOST_CHECK(NULL != boost::dynamic_pointer_cast<Identity>(id));
+	BOOST_CHECK_EQUAL(id->param()->param_uses.size(),1);
 	ptr_t inp = id->param()->use(0)->get_op();
-	EXPECT_FALSE(!boost::dynamic_pointer_cast<ParameterInput>(inp));
+	BOOST_CHECK(NULL != boost::dynamic_pointer_cast<ParameterInput>(inp));
 }
 
-TEST(op_test,strio){
+BOOST_AUTO_TEST_CASE(strio){
 	typedef boost::shared_ptr<Op> ptr_t;
 	namespace bar= boost::archive;
 
@@ -57,9 +59,10 @@ TEST(op_test,strio){
 	}
 
     ptr_t id = str2op(s);
-	EXPECT_FALSE(!id);
-	EXPECT_FALSE(!boost::dynamic_pointer_cast<Identity>(id));
-	EXPECT_EQ(id->param()->param_uses.size(),1);
+	BOOST_CHECK(NULL != id);
+	BOOST_CHECK(NULL != boost::dynamic_pointer_cast<Identity>(id));
+	BOOST_CHECK_EQUAL(id->param()->param_uses.size(),1);
 	ptr_t inp = id->param()->use(0)->get_op();
-	EXPECT_FALSE(!boost::dynamic_pointer_cast<ParameterInput>(inp));
+	BOOST_CHECK(NULL != boost::dynamic_pointer_cast<ParameterInput>(inp));
 }
+BOOST_AUTO_TEST_SUITE_END()

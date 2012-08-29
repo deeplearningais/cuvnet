@@ -1,18 +1,20 @@
 #include <vector>
 #include <algorithm>
-#include <gtest/gtest.h>
 
 #include <cuvnet/op_utils.hpp>
 #include <datasets/random_translation.hpp>
 #include <datasets/voc_detection.hpp>
 #include <cuv/libs/cimg/cuv_cimg.hpp>
 
+#include <boost/test/unit_test.hpp>
+
 using namespace cuvnet;
 using namespace std;
 
 
+BOOST_AUTO_TEST_SUITE( RandomTranslation )
 
-TEST(RandomTranslation, FillGauss){
+BOOST_AUTO_TEST_CASE(FillGauss){
     int distance = 3;
     int sigma = 2;
     cuv::tensor<float,cuv::host_memory_space> gauss;
@@ -30,12 +32,12 @@ TEST(RandomTranslation, FillGauss){
     my_gauss /= sum;
 
     for(int i = 0; i < (int)gauss.shape(0);i++){
-        EXPECT_NEAR(my_gauss(i), gauss(i), 0.0001);
+        BOOST_CHECK_CLOSE((float)my_gauss(i),(float) gauss(i), 0.0001);
     }
 }
 
 
-TEST(RandomTranslation, Convolution){
+BOOST_AUTO_TEST_CASE(Convolution){
     cuv::tensor<float,cuv::host_memory_space> simple_filter(cuv::extents[3]);
     simple_filter(0) = 1;
     simple_filter(1) = 1;
@@ -53,7 +55,7 @@ TEST(RandomTranslation, Convolution){
     conv_data(0,0,1) = 6;
     conv_data(0,0,2) = 6;
     for(int i = 0; i < (int)conv_data.size(); i++){
-        EXPECT_NEAR(conv_data(0,0,i), data(0,0,i), 0.0001);
+        BOOST_CHECK_CLOSE((float)conv_data(0,0,i), (float)data(0,0,i), 0.0001);
     }
 
     data(0,0,0) = 1;
@@ -68,12 +70,12 @@ TEST(RandomTranslation, Convolution){
     conv_data(0,0,1) = 8;
     conv_data(0,0,2) = 9;
     for(int i = 0; i < (int)conv_data.size(); i++){
-        EXPECT_NEAR(conv_data(0, 0, i), data(0, 0, i), 0.0001);
+        BOOST_CHECK_CLOSE((float)conv_data(0, 0, i), (float)data(0, 0, i), 0.0001);
     }
 }
 
 
-TEST(RandomTranslation, SubSampling){
+BOOST_AUTO_TEST_CASE(SubSampling){
     int vec_size = 30;
     cuv::tensor<float,cuv::host_memory_space> tmp_data(cuv::extents[1][1][vec_size]);
     
@@ -91,11 +93,11 @@ TEST(RandomTranslation, SubSampling){
 
     subsampling(tmp_data, each_elem);
     int num = cuv::count(tmp_data,0.f);
-    EXPECT_EQ(num , vec_size / each_elem);
+    BOOST_CHECK_EQUAL(num , vec_size / each_elem);
 }
 
 
-TEST(RandomTranslation, TranslateData){
+BOOST_AUTO_TEST_CASE(TranslateData){
     cuv::tensor<float,cuv::host_memory_space> tmp_data(cuv::extents[3][1][6]);
     vector<int> rand_trans(tmp_data.shape(1));
     rand_trans[0] = 2;
@@ -109,44 +111,46 @@ TEST(RandomTranslation, TranslateData){
     // translate data by 2    
     translate_data(tmp_data, 1, rand_trans);
 
-    EXPECT_EQ(tmp_data(1,0,0), 5);
-    EXPECT_EQ(tmp_data(1,0,1), 6);
-    EXPECT_EQ(tmp_data(1,0,2), 1);
-    EXPECT_EQ(tmp_data(1,0,3), 2);
-    EXPECT_EQ(tmp_data(1,0,4), 3);
-    EXPECT_EQ(tmp_data(1,0,5), 4);
+    BOOST_CHECK_EQUAL(tmp_data(1,0,0), 5);
+    BOOST_CHECK_EQUAL(tmp_data(1,0,1), 6);
+    BOOST_CHECK_EQUAL(tmp_data(1,0,2), 1);
+    BOOST_CHECK_EQUAL(tmp_data(1,0,3), 2);
+    BOOST_CHECK_EQUAL(tmp_data(1,0,4), 3);
+    BOOST_CHECK_EQUAL(tmp_data(1,0,5), 4);
 
     translate_data(tmp_data, 2, rand_trans);
     
-    EXPECT_EQ(tmp_data(2,0,0), 3);
-    EXPECT_EQ(tmp_data(2,0,1), 4);
-    EXPECT_EQ(tmp_data(2,0,2), 5);
-    EXPECT_EQ(tmp_data(2,0,3), 6);
-    EXPECT_EQ(tmp_data(2,0,4), 1);
-    EXPECT_EQ(tmp_data(2,0,5), 2);
+    BOOST_CHECK_EQUAL(tmp_data(2,0,0), 3);
+    BOOST_CHECK_EQUAL(tmp_data(2,0,1), 4);
+    BOOST_CHECK_EQUAL(tmp_data(2,0,2), 5);
+    BOOST_CHECK_EQUAL(tmp_data(2,0,3), 6);
+    BOOST_CHECK_EQUAL(tmp_data(2,0,4), 1);
+    BOOST_CHECK_EQUAL(tmp_data(2,0,5), 2);
     
     // translate data by -2    
     rand_trans[0] = -2;
     translate_data(tmp_data, 1, rand_trans);
 
-    EXPECT_EQ(tmp_data(1,0,0), 3);
-    EXPECT_EQ(tmp_data(1,0,1), 4);
-    EXPECT_EQ(tmp_data(1,0,2), 5);
-    EXPECT_EQ(tmp_data(1,0,3), 6);
-    EXPECT_EQ(tmp_data(1,0,4), 1);
-    EXPECT_EQ(tmp_data(1,0,5), 2);
+    BOOST_CHECK_EQUAL(tmp_data(1,0,0), 3);
+    BOOST_CHECK_EQUAL(tmp_data(1,0,1), 4);
+    BOOST_CHECK_EQUAL(tmp_data(1,0,2), 5);
+    BOOST_CHECK_EQUAL(tmp_data(1,0,3), 6);
+    BOOST_CHECK_EQUAL(tmp_data(1,0,4), 1);
+    BOOST_CHECK_EQUAL(tmp_data(1,0,5), 2);
 
     translate_data(tmp_data, 2, rand_trans);
     
-    EXPECT_EQ(tmp_data(2,0,0), 5);
-    EXPECT_EQ(tmp_data(2,0,1), 6);
-    EXPECT_EQ(tmp_data(2,0,2), 1);
-    EXPECT_EQ(tmp_data(2,0,3), 2);
-    EXPECT_EQ(tmp_data(2,0,4), 3);
-    EXPECT_EQ(tmp_data(2,0,5), 4);
+    BOOST_CHECK_EQUAL(tmp_data(2,0,0), 5);
+    BOOST_CHECK_EQUAL(tmp_data(2,0,1), 6);
+    BOOST_CHECK_EQUAL(tmp_data(2,0,2), 1);
+    BOOST_CHECK_EQUAL(tmp_data(2,0,3), 2);
+    BOOST_CHECK_EQUAL(tmp_data(2,0,4), 3);
+    BOOST_CHECK_EQUAL(tmp_data(2,0,5), 4);
 }
+BOOST_AUTO_TEST_SUITE_END()
 
-TEST(VOC_Detection, init){
+BOOST_AUTO_TEST_SUITE( VOC_Detection )
+BOOST_AUTO_TEST_CASE(init){
     // NOTE: must be of same size as the squared-size the dataset produces
     //       since bndbox coordinates will be translated to new size!
     std::string fn = "../src/datasets/util/lena.jpg"; 
@@ -165,27 +169,27 @@ TEST(VOC_Detection, init){
     std::list<voc_detection_dataset::pattern> L;
     ds.get_batch(L, 2);
     BOOST_FOREACH(voc_detection_dataset::pattern& pat, L){
-        EXPECT_EQ(pat.meta_info.filename, fn);
-        ASSERT_EQ(pat.meta_info.objects.size(), 2);
+        BOOST_CHECK_EQUAL(pat.meta_info.filename, fn);
+        BOOST_REQUIRE_EQUAL(pat.meta_info.objects.size(), 2);
 
         // first object
-        EXPECT_EQ( 0, pat.meta_info.objects[0].klass);
-        EXPECT_EQ( 0, pat.meta_info.objects[0].xmin);
-        EXPECT_EQ( 1, pat.meta_info.objects[0].xmax);
-        EXPECT_EQ( 2, pat.meta_info.objects[0].ymin);
-        EXPECT_EQ( 3, pat.meta_info.objects[0].ymax);
+        BOOST_CHECK_EQUAL( 0, pat.meta_info.objects[0].klass);
+        BOOST_CHECK_EQUAL( 0, pat.meta_info.objects[0].xmin);
+        BOOST_CHECK_EQUAL( 1, pat.meta_info.objects[0].xmax);
+        BOOST_CHECK_EQUAL( 2, pat.meta_info.objects[0].ymin);
+        BOOST_CHECK_EQUAL( 3, pat.meta_info.objects[0].ymax);
         
         // second object
-        EXPECT_EQ( 1, pat.meta_info.objects[1].klass);
-        EXPECT_EQ( 10, pat.meta_info.objects[1].xmin);
-        EXPECT_EQ( 11, pat.meta_info.objects[1].xmax);
-        EXPECT_EQ( 12, pat.meta_info.objects[1].ymin);
-        EXPECT_EQ( 13, pat.meta_info.objects[1].ymax);
+        BOOST_CHECK_EQUAL( 1, pat.meta_info.objects[1].klass);
+        BOOST_CHECK_EQUAL( 10, pat.meta_info.objects[1].xmin);
+        BOOST_CHECK_EQUAL( 11, pat.meta_info.objects[1].xmax);
+        BOOST_CHECK_EQUAL( 12, pat.meta_info.objects[1].ymin);
+        BOOST_CHECK_EQUAL( 13, pat.meta_info.objects[1].ymax);
 
     }
 }
 
-TEST(VOC_Detection, realdata){
+BOOST_AUTO_TEST_CASE(realdata){
     return;
 
     const char* realtest = "/home/local/datasets/VOC2011/voc_detection_val.txt";
@@ -204,3 +208,4 @@ TEST(VOC_Detection, realdata){
         }
     }
 }
+BOOST_AUTO_TEST_SUITE_END()
