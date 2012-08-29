@@ -7,6 +7,7 @@
 #include <cuvnet/op.hpp>
 #include <cuvnet/ops/input.hpp>
 #include <cuvnet/ops/output.hpp>
+#include <algorithm>
 
 namespace cuvnet
 {
@@ -378,6 +379,13 @@ namespace cuvnet
          * ouputs some stats of op results for debugging
          */
         void debug(unsigned int cnt, Op* o, bool results, bool params, const char* ident);
+
+
+        /**
+         * cheks if all the parameters are used in the function graph
+         */
+        void check_param_existence()const;
+
         private:
         Op* m_op;
         int m_result;

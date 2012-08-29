@@ -16,6 +16,7 @@
 #include <vector>
 #include <map>
 #include <exception>
+#include <tools/dumper.hpp>
 
 
 using namespace cuvnet;
@@ -1152,76 +1153,6 @@ void measure_pattern_invariance(relational_auto_encoder& ae, tensor_type& test_d
     //gd.batch_learning(1, 100);
 }
 
-class max_example_reached_exception: public exception{
-};
-
-class analyse{
-    private:
-        /// file where we write the hidden activations and parameters
-        std::ofstream m_logfile;
-
-        /// if true the header needs to be written in the file
-        bool need_header_log_file;
-        
-        /// the name of the file
-        string m_file_name;
-
-    public:
-        analyse():
-        need_header_log_file(true)
-        {
-        }
-        void analyse_invariance(op_ptr op, boost::function<map<string,int>()> data_gen, string file_name, int num_data=INT_MAX){
-            // open file
-            m_logfile.open(file_name.c_str(), std::ios::out);
-            cuvnet::function f(op);
-
-            try{
-                for(int i=0;i<num_data; i++){
-                    map<string, int> param = data_gen();
-                    matrix hidden_act = f.evaluate();
-                    log_to_file(hidden_act, param); // write to file (repeatedly)
-                }
-            }catch(max_example_reached_exception){
-            }
-
-            m_logfile.close();
-        }
-
-        void log_to_file(matrix& hidden_act, map<string, int>& param){
-            assert(m_logfile.is_open());
-            map<string,int>::iterator it;
-            if(need_header_log_file){
-                for ( it=param.begin() ; it != param.end(); it++ ){
-                    m_logfile << it->first << ",";
-                }
-                for (unsigned int i = 0; i < hidden_act.shape(1); ++i)
-                {
-                    if(i == hidden_act.shape(1) -1){
-                        m_logfile << "h" << i;
-                    }else{
-                        m_logfile << "h" << i << ",";
-                    }
-                }
-                need_header_log_file = false;
-                m_logfile << std::endl;
-            }
-
-            for ( it=param.begin() ; it != param.end(); it++ ){
-                m_logfile << it->second << ",";
-            }
-            for (unsigned int i = 0; i < hidden_act.shape(1); ++i)
-            {
-                if(i == hidden_act.shape(1) - 1){
-                    m_logfile << hidden_act(0,i);
-                }else{
-                    m_logfile << hidden_act(0,i) << ",";
-                }
-            }
-
-            m_logfile << std::endl;
-        }
-};
 
 struct morse_pat_gen{
     private:
@@ -1373,11 +1304,11 @@ int main(int argc, char **argv)
     input_x->data().resize(cuv::extents[1][input_size]); 
     input_y->data().resize(cuv::extents[1][input_size]); 
     
-    analyse a;
+    dumper a;
     
     int num_examples = 100000;
     morse_pat_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, num_examples);
-    a.analyse_invariance(ae.get_encoded(), m, "invariance_test.txt"); 
+    a.generate_log_patterns(ae.get_encoded(), m, "invariance_test.txt"); 
 
     //int num_examples = 10;
     //for(int trans = - max_trans; trans <= (int)max_trans; trans++){
