@@ -1,70 +1,136 @@
 #ifndef __DUMPER_HPP__
 #     define __DUMPER_HPP__
 
-#include<boost/signals.hpp>
-#include<boost/bind.hpp>
-#include<boost/limits.hpp>
-#include<cuvnet/op.hpp>
-#include<cuvnet/op_utils.hpp>
-#include<cuvnet/ops/output.hpp>
-#include<cuv/tensor_ops/tensor_ops.hpp>
-#include<cuv/tensor_ops/rprop.hpp>
+#include <boost/bind.hpp>
+#include <boost/lambda/lambda.hpp>
+
+#include <cuvnet/op_utils.hpp>
+#include <cuvnet/ops.hpp>
+#include <tools/gradient_descent.hpp>
+#include <tools/monitor.hpp>
+#include <cuv/libs/cimg/cuv_cimg.hpp>
+
+#include <datasets/random_translation.hpp>
+#include "cuvnet/models/relational_auto_encoder.hpp"
+#include <cuvnet/models/auto_encoder_stack.hpp>
+#include <cuvnet/models/simple_auto_encoder.hpp>
+#include <cuvnet/models/logistic_regression.hpp>
+#include <cuvnet/models/linear_regression.hpp>
+#include <vector>
+#include <map>
+#include <exception>
+#include <tools/dumper.hpp>
 
 namespace cuvnet
 {
 
-    /**
-     * processes data through a function and writes the outputs to a stream.
-     *
-     * @deprecated
-     * @ingroup tools
-     */
-    struct dumper{
-        public:
-            typedef std::vector<Op*> paramvec_t;
-        protected:
-            swiper           m_swipe;    ///< does fprop and bprop for us
-            boost::shared_ptr<Sink> m_sink; ///< data is read from here
-        public:
-            /// triggered before executing a batch (you should load batch data here!)
-            boost::signal<void(unsigned int,unsigned int)> before_batch;
+    
+using namespace std;
 
-            /// should return current number of batches
-            boost::signal<unsigned int(void)> current_batch_num;
+class max_example_reached_exception: public exception{
+};
 
-            /**
-             * constructor
-             * 
-             */
-            dumper(Op::op_ptr op, unsigned int result=0)
-                :m_swipe(*op, result, paramvec_t())
-                ,m_sink(new Sink("dumper", op->result(result)))
-            { }
+/**
+ * processes data through a function and writes the outputs and parameters to a stream.
+ *
+ * @deprecated
+ * @ingroup tools
+ */
+class dumper{
+typedef boost::shared_ptr<ParameterInput> input_ptr;
+typedef cuv::tensor<float,cuv::host_memory_space> tensor_type;
+typedef boost::shared_ptr<Op>     op_ptr;
+    private:
+        /// file where we write the hidden activations and parameters
+        std::ofstream m_logfile;
 
-            /**
-             * (virtual) destructor
-             */
-            virtual ~dumper(){
-                m_sink->detach_from_params();
-                m_sink->detach_from_results();
-                m_sink.reset();
+        /// if true the header needs to be written in the file
+        bool need_header_log_file;
+        
+        /// the name of the file
+        string m_file_name;
+
+    public:
+
+        /**
+         * constructor
+         * 
+         */
+        dumper():
+        need_header_log_file(true)
+        {
+        }
+
+
+        /**
+         * generate random patterns and loggs them to the file
+         * 
+         */
+        void generate_log_patterns(op_ptr op, boost::function<map<string,int>()> data_gen, string file_name, int num_data=INT_MAX){
+            // open file
+            m_logfile.open(file_name.c_str(), std::ios::out);
+            cuvnet::function f(op);
+
+            try{
+                for(int i=0;i<num_data; i++){
+                    map<string, int> param = data_gen();
+                    matrix hidden_act = f.evaluate();
+                    log_to_file(hidden_act, param); // write to file (repeatedly)
+                }
+            }catch(max_example_reached_exception){
             }
 
-            /**
-             * Dumps the result of a function call to an output stream
-             */
-            void dump(std::ostream& o){
-                unsigned int n_batches = current_batch_num();
-                for (unsigned int  batch = 0; batch < n_batches; ++batch) {
-                    before_batch(0, batch);
-                    m_swipe.fprop();
-                    // copy data to host
-                    cuv::tensor<float,cuv::host_memory_space> tmp = m_sink->cdata(); 
-                    // dump to ostream
-                    o.write((char*)tmp.ptr(), sizeof(float)*tmp.size());
+            m_logfile.close();
+        }
+
+        /**
+         *  logs the activations and parameters to the file 
+         * 
+         */
+        void log_to_file(matrix& hidden_act, map<string, int>& param){
+            assert(m_logfile.is_open());
+            map<string,int>::iterator it;
+            if(need_header_log_file){
+                for ( it=param.begin() ; it != param.end(); it++ ){
+                    m_logfile << it->first << ",";
+                }
+                for (unsigned int i = 0; i < hidden_act.shape(1); ++i)
+                {
+                    if(i == hidden_act.shape(1) -1){
+                        m_logfile << "h" << i;
+                    }else{
+                        m_logfile << "h" << i << ",";
+                    }
+                }
+                need_header_log_file = false;
+                m_logfile << std::endl;
+            }
+
+            for ( it=param.begin() ; it != param.end(); it++ ){
+                m_logfile << it->second << ",";
+            }
+            for (unsigned int i = 0; i < hidden_act.shape(1); ++i)
+            {
+                if(i == hidden_act.shape(1) - 1){
+                    m_logfile << hidden_act(0,i);
+                }else{
+                    m_logfile << hidden_act(0,i) << ",";
                 }
             }
-    };
+
+            m_logfile << std::endl;
+        }
+};
+
+
+
+
+
+
+
+
+
+
 }
 
 #endif /* __DUMPER_HPP__ */
