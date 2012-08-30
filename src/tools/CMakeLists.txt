@@ -11,7 +11,9 @@ SET (CUVNET_TOOLS_SRC
     learner.cpp
     crossvalid.cpp
     read_amat.cpp
-    orthonormalization.cpp)
+    orthonormalization.cpp
+    network_communication.cpp
+    )
 
 INCLUDE_DIRECTORIES(/usr/local/src/magma_1.1.0/include)
 LINK_DIRECTORIES(/usr/local/src/magma_1.1.0/lib)
