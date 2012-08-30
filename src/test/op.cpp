@@ -3,8 +3,6 @@
 #include <stdexcept>
 #include <fstream>
 #include <cstdio>
-#include <gtest/gtest.h>
-//#include <glog/logging.h>
 
 #include <cuvnet/op.hpp>
 #include <cuvnet/op_utils.hpp>
@@ -17,11 +15,14 @@
 #include <cuvnet/ops/pow.hpp>
 #include <cuvnet/ops/prod.hpp>
 
+#include <boost/test/unit_test.hpp>
+
 using namespace cuvnet;
 using std::printf;
 
 
-TEST(op_test,wiring){
+BOOST_AUTO_TEST_SUITE(op_test)
+BOOST_AUTO_TEST_CASE(wiring){
 	typedef boost::shared_ptr<Op> ptr_t;
     ptr_t inp = boost::make_shared<ParameterInput>(cuv::extents[10][20]);
     ptr_t id  = boost::make_shared<Identity>(inp->result());
@@ -29,21 +30,21 @@ TEST(op_test,wiring){
     // find input object
     param_collector_visitor pcv;
     id->visit(pcv);
-    EXPECT_EQ(pcv.plist.size(),1);
+    BOOST_CHECK_EQUAL(pcv.plist.size(),1);
 
     // determine which derivatives to calculate
-    EXPECT_EQ(id->param(0)->need_derivative, false);
+    BOOST_CHECK_EQUAL(id->param(0)->need_derivative, false);
     id->set_calculate_derivative(pcv.plist);
-    EXPECT_EQ(id->param(0)->need_derivative, true);
+    BOOST_CHECK_EQUAL(id->param(0)->need_derivative, true);
 
     // shape propagation
     id->visit(determine_shapes_visitor());
-    EXPECT_EQ(*pcv.plist.begin(),inp.get());
-    EXPECT_EQ(id->result(0)->shape.at(0), 10);
-    EXPECT_EQ(id->result(0)->shape.at(1), 20);
+    BOOST_CHECK_EQUAL(*pcv.plist.begin(),inp.get());
+    BOOST_CHECK_EQUAL(id->result(0)->shape.at(0), 10);
+    BOOST_CHECK_EQUAL(id->result(0)->shape.at(1), 20);
 }
 
-TEST(op_test,fprop_and_bprop){
+BOOST_AUTO_TEST_CASE(fprop_and_bprop){
 	typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[10][20]);
     ptr_t pow                     = boost::make_shared<Pow>(2,inp->result());
@@ -54,12 +55,12 @@ TEST(op_test,fprop_and_bprop){
     // tell that we want derivative w.r.t. all params
     param_collector_visitor pcv;
     pow->visit(pcv);
-    EXPECT_EQ(pcv.plist.size(),1);
+    BOOST_CHECK_EQUAL(pcv.plist.size(),1);
     pow->set_calculate_derivative(pcv.plist);
-    EXPECT_EQ(pow->param(0)->need_derivative, true);
+    BOOST_CHECK_EQUAL(pow->param(0)->need_derivative, true);
     pow->visit(determine_shapes_visitor());
-    EXPECT_EQ(pow->result()->shape[0],10);
-    EXPECT_EQ(pow->result()->shape[1],20);
+    BOOST_CHECK_EQUAL(pow->result()->shape[0],10);
+    BOOST_CHECK_EQUAL(pow->result()->shape[1],20);
 
     // manually tell which results we need
     inp->result(0)->need_result = true;
@@ -75,16 +76,16 @@ TEST(op_test,fprop_and_bprop){
     inp->fprop();
     pow->fprop();
     out->fprop();
-    EXPECT_EQ(out->cdata()[0],4);
+    BOOST_CHECK_EQUAL(out->cdata()[0],4);
 
     pow->result()->delta.reset(new matrix(pow->result()->shape));
     pow->result()->delta.data() = 1.f;
     pow->bprop();
     inp->bprop();
-    EXPECT_EQ(inp->delta()[0],4);
+    BOOST_CHECK_EQUAL(inp->delta()[0],4);
 }
 
-TEST(op_test,toposort){
+BOOST_AUTO_TEST_CASE(toposort){
     typedef boost::shared_ptr<Op> ptr_t;
 
     boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
@@ -96,23 +97,23 @@ TEST(op_test,toposort){
     // tell that we want derivative w.r.t. all params
     param_collector_visitor pcv;
     func->visit(pcv);
-    EXPECT_EQ(pcv.plist.size(),2);
+    BOOST_CHECK_EQUAL(pcv.plist.size(),2);
     func->set_calculate_derivative(pcv.plist);
 
     // determine sequence in which to call fwd, bwd pass
     toposort_visitor tv;
     func->visit(tv);
 
-    EXPECT_EQ(tv.plist.size(), 5);
-    EXPECT_TRUE(tv.plist.at(0) == inp0.get() || tv.plist.at(0) == inp1.get());
-    EXPECT_TRUE(tv.plist.at(1) == inp0.get() || tv.plist.at(1) == inp1.get());
-    EXPECT_TRUE(tv.plist.at(2) == func0.get() || tv.plist.at(2) == func1.get());
-    EXPECT_TRUE(tv.plist.at(3) == func0.get() || tv.plist.at(3) == func1.get());
-    EXPECT_EQ(tv.plist.at(4), func.get());
+    BOOST_CHECK_EQUAL(tv.plist.size(), 5);
+    BOOST_CHECK(tv.plist.at(0) == inp0.get() || tv.plist.at(0) == inp1.get());
+    BOOST_CHECK(tv.plist.at(1) == inp0.get() || tv.plist.at(1) == inp1.get());
+    BOOST_CHECK(tv.plist.at(2) == func0.get() || tv.plist.at(2) == func1.get());
+    BOOST_CHECK(tv.plist.at(3) == func0.get() || tv.plist.at(3) == func1.get());
+    BOOST_CHECK_EQUAL(tv.plist.at(4), func.get());
 }
 
 
-TEST(op_test, destruction){
+BOOST_AUTO_TEST_CASE(destruction){
 	typedef boost::shared_ptr<Op> ptr_t;
 	boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[10][20]);
 	ptr_t id                      = boost::make_shared<Identity>(inp->result());
@@ -122,28 +123,28 @@ TEST(op_test, destruction){
 	boost::weak_ptr<Op> id_cpy(id);
 	boost::weak_ptr<Op> pow_cpy(pow);
 
-	EXPECT_FALSE(!inp_cpy.lock());
-	EXPECT_FALSE(!id_cpy.lock());
-	EXPECT_FALSE(!pow_cpy.lock());
+	BOOST_CHECK(inp_cpy.lock() != NULL);
+	BOOST_CHECK(id_cpy.lock() != NULL);
+	BOOST_CHECK(pow_cpy.lock() != NULL);
 
 	inp.reset();
 	id.reset();
 
 	// hierarchy should /still/ exist!
-	EXPECT_FALSE(!inp_cpy.lock());
-	EXPECT_FALSE(!id_cpy.lock());
-	EXPECT_FALSE(!pow_cpy.lock());
+	BOOST_CHECK(NULL != inp_cpy.lock());
+	BOOST_CHECK(NULL != id_cpy.lock());
+	BOOST_CHECK(NULL != pow_cpy.lock());
 
 	// now we delete the topmost object
 	pow.reset();
 
 	// check whether the whole hierarchy has been destroyed
-	EXPECT_TRUE(!inp_cpy.lock());
-	EXPECT_TRUE(!id_cpy.lock());
-	EXPECT_TRUE(!pow_cpy.lock());
+	BOOST_CHECK(!inp_cpy.lock());
+	BOOST_CHECK(!id_cpy.lock());
+	BOOST_CHECK(!pow_cpy.lock());
 }
 
-TEST(op_test, write_graphviz){
+BOOST_AUTO_TEST_CASE(t_write_graphviz){
 	typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
@@ -152,3 +153,4 @@ TEST(op_test, write_graphviz){
     std::ofstream os("test.dot");
     write_graphviz(*func,os);
 }
+BOOST_AUTO_TEST_SUITE_END()

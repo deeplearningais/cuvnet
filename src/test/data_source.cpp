@@ -1,7 +1,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <cstdio>
-#include <gtest/gtest.h>
+
 #include <boost/format.hpp>
 
 #include <cuv/basics/tensor.hpp>
@@ -9,9 +9,13 @@
 #include <tools/preprocess.hpp>
 #include <tools/data_source.hpp>
 
+#include <boost/test/unit_test.hpp>
+
 using namespace cuvnet;
 
-TEST(data_source_test, folder_loader){
+BOOST_AUTO_TEST_SUITE( data_source_test )
+
+BOOST_AUTO_TEST_CASE(t_folder_loader){
     folder_loader fl("/home/local/datasets/VOC2011/TrainVal/VOCdevkit/VOC2011/JPEGImages",false);
     filename_processor fp;
 
@@ -28,3 +32,4 @@ TEST(data_source_test, folder_loader){
     }
 }
 
+BOOST_AUTO_TEST_SUITE_END()

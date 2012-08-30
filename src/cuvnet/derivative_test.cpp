@@ -1,10 +1,11 @@
-#include <gtest/gtest.h>
 #include "derivative_test.hpp"
 #include <ext/functional>
 
 #include <cuvnet/op_utils.hpp>
 #include <tools/matwrite.hpp>
 #include <tools/function.hpp>
+
+#include <boost/test/unit_test.hpp>
 
 namespace cuvnet{ namespace derivative_testing {
 
@@ -15,14 +16,14 @@ namespace cuvnet{ namespace derivative_testing {
             swp.fprop();
             cuv::tensor<float,cuv::host_memory_space> r1 = out->cdata().copy();
 
-            EXPECT_TRUE(cuv::equal_shape(r0,r1));
+            BOOST_CHECK(cuv::equal_shape(r0,r1));
             cuv::tensor<float,cuv::host_memory_space> rdiff(r0-r1);
             cuv::apply_scalar_functor(rdiff, cuv::SF_ABS);
-            EXPECT_LT(cuv::maximum(rdiff), 0.00000001);
+            BOOST_CHECK_LT(cuv::maximum(rdiff), 0.00000001);
         }
         BOOST_FOREACH(Op* raw, params){
             ParameterInput* pi = dynamic_cast<ParameterInput*>(raw);
-            EXPECT_TRUE(pi != NULL);
+            BOOST_CHECK(pi != NULL);
             pi->reset_delta();
             swp.fprop();
             swp.bprop();
@@ -33,10 +34,10 @@ namespace cuvnet{ namespace derivative_testing {
             cuv::tensor<float,cuv::host_memory_space> r1 = pi->delta().copy();
             pi->reset_delta();
 
-            EXPECT_TRUE(cuv::equal_shape(r0,r1));
+            BOOST_CHECK(cuv::equal_shape(r0,r1));
             cuv::tensor<float,cuv::host_memory_space> rdiff(r0-r1);
             cuv::apply_scalar_functor(rdiff, cuv::SF_ABS);
-            EXPECT_LT(cuv::maximum(rdiff), 0.00000001);
+            BOOST_CHECK_LT(cuv::maximum(rdiff), 0.00000001);
         }
     }
 
@@ -97,12 +98,12 @@ namespace cuvnet{ namespace derivative_testing {
             // tell that we want derivative w.r.t. all params
             param_collector_visitor pcv;
             op.visit(pcv);
-            EXPECT_TRUE(pcv.plist.size()>0);
+            BOOST_CHECK(pcv.plist.size()>0);
 
             // fill all params with random numbers
             BOOST_FOREACH(Op* raw, pcv.plist){
                 ParameterInput* param = dynamic_cast<ParameterInput*>(raw);
-                EXPECT_TRUE(param!=NULL);
+                BOOST_CHECK(param!=NULL);
                 for (unsigned int i = 0; i < param->data().size(); ++i)
                 {
                     //param->data()[i] = 2.f;
@@ -127,7 +128,7 @@ namespace cuvnet{ namespace derivative_testing {
                             std::mem_fun( &ParameterInput::derivable ),
                             ptr_caster<Op,ParameterInput>()))
                     );
-            EXPECT_TRUE(derivable_params.size() > 0);
+            BOOST_CHECK(derivable_params.size() > 0);
 
             swiper swipe(op, result, derivable_params);
 
@@ -141,7 +142,7 @@ namespace cuvnet{ namespace derivative_testing {
 
             BOOST_FOREACH(Op* raw, derivable_params){
                 ParameterInput* param = dynamic_cast<ParameterInput*>(raw);
-                EXPECT_TRUE(param!=NULL);
+                BOOST_CHECK(param!=NULL);
                 if(!param->derivable())
                     continue;
                 unsigned int n_inputs  = param->data().size();
@@ -207,7 +208,7 @@ namespace cuvnet{ namespace derivative_testing {
                     tofile("analyticalJ.npy", Jh);
                     tofile("finitediffJ.npy", J_t);
                 }
-                EXPECT_LT(maxdiff, prec_ );
+                BOOST_CHECK_LT(maxdiff, prec_ );
             }
         }
 
