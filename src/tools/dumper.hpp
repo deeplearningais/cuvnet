@@ -25,9 +25,8 @@ namespace cuvnet
 {
 
     
-using namespace std;
 
-class max_example_reached_exception: public exception{
+class max_example_reached_exception: public std::exception{
 };
 
 /**
@@ -40,6 +39,7 @@ class dumper{
 typedef boost::shared_ptr<ParameterInput> input_ptr;
 typedef cuv::tensor<float,cuv::host_memory_space> tensor_type;
 typedef boost::shared_ptr<Op>     op_ptr;
+typedef std::map<std::string,int>      map_type;
     private:
         /// file where we write the hidden activations and parameters
         std::ofstream m_logfile;
@@ -48,7 +48,7 @@ typedef boost::shared_ptr<Op>     op_ptr;
         bool need_header_log_file;
         
         /// the name of the file
-        string m_file_name;
+        std::string m_file_name;
 
     public:
 
@@ -66,14 +66,15 @@ typedef boost::shared_ptr<Op>     op_ptr;
          * generate random patterns and loggs them to the file
          * 
          */
-        void generate_log_patterns(op_ptr op, boost::function<map<string,int>()> data_gen, string file_name, int num_data=INT_MAX){
+        void generate_log_patterns(op_ptr op, boost::function<map_type()> data_gen, std::string file_name, int num_data=INT_MAX){
+            using namespace std;
             // open file
             m_logfile.open(file_name.c_str(), std::ios::out);
             cuvnet::function f(op);
 
             try{
                 for(int i=0;i<num_data; i++){
-                    map<string, int> param = data_gen();
+                    map_type param = data_gen();
                     matrix hidden_act = f.evaluate();
                     log_to_file(hidden_act, param); // write to file (repeatedly)
                 }
@@ -87,9 +88,10 @@ typedef boost::shared_ptr<Op>     op_ptr;
          *  logs the activations and parameters to the file 
          * 
          */
-        void log_to_file(matrix& hidden_act, map<string, int>& param){
+        void log_to_file(matrix& hidden_act, map_type& param){
+            using namespace std;
             assert(m_logfile.is_open());
-            map<string,int>::iterator it;
+            map_type::iterator it;
             if(need_header_log_file){
                 for ( it=param.begin() ; it != param.end(); it++ ){
                     m_logfile << it->first << ",";
