@@ -9,6 +9,7 @@
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/models/auto_encoder_stack.hpp>
 #include <cuvnet/models/logistic_regression.hpp>
+#include <cuvnet/models/contractive_auto_encoder.hpp>
 #include <tools/gradient_descent.hpp>
 #include <tools/crossvalid.hpp>
 #include <tools/learner.hpp>
@@ -55,6 +56,8 @@ namespace cuvnet{
             std::vector<int>   m_epochs; ///< number of epochs learned
             std::vector<float> m_aes_lr; ///< auto encoder learning rates
             std::vector<float> m_aes_wd; ///< auto encoder weight decay
+            unsigned int m_aes_bs; ///< batch size during AE learning
+            unsigned int m_mlp_bs; ///< batch size during MLP learning
             float m_mlp_lr; ///< learning rate of regression
             float m_mlp_wd; ///< weight decay of regression
             auto_encoder_stack m_aes; ///< contains all auto-encoders
@@ -90,7 +93,7 @@ namespace cuvnet{
     
             /// should return true if retrain for fit is required
             /// @return true
-            virtual bool refit_for_test()const { return true; };
+            virtual bool refit_for_test()const { return false; };
     
             /// reset parameters
             virtual void reset_params();
@@ -105,6 +108,13 @@ namespace cuvnet{
         }
         void load_batch_unsupervised(unsigned int batch){
             boost::dynamic_pointer_cast<ParameterInput>(m_aes.input())->data() = m_sdl.get_data_batch(batch).copy();
+        }
+        void set_batchsize(unsigned int b){
+            m_sdl.set_batchsize(b);
+            matrix& m = boost::dynamic_pointer_cast<ParameterInput>(m_aes.input())->data();
+            m.resize(cuv::extents[b][m.shape(1)]);
+            matrix& t = boost::dynamic_pointer_cast<ParameterInput>(m_regression.get_target())->data();
+            t.resize(cuv::extents[b][t.shape(1)]);
         }
     };
 
@@ -145,24 +155,36 @@ namespace cuvnet{
             return detail::get<T>(o, name);
         }
     
+    unsigned int idx_to_bs(unsigned int idx){
+        switch(idx){
+            case 0: return 1;
+            case 1: return 2;
+            case 2: return 4;
+            case 3: return 16;
+            case 4: return 64;
+        }
+        throw std::runtime_error("Unknown batchsize index!");
+    }
+
+
     template<class R>
     void
     pretrained_mlp_learner<R>::constructFromBSON(const mongo::BSONObj& o){
-        int bs = get<int>(o, "bs");
+        m_aes_bs = idx_to_bs(get<int>(o, "aes_bs"));
+        m_mlp_bs = idx_to_bs(get<int>(o, "mlp_bs"));
 
-        bs = std::pow(2, bs);
-
-        m_sdl.init(bs, "mnist", 1);
+        m_sdl.init(m_aes_bs, "mnist_rot", 1);
 
         m_mlp_lr = get<float>(o, "mlp_lr");
-        m_mlp_wd = get<float>(o, "mlp_wd");
+        //m_mlp_wd = get<float>(o, "mlp_wd");
         int n_layers;
         for (n_layers = 0; n_layers < 100; ++n_layers){
             try{
                 m_aes_lr.push_back(get<float>(o,"aes_lr", n_layers));
                 m_aes_wd.push_back(get<float>(o,"aes_wd", n_layers));
-                int layer_size = get<float>(o,"aes_ls", n_layers);
-                m_aes.add<simple_auto_encoder>(layer_size, m_sdl.get_ds().binary);
+                int layer_size0 = get<float>(o,"aes_ls0", n_layers);
+                int layer_size1 = get<float>(o,"aes_ls1", n_layers);
+                m_aes.add<two_layer_contractive_auto_encoder>(layer_size0, layer_size1, m_sdl.get_ds().binary, m_aes_wd.back());
             }catch(const detail::value_not_found_exception& e){
                 break;
             }
@@ -228,6 +250,7 @@ namespace cuvnet{
         bool in_trainall = m_sdl.get_current_cv_mode() == CM_TRAINALL;
         std::cout << m_sdl.describe_current_mode_split(true) << std::endl;
 
+        set_batchsize(m_aes_bs);
         for (unsigned int ae_id = 0; ae_id < n_ae; ++ae_id)
         {
     
@@ -235,7 +258,7 @@ namespace cuvnet{
             generic_auto_encoder& ae = m_aes.get_ae(ae_id);
     
             // set up gradient descent
-            gradient_descent gd(ae.loss(), 0, ae.unsupervised_params(), m_aes_lr[ae_id], -m_aes_wd[ae_id]);
+            gradient_descent gd(ae.loss(), 0, ae.unsupervised_params(), m_aes_lr[ae_id], 0.f);
             gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_unsupervised,this,_2));
             gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
     
@@ -252,8 +275,8 @@ namespace cuvnet{
                 gd.minibatch_learning(n, INT_MAX);
             }
             else {
-                gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.995f, 6, 2.0);
-                gd.minibatch_learning(1000, INT_MAX);
+                gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.99f, 6, 2.0);
+                gd.minibatch_learning(100, INT_MAX);
                 m_epochs[ae_id] += gd.iters();
             }
         }
@@ -261,11 +284,12 @@ namespace cuvnet{
         
         {
             // Supervised finetuning
+            set_batchsize(m_mlp_bs);
             std::vector<Op*> aes_params = m_aes.supervised_params();
             std::vector<Op*> params     = m_regression.params();
             std::copy(aes_params.begin(), aes_params.end(), std::back_inserter(params));
             
-            gradient_descent gd(m_regression.get_loss(),0,params,m_mlp_lr, -m_mlp_wd);
+            gradient_descent gd(m_regression.get_loss(),0,params,m_mlp_lr, -0);
             gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_supervised,this,_2));
             gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
     
@@ -304,18 +328,20 @@ struct hyperopt_client
 : public mdbq::Client{                                                                             
 
     int m_dev;
+    bool m_init;
     hyperopt_client(int dev)
         : mdbq::Client("131.220.7.92", "hyperopt")
-        , m_dev(dev){
-
-            if(cuv::IsSame<cuvnet::matrix::memory_space_type,cuv::dev_memory_space>::Result::value){
-                cuv::initCUDA(m_dev);
-                cuv::initialize_mersenne_twister_seeds(time(NULL));
-            }
-
-        }
+        , m_dev(dev)
+        , m_init(false)
+    { }
 
     void handle_task(const mongo::BSONObj& o){                                               
+        if(!m_init && cuv::IsSame<cuvnet::matrix::memory_space_type,cuv::dev_memory_space>::Result::value){
+            cuv::initCUDA(m_dev);
+            cuv::initialize_mersenne_twister_seeds(time(NULL));
+            m_init = true;
+        }
+
         auto ml = boost::make_shared<cuvnet::pretrained_mlp_learner<cuvnet::logistic_regression> >(true);
         ml->constructFromBSON(o);
 
@@ -325,6 +351,7 @@ struct hyperopt_client
         finish(BSON(  "status"  << "ok"
                     <<"loss"    << perf
                     <<"dev"     << m_dev));
+        exit(0);
     }
 
 };
@@ -350,7 +377,8 @@ main(int argc, char **argv)
         }
 
         mongo::BSONObjBuilder bob;
-        bob<<"bs"     <<BSON_ARRAY(3);
+        bob<<"aes_bs" <<BSON_ARRAY(3);
+        bob<<"mlp_bs" <<BSON_ARRAY(3);
         bob<<"mlp_lr" <<BSON_ARRAY(0.01f);
         bob<<"mlp_wd" <<BSON_ARRAY(0.0001f);
 
