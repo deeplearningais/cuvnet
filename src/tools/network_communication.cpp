@@ -62,10 +62,10 @@ namespace cuvnet { namespace network_communication {
             }
             std::string ms = os.str();
             mongo::BSONObjBuilder bob;
-            bob << mongo::GENOID
-                <<"key"<<m_impl->m_key
+            bob <<"key"<<m_impl->m_key
                 <<"name"<< it->first
                 <<"params"<< true
+                <<"version"<< m_versions[it->first]
                 <<"state"<<"merged";
             bob.appendBinData("content",ms.size(),mongo::BinDataGeneral,&ms[0]);
 
@@ -96,6 +96,11 @@ namespace cuvnet { namespace network_communication {
         CHECK_DB_ERR(m_impl->m_con);
         while(p->more()){
             mongo::BSONObj f = p->next();
+            std::string name = f["name"].String();
+            if(m_merged.find(name) != m_merged.end()){
+                // TODO: no need to pull this in the first place?
+                continue;
+            }
 
             htensor_t m;
             {
@@ -108,9 +113,9 @@ namespace cuvnet { namespace network_communication {
             }
 
 
-            std::string name = f["name"].String();
+            m_versions[name] = f["version"].Int();
             m_merged[name] = m;
-            m_need_push[name] = true;
+            m_need_push[name] = false;
         }
 
     }
@@ -118,7 +123,7 @@ namespace cuvnet { namespace network_communication {
 
         mongo::BSONObj query = BSON(
                     "params" << true <<
-                    "state" << "new" <<
+                    "state" << "delta" <<
                     "key" << m_impl->m_key),
             cmd = BSON(
                     "findAndModify" << "nc" <<
@@ -147,11 +152,15 @@ namespace cuvnet { namespace network_communication {
 
             std::string name = f["name"].String();
             if( m_merged.find(name) == m_merged.end() )
-                m_merged[name] = m;
-            else{
-                cuv::apply_binary_functor(m_merged[name],m,cuv::BF_AXPBY, 0.5f, 0.5f);
+            {
+                pull_merged();
+                if( m_merged.find(name) == m_merged.end() ){
+                    throw value_not_found_exception();
+                }
             }
+            m_merged[name] += m;
 
+            m_versions[name] ++;
             m_need_push[name] = true;
         }
     }
@@ -173,6 +182,7 @@ namespace cuvnet { namespace network_communication {
                 QUERY("name"<<s
                     <<"params"<<true
                     <<"state"<<"merged"
+                    <<"version"<< mongo::GT <<m_versions[s]
                     <<"key"<<m_impl->m_key));
         if(!f.hasField("name"))
             throw value_not_found_exception();
@@ -188,59 +198,104 @@ namespace cuvnet { namespace network_communication {
         }
         return m;
     }
-    void client::put_for_merging(const std::string& s, htensor_t& m){
+    void client::put_for_merging(const std::string& s, const htensor_t& delta, const matrix& current_value){
 
-        std::ostringstream os(std::ios::binary);
-        {
-            boost::archive::binary_oarchive oa(os);
-            oa << m;
+        int cnt = 
+            m_impl->m_con.count( m_impl->m_prefix + ".nc",
+                    BSON("key"<<m_impl->m_key
+                        <<"params"<<true
+                        <<"name"<<s
+                        <<"state"<<"merged"));
+        if(cnt == 0){
+            // we need to put a weight obj on the server in the 1st place...
+            std::ostringstream os(std::ios::binary);
+            {
+                boost::archive::binary_oarchive oa(os);
+                oa << current_value;
+            }
+            std::string ms = os.str();
+
+            mongo::BSONObjBuilder bob;
+            bob <<"key"<<m_impl->m_key
+                <<"params"<< true
+                <<"name"<< s
+                <<"version"<< 0
+                <<"state"<<"merged"; // pretend it is "merged"
+            bob.appendBinData("content",ms.size(),mongo::BinDataGeneral,&ms[0]);
+
+            // upsert value
+            m_impl->m_con.update( m_impl->m_prefix + ".nc", 
+                    BSON("key"<<m_impl->m_key
+                        <<"params"<<true
+                        <<"name"<<s
+                        <<"source"<<m_id),
+                    bob.obj(), true);
+            CHECK_DB_ERR(m_impl->m_con);
         }
-        std::string ms = os.str();
+        else{
+            // we just need to send a weight /update/ to the server
+            std::ostringstream os(std::ios::binary);
+            {
+                boost::archive::binary_oarchive oa(os);
+                oa << delta;
+            }
+            std::string ms = os.str();
 
-        mongo::BSONObjBuilder bob;
-        bob <<"key"<<m_impl->m_key
-            <<"params"<< true
-            <<"name"<< s
-            <<"source"<< m_id
-            <<"state"<<"new";
-        bob.appendBinData("content",ms.size(),mongo::BinDataGeneral,&ms[0]);
+            mongo::BSONObjBuilder bob;
+            bob <<"key"<<m_impl->m_key
+                <<"params"<< true
+                <<"name"<< s
+                <<"source"<< m_id
+                <<"state"<<"delta";
+            bob.appendBinData("content",ms.size(),mongo::BinDataGeneral,&ms[0]);
 
-        // upsert value
-        m_impl->m_con.update( m_impl->m_prefix + ".nc", 
-                BSON("key"<<m_impl->m_key
-                    <<"params"<<true
-                    <<"name"<<s
-                    <<"source"<<m_id),
-                bob.obj(), true);
-        CHECK_DB_ERR(m_impl->m_con);
+            // upsert value
+            m_impl->m_con.update( m_impl->m_prefix + ".nc", 
+                    BSON("key"<<m_impl->m_key
+                        <<"params"<<true
+                        <<"name"<<s
+                        <<"source"<<m_id),
+                    bob.obj(), true);
+            CHECK_DB_ERR(m_impl->m_con);
+        }
     }
 
     void server::cleanup(){
         m_impl->m_con.remove( m_impl->m_prefix+".nc",
                 BSON("key" << m_impl->m_key));
     }
-    void server::run(unsigned int sleep_sec, int n){
-        pull_merged();
+    void server::run(unsigned int sleep_msec, int n){
+        //pull_merged(); // merge does pull when delta for unknown obj is found
         for (int i = 0; i < n || n<0; ++i){
             merge();
             push_merged();
-            boost::this_thread::sleep(boost::posix_time::seconds(1));
+            boost::this_thread::sleep(boost::posix_time::milliseconds(1));
         }
     }
 
-    void param_synchronizer::operator()(){
-        if( ++m_cnt % m_push_steps == 0){
+    void param_synchronizer::operator()(
+            std::map<Op*, cuv::tensor<float, cuv::host_memory_space> >* updates,
+            unsigned int, unsigned int
+            ){
+
+        ++m_cnt;
+        if( m_cnt % m_push_steps == 0){
             int idx = 0;
             BOOST_FOREACH(Op* op, m_ops){
                 ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
                 cuvAssert(inp);
                 std::string name = inp->name() + boost::lexical_cast<std::string>(idx);
                 htensor_t m = inp->data();
-                m_client.put_for_merging(name, m);
+                std::map<Op*, cuv::tensor<float, cuv::host_memory_space> >::iterator 
+                    it = updates->find(inp);
+                if(it == updates->end())
+                    continue;
+                m_client.put_for_merging(name, it->second, inp->data());
+                it->second = 0.f;
                 idx ++;
             }
         }
-        if( ++m_cnt % m_pull_steps == 0){
+        if( m_cnt % m_pull_steps == 0){
             int idx = 0;
             BOOST_FOREACH(Op* op, m_ops){
                 ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
@@ -248,7 +303,7 @@ namespace cuvnet { namespace network_communication {
                 std::string name = inp->name() + boost::lexical_cast<std::string>(idx);
                 try{
                     matrix m = m_client.fetch_merged(name);
-                    cuv::apply_binary_functor(inp->data(),m,cuv::BF_AXPBY, 0.5f, 0.5f);
+                    inp->data() = m;
                 }catch(value_not_found_exception){
                 }
                 idx ++;

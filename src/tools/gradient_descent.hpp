@@ -8,6 +8,7 @@
 #include<cuvnet/op_utils.hpp>
 #include<cuv/tensor_ops/tensor_ops.hpp>
 #include<cuv/tensor_ops/rprop.hpp>
+#include <cuv/tools/device_tools.hpp>
 
 namespace cuvnet
 {
@@ -87,13 +88,14 @@ namespace cuvnet
              * @param learnrate the learnrate for weight updates
              * @param weightdecay the weight decay for weight updates
              */
-            gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.1f, float weightdecay=0.0f)
-                :m_loss(op), m_result(result), m_params(params), m_learnrate(learnrate), m_learnrate_decay(1.f), m_weightdecay(weightdecay)
+            gradient_descent(const Op::op_ptr& op, unsigned int result, const paramvec_t& params, float learnrate=0.1f, float weightdecay=0.0f)
+                : m_result(result), m_params(params), m_learnrate(learnrate), m_learnrate_decay(1.f), m_weightdecay(weightdecay)
                 , m_epoch(0), m_epoch_of_saved_params(0)
                 ,m_swipe(*op,result,params), m_convergence_checking(false)
                  , m_patience(4)
                 ,m_best_perf(std::numeric_limits<float>::infinity())
             { 
+                m_loss = op;
             }
 
             /**
@@ -199,6 +201,7 @@ namespace cuvnet
                             before_batch(m_epoch, batchids[batch]); // should load data into inputs
 
                             m_swipe.fprop();  // forward pass
+                            //std::cout << "free mem after fprop: " << cuv::getFreeDeviceMemory()/1024/1024 << std::endl;
 
                             if(m_learnrate && !(m_convergence_checking && m_epoch==0)){
                                 // this is not an evaluation pass, we're actually supposed to do work ;)
@@ -291,7 +294,7 @@ namespace cuvnet
                 repair_swiper(); 
             }
             
-        private:
+        protected:
             /**
              * this function should update all weights using backpropagated deltas
              */
@@ -417,14 +420,14 @@ namespace cuvnet
                     m_convcheck_patience = min_epochs;
                     return;
                 }
-                std::cout << "\rconvergence-test("<<current_epoch<<"/"<<m_convcheck_patience<<", "<<(perf/m_last_perf)<<"): "<<perf<<"                  " << std::flush;
+                std::cout << "\r * convergence-test("<<current_epoch<<"/"<<m_convcheck_patience<<", "<<(perf/m_last_perf)<<"): "<<perf<<"                  " << std::flush;
                 if(perf < thresh * m_last_perf){
                     m_last_perf = perf;
                     m_convcheck_patience = std::max(m_convcheck_patience, (unsigned int)(patience_inc_factor*current_epoch));
                 }
 
                 if(current_epoch >= m_convcheck_patience){
-                    std::cout << "\rconvergence-test(stopping after "<<current_epoch<<" epochs):"<< perf << "                "<< std::endl;
+                    std::cout << "\r - convergence-test(stopping after "<<current_epoch<<" epochs):"<< perf << "                "<< std::endl;
                     throw convergence_stop();
                 }
             }
@@ -455,6 +458,8 @@ namespace cuvnet
     struct rprop_gradient_descent
     : public gradient_descent
     {
+        public:
+            typedef std::vector<Op*> paramvec_t;
         private:
             std::vector<Op::value_type> m_learnrates; ///< per-weight learning rates
             std::vector<cuv::tensor<signed char,Op::value_type::memory_space_type> > m_old_dw;     ///< old delta-w signs
@@ -486,6 +491,7 @@ namespace cuvnet
 
             after_batch.connect(boost::bind(&rprop_gradient_descent::inc_n_batches, this));
         }
+        protected:
         /**
          * @overload
          * updates the weights RPROP-style
@@ -518,6 +524,8 @@ namespace cuvnet
     struct momentum_gradient_descent
     : public gradient_descent
     {
+        public:
+            typedef std::vector<Op*> paramvec_t;
         private:
             std::vector<Op::value_type> m_last_delta; ///< per-weight momentum
             float m_momentum; 
@@ -540,6 +548,7 @@ namespace cuvnet
                 m_last_delta[i] = 0.f;
             }
         }
+        protected:
         /**
          * @overload
          * updates the weights with momentum
@@ -568,6 +577,82 @@ namespace cuvnet
             }
         }
 
+    };
+
+    /** 
+     * An aspect that allows to store gradient updates for asynchronous gradient descent.
+     *
+     * Usage:
+     * @code
+     * diff_recording_gradient_descent<gradient_descent> gd(loss,0,params);
+     * gd.minibatch_learning(...);
+     * @endcode
+     *
+     * @ingroup learning
+     */
+    template<class BaseGradientDescent>
+    struct diff_recording_gradient_descent
+    : public BaseGradientDescent
+    {
+        public:
+            typedef std::vector<Op*> paramvec_t;
+        private:
+            typedef cuv::host_memory_space storage_space;
+            typedef cuv::tensor<float, storage_space> storage_t;
+            std::map<Op*, storage_t> m_updates;
+        public:
+
+            /** 
+             * this template constructor provides perfect forwarding for all arguments.
+             */
+            template<typename... Params>
+                diff_recording_gradient_descent(Params... args)
+                : BaseGradientDescent(args...)
+                {
+                }
+
+            /**
+             * use this to connect eg a param_synchronizer.
+             *
+             * Example:
+             * @code
+             * diff_recording_gradient_descent<gradient_descent> gd(loss,0,params);
+             * network_communication::client clt("127.0.0.1","testnc");
+             * param_synchronizer ps(clt, 10, 20, params);
+             * gd.set_sync_function(boost::ref(ps));
+             * gd.minibatch_learning(...);
+             * @endcode
+             */
+            template<class T>
+            void set_sync_function(T t){
+                this->after_batch.connect(boost::bind(t, &m_updates, _1, _2));
+            }
+
+        protected:
+            /**
+             * @overload
+             * updates the weights with momentum
+             */
+            virtual void update_weights(){
+                std::map<ParameterInput*,matrix> old_w;
+                for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
+                    ParameterInput* inp = (ParameterInput*) *it;
+                    old_w[inp] = inp->data().copy();
+                }
+
+                BaseGradientDescent::update_weights();
+
+                for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
+                    ParameterInput* inp = (ParameterInput*) *it;
+                    cuv::apply_binary_functor(old_w[inp], inp->data(), cuv::BF_AXPBY, -1.f, 1.f);
+                    
+                    std::map<Op*, storage_t>::iterator upit = m_updates.find(inp);
+                    if(upit != m_updates.end())
+                        m_updates[inp] += (storage_t) old_w[inp];
+                    else
+                        m_updates[inp]  = (storage_t) old_w[inp];
+                }
+            }
     };
 }
 
