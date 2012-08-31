@@ -20,7 +20,8 @@ namespace cuvnet
 class simple_auto_encoder 
 : public generic_auto_encoder
 {
-    // these are the parametrs of the model
+    protected:
+    // these are the parameters of the model
     boost::shared_ptr<ParameterInput>  m_weights, m_bias_h, m_bias_y;
 
     unsigned int m_hidden_dim;
