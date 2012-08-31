@@ -18,14 +18,8 @@ namespace cuvnet
 
         // TODO:
         // - split up datasets (not necessary if randomized?)
-        // - callbacks for gradient descent
-        //   - initialize networks with fixed seed
-        //   - when acquiring merged params: MITTELN mit aktuellen (sonst tlw umsonst)
-        // - only pull when somebody ELSE has pushed... or only merge if 2 have pushed?
-        //   nice group-by query in merge to find such things?
-        //   still, need to limit merges! e.g. versioning?
+        // - initialize networks with fixed seed
         // - disable in validation epochs
-        // - update loop for server
 
         /**
          * Does tasks which cannot be done by clients.
