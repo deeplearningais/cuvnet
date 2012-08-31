@@ -192,16 +192,16 @@ namespace cuvnet
         Op::op_ptr epsilon_insensitive_loss(float sensitivity, Op::op_ptr target, Op::op_ptr x){ return boost::make_shared<EpsilonInsensitiveLoss>(sensitivity, target->result(), x->result()); }
     /// construct a RowSelector object
     inline
-        Op::op_ptr row_select(Op::op_ptr p0, int row=-1){ return boost::make_shared<RowSelector>(p0->result(), row); }
+        boost::shared_ptr<RowSelector> row_select(Op::op_ptr p0, int row=-1){ return boost::make_shared<RowSelector>(p0->result(), row); }
     /// construct a RowSelector object
     inline
-        Op::op_ptr row_select(Op::op_ptr p0, Op::op_ptr p1, int row=-1){ return boost::make_shared<RowSelector>(p0->result(), p1->result(), row); }
+        boost::shared_ptr<RowSelector> row_select(Op::op_ptr p0, Op::op_ptr p1, int row=-1){ return boost::make_shared<RowSelector>(p0->result(), p1->result(), row); }
     /// construct a RowSelector object
     inline
-        Op::op_ptr row_select(Op::op_ptr p0, Op::op_ptr p1, Op::op_ptr p2, int row=-1){ return boost::make_shared<RowSelector>(p0->result(), p1->result(), p2->result(), row); }
+        boost::shared_ptr<RowSelector> row_select(Op::op_ptr p0, Op::op_ptr p1, Op::op_ptr p2, int row=-1){ return boost::make_shared<RowSelector>(p0->result(), p1->result(), p2->result(), row); }
     /// construct a RowSelector object
     inline
-        Op::op_ptr row_select(Op::op_ptr p0, Op::op_ptr p1, Op::op_ptr p2, Op::op_ptr p3, int row=-1){ return boost::make_shared<RowSelector>(p0->result(), p1->result(), p2->result(), p3->result(), row); }
+        boost::shared_ptr<RowSelector> row_select(Op::op_ptr p0, Op::op_ptr p1, Op::op_ptr p2, Op::op_ptr p3, int row=-1){ return boost::make_shared<RowSelector>(p0->result(), p1->result(), p2->result(), p3->result(), row); }
     /// construct a Pipe object
     inline 
         Op::op_ptr result(Op::op_ptr p0, unsigned int result=0){ return boost::make_shared<Pipe>(p0->result(result), result); }

@@ -48,6 +48,12 @@ namespace cuvnet
                     add_param(3,p3);
                 }
 
+                void set_random(bool b){
+                    m_random = b;
+                    if(!m_random && m_row < 0)
+                        m_row = 0;
+                }
+
                 void fprop(){
                     using namespace cuv;
                     if(m_random)
