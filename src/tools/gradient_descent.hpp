@@ -630,8 +630,10 @@ namespace cuvnet
 
         protected:
             /**
+             * A wrapper of BaseGradientDescent::update_weights that records
+             * changes in the weights and accumulates them.
+             *
              * @overload
-             * updates the weights with momentum
              */
             virtual void update_weights(){
                 std::map<ParameterInput*,matrix> old_w;
