@@ -1,6 +1,7 @@
 #include <map>
 #include <sstream>
 #include <boost/format.hpp>
+#include <boost/foreach.hpp>
 #include <boost/asio.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <boost/bind.hpp>
@@ -10,6 +11,7 @@
 #include <boost/archive/binary_oarchive.hpp>
 
 #include <mongo/client/dbclient.h>
+#include <cuvnet/ops/input.hpp>
 
 #include "network_communication.hpp"
 
@@ -216,6 +218,42 @@ namespace cuvnet { namespace network_communication {
     void server::cleanup(){
         m_impl->m_con.remove( m_impl->m_prefix+".nc",
                 BSON("key" << m_impl->m_key));
+    }
+    void server::run(unsigned int sleep_sec, int n){
+        pull_merged();
+        for (int i = 0; i < n || n<0; ++i){
+            merge();
+            push_merged();
+            boost::this_thread::sleep(boost::posix_time::seconds(1));
+        }
+    }
+
+    void param_synchronizer::operator()(){
+        if( ++m_cnt % m_push_steps == 0){
+            int idx = 0;
+            BOOST_FOREACH(Op* op, m_ops){
+                ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
+                cuvAssert(inp);
+                std::string name = inp->name() + boost::lexical_cast<std::string>(idx);
+                htensor_t m = inp->data();
+                m_client.put_for_merging(name, m);
+                idx ++;
+            }
+        }
+        if( ++m_cnt % m_pull_steps == 0){
+            int idx = 0;
+            BOOST_FOREACH(Op* op, m_ops){
+                ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
+                cuvAssert(inp);
+                std::string name = inp->name() + boost::lexical_cast<std::string>(idx);
+                try{
+                    matrix m = m_client.fetch_merged(name);
+                    cuv::apply_binary_functor(inp->data(),m,cuv::BF_AXPBY, 0.5f, 0.5f);
+                }catch(value_not_found_exception){
+                }
+                idx ++;
+            }
+        }
     }
         
 } }
