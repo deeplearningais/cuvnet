@@ -62,6 +62,39 @@ class auto_encoder_stack
         };
 
         /**
+         * returns an op calculating the sum of regularizers for the stack for
+         * use in supervised training.
+         */
+        op_ptr get_sum_of_regularizers(){
+            int cnt=0;
+            std::vector<op_ptr> ops;
+            std::vector<float> args;
+            for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it, ++cnt) {
+                op_ptr r;
+                float lambda;
+                boost::tie(lambda, r)  = (*it)->regularize();
+                if(!lambda || !r)
+                    continue;
+                ops.push_back(r);
+                args.push_back(lambda);
+            }
+
+            // ugs. Try to limit the number of (x + a*y) double-ops using axpby.
+            // An optimizer as in theano could do this automatically...
+            op_ptr res;
+            unsigned int size = 2 * (ops.size() / 2);
+            for (unsigned int i = 0; i < size; i += 2){
+                if(!res)
+                    res =       axpby(args[i], ops[i], args[i+1], ops[i+1]);
+                else
+                    res = res + axpby(args[i], ops[i], args[i+1], ops[i+1]);
+            }
+            if(ops.size() != size)
+                res = axpby(res, args.back(), ops.back());
+            return res;
+        }
+
+        /**
          * Determine the parameters learned during fine-tuning
          * @overload
          */
