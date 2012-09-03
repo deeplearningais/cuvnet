@@ -223,7 +223,7 @@ namespace cuvnet { namespace network_communication {
                 <<"state"<<"merged"; // pretend it is "merged"
             bob.appendBinData("content",ms.size(),mongo::BinDataGeneral,&ms[0]);
 
-            // upsert value
+            // upsert value (could overwrite one of the "staged" entries, but that is OK)
             m_impl->m_con.update( m_impl->m_prefix + ".nc", 
                     BSON("key"<<m_impl->m_key
                         <<"params"<<true
