@@ -75,8 +75,8 @@ typedef std::map<std::string,int>      map_type;
             try{
                 for(int i=0;i<num_data; i++){
                     map_type param = data_gen();
-                    matrix hidden_act = f.evaluate();
-                    log_to_file(hidden_act, param); // write to file (repeatedly)
+                    matrix res = f.evaluate();
+                    log_to_file(res, param); // write to file (repeatedly)
                 }
             }catch(max_example_reached_exception){
             }
@@ -88,7 +88,7 @@ typedef std::map<std::string,int>      map_type;
          *  logs the activations and parameters to the file 
          * 
          */
-        void log_to_file(matrix& hidden_act, map_type& param){
+        void log_to_file(matrix& src, map_type& param){
             using namespace std;
             assert(m_logfile.is_open());
             map_type::iterator it;
@@ -96,29 +96,22 @@ typedef std::map<std::string,int>      map_type;
                 for ( it=param.begin() ; it != param.end(); it++ ){
                     m_logfile << it->first << ",";
                 }
-                for (unsigned int i = 0; i < hidden_act.shape(1); ++i)
-                {
-                    if(i == hidden_act.shape(1) -1){
-                        m_logfile << "h" << i;
-                    }else{
-                        m_logfile << "h" << i << ",";
-                    }
-                }
+                unsigned int s = src.size();
+                if(s > 0)
+                    m_logfile << "h0";
+                for (unsigned int i = 1; i < s; ++i)
+                    m_logfile << "h" << i << ",";
                 need_header_log_file = false;
                 m_logfile << std::endl;
             }
 
-            for ( it=param.begin() ; it != param.end(); it++ ){
+            for ( it=param.begin() ; it != param.end(); it++ )
                 m_logfile << it->second << ",";
-            }
-            for (unsigned int i = 0; i < hidden_act.shape(1); ++i)
-            {
-                if(i == hidden_act.shape(1) - 1){
-                    m_logfile << hidden_act(0,i);
-                }else{
-                    m_logfile << hidden_act(0,i) << ",";
-                }
-            }
+            unsigned int s = src.size();
+            if(s>0)
+                m_logfile << src[0];
+            for (unsigned int i = 1; i < s; ++i)
+                m_logfile << src[i] << ",";
 
             m_logfile << std::endl;
         }
