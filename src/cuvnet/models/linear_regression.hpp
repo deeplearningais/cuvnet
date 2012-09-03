@@ -44,6 +44,63 @@ class linear_regression:  public generic_regression{
 
 };
 
+/**
+ * linear regression with L2 penalty.
+ */
+struct linear_ridge_regression
+: public linear_regression
+, public simple_weight_decay
+{
+    typedef boost::shared_ptr<Op>     op_ptr;
+    /**
+     * constructor forwards all except 1st arguments to linear_regression.
+     *
+     * @param l2 regularization strength
+     */
+    template<typename... Params>
+        linear_ridge_regression(float l2, Params... args)
+        : linear_regression(args...)
+        , simple_weight_decay(l2)
+        {
+        }
+    /**
+     * Returns the L2 regularization loss.
+     */
+    virtual boost::tuple<float,op_ptr> regularize(){
+        return boost::make_tuple(
+                simple_weight_decay::strength(),
+                simple_weight_decay::regularize(params()));
+    }
+};
+
+/**
+ * linear regression with L1 penalty.
+ */
+struct linear_lasso_regression
+: public linear_regression
+, public lasso_regularizer
+{
+    typedef boost::shared_ptr<Op>     op_ptr;
+    /**
+     * constructor forwards all except 1st arguments to linear_regression.
+     *
+     * @param l1 regularization strength
+     */
+    template<typename... Params>
+        linear_lasso_regression(float l1, Params... args)
+        : linear_regression(args...)
+        , lasso_regularizer(l1)
+        {
+        }
+    /**
+     * Returns the L1 regularization loss.
+     */
+    virtual boost::tuple<float,op_ptr> regularize(){
+        return boost::make_tuple(
+                lasso_regularizer::strength(),
+                lasso_regularizer::regularize(params()));
+    }
+};
 
 }
 
