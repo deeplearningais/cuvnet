@@ -257,8 +257,18 @@ BOOST_AUTO_TEST_CASE(linear_regression_derivative){
    boost::shared_ptr<ParameterInput>  inp    = boost::make_shared<ParameterInput>(cuv::extents[3][5], "input");
    boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[3][5], "target");
 
-   linear_regression lg(inp, target); 
-   derivative_tester(*lg.get_loss(), 0, false, .01);
+   {
+       linear_regression lg(inp, target); 
+       derivative_tester(*lg.get_loss(), 0, false, .01);
+   }
+   {
+       linear_ridge_regression lg(0.1, inp, target); 
+       derivative_tester(*lg.get_loss(), 0, false, .01);
+   }
+   {
+       linear_lasso_regression lg(0.1, inp, target); 
+       derivative_tester(*lg.get_loss(), 0, false, .01);
+   }
 }
 
 BOOST_AUTO_TEST_CASE(logistic_regression_derivative){
@@ -266,8 +276,18 @@ BOOST_AUTO_TEST_CASE(logistic_regression_derivative){
    boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[3][5], "target");
    target->set_derivable(false); // cannot derive for target of logistic regression
 
-   logistic_regression lg(inp, target); 
-   derivative_tester(*lg.get_loss(), 0, false, .03, 0.1, 0.9);
+   {
+       logistic_regression lg(inp, target); 
+       derivative_tester(*lg.get_loss(), 0, false, .03, 0.1, 0.9);
+   }
+   {
+       logistic_ridge_regression lg(0.1, inp, target); 
+       derivative_tester(*lg.get_loss(), 0, false, .03, 0.1, 0.9);
+   }
+   {
+       logistic_lasso_regression lg(0.1, inp, target); 
+       derivative_tester(*lg.get_loss(), 0, false, .03, 0.1, 0.9);
+   }
 }
 
 BOOST_AUTO_TEST_CASE(obj_det){
