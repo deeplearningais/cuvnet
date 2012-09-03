@@ -44,6 +44,16 @@ class generic_auto_encoder{
          */
         inline op_ptr input(){ return m_input; }
 
+        /**
+         * deinit clears the losses (and thus the function graph),
+         * but should not touch any parameters.
+         */
+        virtual void deinit(){
+            m_loss.reset();
+            m_reg_loss.reset();
+            m_rec_loss.reset();
+        }
+
 
         /**
          * Determine the parameters to be learned during unsupervised training.
