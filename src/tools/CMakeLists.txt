@@ -1,8 +1,9 @@
 OPTION(USE_OPENCV "Use OpenCV if available" OFF)
 IF(USE_OPENCV)
     FIND_PACKAGE( OpenCV REQUIRED )
-    FIND_PACKAGE( tbb )
 ENDIF(USE_OPENCV)
+
+FIND_PACKAGE( tbb )
 
 
 SET (CUVNET_TOOLS_SRC
@@ -49,7 +50,10 @@ add_library(cuvnet_tools STATIC ${CUVNET_TOOLS_SRC} ${PYTHON_LIBRARIES})
 
 TARGET_LINK_LIBRARIES( cuvnet_tools ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} cuvnet_ops npy mdbq zzip )
 
-if ( OpenCV_FOUND  AND TBB_FOUND )
-    TARGET_LINK_LIBRARIES( cuvnet_tools ${OpenCV_LIBS} ${TBB_LIBS} )
-endif( OpenCV_FOUND  AND TBB_FOUND )
+if ( TBB_FOUND )
+    TARGET_LINK_LIBRARIES( cuvnet_tools  ${TBB_LIBS} )
+endif( TBB_FOUND )
+if ( OpenCV_FOUND )
+    TARGET_LINK_LIBRARIES( cuvnet_tools ${OpenCV_LIBS} )
+endif( OpenCV_FOUND )
 
