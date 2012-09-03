@@ -159,6 +159,18 @@ class auto_encoder_stack
         }
 
         /**
+         * deinit clears the losses (and thus the function graph),
+         * but should not touch any parameters.
+         *
+         * @overload
+         */
+        virtual void deinit(){
+            for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
+                (*it)->deinit();
+            }
+        }
+
+        /**
          * return the n-th auto-encoder
          */
         inline generic_auto_encoder& get_ae(unsigned int i){ return *m_stack[i]; }

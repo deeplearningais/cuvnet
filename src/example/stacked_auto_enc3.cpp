@@ -284,6 +284,7 @@ namespace cuvnet{
         
         {
             // Supervised finetuning
+            m_aes.deinit();
             set_batchsize(m_mlp_bs);
             std::vector<Op*> aes_params = m_aes.supervised_params();
             std::vector<Op*> params     = m_regression.params();
