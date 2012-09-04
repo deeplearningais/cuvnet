@@ -33,8 +33,6 @@ namespace cuvnet
                 bool        m_derivable; ///< for testing ops which cannot derive w.r.t. some parameter
 
             public:
-                float m_learnrate_factor;
-                float m_weight_decay_factor;
 
                 Input(){} /// for serialization
                 template<std::size_t D>
@@ -65,7 +63,14 @@ namespace cuvnet
                 inline bool     derivable()const{return m_derivable;}
                 inline void set_derivable(bool b){m_derivable = b;}
                 inline const std::string& name()const{ return m_name; }
+
+                inline float get_learnrate_factor(){return m_learnrate_factor;}
+                inline float get_weight_decay_factor(){return m_weight_decay_factor;}
+                inline void set_learnrate_factor(float learnrate_factor){m_learnrate_factor = learnrate_factor;}
+                inline void set_weight_decay_factor(float weight_decay_factor){m_weight_decay_factor = weight_decay_factor;}
             private:
+                float m_learnrate_factor;
+                float m_weight_decay_factor;
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){

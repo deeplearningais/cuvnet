@@ -154,60 +154,64 @@ class relational_auto_encoder{
         virtual void reset_weights(){
             unsigned int input_dim_x = m_fx->data().shape(0);
             unsigned int factor_dim = m_fh->data().shape(1);
-            //unsigned int hidden_dim = m_fh->data().shape(0);
+            unsigned int hidden_dim = m_fh->data().shape(0);
             float diff_x = 4.f*std::sqrt(6.f/(input_dim_x + factor_dim));
-            //float diff_h = 4.f*std::sqrt(6.f/(hidden_dim + factor_dim));
+            float diff_h = 4.f*std::sqrt(6.f/(hidden_dim + factor_dim));
             
             cuv::fill_rnd_uniform(m_fx->data());
             cuv::fill_rnd_uniform(m_fy->data());
-            //cuv::fill_rnd_uniform(m_fh->data());
+            cuv::fill_rnd_uniform(m_fh->data());
             diff_x *= 0.01;
-            //diff_h *= 0.01;
-            //m_fx->data() *= 2*diff_x;
-            //m_fx->data() -=   diff_x;
-            //m_fh->data() *= 2*diff_h;
-            //m_fh->data() -=   diff_h;
-            //m_fy->data() *= 2*diff_x;
-            //m_fy->data() -=   diff_x;
-            m_fy->data() *= 0.01f; 
-            m_fx->data() *= 0.01f; 
-            //m_fh->data() *= 0.01f; 
+            diff_h *= 0.01;
+            m_fx->data() *= 2*diff_x;
+            m_fx->data() -=   diff_x;
+            m_fy->data() *= 2*diff_x;
+            m_fy->data() -=   diff_x;
+            m_fh->data() *= 2*diff_h;
+            m_fh->data() -=   diff_h;
             
+            m_fh->set_weight_decay_factor(1.f);
+            m_fx->set_weight_decay_factor(1.f);
+            m_fy->set_weight_decay_factor(1.f);
            
-            unsigned int num_hidd =  m_fh->data().shape(0);
-            unsigned int num_fact = m_fh->data().shape(1);
-            assert(num_fact % num_hidd == 0);
-            unsigned int stride = num_fact / num_hidd; 
-            cuv::tensor<float,cuv::host_memory_space> conv_kernel(cuv::extents[2*stride]);
-            cuv::tensor<float,cuv::host_memory_space> temp(cuv::extents[num_hidd][num_fact]);
-            conv_kernel = 1.f;
-            m_fh->data() = 0.f;
-            temp = 0.f;
-            int sum = 0;
+            //unsigned int num_hidd =  m_fh->data().shape(0);
+            //unsigned int num_fact = m_fh->data().shape(1);
+            //assert(num_fact % num_hidd == 0);
+            //unsigned int stride = num_fact / num_hidd; 
+            //cuv::tensor<float,cuv::host_memory_space> conv_kernel(cuv::extents[2*stride]);
+            //cuv::tensor<float,cuv::host_memory_space> temp(cuv::extents[num_hidd][num_fact]);
+            //conv_kernel = 1.f;
+            //m_fh->data() = 0.f;
+            //temp = 0.f;
+            //int sum = 0;
 
-            for(unsigned int i = 0; i < num_hidd; i++){
-              temp(i, i * stride) = 1.f;
-              m_fh->data()(i, i * stride) = 1.f;
-              for(unsigned int j = 0; j < num_fact; j++){
-                  for(unsigned int k = 0; k < 2*stride; k++){
-                      int index = j - (k - stride);
-                      if(index >= 0 && index < (int)num_fact){
-                          sum += m_fh->data()(i, index) * conv_kernel(k);
-                      }
+            //for(unsigned int i = 0; i < num_hidd; i++){
+            //  temp(i, i * stride) = 1.f;
+            //  m_fh->data()(i, i * stride) = 1.f;
+            //  for(unsigned int j = 0; j < num_fact; j++){
+            //      for(unsigned int k = 0; k < 2*stride; k++){
+            //          int index = j - (k - stride);
+            //          if(index >= 0 && index < (int)num_fact){
+            //              sum += m_fh->data()(i, index) * conv_kernel(k);
+            //          }
 
-                  }
-                  temp(i,j) = sum;
-                  sum = 0;
-                  //std::cout << "  " << temp(i,j) ;
-              }
-              //std::cout << std::endl;
+            //      }
+            //      temp(i,j) = sum;
+            //      sum = 0;
+            //      //std::cout << "  " << temp(i,j) ;
+            //  }
+            //  //std::cout << std::endl;
 
-            }
-            m_fh->data() = temp.copy();
+            //}
+            //m_fh->data() = temp.copy();
             
             m_bias_h->data()   = 0.f;
             m_bias_y->data()   = 0.f;
             m_bias_x->data()   = 0.f;
+
+            m_bias_h->set_weight_decay_factor(0.f);
+            m_bias_x->set_weight_decay_factor(0.f);
+            m_bias_y->set_weight_decay_factor(0.f);
         }
 
     /**
@@ -233,6 +237,11 @@ class relational_auto_encoder{
      * @return weight matrix fx
      */
     boost::shared_ptr<ParameterInput> get_fy(){return m_fy;} 
+
+    /**
+     * @return weight matrix fh
+     */
+    boost::shared_ptr<ParameterInput> get_fh(){return m_fh;} 
 
 };
 
