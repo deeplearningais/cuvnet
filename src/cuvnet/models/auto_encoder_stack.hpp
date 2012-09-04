@@ -65,7 +65,7 @@ class auto_encoder_stack
          * returns an op calculating the sum of regularizers for the stack for
          * use in supervised training.
          */
-        op_ptr get_sum_of_regularizers(){
+        virtual boost::tuple<float,op_ptr> regularize(){
             int cnt=0;
             std::vector<op_ptr> ops;
             std::vector<float> args;
@@ -89,9 +89,15 @@ class auto_encoder_stack
                 else
                     res = res + axpby(args[i], ops[i], args[i+1], ops[i+1]);
             }
-            if(ops.size() != size)
+            if(ops.size() == 1)
+                res = args[0] * ops[0];
+            else if(ops.size() != size) // size % 2 is not 0
                 res = axpby(res, args.back(), ops.back());
-            return res;
+            
+            if(ops.size())
+                return boost::make_tuple(1.f, res);
+
+            return boost::make_tuple(0.f, res);
         }
 
         /**
@@ -201,6 +207,7 @@ class auto_encoder_stack
             for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
                 (*it)->deinit();
             }
+            generic_auto_encoder::deinit();
         }
 
         /**
