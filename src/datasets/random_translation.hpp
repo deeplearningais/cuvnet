@@ -2,6 +2,7 @@
 #ifndef __RANDOM_TRANSLATION_HPP__
 #     define __RANDOM_TRANSLATION_HPP__
 #include "dataset.hpp"
+#include <vector>
 namespace cuvnet
 {
     /**
@@ -21,7 +22,7 @@ namespace cuvnet
      * @param morse_factor the width of the morse input
      * @param max_grow the input can grow from -max_grow to +max_grow
      */
-    void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans, int morse_factor, int max_grow);
+    void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans, int morse_factor, float max_grow);
 
 
 
@@ -90,7 +91,7 @@ namespace cuvnet
     void initialize_data_sets(cuv::tensor<float,cuv::host_memory_space>& train_data, cuv::tensor<float,cuv::host_memory_space>& test_data, 
             cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels,
             int m_num_train_example, int m_num_test_example, int m_dim, float m_thres, int max_size, int min_size, 
-            int max_translation, int max_growing, int flag, int morse_factor);
+            int max_translation, float max_growing, int flag, int morse_factor);
 
 
     /**
@@ -161,7 +162,7 @@ namespace cuvnet
          * @param morse_factor the width of the morse input
          *
          */
-        random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int translate_size, int max_growing, int min_size, int max_size, int flag, int morse_factor);
+        random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int translate_size, float max_growing, int min_size, int max_size, int flag, int morse_factor);
         random_translation(){}
     };
 
@@ -172,8 +173,8 @@ namespace cuvnet
         private:
             // data where the code is written 
             cuv::tensor<float,cuv::host_memory_space> m_data;
+            std::vector<std::vector<std::vector<float> > > m_coordinates;
             int m_factor;
-            int m_grow;
             std::vector<std::string>  m_morse_code;
         public:
         /**
@@ -189,12 +190,15 @@ namespace cuvnet
             void init_morse_code_data_structure();
             int char_to_morse_index(char c);
             int get_width_char(int ch, int factor);
-            void set_grow(int grow);
-            int write_dot(int dim, int ex, int pos);
-            int write_dash(int dim, int ex, int pos);
-            int write_char(int ch, int dim, int ex, int pos);
+            int write_dot(int dim, int ex, float pos);
+            int write_dash(int dim, int ex, float pos);
+            int write_char(int ch, int dim, int ex, float pos);
             unsigned int get_size();
             cuv::tensor<float,cuv::host_memory_space> get_data();
+            void write_from_coordinates();
+            void write_bar(int dim, int ex, float coor_1, float coor_2);
+            void translate_coordinates(int dim, int ex, int trans);       
+            void scale_coordinates(int dim, int ex, float scale);
     };
 
 }
