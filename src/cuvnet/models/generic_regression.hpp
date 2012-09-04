@@ -111,7 +111,7 @@ class generic_regression
         virtual void reset_weights(){
             m_weights->data() = 0.f;
             m_bias->data()   = 0.f;
-            m_bias->m_weight_decay_factor = 0.f; // do not apply wd to bias
+            m_bias->set_weight_decay_factor(0.f); // do not apply wd to bias
         }
 
         /**

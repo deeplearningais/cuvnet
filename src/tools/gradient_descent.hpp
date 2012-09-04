@@ -304,8 +304,8 @@ namespace cuvnet
                     //cuvAssert(NULL != dynamic_cast<ParameterInput*>(*it));
                     ParameterInput* inp = (ParameterInput*) *it;
 
-                    float lr = m_learnrate * inp->m_learnrate_factor;
-                    float wd = m_weightdecay * inp->m_weight_decay_factor;
+                    float lr = m_learnrate * inp->get_learnrate_factor();
+                    float wd = m_weightdecay * inp->get_weight_decay_factor();
                     // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
                     //       we're changing the underlying object all cow_ptrs pointing to it!!!
                     cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->delta(), -lr, wd);
@@ -505,8 +505,9 @@ namespace cuvnet
                 Op::value_type dW = ::operator-(param->delta()); // TODO: change sign in cuv::rprop
                 if(m_n_batches > 1)
                     dW /= (float) m_n_batches;
+                float wd = m_weightdecay * param->get_weight_decay_factor();
                 //cuv::rprop(*param->data_ptr().ptr(), dW, m_old_dw[i], m_learnrates[i],  0.0000000f, m_weightdecay);
-                cuv::rprop(*param->data_ptr().ptr(), dW, m_old_dw[i], m_learnrates[i], m_weightdecay, 0.0000000f);
+                cuv::rprop(*param->data_ptr().ptr(), dW, m_old_dw[i], m_learnrates[i], wd, 0.0000000f);
                 param->reset_delta();
             }
             m_n_batches = 0;
@@ -559,8 +560,8 @@ namespace cuvnet
             for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
                 ParameterInput* inp = (ParameterInput*) *it;
 
-                float lr = m_learnrate * inp->m_learnrate_factor;
-                float wd = m_weightdecay * inp->m_weight_decay_factor;
+                float lr = m_learnrate * inp->get_learnrate_factor();
+                float wd = m_weightdecay * inp->get_weight_decay_factor();
 
                 cuvAssert(inp->delta().shape() == inp->data().shape());
                 //std::cout << "cuv::norm1(m_last_delta[i]) " <<inp->name()<<" "<< cuv::norm1(m_last_delta[i])/m_last_delta[i].size() << std::endl;
