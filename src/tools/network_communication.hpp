@@ -103,6 +103,20 @@ namespace cuvnet
                  * @param current_value if there is no `current' value in the database, use this one
                  */
                 void put_for_merging(const std::string& s, const htensor_t& delta, const matrix& current_value);
+
+                /**
+                 * send a 'stop' signal to coworkers.
+                 *
+                 * @param stage stop clients in this stage
+                 */
+                void send_stop_signal(const std::string& stage);
+
+                /**
+                 * determine if a co-worker requested to stop learning
+                 *
+                 * @param stage only check for stop-signals of the named stage
+                 */
+                bool got_stop_signal(const std::string& stage);
         };
 
         class param_synchronizer{
@@ -112,14 +126,20 @@ namespace cuvnet
                 int m_cnt;
                 std::vector<Op*> m_ops;
                 client& m_client;
+                std::string m_stage;
             public:
                 typedef void result_type;
-                param_synchronizer(client& clt, int push_steps, int pull_steps, const std::vector<Op*>& ops)
+                param_synchronizer(const std::string& stage, client& clt, int push_steps, int pull_steps, const std::vector<Op*>& ops)
                     : m_push_steps(push_steps)
                       , m_pull_steps(pull_steps)
                       , m_cnt(0)
                       , m_ops(ops)
-                      , m_client(clt){}
+                      , m_client(clt)
+                      , m_stage(stage)
+                {}
+
+                void stop_coworkers();
+                void test_stop();
 
                 void operator()(
                         std::map<Op*, cuv::tensor<float, cuv::host_memory_space> >* updates

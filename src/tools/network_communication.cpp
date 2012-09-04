@@ -12,6 +12,7 @@
 
 #include <mongo/client/dbclient.h>
 #include <cuvnet/ops/input.hpp>
+#include <tools/gradient_descent.hpp> /* for network_stop exception */
 
 #include "network_communication.hpp"
 
@@ -56,7 +57,7 @@ namespace cuvnet { namespace network_communication {
                 continue;
             
             std::ostringstream os(std::ios::binary);
-            {
+            {   // serialize the contents of the merged parameter
                 boost::archive::binary_oarchive oa(os);
                 oa << m_merged[it->first];
             }
@@ -158,6 +159,8 @@ namespace cuvnet { namespace network_communication {
                     throw value_not_found_exception();
                 }
             }
+            //std::cout << name<<": "<< cuv::norm1(m)<<std::endl;
+            //cuv::apply_binary_functor(m_merged[name],m,cuv::BF_XPBY,0.1f);
             m_merged[name] += m;
 
             m_versions[name] ++;
@@ -177,6 +180,19 @@ namespace cuvnet { namespace network_communication {
         }
     }
 
+    void client::send_stop_signal(const std::string& stage){
+        m_impl->m_con.insert(m_impl->m_prefix+".nc", 
+                BSON("key"<<m_impl->m_key
+                    <<"signal"<<"stop"
+                    <<"stage"<<stage));
+    }
+    bool client::got_stop_signal(const std::string& stage){
+        mongo::BSONObj f = m_impl->m_con.findOne(m_impl->m_prefix+".nc",
+                QUERY("key"<<m_impl->m_key
+                    <<"signal"<<"stop"
+                    <<"stage"<<stage));
+        return f.hasField("key");
+    }
     htensor_t client::fetch_merged(const std::string& s){
         mongo::BSONObj f = m_impl->m_con.findOne(m_impl->m_prefix+".nc",
                 QUERY("name"<<s
@@ -186,6 +202,8 @@ namespace cuvnet { namespace network_communication {
                     <<"key"<<m_impl->m_key));
         if(!f.hasField("name"))
             throw value_not_found_exception();
+
+        m_versions[s] = f["version"].Int();
 
         htensor_t m;
         {
@@ -209,7 +227,7 @@ namespace cuvnet { namespace network_communication {
         if(cnt == 0){
             // we need to put a weight obj on the server in the 1st place...
             std::ostringstream os(std::ios::binary);
-            {
+            {   // serialize
                 boost::archive::binary_oarchive oa(os);
                 oa << current_value;
             }
@@ -223,19 +241,14 @@ namespace cuvnet { namespace network_communication {
                 <<"state"<<"merged"; // pretend it is "merged"
             bob.appendBinData("content",ms.size(),mongo::BinDataGeneral,&ms[0]);
 
-            // upsert value (could overwrite one of the "staged" entries, but that is OK)
-            m_impl->m_con.update( m_impl->m_prefix + ".nc", 
-                    BSON("key"<<m_impl->m_key
-                        <<"params"<<true
-                        <<"name"<<s
-                        <<"source"<<m_id),
-                    bob.obj(), true);
+            // upload object to the server
+            m_impl->m_con.insert( m_impl->m_prefix + ".nc", bob.obj());
             CHECK_DB_ERR(m_impl->m_con);
         }
         else{
             // we just need to send a weight /update/ to the server
             std::ostringstream os(std::ios::binary);
-            {
+            {   // serialize
                 boost::archive::binary_oarchive oa(os);
                 oa << delta;
             }
@@ -269,10 +282,17 @@ namespace cuvnet { namespace network_communication {
         for (int i = 0; i < n || n<0; ++i){
             merge();
             push_merged();
-            boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+            boost::this_thread::sleep(boost::posix_time::milliseconds(sleep_msec));
         }
     }
 
+    void param_synchronizer::test_stop(){
+        if(m_client.got_stop_signal(m_stage))
+            throw network_stop();
+    }
+    void param_synchronizer::stop_coworkers(){
+        m_client.send_stop_signal(m_stage);
+    }
     void param_synchronizer::operator()(
             std::map<Op*, cuv::tensor<float, cuv::host_memory_space> >* updates,
             unsigned int, unsigned int
@@ -288,10 +308,12 @@ namespace cuvnet { namespace network_communication {
                 htensor_t m = inp->data();
                 std::map<Op*, cuv::tensor<float, cuv::host_memory_space> >::iterator 
                     it = updates->find(inp);
-                if(it == updates->end())
-                    continue;
-                m_client.put_for_merging(name, it->second, inp->data());
-                it->second = 0.f;
+                if(it != updates->end()){
+                    // push results to server
+                    m_client.put_for_merging(name, it->second, inp->data());
+                    // now that results are pushed, start recording changes again
+                    it->second = 0.f; 
+                }
                 idx ++;
             }
         }
