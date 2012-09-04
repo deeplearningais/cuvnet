@@ -12,6 +12,7 @@ SET (CUVNET_TOOLS_SRC
     learner.cpp
     crossvalid.cpp
     read_amat.cpp
+    gradient_descent.cpp
     orthonormalization.cpp
     network_communication.cpp
     )
