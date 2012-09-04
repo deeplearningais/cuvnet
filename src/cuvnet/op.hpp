@@ -61,6 +61,7 @@ namespace cuvnet
                 std::vector<result_t> m_results; ///< all results of the Op
                 bool                  m_need_derivative; ///< true if the Op needs to be evaluated in \c fprop
                 bool                  m_need_result;  ///< true if the Op needs to be evaluated in \c bprop
+                std::string           m_label; ///< a graph annotation label for debugging purposes
 
             public:
                 /**
@@ -122,6 +123,16 @@ namespace cuvnet
                 inline void need_derivative(bool b){m_need_derivative = b;}    ///< set whether Op needs to be called in \c bprop
                 virtual bool need_result()const{return m_need_result;}         ///< return whether Op needs to be called in \c fprop
                 inline void need_result(bool b){m_need_result = b;}            ///< set whether Op needs to be called in \c fprop
+
+                /**
+                 * set the label used for annotation in the function graph
+                 */
+                inline void set_label(const std::string& label){ m_label = label; }
+
+                /**
+                 * get the label used for annotation in the function graph
+                 */
+                inline const std::string& get_label()const{ return m_label; }
 
                 /**
                  * Calculate recursively what needs to be calculated to

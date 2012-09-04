@@ -65,6 +65,11 @@ void define_graphviz_node_visitor::preorder(Op* o){
 #ifndef NDEBUG
     n.label += " " + boost::lexical_cast<std::string>(o);
 #endif
+    if(o->get_label().size())
+    {
+        n.label = o->get_label() + "\\n"+ n.label;
+        n.penwidth = 3.f;
+    }
 
 	if(m_mark_order.size()){
 		std::vector<Op*>::iterator it = std::find(m_mark_order.begin(),m_mark_order.end(),o);
@@ -92,6 +97,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
 	   << " label=\""<<n.label<<"\","
 	   << " shape=\""<<n.shape<<"\","
 	   << " style=\""<<n.style<<"\","
+	   << " penwidth=\""<<n.penwidth<<"\","
 	   << " color=\""<<n.color<<"\","
 	   << " fillcolor=\""<<n.fillcolor<<"\" "
 	   << " ];"<<std::endl;
