@@ -20,6 +20,7 @@ namespace cuvnet
         // - split up datasets (not necessary if randomized?)
         // - initialize networks with fixed seed
         // - disable in validation epochs
+        // - add "stage" parameter to weights?
 
         /**
          * Does tasks which cannot be done by clients.
@@ -81,6 +82,7 @@ namespace cuvnet
                 boost::shared_ptr<connection> m_impl; ///< PImpl idiom.
                 std::string m_id; ///< a unique id identifying this client
                 std::map<std::string, int> m_versions; ///< the newest version pulled (to avoid pulling twice)
+                std::map<std::string, int> m_delta_versions; ///< the newest version sent (for sorting merges)
             public:
                 /**
                  * ctor.
