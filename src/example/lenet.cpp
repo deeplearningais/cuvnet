@@ -87,7 +87,7 @@ int main(int argc, char **argv)
         gradient_descent gd(ln.get_loss(),0,params,0.1f);
         
         // register the monitor so that it receives learning events
-        gd.register_monitor(mon);
+        mon.register_gd(gd);
 
         // before each batch, load data into \c input
         gd.before_batch.connect(boost::bind(load_batch,input, target,&train_data, &train_labels, ds.channels, bs,_2));
@@ -112,7 +112,8 @@ int main(int argc, char **argv)
         matrix test_data = ds.test_data;
         matrix test_labels(ds.test_labels);
         gradient_descent gd(ln.get_loss(),0,params,0.f);
-        gd.register_monitor(mon);
+        mon.register_gd(gd);
+
         gd.before_batch.connect(boost::bind(load_batch,input, target,&test_data, &test_labels, ds.channels, bs,_2));
         gd.current_batch_num.connect(ds.test_data.shape(0)/ll::constant(bs));
         gd.minibatch_learning(1);

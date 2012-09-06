@@ -238,13 +238,13 @@ namespace cuvnet{
         gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_supervised,this,_2));
         gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches, &m_sdl));
         if(mon) {
-            gd.register_monitor(*mon);
+            mon->register_gd(gd);
             gd.minibatch_learning(1, INT_MAX);
             return mon->mean("classification error");
         }else{
             monitor mon;
             mon.add(monitor::WP_SCALAR_EPOCH_STATS, gd.loss(), "classification error");
-            gd.register_monitor(mon);
+            mon.register_gd(gd);
             gd.minibatch_learning(1, INT_MAX);
             return mon.mean("classification error");
         }
@@ -276,7 +276,7 @@ namespace cuvnet{
             mon.set_training_phase(m_sdl.get_current_cv_mode(), m_sdl.get_current_split());
             mon.add("layer", ae_id);
             mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.loss(), "total loss");
-            gd.register_monitor(mon);
+            mon.register_gd(gd);
 
             // do the actual learning
             if(in_trainall) {
@@ -319,7 +319,7 @@ namespace cuvnet{
             mon.set_training_phase(m_sdl.get_current_cv_mode(), m_sdl.get_current_split());
             mon.add(monitor::WP_SCALAR_EPOCH_STATS, loss, "total loss");
             mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, m_regression->classification_error(), "classification error");
-            gd.register_monitor(mon);
+            mon.register_gd(gd);
             //gd.after_epoch.connect(boost::bind(&ProfilerFlush));
     
             if(m_checker && m_sdl.can_earlystop()){

@@ -190,29 +190,6 @@ namespace cuvnet
                 m_learnrate_decay = fact;
             }
 
-            /**
-             * register a monitor, which needs to provide methods
-             * after_epoch, after_batch and before_epoch.
-             *
-             * @param m a monitor object
-             */
-        template<class M>
-            void register_monitor(M& m){
-                after_epoch.connect( boost::bind(&M::after_epoch,&m));
-                after_batch.connect( boost::bind(&M::after_batch,&m));
-                before_epoch.connect(boost::bind(&M::before_epoch,&m));
-                before_early_stopping_epoch.connect(boost::bind(&M::before_epoch,&m));
-
-                // do this at front, since it contains the logging and monitor
-                // state (is_training_phase) might be changed with a later
-                // signal so that logging is incorrect.
-                after_early_stopping_epoch.connect(boost::signals::at_front, boost::bind(&M::after_epoch,&m));
-
-                // the user probably registered variables with the monitor,
-                // which attaches sinks. We need to recreate the swiper,
-                // so that the sinks are updated accordingly.
-                repair_swiper(); 
-            }
             
         protected:
             /**
@@ -402,6 +379,7 @@ namespace cuvnet
 
                 for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
                     ParameterInput* inp = (ParameterInput*) *it;
+                    //matrix tmp = old_w[inp].copy();
                     cuv::apply_binary_functor(old_w[inp], inp->data(), cuv::BF_AXPBY, -1.f, 1.f);
                     
                     std::map<Op*, storage_t>::iterator upit = m_updates.find(inp);
@@ -409,6 +387,7 @@ namespace cuvnet
                         m_updates[inp] += (storage_t) old_w[inp];
                     else
                         m_updates[inp]  = (storage_t) old_w[inp];
+                    //inp->data() = tmp;
                 }
             }
     };
