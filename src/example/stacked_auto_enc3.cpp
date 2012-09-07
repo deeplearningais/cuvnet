@@ -443,11 +443,10 @@ main(int argc, char **argv)
     if(std::string("worker") == argv[1]){
         cuvAssert(argc==3);
 
-        boost::asio::io_service ios; 
         hyperopt_client hc(boost::lexical_cast<int>(argv[2]));
-        hc.reg(ios,1);
-        ios.run();
-
+        mongo::BSONObj task;
+        hc.get_next_task(task);
+        hc.handle_task(task);
     }
 
     mongo::BSONObjBuilder bob;
