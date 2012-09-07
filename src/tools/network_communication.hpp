@@ -125,20 +125,29 @@ namespace cuvnet
             private:
                 int m_push_steps;
                 int m_pull_steps;
+                int m_push_off;
+                int m_pull_off;
                 int m_cnt;
                 std::vector<Op*> m_ops;
                 client& m_client;
                 std::string m_stage;
             public:
                 typedef void result_type;
-                param_synchronizer(const std::string& stage, client& clt, int push_steps, int pull_steps, const std::vector<Op*>& ops)
-                    : m_push_steps(push_steps)
+                param_synchronizer(const std::string& stage, client& clt, 
+                        int push_steps, int pull_steps, 
+                        int push_off, int pull_off, 
+                        const std::vector<Op*>& ops)
+                    : 
+                        m_push_steps(push_steps)
                       , m_pull_steps(pull_steps)
+                      , m_push_off(push_off)
+                      , m_pull_off(pull_off)
                       , m_cnt(0)
                       , m_ops(ops)
                       , m_client(clt)
                       , m_stage(stage)
-                {}
+                {
+                }
 
                 void stop_coworkers();
                 void test_stop();

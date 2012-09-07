@@ -386,6 +386,8 @@ struct async_client
     typedef cuvnet::diff_recording_gradient_descent<GradientDescentType>  gradient_descent_t;
     int m_push_freq;
     int m_pull_freq;
+    int m_push_off;
+    int m_pull_off;
     int m_dev;
     std::string m_key;
     std::string m_db;
@@ -393,10 +395,12 @@ struct async_client
     boost::scoped_ptr<cuvnet::network_communication::param_synchronizer> m_psync;
 
 
-    async_client(int dev, const std::string& db, const std::string& key, int push_freq, int pull_freq)
+    async_client(int dev, const std::string& db, const std::string& key, int push_freq, int pull_freq, int push_off, int pull_off)
         :cuvnet::pretrained_mlp_learner<gradient_descent_t>(true, dev==0)
         ,m_push_freq(push_freq)
         ,m_pull_freq(pull_freq)
+        ,m_push_off(push_off)
+        ,m_pull_off(pull_off)
         ,m_dev(dev)
         ,m_key(key)
         ,m_db(db)
@@ -409,7 +413,8 @@ struct async_client
                 new client(
                     "131.220.7.92","testnc",m_key,
                     "client-"+boost::lexical_cast<std::string>(m_dev)) );
-        m_psync.reset(new param_synchronizer(stage, *m_clt, m_push_freq,m_pull_freq, params));
+        m_psync.reset(new param_synchronizer(stage, *m_clt, 
+                    m_push_freq,m_pull_freq, m_push_off, m_pull_off, params));
         gd.set_sync_function(boost::ref(*m_psync));
         gd.after_epoch.connect(boost::bind(&param_synchronizer::test_stop, &*m_psync));
         gd.done_learning.connect(boost::bind(&param_synchronizer::stop_coworkers, &*m_psync));
@@ -516,7 +521,12 @@ main(int argc, char **argv)
         mongo::BSONObj task = BSON("vals"<<bob.obj());
         for (unsigned int i = 0; i < devs.size(); ++i)
         {
-            clients[i] = boost::make_shared<async_client<cuvnet::gradient_descent> >(devs[i], db, key, sync_freq, sync_freq/devs.size());
+            int f2 = sync_freq / devs.size();
+
+            clients[i] = boost::make_shared<async_client<cuvnet::gradient_descent> >(devs[i], db, key, 
+                    sync_freq, f2,
+                    f2*i, f2/devs.size()*i);
+            //clients[i] = boost::make_shared<async_client<cuvnet::gradient_descent> >(devs[i], db, key, sync_freq, sync_freq);
             threads[i] = boost::make_shared<boost::thread>(boost::bind(&clt_ptr_t::element_type::run, clients[i], boost::ref(task)));
         }
 

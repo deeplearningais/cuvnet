@@ -325,7 +325,7 @@ namespace cuvnet { namespace network_communication {
             unsigned int, unsigned int
             ){
         ++m_cnt;
-        if( m_cnt % m_push_steps == 0){
+        if( m_cnt % m_push_steps == m_push_steps){
             int idx = 0;
             BOOST_FOREACH(Op* op, m_ops){
                 ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
@@ -346,7 +346,7 @@ namespace cuvnet { namespace network_communication {
         }
         //cuvAssert(m_pull_steps > 1 || m_push_steps/2==0);
         //if( m_cnt % m_pull_steps == m_push_steps/2){
-        if( m_cnt % m_pull_steps == 0){
+        if( m_cnt % m_pull_steps == m_pull_steps){
             int idx = 0;
             BOOST_FOREACH(Op* op, m_ops){
                 ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
