@@ -139,24 +139,35 @@ namespace cuvnet { namespace network_communication {
         if(queue_len < warned)
             warned -= warn_step;
         if(queue_len > warned + warn_step){
-            std::cout << "WARNING: Async SGD: queue-length is " << queue_len <<" trying to catch up..."<<std::endl;
+            //std::cout << "WARNING: Async SGD: queue-length is " << queue_len <<" trying to catch up..."<<std::endl;
             warned += warn_step;
         }
 
         int process_max = 2*m_merged.size();
-        if(queue_len > warn_step)
-            process_max = queue_len;
 
-        for (int dummy = 0; dummy < queue_len; ++dummy)
+        std::auto_ptr<mongo::DBClientCursor> p =
+            m_impl->m_con.query( m_impl->m_prefix+".nc",
+                    QUERY("params"<<true
+                       <<"state"<<"delta"
+                       <<"key"<<m_impl->m_key).sort(BSON("delta_idx"<<-1)),process_max);
+        CHECK_DB_ERR(m_impl->m_con);
+        mongo::BSONArrayBuilder done_ids;
+
+        for (int dummy = 0; dummy < process_max; ++dummy)
         {
-            mongo::BSONObj res;
-            m_impl->m_con.runCommand(m_impl->m_prefix, cmd, res);
-            CHECK_DB_ERR(m_impl->m_con);
-
-            if(!res["value"].isABSONObj())
+/*
+ *            mongo::BSONObj res;
+ *            m_impl->m_con.runCommand(m_impl->m_prefix, cmd, res);
+ *            CHECK_DB_ERR(m_impl->m_con);
+ *
+ *            if(!res["value"].isABSONObj())
+ *                break;
+ *
+ *          mongo::BSONObj f = res["value"].Obj();
+ */
+            if(!p->more())
                 break;
-
-            mongo::BSONObj f = res["value"].Obj();
+            mongo::BSONObj f = p->next();
 
             htensor_t m;
             {
@@ -182,7 +193,18 @@ namespace cuvnet { namespace network_communication {
 
             m_versions[name] ++;
             m_need_push[name] = true;
+            done_ids << f["_id"];
         }
+        m_impl->m_con.remove( m_impl->m_prefix+".nc", BSON("_id" << BSON("$in" << done_ids.arr())));
+        CHECK_DB_ERR(m_impl->m_con);
+
+        if(queue_len > warn_step)
+        {
+            //std::cout << "WARNING: async server: clearing stale queries" << std::endl;
+            std::cout << "WARNING: Async SGD: queue-length is " << queue_len <<" --> clearing, you're loosing work!"<<std::endl;
+            m_impl->m_con.remove(m_impl->m_prefix+".nc", query);
+        }
+
     }
 
     client::client(const std::string& url, const std::string& prefix, const std::string key, const std::string id){
