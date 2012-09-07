@@ -197,7 +197,7 @@ namespace cuvnet
             cuv::tensor<float,cuv::host_memory_space> get_data();
             void write_from_coordinates();
             void write_bar(int dim, int ex, float coor_1, float coor_2);
-            void translate_coordinates(int dim, int ex, int trans);       
+            void translate_coordinates(int dim, int ex, float trans);       
             void scale_coordinates(int dim, int ex, float scale);
     };
 
