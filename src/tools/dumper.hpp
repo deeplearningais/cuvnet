@@ -39,7 +39,7 @@ class dumper{
 typedef boost::shared_ptr<ParameterInput> input_ptr;
 typedef cuv::tensor<float,cuv::host_memory_space> tensor_type;
 typedef boost::shared_ptr<Op>     op_ptr;
-typedef std::map<std::string,int>      map_type;
+typedef std::map<std::string,float>      map_type;
     private:
         /// file where we write the hidden activations and parameters
         std::ofstream m_logfile;
@@ -50,6 +50,9 @@ typedef std::map<std::string,int>      map_type;
         /// the name of the file
         std::string m_file_name;
 
+        /// id of each row
+        unsigned int id;
+
     public:
 
         /**
@@ -57,7 +60,8 @@ typedef std::map<std::string,int>      map_type;
          * 
          */
         dumper():
-        need_header_log_file(true)
+        need_header_log_file(true),
+        id(0)
         {
         }
 
@@ -93,27 +97,29 @@ typedef std::map<std::string,int>      map_type;
             assert(m_logfile.is_open());
             map_type::iterator it;
             if(need_header_log_file){
-                for ( it=param.begin() ; it != param.end(); it++ ){
-                    m_logfile << it->first << ",";
-                }
+                m_logfile << "id";
+                for ( it=param.begin() ; it != param.end(); it++ )
+                    m_logfile  << "," << it->first;
                 unsigned int s = src.size();
                 if(s > 0)
-                    m_logfile << "h0";
+                    m_logfile << ",h0";
                 for (unsigned int i = 1; i < s; ++i)
-                    m_logfile << "h" << i << ",";
+                    m_logfile << ",h" << i;
                 need_header_log_file = false;
                 m_logfile << std::endl;
             }
-
+            
+            m_logfile << id;
             for ( it=param.begin() ; it != param.end(); it++ )
-                m_logfile << it->second << ",";
+                m_logfile  << "," << it->second;
             unsigned int s = src.size();
             if(s>0)
-                m_logfile << src[0];
+                m_logfile << "," << src[0];
             for (unsigned int i = 1; i < s; ++i)
-                m_logfile << src[i] << ",";
+                m_logfile << "," << src[i];
 
             m_logfile << std::endl;
+            id++;
         }
 };
 
