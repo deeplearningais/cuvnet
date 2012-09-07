@@ -637,8 +637,8 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
         // create a \c gradient_descent object that derives the auto-encoder loss
         // w.r.t. \c params and has learning rate 0.001f
         //gradient_descent gd(ae.loss(),0,params, learning_rate);
-        rprop_gradient_descent gd(ae.loss(), 0, params, 0.00001, 0.00005f);
-        //rprop_gradient_descent gd(ae.loss(), 0, params,   0.00001);
+        //rprop_gradient_descent gd(ae.loss(), 0, params, 0.00001, 0.00005f);
+        rprop_gradient_descent gd(ae.loss(), 0, params,   0.00001);
         //gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.45f,350);
         gd.setup_early_stopping(boost::bind(test_phase_early_stopping, &mon, &gd, &ds,  &ae,  input_x,  input_y, teacher,bs), 100, 1.f, 2.f);
         // register the monitor so that it receives learning events
@@ -749,82 +749,75 @@ void load_batch_logistic(
 }
 
 
-void regression(random_translation& ds, tensor_type& encoder_train, tensor_type& encoder_test){
-    assert(encoder_train.shape(0) % 10 == 0);
-    unsigned int bs = encoder_train.shape(0) / 10;
-    std::cout << " size enc " << encoder_train.shape(0) << " size bs " << bs << std::endl; 
+//void regression(random_translation& ds, tensor_type& encoder_train, tensor_type& encoder_test){
+//    assert(encoder_train.shape(0) % 10 == 0);
+//    unsigned int bs = encoder_train.shape(0) / 10;
+//    std::cout << " size enc " << encoder_train.shape(0) << " size bs " << bs << std::endl; 
 
-    // an \c Input is a function with 0 parameters and 1 output.
-    // here we only need to specify the shape of the input and target correctly
-    // \c load_batch will put values in it.
-    boost::shared_ptr<ParameterInput> input(
-            new ParameterInput(cuv::extents[bs][encoder_train.shape(1)],"input"));
-    boost::shared_ptr<ParameterInput> target(
-            new ParameterInput(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
+//    // an \c Input is a function with 0 parameters and 1 output.
+//    // here we only need to specify the shape of the input and target correctly
+//    // \c load_batch will put values in it.
+//    boost::shared_ptr<ParameterInput> input(
+//            new ParameterInput(cuv::extents[bs][encoder_train.shape(1)],"input"));
+//    boost::shared_ptr<ParameterInput> target(
+//            new ParameterInput(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
 
-    //creates stacked autoencoder with one simple autoencoder. has fa*fb number of hidden units
-    auto_encoder_stack ae_s(false);
-    typedef l2reg_simple_auto_encoder ae_type;
-    ae_s.add<ae_type>(16*8, ds.binary, 0.01f);
-    ae_s.init(input);
 
-    // creates the logistic regression on the top of the stacked autoencoder
-    logistic_regression lr(ae_s.get_encoded(), target);
+//    // creates the logistic regression on the top of the stacked autoencoder
+//    logistic_regression lr(encoder_train, target);
 
-    // puts the supervised parameters of the stacked autoencoder and logistic regression parameters in one vector
-    std::vector<Op*> params = ae_s.supervised_params();
-    std::vector<Op*> params_log = lr.params();
-    std::copy(params_log.begin(), params_log.end(), std::back_inserter(params));
+//    // puts the supervised parameters of the stacked autoencoder and logistic regression parameters in one vector
+//    std::vector<Op*> params = lr.params();
 
-    // create a verbose monitor, so we can see progress 
-    // and register the decoded activations, so they can be displayed
-    // in \c visualize_filters
-    monitor mon(true); // verbose
-    mon.add(monitor::WP_SCALAR_EPOCH_STATS, lr.get_loss(),        "total loss");
-    mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, lr.classification_error(),        "classification error");
+//    // create a verbose monitor, so we can see progress 
+//    // and register the decoded activations, so they can be displayed
+//    // in \c visualize_filters
+//    monitor mon(true); // verbose
+//    mon.add(monitor::WP_SCALAR_EPOCH_STATS, lr.get_loss(),        "total loss");
+//    mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, lr.classification_error(),        "classification error");
 
-    // copy training data and labels to the device, and converts train_labels from int to float
-    matrix train_data = encoder_train;
-    matrix train_labels(ds.train_labels);
+//    // copy training data and labels to the device, and converts train_labels from int to float
+//    matrix train_data = encoder_train;
+//    matrix train_labels(ds.train_labels);
     
-    std::cout << std::endl << " Training phase of logistic regression: " << std::endl;
-    {
-        // create a \c gradient_descent object that derives the logistic loss
-        // w.r.t. \c params and has learning rate 0.1f
-        rprop_gradient_descent gd(lr.get_loss(), 0, params,   0.00001);
+//    std::cout << std::endl << " Training phase of logistic regression: " << std::endl;
+//    {
+//        // create a \c gradient_descent object that derives the logistic loss
+//        // w.r.t. \c params and has learning rate 0.1f
+//        rprop_gradient_descent gd(lr.get_loss(), 0, params,   0.00001);
         
-        // register the monitor so that it receives learning events
-        gd.register_monitor(mon);
+//        // register the monitor so that it receives learning events
+//        gd.register_monitor(mon);
         
-        // after each epoch, run \c visualize_filters
-        //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&normalizer,fa,fb,ds.image_size,ds.channels, input,_1));
+//        // after each epoch, run \c visualize_filters
+//        //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&normalizer,fa,fb,ds.image_size,ds.channels, input,_1));
         
-        // before each batch, load data into \c input
-        gd.before_batch.connect(boost::bind(load_batch_logistic,input, target,&train_data, &train_labels, bs,_2));
+//        // before each batch, load data into \c input
+//        gd.before_batch.connect(boost::bind(load_batch_logistic,input, target,&train_data, &train_labels, bs,_2));
         
-        // the number of batches is constant in our case (but has to be supplied as a function)
-        gd.current_batch_num.connect(encoder_train.shape(0) / ll::constant(bs));
+//        // the number of batches is constant in our case (but has to be supplied as a function)
+//        gd.current_batch_num.connect(encoder_train.shape(0) / ll::constant(bs));
         
-        // do mini-batch learning for at most 100 epochs, or 10 minutes
-        // (whatever comes first)
-        //gd.minibatch_learning(10000, 10*60); // 10 minutes maximum
-        gd.minibatch_learning(1000, 100*60, 0);
-    }
-    std::cout << std::endl << " Test phase: " << std::endl;
+//        // do mini-batch learning for at most 100 epochs, or 10 minutes
+//        // (whatever comes first)
+//        //gd.minibatch_learning(10000, 10*60); // 10 minutes maximum
+//        gd.minibatch_learning(1000, 100*60, 0);
+//    }
+//    std::cout << std::endl << " Test phase: " << std::endl;
 
-    // evaluates test data, does it similary as with train data, minibatch_learing is running only one epoch
-    {
-        matrix train_data = encoder_test;
-        matrix train_labels(ds.test_labels);
-        gradient_descent gd(lr.get_loss(),0,params,0.f);
-        gd.register_monitor(mon);
-        gd.before_batch.connect(boost::bind(load_batch_logistic,input, target,&train_data, &train_labels, bs,_2));
-        gd.current_batch_num.connect(encoder_test.shape(0)/ll::constant(bs));
-        gd.minibatch_learning(1);
-    }
+//    // evaluates test data, does it similary as with train data, minibatch_learing is running only one epoch
+//    {
+//        matrix train_data = encoder_test;
+//        matrix train_labels(ds.test_labels);
+//        gradient_descent gd(lr.get_loss(),0,params,0.f);
+//        gd.register_monitor(mon);
+//        gd.before_batch.connect(boost::bind(load_batch_logistic,input, target,&train_data, &train_labels, bs,_2));
+//        gd.current_batch_num.connect(encoder_test.shape(0)/ll::constant(bs));
+//        gd.minibatch_learning(1);
+//    }
 
-    std::cout <<  std::endl;
-}
+//    std::cout <<  std::endl;
+//}
 
 
 
@@ -839,13 +832,15 @@ struct morse_pat_gen{
     int m_min_ex_type, m_max_ex_type;
     int m_factor, m_input_size;
     int m_max_num_examples;
+    float m_max_scale;
     int m_current_example;
     int m_current_pos;
-    int m_current_trans;
+    float m_current_trans;
+    float m_current_scale;
     int m_current_ex_type;
     public:
 
-    morse_pat_gen(input_ptr input_x, input_ptr input_y, int min_trans, int max_trans, int min_pos, int max_pos, int min_ex_type, int max_ex_type, int factor, int input_size, int max_num_examples):
+    morse_pat_gen(input_ptr input_x, input_ptr input_y, int min_trans, int max_trans, int min_pos, int max_pos, int min_ex_type, int max_ex_type, int factor, int input_size, int max_num_examples, float max_scale):
         m_input_x(input_x),
         m_input_y(input_y),
         m_min_trans(min_trans),
@@ -857,14 +852,16 @@ struct morse_pat_gen{
         m_factor(factor),
         m_input_size(input_size),
         m_max_num_examples(max_num_examples),
+        m_max_scale(max_scale),
         m_current_example(0),
         m_current_pos(min_pos),
         m_current_trans(0),
+        m_current_scale(0),
         m_current_ex_type(0)
     {
         srand ( time(NULL) );
     }
-    map<string,int> operator()(){
+    map<string,float> operator()(){
         if(m_current_example == m_max_num_examples){
             throw max_example_reached_exception();
         }
@@ -873,17 +870,21 @@ struct morse_pat_gen{
         }
 
         // samples translation and input type only once, and iterates over all positions
-        int trans;
+        float trans;
+        float scale;
         int ex_type;
         if(m_current_pos == m_min_pos){
-            trans = (rand() % (m_max_trans - m_min_trans + 1)) + m_min_trans;
+            scale =  1 + (drand48() * 2 * m_max_scale - m_max_scale);
+            trans = drand48() * 2 * m_max_trans - m_max_trans;
             ex_type = (rand() % (m_max_ex_type - m_min_ex_type )) + m_min_ex_type;
             m_current_trans = trans;
+            m_current_scale = scale;
             m_current_ex_type = ex_type;
         }
         else{
             trans = m_current_trans;
             ex_type = m_current_ex_type;
+            scale = m_current_scale;
         }
         m_current_example++;
         int pos = m_current_pos;
@@ -893,13 +894,24 @@ struct morse_pat_gen{
         example = 0.f;        
         morse_code morse(example, m_factor);
         morse.write_char(ex_type, 0, 0, pos);
-        morse.write_char(ex_type, 1, 0, pos + trans);
+        morse.write_char(ex_type, 1, 0, pos);
+        morse.write_char(ex_type, 2, 0, pos);
+        morse.translate_coordinates(1, 0, trans);
+        morse.translate_coordinates(1, 0, scale);
+
+        morse.translate_coordinates(2, 0, trans);
+        morse.translate_coordinates(2, 0, trans);
+        morse.translate_coordinates(2, 0, scale);
+        morse.translate_coordinates(2, 0, scale);
+
         morse.write_from_coordinates();
         example = morse.get_data();
+
         m_input_x->data() = example[cuv::indices[0][cuv::index_range()][cuv::index_range()]];
         m_input_y->data() = example[cuv::indices[1][cuv::index_range()][cuv::index_range()]];
-        map<string,int> param_map;
+        map<string,float> param_map;
         param_map["translation"] = trans;
+        param_map["scaling"] = scale;
         param_map["position"] = pos;
         param_map["input_type"] = ex_type;
         return param_map;
@@ -910,20 +922,23 @@ struct morse_pat_gen{
 
 int main(int argc, char **argv)
 {
+    int device = 2;
+    if(argc == 1)
+        device = boost::lexical_cast<int>(argv[1]);
     // initialize cuv library
-    cuv::initCUDA(2);
+    cuv::initCUDA(device);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int input_size=100,bs=  300 , subsampling = 2, max_trans = 3, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
-    float max_growing = 0.f;
+    unsigned int input_size=150,bs=  1000 , subsampling = 2, max_trans = 2, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
+    float max_growing = 0.1f;
     unsigned max_num_epochs = 10000;
 
-    unsigned int num_hidden = 10;
+    unsigned int num_hidden = 50;
 
-    unsigned int num_factors = 300;
+    unsigned int num_factors = 500;
     float sigma = gauss_dist / 3; 
     //float learning_rate = 0.001f;
     // generate random translation datas
-    unsigned int data_set_size = 6000;
+    unsigned int data_set_size = 15000;
     std::cout << "generating dataset: "<<std::endl;
     random_translation ds(input_size * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width, flag, morse_factor);
     ds.binary   = false;
@@ -986,7 +1001,7 @@ int main(int argc, char **argv)
     dumper a;
     
     int num_examples = 100000;
-    morse_pat_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, num_examples);
+    morse_pat_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, num_examples, max_growing);
     a.generate_log_patterns(ae.get_encoded(), m, "invariance_test.txt"); 
 
     
