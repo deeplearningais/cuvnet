@@ -458,7 +458,7 @@ float test_phase_early_stopping(monitor* mon, gradient_descent* orig_gd, random_
         std::vector<Op*> params; // empty!
         rprop_gradient_descent gd(ae->loss(), 0, params,   0);
         //gradient_descent gd(ae->loss(), 0, params, 0);
-        gd.register_monitor(*mon);
+        mon->register_gd(gd);
         gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
         gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
         std::cout << std::endl << " testing phase ";
@@ -642,7 +642,7 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
         //gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.45f,350);
         gd.setup_early_stopping(boost::bind(test_phase_early_stopping, &mon, &gd, &ds,  &ae,  input_x,  input_y, teacher,bs), 100, 1.f, 2.f);
         // register the monitor so that it receives learning events
-        gd.register_monitor(mon);
+        mon.register_gd(gd);
 
         // after each epoch, run \c visualize_filters
         //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon, num_hidden, input_size, input_x, input_y, teacher, true,_1));
@@ -682,7 +682,7 @@ void test_phase(random_translation& ds, monitor& mon, relational_auto_encoder& a
     std::vector<Op*> params; // empty!
     rprop_gradient_descent gd(ae.loss(), 0, params, 0);
     //gradient_descent gd(ae.loss(),0,params,0.f);
-    gd.register_monitor(mon);
+    mon.register_gd(gd);
     gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,num_hidden,input_size, input_x, input_y, teacher, false,_1));
     gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
     gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
@@ -723,7 +723,7 @@ void prediction_phase(random_translation& ds, monitor& mon, relational_auto_enco
     std::vector<Op*> params; // empty!
     rprop_gradient_descent gd(ae.loss(), 0, params, 0);
     //gradient_descent gd(ae.loss(),0,params,0.f);
-    gd.register_monitor(mon);
+    mon.register_gd(gd);
     gd.before_epoch.connect(boost::bind(generate_data,&mon,input_x, input_y,_1));
     gd.current_batch_num.connect(ds.test_data.shape(1)/ll::constant(bs));
     gd.after_epoch.connect(boost::bind(visualize_prediction, &mon, images, input_x, input_y, teacher, num_examples, num_epochs, num_examples,  _1));
@@ -787,7 +787,7 @@ void load_batch_logistic(
 //        rprop_gradient_descent gd(lr.get_loss(), 0, params,   0.00001);
         
 //        // register the monitor so that it receives learning events
-//        gd.register_monitor(mon);
+//        mon.register_gd(gd);
         
 //        // after each epoch, run \c visualize_filters
 //        //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&normalizer,fa,fb,ds.image_size,ds.channels, input,_1));
@@ -815,7 +815,6 @@ void load_batch_logistic(
 //        gd.current_batch_num.connect(encoder_test.shape(0)/ll::constant(bs));
 //        gd.minibatch_learning(1);
 //    }
-
 //    std::cout <<  std::endl;
 //}
 

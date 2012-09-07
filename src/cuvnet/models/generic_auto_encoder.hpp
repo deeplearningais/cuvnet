@@ -163,16 +163,16 @@ class generic_auto_encoder{
          */
         virtual void init(op_ptr input){
             m_input     = input;
-            m_encoded   = encode(m_input);
-            m_decoded   = decode(m_encoded);
-            m_rec_loss  = reconstruction_loss(m_input, m_decoded);
+            m_encoded   = label("encoded",encode(m_input));
+            m_decoded   = label("decoded",decode(m_encoded));
+            m_rec_loss  = label("rec_loss",reconstruction_loss(m_input, m_decoded));
 
             float lambda;
             boost::tie(lambda, m_reg_loss)  = regularize();
             if(!lambda || !m_reg_loss)
                 m_loss = m_rec_loss;
             else
-                m_loss = axpby(m_rec_loss, lambda, m_reg_loss);
+                m_loss = axpby(m_rec_loss, lambda, label("regularizer", m_reg_loss));
             reset_weights();
         }
 

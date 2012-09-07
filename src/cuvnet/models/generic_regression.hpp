@@ -93,11 +93,11 @@ class generic_regression
          */
         op_ptr get_loss(){
             if(!m_loss){
-                m_user_loss = loss();
+                m_user_loss = label("reg_loss", loss());
                 float lambda;
                 boost::tie(lambda, m_regularization_loss) = regularize();
                 if(lambda && m_regularization_loss) 
-                    m_loss = axpby(m_user_loss, lambda, m_regularization_loss);
+                    m_loss = axpby(m_user_loss, lambda, label("regularizer",m_regularization_loss));
                 else
                     m_loss = m_user_loss;
             }

@@ -91,9 +91,9 @@ class two_layer_contractive_auto_encoder
     virtual boost::tuple<float,op_ptr> regularize(){
         op_ptr contractive_loss;
         unsigned int bs = m_input->result()->shape[0];
-        //unsigned int num_contr = std::max(1u,bs/16);
-        unsigned int num_contr = 1;
-        for(unsigned int i=0;i<num_contr;i++){
+        //unsigned int n_contrib = std::max(1u,bs/16);
+        unsigned int n_contrib = 1;
+        for(unsigned int i=0;i<n_contrib;i++){
             m_rs  = row_select(m_hl0,m_hl1); // select same (random) row in m_hl0 and m_hl1
             op_ptr h0r = result(m_rs,0);
             op_ptr h1r = result(m_rs,1);
@@ -115,7 +115,7 @@ class two_layer_contractive_auto_encoder
         //contractive_loss = sum( pow(J, 2.f) );
 
         return boost::make_tuple( 
-                (m_reg * bs) / num_contr, contractive_loss);
+                (m_reg * bs) / n_contrib, contractive_loss);
     }
 };
 

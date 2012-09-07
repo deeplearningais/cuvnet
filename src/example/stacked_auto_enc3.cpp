@@ -1,5 +1,6 @@
 #include <mongo/client/dbclient.h>
 #include <boost/asio.hpp>
+#include <boost/program_options.hpp>
 #include <boost/bind.hpp>
 #include <boost/thread.hpp>                                                                  
 #include <boost/lambda/lambda.hpp>                                                                  
@@ -14,6 +15,7 @@
 #include <tools/crossvalid.hpp>
 #include <tools/learner.hpp>
 #include <tools/monitor.hpp>
+#include <tools/network_communication.hpp>
 
 
 namespace cuvnet{
@@ -48,7 +50,7 @@ namespace cuvnet{
     }
     
     
-    template<class RegressionType=logistic_regression>
+    template<class GradientDescentType>
     class pretrained_mlp_learner
     : public simple_crossvalidatable_learner{
         private:
@@ -61,7 +63,8 @@ namespace cuvnet{
             float m_mlp_lr; ///< learning rate of regression
             float m_mlp_wd; ///< weight decay of regression
             auto_encoder_stack m_aes; ///< contains all auto-encoders
-            RegressionType m_regression; ///< does the regression for us
+            boost::shared_ptr<generic_regression> m_regression; ///< does the regression for us
+            bool m_checker; ///< whether I should perform convergence/early stopping testing
     
             template<class Archive>
                 void serialize(Archive& ar, const unsigned int version) { 
@@ -72,8 +75,8 @@ namespace cuvnet{
              * constructor.
              * @param binary if true, assume inputs are bernoulli-distributed.
              */
-            pretrained_mlp_learner(bool binary)
-                :m_aes(binary)
+            pretrained_mlp_learner(bool binary, bool checker=true)
+                :m_aes(binary), m_checker(checker)
             {}
 
             /// return the AE stack for initialization etc.
@@ -87,6 +90,9 @@ namespace cuvnet{
     
             /// predict on current test set
             virtual float predict();
+            
+            /// set up synchronization between workers (default: does nothing)
+            virtual void set_up_sync(const std::string& stage, GradientDescentType& gd, std::vector<cuvnet::Op*> params){}
     
             /// return minimum on VAL before retraining for TEST is performed
             virtual float refit_thresh()const{ return INT_MAX; };
@@ -104,7 +110,7 @@ namespace cuvnet{
     private:
         void load_batch_supervised(unsigned int batch){
             boost::dynamic_pointer_cast<ParameterInput>(m_aes.input())->data() = m_sdl.get_data_batch(batch).copy();
-            boost::dynamic_pointer_cast<ParameterInput>(m_regression.get_target())->data() = m_sdl.get_label_batch(batch).copy();
+            boost::dynamic_pointer_cast<ParameterInput>(m_regression->get_target())->data() = m_sdl.get_label_batch(batch).copy();
         }
         void load_batch_unsupervised(unsigned int batch){
             boost::dynamic_pointer_cast<ParameterInput>(m_aes.input())->data() = m_sdl.get_data_batch(batch).copy();
@@ -113,7 +119,7 @@ namespace cuvnet{
             m_sdl.set_batchsize(b);
             matrix& m = boost::dynamic_pointer_cast<ParameterInput>(m_aes.input())->data();
             m.resize(cuv::extents[b][m.shape(1)]);
-            matrix& t = boost::dynamic_pointer_cast<ParameterInput>(m_regression.get_target())->data();
+            matrix& t = boost::dynamic_pointer_cast<ParameterInput>(m_regression->get_target())->data();
             t.resize(cuv::extents[b][t.shape(1)]);
         }
     };
@@ -162,21 +168,22 @@ namespace cuvnet{
             case 2: return 4;
             case 3: return 16;
             case 4: return 64;
+            case 128: return 128;
         }
         throw std::runtime_error("Unknown batchsize index!");
     }
 
 
-    template<class R>
+    template<class G>
     void
-    pretrained_mlp_learner<R>::constructFromBSON(const mongo::BSONObj& o){
+    pretrained_mlp_learner<G>::constructFromBSON(const mongo::BSONObj& o){
         m_aes_bs = idx_to_bs(get<int>(o, "aes_bs"));
         m_mlp_bs = idx_to_bs(get<int>(o, "mlp_bs"));
 
         m_sdl.init(m_aes_bs, "mnist_rot", 1);
 
         m_mlp_lr = get<float>(o, "mlp_lr");
-        //m_mlp_wd = get<float>(o, "mlp_wd");
+        m_mlp_wd = get<float>(o, "mlp_wd");
         int n_layers;
         for (n_layers = 0; n_layers < 100; ++n_layers){
             try{
@@ -204,7 +211,7 @@ namespace cuvnet{
                     cuv::extents[m_sdl.batchsize()][m_sdl.get_ds().train_labels.shape(1)]);
 
         m_aes.init(input);
-        m_regression.init(m_aes.get_encoded(), target);
+        m_regression.reset(new logistic_ridge_regression(m_mlp_wd, m_aes.get_encoded(), target));
         
         // set the initial number of epochs to zero
         m_epochs.resize(n_layers+1);
@@ -212,39 +219,39 @@ namespace cuvnet{
             m_epochs[i] = 0;
     }
 
-    template<class R>
+    template<class G>
     void
-    pretrained_mlp_learner<R>::reset_params(){
+    pretrained_mlp_learner<G>::reset_params(){
         m_aes.reset_weights();
-        m_regression.reset_weights();
+        m_regression->reset_weights();
     }
-    template<class R>
+    template<class G>
     float
-    pretrained_mlp_learner<R>::predict(){ return perf(); }
+    pretrained_mlp_learner<G>::predict(){ return perf(); }
 
-    template<class R>
+    template<class G>
     float 
-    pretrained_mlp_learner<R>::perf(monitor* mon){
+    pretrained_mlp_learner<G>::perf(monitor* mon){
         std::vector<Op*> params; // empty!
         // abuse gradient descent for looping over the dataset in batches.
-        gradient_descent gd(m_regression.classification_error_direct(), 0, params, 0.0f); // learning rate 0
+        gradient_descent gd(m_regression->classification_error_direct(), 0, params, 0.0f); // learning rate 0
         gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_supervised,this,_2));
         gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches, &m_sdl));
         if(mon) {
-            gd.register_monitor(*mon);
+            mon->register_gd(gd);
             gd.minibatch_learning(1, INT_MAX);
             return mon->mean("classification error");
         }else{
             monitor mon;
             mon.add(monitor::WP_SCALAR_EPOCH_STATS, gd.loss(), "classification error");
-            gd.register_monitor(mon);
+            mon.register_gd(gd);
             gd.minibatch_learning(1, INT_MAX);
             return mon.mean("classification error");
         }
     }
 
-    template<class R>
-    void pretrained_mlp_learner<R>::fit(){
+    template<class G>
+    void pretrained_mlp_learner<G>::fit(){
         using namespace boost::assign;
         unsigned int n_ae = m_aes.size();
         bool in_trainall = m_sdl.get_current_cv_mode() == CM_TRAINALL;
@@ -258,7 +265,9 @@ namespace cuvnet{
             generic_auto_encoder& ae = m_aes.get_ae(ae_id);
     
             // set up gradient descent
-            gradient_descent gd(ae.loss(), 0, ae.unsupervised_params(), m_aes_lr[ae_id], 0.f);
+            G gd(ae.loss(), 0, ae.unsupervised_params(), m_aes_lr[ae_id], 0.f);
+            set_up_sync("pretrain-"+boost::lexical_cast<std::string>(ae_id),
+                    gd, ae.unsupervised_params());
             gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_unsupervised,this,_2));
             gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
     
@@ -267,7 +276,7 @@ namespace cuvnet{
             mon.set_training_phase(m_sdl.get_current_cv_mode(), m_sdl.get_current_split());
             mon.add("layer", ae_id);
             mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.loss(), "total loss");
-            gd.register_monitor(mon);
+            mon.register_gd(gd);
 
             // do the actual learning
             if(in_trainall) {
@@ -275,7 +284,8 @@ namespace cuvnet{
                 gd.minibatch_learning(n, INT_MAX);
             }
             else {
-                gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.99f, 6, 2.0);
+                if(m_checker)
+                    gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.99f, 6, 2.0);
                 gd.minibatch_learning(100, INT_MAX);
                 m_epochs[ae_id] += gd.iters();
             }
@@ -287,10 +297,19 @@ namespace cuvnet{
             m_aes.deinit();
             set_batchsize(m_mlp_bs);
             std::vector<Op*> aes_params = m_aes.supervised_params();
-            std::vector<Op*> params     = m_regression.params();
+            std::vector<Op*> params     = m_regression->params();
             std::copy(aes_params.begin(), aes_params.end(), std::back_inserter(params));
             
-            gradient_descent gd(m_regression.get_loss(),0,params,m_mlp_lr, -0);
+            boost::shared_ptr<Op> loss = m_regression->get_loss();
+            if(m_mlp_wd){
+                float lambda;
+                boost::shared_ptr<Op> reg;
+                boost::tie(lambda,reg) = m_aes.regularize();
+                if(lambda && reg)
+                    loss = axpby(loss, lambda, reg);
+            }
+            G gd(loss,0,params,m_mlp_lr, -0);
+            set_up_sync("sfinetune", gd, params);
             gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_supervised,this,_2));
             gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
     
@@ -298,11 +317,12 @@ namespace cuvnet{
             monitor mon(false);
             mon.add("layer", n_ae);
             mon.set_training_phase(m_sdl.get_current_cv_mode(), m_sdl.get_current_split());
-            mon.add(monitor::WP_SCALAR_EPOCH_STATS, m_regression.get_loss(), "total loss");
-            mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, m_regression.classification_error(), "classification error");
-            gd.register_monitor(mon);
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS, loss, "total loss");
+            mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, m_regression->classification_error(), "classification error");
+            mon.register_gd(gd);
+            //gd.after_epoch.connect(boost::bind(&ProfilerFlush));
     
-            if(m_sdl.can_earlystop()){
+            if(m_checker && m_sdl.can_earlystop()){
                 gd.setup_early_stopping(boost::bind(&monitor::mean, &mon, "classification error"), 10, 0.995f, 2.f);
     
                 gd.before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
@@ -318,7 +338,7 @@ namespace cuvnet{
                 gd.minibatch_learning(n, INT_MAX);
             }
             else {
-                gd.minibatch_learning(10000, INT_MAX); 
+                gd.minibatch_learning(5000, INT_MAX);
                 m_epochs.back() += gd.iters();
             }
         }
@@ -327,7 +347,6 @@ namespace cuvnet{
 
 struct hyperopt_client                                                                       
 : public mdbq::Client{                                                                             
-
     int m_dev;
     bool m_init;
     hyperopt_client(int dev)
@@ -343,7 +362,7 @@ struct hyperopt_client
             m_init = true;
         }
 
-        auto ml = boost::make_shared<cuvnet::pretrained_mlp_learner<cuvnet::logistic_regression> >(true);
+        auto ml = boost::make_shared<cuvnet::pretrained_mlp_learner<cuvnet::gradient_descent> >(true);
         ml->constructFromBSON(o);
 
         cuvnet::cv::all_splits_evaluator ase(ml);
@@ -354,7 +373,60 @@ struct hyperopt_client
                     <<"dev"     << m_dev));
         exit(0);
     }
+};
 
+template<class GradientDescentType>
+struct async_client
+: public cuvnet::pretrained_mlp_learner<cuvnet::diff_recording_gradient_descent<GradientDescentType> >
+, boost::enable_shared_from_this<async_client<GradientDescentType> >
+{
+    typedef cuvnet::diff_recording_gradient_descent<GradientDescentType>  gradient_descent_t;
+    int m_push_freq;
+    int m_pull_freq;
+    int m_dev;
+    std::string m_key;
+    std::string m_db;
+    boost::scoped_ptr<cuvnet::network_communication::client> m_clt;
+    boost::scoped_ptr<cuvnet::network_communication::param_synchronizer> m_psync;
+
+
+    async_client(int dev, const std::string& db, const std::string& key, int push_freq, int pull_freq)
+        :cuvnet::pretrained_mlp_learner<gradient_descent_t>(true, dev==0)
+        ,m_push_freq(push_freq)
+        ,m_pull_freq(pull_freq)
+        ,m_dev(dev)
+        ,m_key(key)
+        ,m_db(db)
+    {
+    }
+
+    virtual void set_up_sync(const std::string& stage, gradient_descent_t& gd, std::vector<cuvnet::Op*> params){
+        using namespace cuvnet::network_communication;
+        m_clt.reset( 
+                new client(
+                    "131.220.7.92","testnc",m_key,
+                    "client-"+boost::lexical_cast<std::string>(m_dev)) );
+        m_psync.reset(new param_synchronizer(stage, *m_clt, m_push_freq,m_pull_freq, params));
+        gd.set_sync_function(boost::ref(*m_psync));
+        gd.after_epoch.connect(boost::bind(&param_synchronizer::test_stop, &*m_psync));
+        gd.done_learning.connect(boost::bind(&param_synchronizer::stop_coworkers, &*m_psync));
+    }
+    void run(mongo::BSONObj& obj){                                               
+        if(cuv::IsSame<cuvnet::matrix::memory_space_type,cuv::dev_memory_space>::Result::value){
+            cuv::initCUDA(boost::lexical_cast<int>(m_dev));
+            //cuv::initialize_mersenne_twister_seeds(time(NULL));
+            cuv::initialize_mersenne_twister_seeds(42);
+            srand48(42);
+            srand(42);
+        }
+        this->constructFromBSON(obj.copy());
+        auto ml = this->shared_from_this();
+        cuvnet::cv::all_splits_evaluator ase(ml);
+        std::string s = "client-"+boost::lexical_cast<std::string>(m_dev);
+        //ProfilerStart(s.c_str());
+        ase();
+        //ProfilerStop();
+    }
 };
 
 int
@@ -370,6 +442,24 @@ main(int argc, char **argv)
 
     }
 
+    mongo::BSONObjBuilder bob;
+    bob<<"aes_bs" <<BSON_ARRAY(4);
+    bob<<"mlp_bs" <<BSON_ARRAY(4);
+    bob<<"mlp_lr" <<BSON_ARRAY(0.2839f);
+    bob<<"mlp_wd" <<BSON_ARRAY(0.0001f);
+
+    bob<<"aes_ls0_0" <<BSON_ARRAY( 1942.f);
+    bob<<"aes_ls1_0" <<BSON_ARRAY( 940.f);
+    //bob<<"aes_ls0_0" <<BSON_ARRAY( 64.f);
+    //bob<<"aes_ls1_0" <<BSON_ARRAY( 64.f);
+    bob<<"aes_lr_0" <<BSON_ARRAY(0.0714f);
+    //bob<<"aes_lr_0" <<BSON_ARRAY(0.0100f);
+    bob<<"aes_wd_0" <<BSON_ARRAY(0.012f);
+
+    //bob<<"aes_lr_1" <<BSON_ARRAY(0.01f);
+    //bob<<"aes_wd_1" <<BSON_ARRAY(0.01f);
+    //bob<<"aes_ls_1" <<BSON_ARRAY( 92.f);
+
     if(std::string("test") == argv[1]){
         cuvAssert(argc==3);
         if(cuv::IsSame<cuvnet::matrix::memory_space_type,cuv::dev_memory_space>::Result::value){
@@ -377,26 +467,61 @@ main(int argc, char **argv)
             cuv::initialize_mersenne_twister_seeds(time(NULL));
         }
 
-        mongo::BSONObjBuilder bob;
-        bob<<"aes_bs" <<BSON_ARRAY(3);
-        bob<<"mlp_bs" <<BSON_ARRAY(3);
-        bob<<"mlp_lr" <<BSON_ARRAY(0.01f);
-        bob<<"mlp_wd" <<BSON_ARRAY(0.0001f);
-
-        bob<<"aes_lr_0" <<BSON_ARRAY(0.01f);
-        bob<<"aes_wd_0" <<BSON_ARRAY(0.01f);
-        bob<<"aes_ls_0" <<BSON_ARRAY( 64.f);
-
-        bob<<"aes_lr_1" <<BSON_ARRAY(0.01f);
-        bob<<"aes_wd_1" <<BSON_ARRAY(0.01f);
-        bob<<"aes_ls_1" <<BSON_ARRAY( 92.f);
-
-
-        auto ml = boost::make_shared<cuvnet::pretrained_mlp_learner<cuvnet::logistic_regression> >(true);
-        ml->constructFromBSON(BSON("vals"<<bob.obj()));
+        auto ml = boost::make_shared<cuvnet::pretrained_mlp_learner<cuvnet::gradient_descent> >(true);
+        mongo::BSONObj task = BSON("vals"<<bob.obj());
+        ml->constructFromBSON(task);
 
         cuvnet::cv::all_splits_evaluator ase(ml);
+        //ProfilerStart("client-0");
         ase();
+        //ProfilerStop();
+    }
+
+    if(std::string("async") == argv[1]){
+        namespace po = boost::program_options;
+        po::options_description desc("Allowed options");
+        desc.add_options()
+            ("help,h", "produce this message")
+            ("sync-freq,s", po::value<int>()->default_value(100), "sync frequency")
+            ("key,k", po::value<std::string>(), "database key to identify this experiment")
+            ("db",    po::value<std::string>()->default_value("testnc"), "database for messaging")
+            ("devices,d", po::value<std::vector<int> >(), "devices to work on")
+            ;
+
+        po::variables_map vm;
+        po::store(po::parse_command_line(argc, argv, desc), vm);
+        po::notify(vm);
+        if(vm.count("help")){
+            std::cout << desc << std::endl;
+            return 1;
+        }
+
+        int sync_freq         = vm["sync-freq"].as<int>();
+        std::string key       = vm["key"].as<std::string>();
+        std::string db        = vm["db"].as<std::string>();
+        std::vector<int> devs = vm["devices"].as<std::vector<int> >();
+
+        typedef boost::shared_ptr<async_client<cuvnet::gradient_descent> > clt_ptr_t;
+
+        std::vector<clt_ptr_t> clients(devs.size());
+        std::vector<boost::shared_ptr<boost::thread> >  threads(devs.size());
+
+        cuvnet::network_communication::server s("131.220.7.92", db, key);
+        s.cleanup();
+        boost::thread server_thread(boost::bind(&cuvnet::network_communication::server::run, &s, 40, -1));
+
+        mongo::BSONObj task = BSON("vals"<<bob.obj());
+        for (unsigned int i = 0; i < devs.size(); ++i)
+        {
+            clients[i] = boost::make_shared<async_client<cuvnet::gradient_descent> >(devs[i], db, key, sync_freq, sync_freq/devs.size());
+            threads[i] = boost::make_shared<boost::thread>(boost::bind(&clt_ptr_t::element_type::run, clients[i], boost::ref(task)));
+        }
+
+
+        for (unsigned int i = 0; i < devs.size(); ++i)
+        {
+            threads[i]->join();
+        }
     }
 
     return 0;

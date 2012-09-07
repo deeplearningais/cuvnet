@@ -12,6 +12,8 @@
 
 #include <mongo/client/dbclient.h>
 #include <cuvnet/ops/input.hpp>
+#include <tools/gradient_descent.hpp> /* for network_stop exception */
+#include <cuv/tools/timing.hpp>
 
 #include "network_communication.hpp"
 
@@ -56,7 +58,7 @@ namespace cuvnet { namespace network_communication {
                 continue;
             
             std::ostringstream os(std::ios::binary);
-            {
+            {   // serialize the contents of the merged parameter
                 boost::archive::binary_oarchive oa(os);
                 oa << m_merged[it->first];
             }
@@ -122,15 +124,31 @@ namespace cuvnet { namespace network_communication {
     void server::merge(){
 
         mongo::BSONObj query = BSON(
-                    "params" << true <<
-                    "state" << "delta" <<
-                    "key" << m_impl->m_key),
+                "params" << true <<
+                "state" << "delta" <<
+                "key" << m_impl->m_key),
             cmd = BSON(
                     "findAndModify" << "nc" <<
                     "query" << query <<
+                    "sort" << BSON("delta_idx"<<1) <<
                     "update"<<BSON("$set"<<BSON("state"<<"staged")));
 
-        while(true){
+        int queue_len = m_impl->m_con.count(m_impl->m_prefix+".nc", query);
+        static int warned = 0;
+        static const int warn_step = 200;
+        if(queue_len < warned)
+            warned -= warn_step;
+        if(queue_len > warned + warn_step){
+            std::cout << "WARNING: Async SGD: queue-length is " << queue_len <<" trying to catch up..."<<std::endl;
+            warned += warn_step;
+        }
+
+        int process_max = 2*m_merged.size();
+        if(queue_len > warn_step)
+            process_max = queue_len;
+
+        for (int dummy = 0; dummy < queue_len; ++dummy)
+        {
             mongo::BSONObj res;
             m_impl->m_con.runCommand(m_impl->m_prefix, cmd, res);
             CHECK_DB_ERR(m_impl->m_con);
@@ -158,6 +176,8 @@ namespace cuvnet { namespace network_communication {
                     throw value_not_found_exception();
                 }
             }
+            //std::cout << name<<": "<< cuv::norm1(m)/m.size()<<std::endl;
+            //cuv::apply_binary_functor(m_merged[name],m,cuv::BF_XPBY,0.00f);
             m_merged[name] += m;
 
             m_versions[name] ++;
@@ -177,6 +197,19 @@ namespace cuvnet { namespace network_communication {
         }
     }
 
+    void client::send_stop_signal(const std::string& stage){
+        m_impl->m_con.insert(m_impl->m_prefix+".nc", 
+                BSON("key"<<m_impl->m_key
+                    <<"signal"<<"stop"
+                    <<"stage"<<stage));
+    }
+    bool client::got_stop_signal(const std::string& stage){
+        mongo::BSONObj f = m_impl->m_con.findOne(m_impl->m_prefix+".nc",
+                QUERY("key"<<m_impl->m_key
+                    <<"signal"<<"stop"
+                    <<"stage"<<stage));
+        return f.hasField("key");
+    }
     htensor_t client::fetch_merged(const std::string& s){
         mongo::BSONObj f = m_impl->m_con.findOne(m_impl->m_prefix+".nc",
                 QUERY("name"<<s
@@ -186,6 +219,8 @@ namespace cuvnet { namespace network_communication {
                     <<"key"<<m_impl->m_key));
         if(!f.hasField("name"))
             throw value_not_found_exception();
+
+        m_versions[s] = f["version"].Int();
 
         htensor_t m;
         {
@@ -209,7 +244,7 @@ namespace cuvnet { namespace network_communication {
         if(cnt == 0){
             // we need to put a weight obj on the server in the 1st place...
             std::ostringstream os(std::ios::binary);
-            {
+            {   // serialize
                 boost::archive::binary_oarchive oa(os);
                 oa << current_value;
             }
@@ -223,19 +258,14 @@ namespace cuvnet { namespace network_communication {
                 <<"state"<<"merged"; // pretend it is "merged"
             bob.appendBinData("content",ms.size(),mongo::BinDataGeneral,&ms[0]);
 
-            // upsert value (could overwrite one of the "staged" entries, but that is OK)
-            m_impl->m_con.update( m_impl->m_prefix + ".nc", 
-                    BSON("key"<<m_impl->m_key
-                        <<"params"<<true
-                        <<"name"<<s
-                        <<"source"<<m_id),
-                    bob.obj(), true);
+            // upload object to the server
+            m_impl->m_con.insert( m_impl->m_prefix + ".nc", bob.obj());
             CHECK_DB_ERR(m_impl->m_con);
         }
         else{
             // we just need to send a weight /update/ to the server
             std::ostringstream os(std::ios::binary);
-            {
+            {   // serialize
                 boost::archive::binary_oarchive oa(os);
                 oa << delta;
             }
@@ -245,17 +275,26 @@ namespace cuvnet { namespace network_communication {
             bob <<"key"<<m_impl->m_key
                 <<"params"<< true
                 <<"name"<< s
+                <<"delta_idx"<< ++m_delta_versions[s]
                 <<"source"<< m_id
                 <<"state"<<"delta";
             bob.appendBinData("content",ms.size(),mongo::BinDataGeneral,&ms[0]);
 
-            // upsert value
-            m_impl->m_con.update( m_impl->m_prefix + ".nc", 
-                    BSON("key"<<m_impl->m_key
-                        <<"params"<<true
-                        <<"name"<<s
-                        <<"source"<<m_id),
-                    bob.obj(), true);
+            /*
+             * upsert value 
+             * NOTE: THIS DOES NOT work. updates are lost.
+             * the clients set their accumulated gradient to 0
+             * the update we're pushing now is not necessarily
+             * merged by the server before we upsert again.
+             *
+             *m_impl->m_con.update( m_impl->m_prefix + ".nc", 
+             *        BSON("key"<<m_impl->m_key
+             *            <<"params"<<true
+             *            <<"name"<<s
+             *            <<"source"<<m_id),
+             *        bob.obj(), true);
+             */
+            m_impl->m_con.insert( m_impl->m_prefix + ".nc", bob.obj());
             CHECK_DB_ERR(m_impl->m_con);
         }
     }
@@ -263,21 +302,28 @@ namespace cuvnet { namespace network_communication {
     void server::cleanup(){
         m_impl->m_con.remove( m_impl->m_prefix+".nc",
                 BSON("key" << m_impl->m_key));
+        m_impl->m_con.ensureIndex(m_impl->m_prefix+".nc", BSON("key"<<1<<"name"<<1 << "delta_idx"<<1));
     }
     void server::run(unsigned int sleep_msec, int n){
         //pull_merged(); // merge does pull when delta for unknown obj is found
         for (int i = 0; i < n || n<0; ++i){
             merge();
             push_merged();
-            boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+            boost::this_thread::sleep(boost::posix_time::milliseconds(sleep_msec));
         }
     }
 
+    void param_synchronizer::test_stop(){
+        if(m_client.got_stop_signal(m_stage))
+            throw network_stop();
+    }
+    void param_synchronizer::stop_coworkers(){
+        m_client.send_stop_signal(m_stage);
+    }
     void param_synchronizer::operator()(
             std::map<Op*, cuv::tensor<float, cuv::host_memory_space> >* updates,
             unsigned int, unsigned int
             ){
-
         ++m_cnt;
         if( m_cnt % m_push_steps == 0){
             int idx = 0;
@@ -288,13 +334,18 @@ namespace cuvnet { namespace network_communication {
                 htensor_t m = inp->data();
                 std::map<Op*, cuv::tensor<float, cuv::host_memory_space> >::iterator 
                     it = updates->find(inp);
-                if(it == updates->end())
-                    continue;
-                m_client.put_for_merging(name, it->second, inp->data());
-                it->second = 0.f;
+                if(it != updates->end()){
+                    // push results to server
+                    m_client.put_for_merging(name, it->second, inp->data());
+                    // now that results are pushed, start recording changes again
+                    // TODO: NEIN!!!! wird durch upserts ueberschrieben falls nich zwishcendurch gemerged wird!
+                    it->second = 0.f; 
+                }
                 idx ++;
             }
         }
+        //cuvAssert(m_pull_steps > 1 || m_push_steps/2==0);
+        //if( m_cnt % m_pull_steps == m_push_steps/2){
         if( m_cnt % m_pull_steps == 0){
             int idx = 0;
             BOOST_FOREACH(Op* op, m_ops){

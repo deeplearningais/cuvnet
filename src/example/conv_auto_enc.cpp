@@ -184,7 +184,7 @@ int main(int argc, char **argv)
     gradient_descent gd(ae.loss(),0,params,0.01f);
 
     // register the monitor so that it receives learning events
-    gd.register_monitor(mon); 
+    mon.register_gd(gd);
 
     // after each epoch, run \c visualize_filters
     gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon,&normalizer,fa,fb,ds.image_size,ds.channels, input,_1));

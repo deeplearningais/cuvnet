@@ -9,9 +9,11 @@ FIND_PACKAGE( tbb )
 SET (CUVNET_TOOLS_SRC
     pca.cpp
     logging.cpp
+    monitor.cpp
     learner.cpp
     crossvalid.cpp
     read_amat.cpp
+    gradient_descent.cpp
     orthonormalization.cpp
     network_communication.cpp
     )

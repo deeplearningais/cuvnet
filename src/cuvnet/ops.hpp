@@ -246,5 +246,9 @@ namespace cuvnet
     /// construct a select max object
     inline
         Op::op_ptr global_max_pool(Op::op_ptr x){ return boost::make_shared<GlobalMaxPool>(x->result()); }
+
+    /// annotate the given operator with a label
+    inline
+        Op::op_ptr label(const std::string& l, Op::op_ptr x){ x->set_label(l); return x; }
 }
 #endif /* __OPS_HPP__ */

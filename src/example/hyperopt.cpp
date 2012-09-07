@@ -106,7 +106,8 @@ struct hyperopt_client
 
         gradient_descent gd(lr.get_loss(),0,params, learnrate, -wd);
         m_mon = &mon; m_gd = &gd; m_loss = lr.get_loss();
-        gd.register_monitor(mon);
+        mon.register_gd(gd);
+
         gd.before_batch.connect(boost::bind(load_batch,input, target,&m_data, &m_labels, bs,_2));
         gd.current_batch_num.connect(boost::bind(&hyperopt_client::n_batches, this, bs));
 

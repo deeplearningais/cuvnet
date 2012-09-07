@@ -12,6 +12,8 @@ namespace cuvnet
 			std::string color;
 			std::string fillcolor;
 			std::string style;
+            float penwidth;
+            graphviz_node():penwidth(1.f){}
 		};
 	}
 }

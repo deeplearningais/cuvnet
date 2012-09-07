@@ -20,6 +20,7 @@ namespace cuvnet
         // - split up datasets (not necessary if randomized?)
         // - initialize networks with fixed seed
         // - disable in validation epochs
+        // - add "stage" parameter to weights?
 
         /**
          * Does tasks which cannot be done by clients.
@@ -81,6 +82,7 @@ namespace cuvnet
                 boost::shared_ptr<connection> m_impl; ///< PImpl idiom.
                 std::string m_id; ///< a unique id identifying this client
                 std::map<std::string, int> m_versions; ///< the newest version pulled (to avoid pulling twice)
+                std::map<std::string, int> m_delta_versions; ///< the newest version sent (for sorting merges)
             public:
                 /**
                  * ctor.
@@ -103,6 +105,20 @@ namespace cuvnet
                  * @param current_value if there is no `current' value in the database, use this one
                  */
                 void put_for_merging(const std::string& s, const htensor_t& delta, const matrix& current_value);
+
+                /**
+                 * send a 'stop' signal to coworkers.
+                 *
+                 * @param stage stop clients in this stage
+                 */
+                void send_stop_signal(const std::string& stage);
+
+                /**
+                 * determine if a co-worker requested to stop learning
+                 *
+                 * @param stage only check for stop-signals of the named stage
+                 */
+                bool got_stop_signal(const std::string& stage);
         };
 
         class param_synchronizer{
@@ -112,14 +128,20 @@ namespace cuvnet
                 int m_cnt;
                 std::vector<Op*> m_ops;
                 client& m_client;
+                std::string m_stage;
             public:
                 typedef void result_type;
-                param_synchronizer(client& clt, int push_steps, int pull_steps, const std::vector<Op*>& ops)
+                param_synchronizer(const std::string& stage, client& clt, int push_steps, int pull_steps, const std::vector<Op*>& ops)
                     : m_push_steps(push_steps)
                       , m_pull_steps(pull_steps)
                       , m_cnt(0)
                       , m_ops(ops)
-                      , m_client(clt){}
+                      , m_client(clt)
+                      , m_stage(stage)
+                {}
+
+                void stop_coworkers();
+                void test_stop();
 
                 void operator()(
                         std::map<Op*, cuv::tensor<float, cuv::host_memory_space> >* updates

@@ -26,6 +26,8 @@ sub run{
     my $n_gpus = get_n_gpus();
     git_pull()     or die "could not git-pull!\n";
     make($client)  or die "could not make $client!\n";
+    #my @arr = (1,2,3,4);
+    #foreach (@arr){
     foreach (0 .. $n_gpus-1){
         print "starting on gpu $_\n";
         start_client($client, $_);

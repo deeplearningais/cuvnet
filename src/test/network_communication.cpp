@@ -154,8 +154,9 @@ struct optimizer{
             cuvnet::diff_recording_gradient_descent<cuvnet::gradient_descent> gd(loss,0,params, 0.1f);
 
             using namespace cuvnet::network_communication;
-            client c(HOST,DB,KEY,"client-"+boost::lexical_cast<std::string>(i));
-            param_synchronizer ps(c,5,1,params);
+            std::string cid = "client-"+boost::lexical_cast<std::string>(i);
+            client c(HOST,DB,KEY,cid);
+            param_synchronizer ps(cid, c,5,1,params);
             gd.set_sync_function(boost::ref(ps));
 
             gd.batch_learning(500, INT_MAX);
