@@ -1,9 +1,8 @@
-#include <mongo/client/dbclient.h>
-#include <boost/asio.hpp>
 #include <boost/program_options.hpp>
 #include <boost/bind.hpp>
 #include <boost/thread.hpp>                                                                  
-#include <boost/lambda/lambda.hpp>                                                                  
+
+#include <mongo/client/dbclient.h>
 #include <mdbq/client.hpp>
 
 #include <cuvnet/ops.hpp>
