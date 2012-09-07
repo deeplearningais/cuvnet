@@ -365,8 +365,7 @@ namespace cuvnet { namespace network_communication {
                 if(it != updates->end()){
                     // push results to server
                     m_client.put_for_merging(name, it->second, inp->data());
-                    // now that results are pushed, start recording changes again
-                    // TODO: NEIN!!!! wird durch upserts ueberschrieben falls nich zwishcendurch gemerged wird!
+                    // now that results are pushed, start recording changes over
                     it->second = 0.f; 
                 }
                 idx ++;

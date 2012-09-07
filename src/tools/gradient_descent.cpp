@@ -72,7 +72,6 @@ namespace cuvnet
         }catch(convergence_stop){
         }catch(max_iter_stop){
         }catch(network_stop){
-            std::cout << "stopping since others in network stopped" << std::endl;
         }
 
         // Restore parameters.
