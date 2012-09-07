@@ -6,18 +6,31 @@ import pandas as pa
 from pdb import set_trace
 
 
-def analyse(file_name, group_index_1, group_index_2, invariance_type, fa, fb):
-    o = pa.read_csv(file_name, index_col=[group_index_1,group_index_2])
-    o = o.sort()
-    groups = o.groupby(level=[0,1])
-    mean   = groups.mean()
-    groups = mean.groupby(level=[1])
+def analyse(file_name, invariance_type, fa, fb):
+    #read from file
+    o = pa.read_csv(file_name, index_col=[0])
+
+    #cut in categories
+    r = pa.cut(o.ix[:,3],9)
+    r.levels = ["%02d-%s"%(i,s) for i,s in enumerate(r.levels) ]
+    con = pa.concat((o, pa.DataFrame([r.levels[i] for i in r.labels], columns=["newcol"])),axis=1)
+
+    #group by and calculate mean
+    mean   = con.groupby(['newcol', invariance_type]).mean()
+    print mean
+    mean = mean[mean.columns[3:].tolist()]
+
+    #group by only by transformation
+    groups = mean.groupby(level=[0])
+
     plt.figure(figsize=(12,10));
     plt.suptitle("Invariance to %s" % invariance_type)
+
+    #for each transformation category make a plot
     for idx, group in enumerate(groups):
         trans, g = group
         plt.subplot(fa, fb, idx+1)
-        g.boxplot(g.columns[1:].tolist())
+        g.boxplot(g.columns[0:].tolist())
         plt.ylim(-0.1,1.1)
         if idx % fb == 0:
             plt.ylabel('Mean activation')
@@ -28,16 +41,19 @@ def analyse(file_name, group_index_1, group_index_2, invariance_type, fa, fb):
             plt.xlabel('Hidden unit')
         else:
             plt.gca().get_xaxis().set_visible(False)
-        plt.title('Translation %d' % trans)
+        plt.title('Translation ' + trans)
         
 
 def analyse_transformation(file_name, group_index, invariance_type, fa, fb):
-    o = pa.read_csv(file_name, index_col=group_index)
-    o = o.sort()
-    print o
-    groups = o.groupby(level=0)
+    o = pa.read_csv(file_name, index_col=[0])
+    r = pa.cut(o.ix[:,3],90)
+    print r.levels
+    r.levels = ["%02d-%s"%(i,s) for i,s in enumerate(r.levels) ]
+    o = pa.concat((o, pa.DataFrame([r.levels[i] for i in r.labels], columns=["newcol"])),axis=1)
+    
+    groups = o.groupby('newcol')
     mean   = groups.mean()
-    mean = mean[mean.columns[2:].tolist()]
+    mean = mean[mean.columns[4:].tolist()]
     print mean
     mean.plot()
     plt.ylim(-0.1,1.1)
@@ -48,13 +64,13 @@ def analyse_transformation(file_name, group_index, invariance_type, fa, fb):
 
 fa = 3
 fb = 3
-analyse_transformation('../build/invariance_test.txt', 2 , 'translation', fa, fb)
+analyse_transformation('../build/invariance_test1.txt', 2 , 'translation', fa, fb)
 plt.savefig('../build/translation_plot.pdf')
 
-analyse('../build/invariance_test.txt', 0, 2, 'input type', fa, fb)
+analyse('../build/invariance_test1.txt',  'input_type', fa, fb)
 plt.savefig('../build/input_type_invariance.pdf')
 
-analyse('../build/invariance_test.txt', 1, 2, 'position', fa, fb)
+analyse('../build/invariance_test1.txt', 'position', fa, fb)
 plt.savefig('../build/position_invariance.pdf')
 plt.show()
 
