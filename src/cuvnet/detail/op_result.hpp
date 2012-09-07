@@ -86,7 +86,7 @@ namespace cuvnet
                  *
                  */
                 cow_ptr<T>& overwrite_or_add_value(){
-                    assert(m_single_result != result_uses.end());
+                    //assert(m_single_result != result_uses.end());
                     m_single_result->lock()->value_set = true;
                     return m_single_result->lock()->value;
                 }
