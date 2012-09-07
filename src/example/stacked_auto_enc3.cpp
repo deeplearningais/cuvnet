@@ -251,6 +251,10 @@ namespace cuvnet{
 
     template<class G>
     void pretrained_mlp_learner<G>::fit(){
+        // shuffle batches in DIFFERENT random order for every client!
+        srand48(getpid());
+        srand(getpid());
+
         using namespace boost::assign;
         unsigned int n_ae = m_aes.size();
         bool in_trainall = m_sdl.get_current_cv_mode() == CM_TRAINALL;
