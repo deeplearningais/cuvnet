@@ -130,7 +130,7 @@ namespace cuvnet { namespace network_communication {
             cmd = BSON(
                     "findAndModify" << "nc" <<
                     "query" << query <<
-                    "sort" << BSON("delta_idx"<<1) <<
+                    "sort" << BSON("delta_idx"<<-1) <<
                     "update"<<BSON("$set"<<BSON("state"<<"staged")));
 
         int queue_len = m_impl->m_con.count(m_impl->m_prefix+".nc", query);
@@ -302,7 +302,13 @@ namespace cuvnet { namespace network_communication {
     void server::cleanup(){
         m_impl->m_con.remove( m_impl->m_prefix+".nc",
                 BSON("key" << m_impl->m_key));
-        m_impl->m_con.ensureIndex(m_impl->m_prefix+".nc", BSON("key"<<1<<"name"<<1 << "delta_idx"<<1));
+        m_impl->m_con.dropIndexes(m_impl->m_prefix+".nc");
+        m_impl->m_con.ensureIndex(m_impl->m_prefix+".nc", 
+                BSON("key"<<1<<"name"<<1));
+        m_impl->m_con.ensureIndex(m_impl->m_prefix+".nc", 
+                BSON("params"<<1<<"state"<<1<<"key"<<1<<"delta_idx"<<-1));
+        //m_impl->m_con.ensureIndex(m_impl->m_prefix+".nc", BSON("delta_idx"<<1));
+        m_impl->m_con.reIndex(    m_impl->m_prefix+".nc");
     }
     void server::run(unsigned int sleep_msec, int n){
         //pull_merged(); // merge does pull when delta for unknown obj is found
