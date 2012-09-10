@@ -465,7 +465,7 @@ float test_phase_early_stopping(monitor* mon, gradient_descent* orig_gd, random_
         gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
         std::cout << std::endl << " testing phase ";
         mon->set_training_phase(CM_TEST);
-        gd.minibatch_learning(1, 100, 0);
+        gd.minibatch_learning(1, 100, 0,false);
         //load_batch(input_x, input_y, teacher, &data,bs,0);
         //gd.batch_learning(1, 100*60);
         mon->set_training_phase(CM_TRAIN);
@@ -660,7 +660,7 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
         //gd.minibatch_learning(5000, 100*60); // 10 minutes maximum
         //load_batch(input_x, input_y, teacher, &train_data,bs,0);
         //gd.batch_learning(max_num_epochs, 100*60);
-        gd.minibatch_learning(max_num_epochs, 100*60, 0);
+        gd.minibatch_learning(max_num_epochs, 100*60, 0, false);
 }
 
 void log_activations(monitor * mon, dataset_dumper * dum){
@@ -695,7 +695,7 @@ void test_phase(random_translation& ds, monitor& mon, relational_auto_encoder& a
     gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
     gd.after_batch.connect(boost::bind(log_activations, &mon, &dum));
     gd.current_batch_num.connect(data.shape(1)/ll::constant(bs));
-    gd.minibatch_learning(1, 100, 0);
+    gd.minibatch_learning(1, 100, 0, false);
     dum.close();
     //load_batch(input_x, input_y, teacher, &data,bs,0);
     //gd.batch_learning(1, 10);
@@ -750,6 +750,7 @@ void prediction_phase(random_translation& ds, monitor& mon, relational_auto_enco
  * load a batch from the dataset for the logistic regression
  */
 void load_batch_logistic(
+        linear_regression* lr,
         boost::shared_ptr<ParameterInput> input,
         boost::shared_ptr<ParameterInput> target,
         cuv::tensor<float,cuv::dev_memory_space>* data,
@@ -758,15 +759,48 @@ void load_batch_logistic(
     //std::cout <<"."<<std::flush;
     input->data() = (*data)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
     target->data() = (*labels)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
+    tensor_type w = lr->get_weights()->data();
+    //std::cout << " w min " << cuv::minimum(w) << " w max " << cuv::maximum(w) << std::endl; 
 }
 
 
 void regression(random_translation& ds, int bs){
-    tensor_type encoder_train;
-    tensor_type encoder_test;
-    dataset_dumper dum("activations.dat", ds.train_data.shape(1) / bs);
-    encoder_train = dum.read_from_file();
-    std::cout << " encoder loaded " << encoder_train.shape(0) << std::endl;
+    dataset_reader dum("activations.dat");
+
+    tensor_type whole_data  = dum.read_from_file();
+    tensor_type encoder_train(cuv::extents[whole_data.shape(0) / 2][whole_data.shape(1)]);
+    tensor_type encoder_test(cuv::extents[whole_data.shape(0) / 2][whole_data.shape(1)]);
+    tensor_type labels_train(cuv::extents[ds.test_labels.shape(0) / 2][ds.test_labels.shape(1)]);
+    tensor_type labels_test(cuv::extents[ds.test_labels.shape(0) / 2][ds.test_labels.shape(1)]);
+
+    //tensor_type encoder_train = whole_data[cuv::indices[cuv::index_range(0,whole_data.shape(0) / 2)][cuv::index_range()]];
+    //tensor_type encoder_test = whole_data[cuv::indices[cuv::index_range(whole_data.shape(0) / 2, whole_data.shape(0) - 1)][cuv::index_range()]];
+
+    //tensor_type labels_train = ds.test_labels[cuv::indices[cuv::index_range(0, ds.test_labels.shape(0) / 2)][cuv::index_range()]];
+    //tensor_type labels_test = ds.test_labels[cuv::indices[cuv::index_range(ds.test_labels.shape(0) / 2, ds.test_labels.shape(0) -1)][cuv::index_range()]];
+
+    for (int i = 0; i < whole_data.shape(0); i+=2)
+    {
+       for (int j = 0; j < whole_data.shape(1); ++j)
+       {
+           encoder_train(i/2,j) = whole_data(i,j);
+           encoder_test(i/2,j) = whole_data(i+1,j);
+       }
+    }
+
+    for (int i = 0; i < ds.test_labels.shape(0); i+=2)
+    {
+       for (int j = 0; j < ds.test_labels.shape(1); ++j)
+       {
+           labels_train(i/2,j) = ds.test_labels(i,j);
+           labels_test(i/2,j) = ds.test_labels(i+1,j);
+       }
+    }
+
+    //encoder_train = whole_data;
+    //labels_train = ds.test_labels;
+
+    std::cout << " encoder loaded " << encoder_train.shape(0) << " encoder dim 2 " << encoder_train.shape(1)  << std::endl;
 
    // an \c Input is a function with 0 parameters and 1 output.
    // here we only need to specify the shape of the input and target correctly
@@ -777,8 +811,13 @@ void regression(random_translation& ds, int bs){
            new ParameterInput(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
 
 
-   // creates the logistic regression on the top of the stacked autoencoder
-   logistic_regression lr(input, target);
+
+
+
+   // creates the linear regression 
+   linear_regression lr( input, target);
+   //linear_lasso_regression lr(0.1, input, target);
+   //linear_ridge_regression lr(0.1, input, target);
 
    // puts the supervised parameters of the stacked autoencoder and logistic regression parameters in one vector
    std::vector<Op*> params = lr.params();
@@ -790,12 +829,13 @@ void regression(random_translation& ds, int bs){
    mon.add(monitor::WP_SCALAR_EPOCH_STATS, lr.get_loss(),        "total loss");
    mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, lr.classification_error(),        "classification error");
 
-   // copy training data and labels to the device, and converts train_labels from int to float
-   matrix train_data = encoder_train;
-   matrix train_labels(ds.train_labels);
     
-   std::cout << std::endl << " Training phase of logistic regression: " << std::endl;
+   std::cout << std::endl << " Training phase of regression: " << std::endl;
    {
+       // copy training data and labels to the device, and converts train_labels from int to float
+       matrix train_data = encoder_train;
+       matrix train_labels(labels_train);
+
        // create a \c gradient_descent object that derives the logistic loss
        // w.r.t. \c params and has learning rate 0.1f
        rprop_gradient_descent gd(lr.get_loss(), 0, params,   0.00001);
@@ -807,7 +847,7 @@ void regression(random_translation& ds, int bs){
        //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&normalizer,ds.image_size,ds.channels, input,_1));
         
        // before each batch, load data into \c input
-       gd.before_batch.connect(boost::bind(load_batch_logistic,input, target,&train_data, &train_labels, bs,_2));
+       gd.before_batch.connect(boost::bind(load_batch_logistic, &lr, input, target,&train_data, &train_labels, bs,_2));
         
        // the number of batches is constant in our case (but has to be supplied as a function)
        gd.current_batch_num.connect(encoder_train.shape(0) / ll::constant(bs));
@@ -815,19 +855,19 @@ void regression(random_translation& ds, int bs){
        // do mini-batch learning for at most 100 epochs, or 10 minutes
        // (whatever comes first)
        //gd.minibatch_learning(10000, 10*60); // 10 minutes maximum
-       gd.minibatch_learning(1000, 100*60, 0);
+       gd.minibatch_learning(20000, 100*60, 0, false);
    }
-   std::cout << std::endl << " Test phase: " << std::endl;
+   std::cout << std::endl << " Test phase: of regression " << std::endl;
 
-   // evaluates test data, does it similary as with train data, minibatch_learing is running only one epoch
+   //evaluates test data, does it similary as with train data, minibatch_learing is running only one epoch
    {
-       matrix train_data = encoder_test;
-       matrix train_labels(ds.test_labels);
-       gradient_descent gd(lr.get_loss(),0,params,0.f);
-       mon.register_gd(gd);
-       gd.before_batch.connect(boost::bind(load_batch_logistic,input, target,&train_data, &train_labels, bs,_2));
-       gd.current_batch_num.connect(encoder_test.shape(0)/ll::constant(bs));
-       gd.minibatch_learning(1);
+      matrix train_data = encoder_test;
+      matrix train_labels(labels_test);
+      rprop_gradient_descent gd(lr.get_loss(), 0, params,   0.00001);
+      mon.register_gd(gd);
+      gd.before_batch.connect(boost::bind(load_batch_logistic, &lr, input, target,&train_data, &train_labels, bs,_2));
+      gd.current_batch_num.connect(encoder_test.shape(0)/ll::constant(bs));
+      gd.minibatch_learning(1);
    }
    std::cout <<  std::endl;
 }
@@ -944,17 +984,18 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(device);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int input_size=150,bs=  1000 , subsampling = 2, max_trans = 3, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
-    float max_growing = 0.3f;
-    unsigned max_num_epochs = 1;
+    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 4, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
+
+    float max_growing = 0.2f;
+    unsigned max_num_epochs = 7000;
 
     unsigned int num_hidden = 60;
 
-    unsigned int num_factors = 600;
+    unsigned int num_factors =600;
     float sigma = gauss_dist / 3; 
     //float learning_rate = 0.001f;
     // generate random translation datas
-    unsigned int data_set_size = 15000;
+    unsigned int data_set_size = 10000;
     std::cout << "generating dataset: "<<std::endl;
     random_translation ds(input_size * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width, flag, morse_factor);
     ds.binary   = false;
@@ -1004,7 +1045,7 @@ int main(int argc, char **argv)
     test_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, param_name);
 
     // makes multiple predictions and visualizes inputs, predictions, hidden units, and factors 
-    //prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
+    prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
     
     // does regression on hidden layer activations, classifies transformation
     regression(ds, bs);
