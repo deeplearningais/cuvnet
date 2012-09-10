@@ -281,10 +281,17 @@ namespace cuvnet
             int max_num_pos = 100;
             std::cout << " total number of transformation: " << num_transformations << std::endl; 
 
+            int label_dim = 2;
+            //if(max_growing > 0.f && max_translation > 0.f){
+            //    label_dim = 2;
+            //}else{
+            //    label_dim = 1;
+            //}
+
             train_data.resize(cuv::extents[3][m_num_train_example][m_dim]);
             test_data.resize(cuv::extents[3][m_num_test_example][m_dim]);
-            train_labels.resize(cuv::extents[m_num_train_example][num_transformations]);
-            test_labels.resize(cuv::extents[m_num_test_example][num_transformations]);
+            train_labels.resize(cuv::extents[m_num_train_example][label_dim]);
+            test_labels.resize(cuv::extents[m_num_test_example][label_dim]);
             
             if (flag == 0){
                 // fills the train and test sets with random uniform numbers
@@ -302,7 +309,7 @@ namespace cuvnet
             }else{
                 // morse code
                 cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][max_num_pos * 38 * num_transformations][m_dim]);
-                cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[max_num_pos * 38 * num_transformations][num_transformations]);
+                cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[max_num_pos * 38 * num_transformations][label_dim]);
                 initialize_morse_code(data, labels, m_dim, max_translation, morse_factor, max_growing);
                 split_data_set(data, labels, train_data, test_data, train_labels, test_labels, m_num_train_example, m_dim);
                 translated = false;
@@ -484,6 +491,7 @@ namespace cuvnet
                 for(int dim = 0; dim < max_num_pos; dim++){
                     for(unsigned int ch = 0; ch < morse.get_size(); ch++){
                         float tran = drand48() * 2*max_trans - max_trans;
+                        //float tran = rand() % 5 - 2;
                         float grow = 1 + (drand48() * 2 * max_grow - max_grow);
                         new_dim =  drand48() * m_dim;
                         // generate 1st input
@@ -509,7 +517,8 @@ namespace cuvnet
                             morse.scale_coordinates(2,example, grow);
                         }
 
-                        //labels(example, tran + max_trans) = 1.f;
+                        labels(example, 0) = tran;
+                        labels(example, 1) = grow;
                         example++;
                     }
                 }
