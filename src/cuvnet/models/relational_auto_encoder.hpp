@@ -36,7 +36,7 @@ class relational_auto_encoder{
         bool m_binary;
         unsigned int m_num_factors; ///< the dimension of factors
         // these are the parametrs of the model
-        input_ptr  m_fx, m_fy, m_fh, m_bias_x, m_bias_y, m_bias_h;
+        input_ptr  m_fx, m_fy, m_fh, m_fh_in,  m_bias_x, m_bias_y, m_bias_h;
 
         op_ptr m_loss;      ///< the loss of the relational auto-encoder
 
@@ -75,6 +75,7 @@ class relational_auto_encoder{
             m_fx.reset(new ParameterInput(cuv::extents[input_x_dim][m_num_factors],"w_fx"));
             m_fy.reset(new ParameterInput(cuv::extents[input_y_dim][m_num_factors],"w_fy"));
             m_fh.reset(new ParameterInput(cuv::extents[m_hidden_dim][m_num_factors],"w_fh"));
+            m_fh_in.reset(new ParameterInput(cuv::extents[m_hidden_dim][m_num_factors],"w_fh_in"));
             m_bias_h.reset(new ParameterInput(cuv::extents[m_hidden_dim],            "bias_h"));
             m_bias_x.reset(new ParameterInput(cuv::extents[input_x_dim],             "bias_x"));
             m_bias_y.reset(new ParameterInput(cuv::extents[input_y_dim],             "bias_y"));
@@ -90,7 +91,7 @@ class relational_auto_encoder{
             
             // calculates encoder and projection of encoder
             m_encoded  = logistic(mat_plus_vec(
-                               prod(m_factor_x * m_factor_y, m_fh, 'n', 't')
+                               prod(m_factor_x * m_factor_y, m_fh_in, 'n', 't')
                                , m_bias_h, 1));
             m_factor_h = prod(m_encoded, m_fh);
 
@@ -160,50 +161,51 @@ class relational_auto_encoder{
             
             cuv::fill_rnd_uniform(m_fx->data());
             cuv::fill_rnd_uniform(m_fy->data());
-            cuv::fill_rnd_uniform(m_fh->data());
+            cuv::fill_rnd_uniform(m_fh_in->data());
             diff_x *= 0.01;
             diff_h *= 0.01;
             m_fx->data() *= 2*diff_x;
             m_fx->data() -=   diff_x;
             m_fy->data() *= 2*diff_x;
             m_fy->data() -=   diff_x;
-            m_fh->data() *= 2*diff_h;
-            m_fh->data() -=   diff_h;
+            m_fh_in->data() *= 2*diff_h;
+            m_fh_in->data() -=   diff_h;
             
             m_fh->set_weight_decay_factor(1.f);
+            m_fh_in->set_weight_decay_factor(1.f);
             m_fx->set_weight_decay_factor(1.f);
             m_fy->set_weight_decay_factor(1.f);
            
-            //unsigned int num_hidd =  m_fh->data().shape(0);
-            //unsigned int num_fact = m_fh->data().shape(1);
-            //assert(num_fact % num_hidd == 0);
-            //unsigned int stride = num_fact / num_hidd; 
-            //cuv::tensor<float,cuv::host_memory_space> conv_kernel(cuv::extents[2*stride]);
-            //cuv::tensor<float,cuv::host_memory_space> temp(cuv::extents[num_hidd][num_fact]);
-            //conv_kernel = 1.f;
-            //m_fh->data() = 0.f;
-            //temp = 0.f;
-            //int sum = 0;
+            unsigned int num_hidd =  m_fh->data().shape(0);
+            unsigned int num_fact = m_fh->data().shape(1);
+            assert(num_fact % num_hidd == 0);
+            unsigned int stride = num_fact / num_hidd; 
+            cuv::tensor<float,cuv::host_memory_space> conv_kernel(cuv::extents[2*stride]);
+            cuv::tensor<float,cuv::host_memory_space> temp(cuv::extents[num_hidd][num_fact]);
+            conv_kernel = 1.f;
+            m_fh->data() = 0.f;
+            temp = 0.f;
+            int sum = 0;
 
-            //for(unsigned int i = 0; i < num_hidd; i++){
-            //  temp(i, i * stride) = 1.f;
-            //  m_fh->data()(i, i * stride) = 1.f;
-            //  for(unsigned int j = 0; j < num_fact; j++){
-            //      for(unsigned int k = 0; k < 2*stride; k++){
-            //          int index = j - (k - stride);
-            //          if(index >= 0 && index < (int)num_fact){
-            //              sum += m_fh->data()(i, index) * conv_kernel(k);
-            //          }
+            for(unsigned int i = 0; i < num_hidd; i++){
+             temp(i, i * stride) = 1.f;
+             m_fh->data()(i, i * stride) = 1.f;
+             for(unsigned int j = 0; j < num_fact; j++){
+                 for(unsigned int k = 0; k < 2*stride; k++){
+                     int index = j - (k - stride);
+                     if(index >= 0 && index < (int)num_fact){
+                         sum += m_fh->data()(i, index) * conv_kernel(k);
+                     }
 
-            //      }
-            //      temp(i,j) = sum;
-            //      sum = 0;
-            //      //std::cout << "  " << temp(i,j) ;
-            //  }
-            //  //std::cout << std::endl;
+                 }
+                 temp(i,j) = sum;
+                 sum = 0;
+                 //std::cout << "  " << temp(i,j) ;
+             }
+             //std::cout << std::endl;
 
-            //}
-            //m_fh->data() = temp.copy();
+            }
+            m_fh->data() = temp.copy();
             
             m_bias_h->data()   = 0.f;
             m_bias_y->data()   = 0.f;
@@ -218,7 +220,7 @@ class relational_auto_encoder{
      * Determine the unsupervised parameters learned during training
      */
     std::vector<Op*> unsupervised_params(){
-        return boost::assign::list_of(m_fx.get())(m_fy.get())(m_fh.get())(m_bias_h.get())(m_bias_y.get());
+        return boost::assign::list_of(m_fx.get())(m_fy.get())(m_fh.get())(m_bias_h.get())(m_bias_y.get())(m_fh_in.get());
     }
     
     /**

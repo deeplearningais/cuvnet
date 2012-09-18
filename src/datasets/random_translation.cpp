@@ -116,8 +116,8 @@ namespace cuvnet
             return new_pos + new_factor;
         }
         
-        void morse_code::translate_coordinates(int dim, int ex, int trans){
-            if(trans != 0){
+        void morse_code::translate_coordinates(int dim, int ex, float trans){
+            if(trans != 0.f){
                 unsigned int size = m_coordinates[dim][ex].size();
                 for (unsigned int c = 0; c < size; c++){
                     m_coordinates[dim][ex][c] += trans;
@@ -276,13 +276,22 @@ namespace cuvnet
                                   int max_translation, float max_growing, int flag, int morse_factor){
 
             bool translated = max_translation > 0;
-            int num_transformations = (2 * max_translation + 1) * (2 * max_growing * 20 + 1);
+            //int num_transformations = (2 * max_translation + 1) * (2 * max_growing * 20 + 1);
+            int num_transformations = 10;
+            int max_num_pos = 100;
             std::cout << " total number of transformation: " << num_transformations << std::endl; 
+
+            int label_dim = 2;
+            //if(max_growing > 0.f && max_translation > 0.f){
+            //    label_dim = 2;
+            //}else{
+            //    label_dim = 1;
+            //}
 
             train_data.resize(cuv::extents[3][m_num_train_example][m_dim]);
             test_data.resize(cuv::extents[3][m_num_test_example][m_dim]);
-            train_labels.resize(cuv::extents[m_num_train_example][num_transformations]);
-            test_labels.resize(cuv::extents[m_num_test_example][num_transformations]);
+            train_labels.resize(cuv::extents[m_num_train_example][label_dim]);
+            test_labels.resize(cuv::extents[m_num_test_example][label_dim]);
             
             if (flag == 0){
                 // fills the train and test sets with random uniform numbers
@@ -299,8 +308,8 @@ namespace cuvnet
                 translated = false;
             }else{
                 // morse code
-                cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * 38 * num_transformations][m_dim]);
-                cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[m_dim * 38 * num_transformations][num_transformations]);
+                cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][max_num_pos * 38 * num_transformations][m_dim]);
+                cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[max_num_pos * 38 * num_transformations][label_dim]);
                 initialize_morse_code(data, labels, m_dim, max_translation, morse_factor, max_growing);
                 split_data_set(data, labels, train_data, test_data, train_labels, test_labels, m_num_train_example, m_dim);
                 translated = false;
@@ -365,28 +374,16 @@ namespace cuvnet
 
         // initializes the data in the way that ones are next to each other
         void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set, cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels, int num_examples, int dim){
-            assert((unsigned int)num_examples * 2 < data.shape(1));
             shuffle(data, labels);
             std::cout << " num_examples " << num_examples << " total num " << data.shape(1) << std::endl;
             for(int ex = 0; ex < num_examples * 2; ex+=2){
                 train_labels[cuv::indices[ex/2][cuv::index_range()]] = labels[cuv::indices[ex][cuv::index_range()]];
                 test_labels[cuv::indices[ex/2][cuv::index_range()]] = labels[cuv::indices[ex + 1][cuv::index_range()]];
-                //for(unsigned int i = 0; i < labels.shape(1); i++){
-                //    train_labels(ex/2,i) = labels(ex,i);
-                //    test_labels(ex/2,i) = labels(ex + 1,i);
-                //}
-                
                 for(int d = 0; d < 3; d++){
                     train_set[cuv::indices[d][ex/2][cuv::index_range()]] = data[cuv::indices[d][ex][cuv::index_range()]];
                     test_set[cuv::indices[d][ex/2][cuv::index_range()]] = data[cuv::indices[d][ex + 1][cuv::index_range()]];
                 }
 
-                //for(int d = 0; d < dim; d++){
-                //    for(int s = 0; s < 3; s++){
-                //        train_set(s,ex / 2,d) = data(s,ex,d);
-                //        test_set(s,ex / 2,d) = data(s,ex + 1,d);
-                //    }
-                //}
             }
         }
         
@@ -405,11 +402,6 @@ namespace cuvnet
                 temp_labels[cuv::indices[cuv::index_range()]] = labels[cuv::indices[ex][cuv::index_range()]]; 
                 labels[cuv::indices[ex][cuv::index_range()]] = labels[cuv::indices[r][cuv::index_range()]];
                 labels[cuv::indices[r][cuv::index_range()]] =  temp_labels[cuv::indices[cuv::index_range()]];
-                //for(unsigned int i = 0; i < labels.shape(1); i++){
-                //    temp = labels(ex,i);
-                //    labels(ex,i) = labels(r,i);
-                //    labels(r,i) = temp;
-                //}
                 
                 // shuffle data
                 for(int d = 0; d < 3; d++){
@@ -417,14 +409,6 @@ namespace cuvnet
                     data[cuv::indices[d][ex][cuv::index_range()]] = data[cuv::indices[d][r][cuv::index_range()]];
                     data[cuv::indices[d][r][cuv::index_range()]] = temp_data[cuv::indices[cuv::index_range()]];
                 }
-                //for(unsigned int s = 0; s < data.shape(0); s++){
-                //    for(unsigned int dim = 0; dim < data.shape(2); dim++){
-                //        temp = data(s,ex,dim);
-                //        data(s,ex,dim) = data(s,r,dim);
-                //        data(s,r,dim) = temp;
-                //    }   
-
-                //}   
 
             }   
         }
@@ -492,7 +476,7 @@ namespace cuvnet
         }
         // initializes the morse code
         void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans, int morse_factor, float max_grow){
-            std::cout << "initializing morse code" << std::endl;
+            std::cout << "initializing morse code with max trans " << max_trans << " and max scale " << max_grow << std::endl;
             data = 0.f;
             labels = 0.f;
             morse_code morse(data, morse_factor);
@@ -500,37 +484,42 @@ namespace cuvnet
 
             srand ( time(NULL) );
             float new_dim;
-            for(int tran = -max_trans; tran <= max_trans; tran++){
-                for(float grow = 1 - max_grow; grow <= 1 + max_grow; grow += 0.05f){
-                    for(int dim = 0; dim < m_dim; dim++){
-                        for(unsigned int ch = 0; ch < morse.get_size(); ch++){
-                            new_dim = dim + drand48();
-                            // generate 1st input
-                            morse.write_char(ch, 0, example, new_dim);
+            int max_num_transf = 10;
+            int max_num_pos = 100; 
 
-                            // generate 2nd input
-                            morse.write_char(ch, 1, example,new_dim);
-                            if(tran != 0){
-                                morse.translate_coordinates(1, example, tran);
-                            }
-                            if(grow != 1){
-                                morse.scale_coordinates(1,example, grow);
-                            }
+            for(int t = 0; t < max_num_transf; t++){
+                for(int dim = 0; dim < max_num_pos; dim++){
+                    for(unsigned int ch = 0; ch < morse.get_size(); ch++){
+                        float tran = drand48() * 2*max_trans - max_trans;
+                        //float tran = rand() % 5 - 2;
+                        float grow = 1 + (drand48() * 2 * max_grow - max_grow);
+                        new_dim =  drand48() * m_dim;
+                        // generate 1st input
+                        morse.write_char(ch, 0, example, new_dim);
 
-                            // generate teacher
-                            morse.write_char(ch, 2, example, new_dim);
-                            if(tran != 0){
-                                morse.translate_coordinates(2, example, tran);
-                                morse.translate_coordinates(2, example, tran);
-                            }
-                            if(grow != 1){
-                                morse.scale_coordinates(2,example, grow);
-                                morse.scale_coordinates(2,example, grow);
-                            }
-
-                            labels(example, tran + max_trans) = 1.f;
-                            example++;
+                        // generate 2nd input
+                        morse.write_char(ch, 1, example,new_dim);
+                        if(tran != 0){
+                            morse.translate_coordinates(1, example, tran);
                         }
+                        if(grow != 1){
+                            morse.scale_coordinates(1,example, grow);
+                        }
+
+                        // generate teacher
+                        morse.write_char(ch, 2, example, new_dim);
+                        if(tran != 0){
+                            morse.translate_coordinates(2, example, tran);
+                            morse.translate_coordinates(2, example, tran);
+                        }
+                        if(grow != 1){
+                            morse.scale_coordinates(2,example, grow);
+                            morse.scale_coordinates(2,example, grow);
+                        }
+
+                        labels(example, 0) = tran;
+                        labels(example, 1) = grow;
+                        example++;
                     }
                 }
             }
