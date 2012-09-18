@@ -25,6 +25,7 @@ namespace cuvnet
                 batchids[i] = i;
         }
         unsigned long int iter = 1;
+        unsigned long int wups = 0;
         try{
             unsigned long int t_start = time(NULL);
             for (m_epoch = 0; ; ++m_epoch) {
@@ -43,7 +44,7 @@ namespace cuvnet
                 if(randomize)
                     std::random_shuffle(batchids.begin(),batchids.end());
 
-                before_epoch(m_epoch); // may run early stopping
+                before_epoch(m_epoch, wups); // may run early stopping
 
                 for (unsigned int  batch = 0; batch < n_batches; ++batch, ++iter) {
 
@@ -57,13 +58,14 @@ namespace cuvnet
 
                         m_swipe.bprop(); // backward pass
 
-                        if(iter % update_every == 0)
+                        if(iter % update_every == 0) {
                             update_weights(); 
+                            wups ++;
+                        }
                     }
                     after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
                 }
-                after_epoch(m_epoch); // should log error etc
-
+                after_epoch(m_epoch, wups); // should log error etc
             }
         }catch(gradient_descent_stop){
         }
@@ -81,12 +83,12 @@ namespace cuvnet
                 for (unsigned int epoch = 0; epoch < n_epochs; ++epoch) {
                     if(time(NULL) - t_start > n_max_secs)
                         break;
-                    before_epoch(epoch);
+                    before_epoch(epoch, epoch); // wups==epoch
                     m_swipe.fprop();
                     m_swipe.bprop();
                     after_batch(epoch, 0); // should accumulate errors etc
                     update_weights();
-                    after_epoch(epoch);
+                    after_epoch(epoch, epoch); // wups==epoch
                     m_learnrate *= m_learnrate_decay;
                 }
                 done_learning();
@@ -230,7 +232,7 @@ namespace cuvnet
         gd.after_epoch.connect(boost::ref(*this), boost::signals::at_front);
     }
 
-    void convergence_checker::operator()(unsigned int current_epoch){
+    void convergence_checker::operator()(unsigned int current_epoch, unsigned int wups){
         float perf = m_performance();
         if(perf != perf){
             std::cout << "WARNING: Got NaN in convergence check!" << std::endl;
@@ -240,10 +242,10 @@ namespace cuvnet
             m_last_perf = perf;
             return;
         }
-        std::cout << "\r * convergence-test("<<current_epoch<<"/"<<m_patience<<", "<<(perf/m_last_perf)<<"): "<<perf<<"                  " << std::flush;
+        std::cout << "\r * convergence-test("<<wups<<"/"<<m_patience<<", "<<(perf/m_last_perf)<<"): "<<perf<<"                  " << std::flush;
         if(perf < m_thresh * m_last_perf){
             m_last_perf = perf;
-            m_patience = std::max(m_patience, (unsigned int)(m_patience_inc_fact*current_epoch));
+            m_patience = std::max(m_patience, (unsigned int)(m_patience_inc_fact*wups));
 
             m_gd.save_current_params(); // consider everything that did not go below threshold as "overtraining".
         }
@@ -271,11 +273,11 @@ namespace cuvnet
         cuvAssert(patience_increase > 1.);
         m_best_perf = std::numeric_limits<float>::infinity();
         gd.before_epoch.connect(boost::ref(*this), boost::signals::at_front);
-        m_patience = 6;
+        m_patience = 4000;
     }
 
 
-    void early_stopper::operator()(unsigned int current_epoch){
+    void early_stopper::operator()(unsigned int current_epoch, unsigned int wups){
         if(current_epoch%m_every!=0)
             return;
 
@@ -306,16 +308,16 @@ namespace cuvnet
         perf /= window_size;
 
         if(perf < m_best_perf)
-            std::cout << "\r * early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
+            std::cout << "\r * early-stopping(wup "<<wups<<" / "<<m_patience<<", "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
         else
-            std::cout << "\r - early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
+            std::cout << "\r - early-stopping(wup "<<wups<<" / "<<m_patience<<", "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
 
         if(perf < m_best_perf) {
             // save the (now best) parameters
             m_gd.save_current_params();  
             if(perf < m_thresh * m_best_perf){ 
                 // improved by more than thresh
-                m_patience = std::max((float)m_patience, (float)current_epoch * m_patience_increase);
+                m_patience = std::max((float)m_patience, (float)wups * m_patience_increase);
             }
             m_best_perf = perf;
         }

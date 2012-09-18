@@ -40,9 +40,9 @@ namespace cuvnet
             swiper           m_swipe;    ///< does fprop and bprop for us
         public:
             /// triggered before an epoch starts.
-            boost::signal<void(unsigned int)> before_epoch;
+            boost::signal<void(unsigned int, unsigned int)> before_epoch;
             /// triggered after an epoch finished
-            boost::signal<void(unsigned int)> after_epoch;
+            boost::signal<void(unsigned int, unsigned int)> after_epoch;
             /// triggered before executing a batch (you should load batch data here!)
             boost::signal<void(unsigned int,unsigned int)> before_batch;
             /// triggered after executing a batch
@@ -193,18 +193,18 @@ namespace cuvnet
              * @param gd gradient_descent object to register with
              * @param performance a function which determines how good we are after an epoch
              * @param thresh stop when new value is more than thresh*best_value and no patience left
-             * @param min_epochs initial value for patience
+             * @param min_wups initial value for patience
              * @param patience_inc_fact patience is multiplied by this when better performance is found
              */
             convergence_checker(
                     gradient_descent& gd,
                     boost::function<float(void)> performance,
-                    float thresh=0.95f, unsigned int min_epochs=5, float patience_inc_fact=2.f);
+                    float thresh=0.95f, unsigned int min_wups=100, float patience_inc_fact=2.f);
             
             /**
              * test for convergence. 
              */
-            void operator()(unsigned int current_epoch);
+            void operator()(unsigned int current_epoch, unsigned int wups);
 
     };
 
@@ -271,7 +271,7 @@ namespace cuvnet
             /**
              * test for early stopping. 
              */
-            void operator()(unsigned int current_epoch);
+            void operator()(unsigned int current_epoch, unsigned int wups);
 
             /**
              * return the best value we got during early_stopping
