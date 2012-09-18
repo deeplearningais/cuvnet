@@ -156,7 +156,7 @@ struct optimizer{
             using namespace cuvnet::network_communication;
             std::string cid = "client-"+boost::lexical_cast<std::string>(i);
             client c(HOST,DB,KEY,cid);
-            param_synchronizer ps(cid, c,5,1,params);
+            param_synchronizer ps(cid, c,5,1,0,0,params);
             gd.set_sync_function(boost::ref(ps));
 
             gd.batch_learning(500, INT_MAX);
