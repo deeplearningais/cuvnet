@@ -109,16 +109,16 @@ struct hyperopt_client
         mon.register_gd(gd);
 
         gd.before_batch.connect(boost::bind(load_batch,input, target,&m_data, &m_labels, bs,_2));
-        gd.current_batch_num.connect(boost::bind(&hyperopt_client::n_batches, this, bs));
+        gd.current_batch_num = boost::bind(&hyperopt_client::n_batches, this, bs);
 
-        gd.setup_early_stopping(boost::bind(&monitor::mean, &mon, "classification error"), 5, 1.f, 2.f);
-        gd.before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, 0));
-        gd.after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, CM_TRAIN, 0));
+        early_stopper es(gd, boost::bind(&monitor::mean, &mon, "classification error"), 5, 1.f, 2.f);
+        es.before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, 0));
+        es.after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, CM_TRAIN, 0));
 
         gd.minibatch_learning(2, 60*60); // 10 minutes maximum
         
-        m_n_epochs = gd.best_perf_epoch();
-        std::cout << "gd.best_perf():" << gd.best_perf() << std::endl;
+        m_n_epochs = gd.epoch_of_saved_params();
+        std::cout << "gd.best_perf():" << es.best_perf() << std::endl;
         return gd.best_perf();
     }
 

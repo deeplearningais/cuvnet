@@ -197,7 +197,7 @@ int main(int argc, char **argv)
     gd.before_batch.connect(boost::bind(load_batch,input,&data,bs,_2));
 
     // the number of batches is constant in our case (but has to be supplied as a function)
-    gd.current_batch_num.connect(ds.train_data.shape(0)/ll::constant(bs));
+    gd.current_batch_num = ds.train_data.shape(0)/ll::constant(bs);
 
     // do mini-batch learning for at most 6000 epochs, or 10 minutes
     // (whatever comes first)

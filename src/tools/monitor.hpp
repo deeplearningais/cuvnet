@@ -167,19 +167,37 @@ namespace cuvnet
              * register the monitor with a gradient_descent object, which needs
              * to provide signals for after_epoch, after_batch and before_epoch.
              *
-             * @param m a monitor object
+             * @param gd a gradient descent object
              */
         template<class G>
             void register_gd(G& gd){
                 gd.after_epoch.connect( boost::bind(&monitor::after_epoch,this));
                 gd.after_batch.connect( boost::bind(&monitor::after_batch,this));
                 gd.before_epoch.connect(boost::bind(&monitor::before_epoch,this));
-                gd.before_early_stopping_epoch.connect(boost::bind(&monitor::before_epoch,this));
+
+                // the user probably registered variables with the monitor,
+                // which attaches sinks. We need to recreate the swiper,
+                // so that the sinks are updated accordingly.
+                gd.repair_swiper(); 
+            }
+
+            /**
+             * register the monitor with a gradient_descent object, which needs
+             * to provide signals for after_epoch, after_batch and before_epoch.
+             *
+             * @param gd a gradient descent object
+             * @param es an early stopping object
+             */
+        template<class G, class ES>
+            void register_gd(G& gd, ES& es){
+                register_gd(gd);
+
+                es.before_early_stopping_epoch.connect(boost::bind(&monitor::before_epoch,this));
 
                 // do this at front, since it contains the logging and monitor
                 // state (is_training_phase) might be changed with a later
                 // signal so that logging is incorrect.
-                gd.after_early_stopping_epoch.connect(boost::signals::at_front, boost::bind(&monitor::after_epoch,this));
+                es.after_early_stopping_epoch.connect(boost::signals::at_front, boost::bind(&monitor::after_epoch,this));
 
                 // the user probably registered variables with the monitor,
                 // which attaches sinks. We need to recreate the swiper,
