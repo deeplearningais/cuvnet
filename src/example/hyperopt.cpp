@@ -111,7 +111,7 @@ struct hyperopt_client
         gd.before_batch.connect(boost::bind(load_batch,input, target,&m_data, &m_labels, bs,_2));
         gd.current_batch_num = boost::bind(&hyperopt_client::n_batches, this, bs);
 
-        early_stopper es(gd, boost::bind(&monitor::mean, &mon, "classification error"), 5, 1.f, 2.f);
+        early_stopper es(gd, boost::bind(&monitor::mean, &mon, "classification error"), 1.f, 5, 2.f);
         es.before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, 0));
         es.after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, CM_TRAIN, 0));
 

@@ -260,7 +260,7 @@ namespace cuvnet
     early_stopper::early_stopper(
             gradient_descent& gd,
             boost::function<float(void)> performance,
-            unsigned int every, float thresh, float patience_increase, unsigned int box_filter_size)
+            float thresh, unsigned int every, float patience_increase, unsigned int box_filter_size)
         : m_gd(gd)
         , m_performance(performance)
         , m_every(every)

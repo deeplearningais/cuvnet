@@ -259,15 +259,15 @@ namespace cuvnet
              *
              * @param gd gradient_descent object to register with
              * @param performance a function which determines how good we are after an epoch
-             * @param every   called every n-th epoch
              * @param thresh  determines "significant" performance improvements, i.e. 0.995
+             * @param every   called every n-th epoch
              * @param patience_increase prolong training by this much if significant improvement found (e.g. 2 doubles training time)
              * @param box_filter_size size of window used to filter performance results (1 is equivalent to no filtering)
              */
             early_stopper(
                     gradient_descent& gd,
                     boost::function<float(void)> performance,
-                    unsigned int every, float thresh, float patience_increase, unsigned int box_filter_size=1);
+                    float thresh, unsigned int every, float patience_increase, unsigned int box_filter_size=1);
             /**
              * test for early stopping. 
              */
