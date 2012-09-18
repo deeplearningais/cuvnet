@@ -67,11 +67,7 @@ namespace cuvnet
                 after_epoch(m_epoch); // should log error etc
 
             }
-        }catch(timeout_stop){
-        }catch(no_improvement_stop){
-        }catch(convergence_stop){
-        }catch(max_iter_stop){
-        }catch(network_stop){
+        }catch(gradient_descent_stop){
         }
 
         // Restore parameters.

@@ -10,11 +10,13 @@
 namespace cuvnet
 {
 
-    class no_improvement_stop : public std::exception {};
-    class convergence_stop : public std::exception {};
-    class max_iter_stop : public std::exception {};
-    class timeout_stop  : public std::exception {};
-    class network_stop  : public std::exception {};
+    class gradient_descent_stop : public std::exception {};
+    class arithmetic_error_stop : public gradient_descent_stop {};
+    class no_improvement_stop : public gradient_descent_stop {};
+    class convergence_stop : public gradient_descent_stop {};
+    class max_iter_stop : public gradient_descent_stop {};
+    class timeout_stop  : public gradient_descent_stop {};
+    class network_stop  : public gradient_descent_stop {};
     /**
      * Does vanilla gradient descent: a loop over epochs and a weight update with a
      * learning rate/weight decay afterwards.
