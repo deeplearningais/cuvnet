@@ -121,6 +121,10 @@ namespace cuvnet
         // determine how good we've been (usually set to some perf()
         // function of the construct you're trying to minimize)
         float perf = m_performance();
+        if(perf != perf){
+            std::cout << "WARNING: Got NaN in convergence check!" << std::endl;
+            throw arithmetic_error_stop();
+        }
 
         // call after_early_stopping_epoch() HERE, so that
         // m_performance can rely on still being in validation mode!
