@@ -8,9 +8,7 @@ namespace cuvnet
     gradient_descent::gradient_descent(const Op::op_ptr& op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay)
         : m_result(result), m_params(params), m_learnrate(learnrate), m_learnrate_decay(1.f), m_weightdecay(weightdecay)
           , m_epoch(0), m_epoch_of_saved_params(0)
-          , m_swipe(*op,result,params), m_convergence_checking(false)
-          , m_patience(4)
-          , m_best_perf(std::numeric_limits<float>::infinity())
+          , m_swipe(*op,result,params)
     { 
         m_loss = op;
     }
@@ -54,7 +52,7 @@ namespace cuvnet
                     m_swipe.fprop();  // forward pass
                     //std::cout << "free mem after fprop: " << cuv::getFreeDeviceMemory()/1024/1024 << std::endl;
 
-                    if(m_learnrate && !(m_convergence_checking && m_epoch==0)){
+                    if(m_learnrate){
                         // this is not an evaluation pass, we're actually supposed to do work ;)
 
                         m_swipe.bprop(); // backward pass
@@ -110,61 +108,6 @@ namespace cuvnet
         }
     }
 
-    void gradient_descent::early_stop_test(unsigned int every, float thresh, float patience_increase, unsigned int current_epoch, unsigned int box_filter_size){
-        if(current_epoch%every!=0)
-            return;
-
-        // this does the actual work, it runs fprop on all ES batches
-        before_early_stopping_epoch(current_epoch);
-        early_stopping_epoch(current_epoch);
-
-        // determine how good we've been (usually set to some perf()
-        // function of the construct you're trying to minimize)
-        float perf = m_performance();
-        if(perf != perf){
-            std::cout << "WARNING: Got NaN in convergence check!" << std::endl;
-            throw arithmetic_error_stop();
-        }
-
-        // call after_early_stopping_epoch() HERE, so that
-        // m_performance can rely on still being in validation mode!
-        after_early_stopping_epoch(current_epoch);
-
-        m_val_perfs.push_back(perf);
-
-        perf = 0.f;
-        unsigned int window_size = std::min(m_val_perfs.size(), (size_t) box_filter_size);
-        for(unsigned int i = m_val_perfs.size()-window_size;
-                i < m_val_perfs.size(); 
-                i++)
-            perf += m_val_perfs[i];
-        perf /= window_size;
-
-        if(current_epoch == 0)
-            m_initial_performance = perf;
-
-        if(perf < m_best_perf)
-            std::cout << "\r * early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
-        else
-            std::cout << "\r - early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
-
-        if(perf < m_best_perf) {
-            // save the (now best) parameters
-            save_current_params();  
-            if(perf < thresh * m_best_perf){ 
-                // improved by more than thresh
-                m_patience = std::max((float)m_patience, (float)current_epoch * patience_increase);
-            }
-            m_best_perf = perf;
-        }
-
-        if(m_patience <= current_epoch){
-            // stop learning if we failed to get significant improvements
-            load_best_params();
-            throw no_improvement_stop();
-        }
-    }
-
     void gradient_descent::save_current_params(){
         for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
             ParameterInput* p = dynamic_cast<ParameterInput*>(*it);
@@ -193,34 +136,13 @@ namespace cuvnet
         }
     }
 
-    void gradient_descent::convergence_test(float thresh, unsigned int min_epochs, float patience_inc_factor, unsigned int current_epoch){
-        float perf = m_performance();
-        if(current_epoch == 0){
-            m_initial_performance = perf;
-            m_last_perf = perf;
-            m_convcheck_patience = min_epochs;
-            return;
-        }
-        std::cout << "\r * convergence-test("<<current_epoch<<"/"<<m_convcheck_patience<<", "<<(perf/m_last_perf)<<"): "<<perf<<"                  " << std::flush;
-        if(perf < thresh * m_last_perf){
-            m_last_perf = perf;
-            m_convcheck_patience = std::max(m_convcheck_patience, (unsigned int)(patience_inc_factor*current_epoch));
-        }
-
-        if(current_epoch >= m_convcheck_patience){
-            std::cout << "\r - convergence-test(stopping after "<<current_epoch<<" epochs):"<< perf << "                "<< std::endl;
-            throw convergence_stop();
-        }
-    }
-
-    unsigned int gradient_descent::early_stopping_epoch(unsigned int current_epoch){
+    void gradient_descent::eval_epoch(unsigned int current_epoch){
         unsigned int n_batches = current_batch_num();
         for (unsigned int  batch = 0; batch < n_batches; ++batch) {
             before_batch(current_epoch, batch);
             m_swipe.fprop(); // fprop /only/
             after_batch(current_epoch, batch);
         }
-        return n_batches;
     }
 
     rprop_gradient_descent::rprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay)
@@ -288,6 +210,120 @@ namespace cuvnet
             m_learnrate *= m_learnrate_decay;
             inp->reset_delta();
         }
+    }
+
+
+    /*********************************************
+     * convergence checking 
+     *********************************************/
+    convergence_checker::convergence_checker(
+            gradient_descent& gd,
+            boost::function<float(void)> performance,
+            float thresh, unsigned int min_epochs, float patience_inc_fact)
+        :   m_gd(gd),
+            m_performance(performance),
+            m_thresh(thresh),
+            m_patience(min_epochs),
+            m_patience_inc_fact(patience_inc_fact)
+    {
+        cuvAssert(patience_inc_fact > 1.);
+        gd.after_epoch.connect(boost::ref(*this), boost::signals::at_front);
+    }
+
+    void convergence_checker::operator()(unsigned int current_epoch){
+        float perf = m_performance();
+        if(perf != perf){
+            std::cout << "WARNING: Got NaN in convergence check!" << std::endl;
+            throw arithmetic_error_stop();
+        }
+        if(current_epoch == 0){
+            m_last_perf = perf;
+            return;
+        }
+        std::cout << "\r * convergence-test("<<current_epoch<<"/"<<m_patience<<", "<<(perf/m_last_perf)<<"): "<<perf<<"                  " << std::flush;
+        if(perf < m_thresh * m_last_perf){
+            m_last_perf = perf;
+            m_patience = std::max(m_patience, (unsigned int)(m_patience_inc_fact*current_epoch));
+
+            m_gd.save_current_params(); // consider everything that did not go below threshold as "overtraining".
+        }
+
+        if(current_epoch >= m_patience){
+            std::cout << "\r - convergence-test(stopping after "<<current_epoch<<" epochs):"<< perf << "                "<< std::endl;
+            throw convergence_stop();
+        }
+    }
+
+    /*********************************************
+     * early stopping
+     *********************************************/
+    early_stopper::early_stopper(
+            gradient_descent& gd,
+            boost::function<float(void)> performance,
+            unsigned int every, float thresh, float patience_increase, unsigned int box_filter_size)
+        : m_gd(gd)
+        , m_performance(performance)
+        , m_every(every)
+        , m_thresh(thresh)
+        , m_patience_increase(patience_increase)
+        , m_box_filter_size(box_filter_size)
+    {
+        cuvAssert(patience_increase > 1.);
+        m_best_perf = std::numeric_limits<float>::infinity();
+        gd.before_epoch.connect(boost::ref(*this), boost::signals::at_front);
+    }
+
+
+    void early_stopper::operator()(unsigned int current_epoch){
+        if(current_epoch%m_every!=0)
+            return;
+
+        // this does the actual work, it runs fprop on all ES batches
+        before_early_stopping_epoch(current_epoch);
+        m_gd.eval_epoch(current_epoch);
+
+        // determine how good we've been (usually set to some perf()
+        // function of the construct you're trying to minimize)
+        float perf = m_performance();
+        if(perf != perf){
+            std::cout << "WARNING: Got NaN in early stopping check!" << std::endl;
+            throw arithmetic_error_stop();
+        }
+
+        // call after_early_stopping_epoch() HERE, so that
+        // m_performance can rely on still being in validation mode!
+        after_early_stopping_epoch(current_epoch);
+
+        m_val_perfs.push_back(perf);
+
+        perf = 0.f;
+        unsigned int window_size = std::min(m_val_perfs.size(), (size_t) m_box_filter_size);
+        for(unsigned int i = m_val_perfs.size()-window_size;
+                i < m_val_perfs.size(); 
+                i++)
+            perf += m_val_perfs[i];
+        perf /= window_size;
+
+        if(perf < m_best_perf)
+            std::cout << "\r * early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
+        else
+            std::cout << "\r - early-stopping(epoch "<<current_epoch<<" / "<<m_patience<<", "<<(perf/m_best_perf)<<"): "<< perf<<std::flush;
+
+        if(perf < m_best_perf) {
+            // save the (now best) parameters
+            m_gd.save_current_params();  
+            if(perf < m_thresh * m_best_perf){ 
+                // improved by more than thresh
+                m_patience = std::max((float)m_patience, (float)current_epoch * m_patience_increase);
+            }
+            m_best_perf = perf;
+        }
+
+        if(m_patience <= current_epoch){
+            // stop learning if we failed to get significant improvements
+            throw no_improvement_stop();
+        }
+
     }
 
 }

@@ -17,6 +17,8 @@ namespace cuvnet
     class max_iter_stop : public gradient_descent_stop {};
     class timeout_stop  : public gradient_descent_stop {};
     class network_stop  : public gradient_descent_stop {};
+
+
     /**
      * Does vanilla gradient descent: a loop over epochs and a weight update with a
      * learning rate/weight decay afterwards.
@@ -36,11 +38,8 @@ namespace cuvnet
             std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >    m_best_perf_params; ///< copies of parameters for current best performance
             unsigned int     m_epoch_of_saved_params; ///< stores the time of the saved params
             swiper           m_swipe;    ///< does fprop and bprop for us
-            bool             m_convergence_checking; ///< true if convergence checks are applied
-            unsigned int     m_patience; ///< maximum number of epochs to run
-            unsigned int     m_convcheck_patience; ///< max num of epochs to run
         public:
-            /// triggered before an epoch starts. Should return number of batches!
+            /// triggered before an epoch starts.
             boost::signal<void(unsigned int)> before_epoch;
             /// triggered after an epoch finished
             boost::signal<void(unsigned int)> after_epoch;
@@ -49,15 +48,11 @@ namespace cuvnet
             /// triggered after executing a batch
             boost::signal<void(unsigned int,unsigned int)> after_batch;
 
-            /// triggered when starting a early-stopping epoch. Should return number of batches in early-stopping set
-            boost::signal<void(unsigned int)> before_early_stopping_epoch;
-            /// triggered after finishing a early-stopping epoch
-            boost::signal<void(unsigned int)> after_early_stopping_epoch;
             /// triggered when finished with learning
             boost::signal<void()> done_learning;
 
             /// should return current number of batches
-            boost::signal<unsigned int(void)> current_batch_num;
+            boost::function<unsigned int(void)> current_batch_num;
 
             /// @return number of epochs we've run to obtain the minimum
             unsigned int iters()const{ return m_epoch; }
@@ -78,9 +73,6 @@ namespace cuvnet
                 return m_loss;
             }
 
-            /// a vector containing all validation set results for smoothing
-            std::vector<float> m_val_perfs;
-
             /**
              * constructor
              * 
@@ -96,54 +88,6 @@ namespace cuvnet
              * (virtual) destructor
              */
             virtual ~gradient_descent();
-
-            /// should yield current performance
-            boost::function<float(void)> m_performance; 
-            /// smallest value of loss
-            float                        m_best_perf;   
-
-            /// this, multiplied by thresh parameter of early_stop_test 
-            /// will give minimum improvement required for (not) early stopping
-            float                        m_initial_performance; 
-
-            /// last performance value (for convergence checking)
-            float                        m_last_perf;
-
-            /**
-             * set up early stopping
-             *
-             * @param performance a function which determines how good we are after an epoch
-             * @param every_nth_epoch run this check every n epochs
-             * @param thresh stop when improvement is less than this much times initial value
-             * @param patience_increase prolong training by this much if significant improvement found (e.g. 2 doubles training time)
-             * @param box_filter_size size of window used to filter performance results (1 is equivalent to no filtering)
-             */
-            template<class T>
-            void setup_early_stopping(T performance, unsigned int every_nth_epoch, float thresh, float patience_increase, unsigned int box_filter_size=1){
-                m_performance = performance;
-                before_epoch.connect(boost::bind(&gradient_descent::early_stop_test,this,every_nth_epoch, thresh, patience_increase, _1, box_filter_size), boost::signals::at_front);
-            }
-
-            /**
-             * set up stopping by convergence check
-             *
-             * Stops when new value is more than thresh*best_value for `many` epochs.
-             *
-             * Tested on /training/ set, which should always improve, except
-             * for too large/too small learning rates.
-             *
-             * @param performance a function which determines how good we are after an epoch
-             * @param thresh stop when new value is more than thresh*best_value and no patience left
-             * @param min_epochs initial value for patience
-             * @param patience_inc_fact patience is multiplied by this when better performance is found
-             */
-            template<class T>
-            void setup_convergence_stopping(T performance, float thresh, unsigned int min_epochs, float patience_inc_fact=2.f){
-                m_performance = performance;
-                m_convergence_checking = true;
-                cuvAssert(patience_inc_fact > 1.);
-                after_epoch.connect(boost::bind(&gradient_descent::convergence_test,this, thresh, min_epochs, patience_inc_fact, _1), boost::signals::at_front);
-            }
 
 
             /**
@@ -173,15 +117,9 @@ namespace cuvnet
             void batch_learning(const unsigned int n_epochs, unsigned long int n_max_secs);
 
             /**
-             * return the best value we got during early_stopping
-             */
-            inline float best_perf(){
-                return m_best_perf;
-            }
-            /**
              * return the epoch where \c best_perf was attained.
              */
-            inline unsigned int best_perf_epoch(){
+            inline unsigned int epoch_of_saved_params(){
                 return m_epoch_of_saved_params;
             }
 
@@ -192,26 +130,6 @@ namespace cuvnet
                 m_learnrate_decay = fact;
             }
 
-            
-        protected:
-            /**
-             * this function should update all weights using backpropagated deltas
-             */
-            virtual void update_weights();
-
-            /**
-             * run an early-stopping test
-             *
-             * this function is called in the before_epoch hook.
-             * Call @see setup_early_stopping to set it up.
-             *
-             * @param every   called every n-th epoch
-             * @param thresh  determines "significant" performance improvements, i.e. 0.995
-             * @param patience_increase prolong training by this much if significant improvement found (e.g. 2 doubles training time)
-             * @param current_epoch number of current epoch
-             * @param box_filter_size size of window used to filter performance results (1 is equivalent to no filtering)
-             */
-            void early_stop_test(unsigned int every, float thresh, float patience_increase, unsigned int current_epoch, unsigned int box_filter_size=1);
 
             /**
              * save the current parameters (on host) for retrieval
@@ -220,22 +138,147 @@ namespace cuvnet
             void save_current_params();
 
             /**
-             * load the saved parameters back into the function
-             */
-            void load_best_params();
-
-            /**
-             * test for convergence. 
-             * use @see setup_convergence_stopping to use this function.
-             */
-            void convergence_test(float thresh, unsigned int min_epochs, float patience_inc_factor, unsigned int current_epoch);
-
-            /**
              * runs an early-stopping epoch
              *
              * @return number of early-stopping batches
              */
-            unsigned int early_stopping_epoch(unsigned int current_epoch);
+            void eval_epoch(unsigned int current_epoch);
+            
+        protected:
+            /**
+             * this function should update all weights using backpropagated deltas
+             */
+            virtual void update_weights();
+
+            /**
+             * load the saved parameters back into the function
+             */
+            void load_best_params();
+
+    };
+
+    struct convergence_checker{
+        private:
+            /// gradient descent object for calls to save_current_params
+            /// and registering events
+            gradient_descent& m_gd;
+
+            /// last performance value 
+            float m_last_perf;
+
+            /// should yield current performance
+            boost::function<float(void)> m_performance; 
+
+            /// when to stop
+            float m_thresh;
+
+            ///< max num of epochs to run
+            unsigned int  m_patience; 
+
+            /// how much to prolong stopping
+            float m_patience_inc_fact;
+
+
+        public:
+
+            /**
+             * stopping by convergence: ctor.
+             *
+             * Stops \c gradient_descent new value is more than
+             * thresh*best_value for `many` epochs.
+             *
+             * Tested on /training/ set, which should always improve, except
+             * for too large/too small learning rates.
+             *
+             * @param gd gradient_descent object to register with
+             * @param performance a function which determines how good we are after an epoch
+             * @param thresh stop when new value is more than thresh*best_value and no patience left
+             * @param min_epochs initial value for patience
+             * @param patience_inc_fact patience is multiplied by this when better performance is found
+             */
+            convergence_checker(
+                    gradient_descent& gd,
+                    boost::function<float(void)> performance,
+                    float thresh=0.95f, unsigned int min_epochs=5, float patience_inc_fact=2.f);
+            
+            /**
+             * test for convergence. 
+             */
+            void operator()(unsigned int current_epoch);
+
+    };
+
+    /**
+     * The early_stopper stops gradient descent when the error on the
+     * validation set does not decrease anymore.
+     *
+     * To use it, you have to create an early_stopper and let it live for as
+     * long as your gradient descent lives. It automatically registers itself
+     * with the supplied gradient descent object.
+     *
+     */
+    struct early_stopper{
+        private:
+            /// max num of epochs to run
+            unsigned int  m_patience; 
+
+            /// gradient descent object for calls to save_current_params
+            /// and registering events
+            gradient_descent& m_gd;
+
+            /// should yield current performance
+            boost::function<float(void)> m_performance; 
+
+            /// a vector containing all validation set results for smoothing
+            std::vector<float> m_val_perfs;
+
+            /// best value attained so far
+            float m_best_perf;
+
+            /// when to run.
+            unsigned int m_every;
+
+            /// when to stop.
+            float m_thresh;
+
+            /// how long to prolong training when below thresh
+            float m_patience_increase;
+
+            /// box filter for smoothing results
+            unsigned int m_box_filter_size;
+
+        public:
+            /// triggered when starting a early-stopping epoch.
+            boost::signal<void(unsigned int)> before_early_stopping_epoch;
+
+            /// triggered after finishing a early-stopping epoch
+            boost::signal<void(unsigned int)> after_early_stopping_epoch;
+
+            /**
+             * ctor.
+             *
+             * @param gd gradient_descent object to register with
+             * @param performance a function which determines how good we are after an epoch
+             * @param every   called every n-th epoch
+             * @param thresh  determines "significant" performance improvements, i.e. 0.995
+             * @param patience_increase prolong training by this much if significant improvement found (e.g. 2 doubles training time)
+             * @param box_filter_size size of window used to filter performance results (1 is equivalent to no filtering)
+             */
+            early_stopper(
+                    gradient_descent& gd,
+                    boost::function<float(void)> performance,
+                    unsigned int every, float thresh, float patience_increase, unsigned int box_filter_size=1);
+            /**
+             * test for early stopping. 
+             */
+            void operator()(unsigned int current_epoch);
+
+            /**
+             * return the best value we got during early_stopping
+             */
+            inline float best_perf(){
+                return m_best_perf;
+            }
     };
 
     /**
