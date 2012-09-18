@@ -271,6 +271,7 @@ namespace cuvnet
         cuvAssert(patience_increase > 1.);
         m_best_perf = std::numeric_limits<float>::infinity();
         gd.before_epoch.connect(boost::ref(*this), boost::signals::at_front);
+        m_patience = 6;
     }
 
 
