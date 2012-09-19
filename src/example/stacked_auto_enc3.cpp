@@ -162,12 +162,12 @@ namespace cuvnet{
     
     unsigned int idx_to_bs(unsigned int idx){
         switch(idx){
-            case 0: return 1;
-            case 1: return 2;
-            case 2: return 4;
-            case 3: return 16;
-            case 4: return 64;
-            case 128: return 128;
+            case 0: return 16;
+            case 1: return 32;
+            case 2: return 64;
+            case 3: return 128;
+            case 4: return 256;
+            default: return idx;
         }
         throw std::runtime_error("Unknown batchsize index!");
     }
@@ -300,7 +300,7 @@ namespace cuvnet{
     
         
         {
-            // Supervised finetuning
+            std::cout << "Supervised Finetuning" << std::endl;
             m_aes.deinit();
             set_batchsize(m_mlp_bs);
             std::vector<Op*> aes_params = m_aes.supervised_params();
@@ -454,11 +454,12 @@ main(int argc, char **argv)
         mongo::BSONObj task;
         hc.get_next_task(task);
         hc.handle_task(task);
+        return 0;
     }
 
     mongo::BSONObjBuilder bob;
     bob<<"aes_bs" <<BSON_ARRAY(4);
-    bob<<"mlp_bs" <<BSON_ARRAY(4);
+    bob<<"mlp_bs" <<BSON_ARRAY(2);
     bob<<"mlp_lr" <<BSON_ARRAY(0.2839f);
     bob<<"mlp_wd" <<BSON_ARRAY(0.0001f);
 
@@ -466,13 +467,11 @@ main(int argc, char **argv)
     bob<<"aes_ls1_0" <<BSON_ARRAY( 940.f);
     //bob<<"aes_ls0_0" <<BSON_ARRAY( 64.f);
     //bob<<"aes_ls1_0" <<BSON_ARRAY( 64.f);
-    bob<<"aes_lr_0" <<BSON_ARRAY(0.0714f);
-    //bob<<"aes_lr_0" <<BSON_ARRAY(0.0100f);
-    bob<<"aes_wd_0" <<BSON_ARRAY(0.012f);
+    //bob<<"aes_lr_0" <<BSON_ARRAY(0.0714f);
+    bob<<"aes_lr_0" <<BSON_ARRAY(0.00001f);
 
-    //bob<<"aes_lr_1" <<BSON_ARRAY(0.01f);
-    //bob<<"aes_wd_1" <<BSON_ARRAY(0.01f);
-    //bob<<"aes_ls_1" <<BSON_ARRAY( 92.f);
+    //bob<<"aes_wd_0" <<BSON_ARRAY(0.012f);
+    bob<<"aes_wd_0" <<BSON_ARRAY(0.0000f);
 
     if(std::string("test") == argv[1]){
         cuvAssert(argc==3);
@@ -489,6 +488,7 @@ main(int argc, char **argv)
         //ProfilerStart("client-0");
         ase();
         //ProfilerStop();
+        return 0;
     }
 
     if(std::string("async") == argv[1]){
@@ -522,7 +522,7 @@ main(int argc, char **argv)
 
         cuvnet::network_communication::server s("131.220.7.92", db, key);
         s.cleanup();
-        boost::thread server_thread(boost::bind(&cuvnet::network_communication::server::run, &s, 40, -1));
+        boost::thread server_thread(boost::bind(&cuvnet::network_communication::server::run, &s, 1, -1));
 
         mongo::BSONObj task = BSON("vals"<<bob.obj());
         for (unsigned int i = 0; i < devs.size(); ++i)
