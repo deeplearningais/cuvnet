@@ -322,7 +322,7 @@ namespace cuvnet
             m_best_perf = perf;
         }
 
-        if(m_patience <= current_epoch){
+        if(m_patience <= wups){
             // stop learning if we failed to get significant improvements
             throw no_improvement_stop();
         }
