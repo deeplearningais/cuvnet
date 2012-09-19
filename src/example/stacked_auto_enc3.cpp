@@ -235,7 +235,7 @@ namespace cuvnet{
         // abuse gradient descent for looping over the dataset in batches.
         gradient_descent gd(m_regression->classification_error_direct(), 0, params, 0.0f); // learning rate 0
         gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_supervised,this,_2));
-        gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches, &m_sdl));
+        gd.current_batch_num = boost::bind(&sdl_t::n_batches, &m_sdl);
         if(mon) {
             mon->register_gd(gd);
             gd.minibatch_learning(1, INT_MAX);
@@ -263,6 +263,7 @@ namespace cuvnet{
         set_batchsize(m_aes_bs);
         for (unsigned int ae_id = 0; ae_id < n_ae; ++ae_id)
         {
+            std::cout << "Pretraining level " << ae_id << std::endl;
     
             // set the initial number of epochs to zero
             generic_auto_encoder& ae = m_aes.get_ae(ae_id);
@@ -272,7 +273,7 @@ namespace cuvnet{
             set_up_sync("pretrain-"+boost::lexical_cast<std::string>(ae_id),
                     gd, ae.unsupervised_params());
             gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_unsupervised,this,_2));
-            gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
+            gd.current_batch_num = boost::bind(&sdl_t::n_batches,&m_sdl);
     
             // set up monitor
             monitor mon(false);
@@ -288,8 +289,11 @@ namespace cuvnet{
             }
             else {
                 if(m_checker)
-                    gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.99f, 6, 2.0);
-                gd.minibatch_learning(100, INT_MAX);
+                {
+                    convergence_checker es(gd, boost::bind(&monitor::mean, &mon, "total loss"), 0.95f, 6, 2.0);
+                    gd.minibatch_learning(1000, INT_MAX);
+                }else
+                    gd.minibatch_learning(1000, INT_MAX);
                 m_epochs[ae_id] += gd.iters();
             }
         }
@@ -314,7 +318,7 @@ namespace cuvnet{
             G gd(loss,0,params,m_mlp_lr, -0);
             set_up_sync("sfinetune", gd, params);
             gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_supervised,this,_2));
-            gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
+            gd.current_batch_num = boost::bind(&sdl_t::n_batches,&m_sdl);
     
             // set up monitor
             monitor mon(false);
@@ -322,18 +326,21 @@ namespace cuvnet{
             mon.set_training_phase(m_sdl.get_current_cv_mode(), m_sdl.get_current_split());
             mon.add(monitor::WP_SCALAR_EPOCH_STATS, loss, "total loss");
             mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, m_regression->classification_error(), "classification error");
-            mon.register_gd(gd);
             //gd.after_epoch.connect(boost::bind(&ProfilerFlush));
     
+            boost::shared_ptr<early_stopper> es;
             if(m_checker && m_sdl.can_earlystop()){
-                gd.setup_early_stopping(boost::bind(&monitor::mean, &mon, "classification error"), 10, 0.995f, 2.f);
+                es.reset(new early_stopper(gd, boost::bind(&monitor::mean, &mon, "classification error"), 0.995f, 5, 2.f));
     
-                gd.before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
-                gd.before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, m_sdl.get_current_split()));
+                es->before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
+                es->before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, m_sdl.get_current_split()));
     
-                gd.after_early_stopping_epoch.connect(0,boost::bind(&sdl_t::after_early_stopping_epoch,&m_sdl));
-                gd.after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, CM_TRAIN, m_sdl.get_current_split()));
-            }
+                es->after_early_stopping_epoch.connect(0,boost::bind(&sdl_t::after_early_stopping_epoch,&m_sdl));
+                es->after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, CM_TRAIN, m_sdl.get_current_split()));
+                mon.register_gd(gd, *es);
+            }else
+                mon.register_gd(gd);
+
             // do the actual learning
             if(in_trainall)
             {
