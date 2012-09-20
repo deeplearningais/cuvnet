@@ -6,6 +6,7 @@
 #define BOOST_TEST_MODULE t_cuvnet
 //#define BOOST_TEST_MAIN
 #include <boost/test/included/unit_test.hpp>
+#include <tools/logging.hpp>
 
 
 std::ofstream os;
@@ -13,6 +14,7 @@ std::ofstream os;
 struct FooEnvironment 
 {
     FooEnvironment() {
+        cuvnet::Logger log("test_log.xml");
         os.open("test_results.txt");
         boost::unit_test::results_reporter::set_stream(os);
         cuv::initCUDA(0);
