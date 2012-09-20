@@ -61,8 +61,12 @@ class relational_auto_encoder{
          *
          */
         void init(op_ptr input_x, op_ptr input_y, op_ptr teacher){
-            m_input_x   = input_x;
-            m_input_y   = input_y;
+            //m_input_x   = input_x;
+            //m_input_y   = input_y;
+            float noise = 0.6f;
+            std::cout << " adding noise to inputs with std = " << noise << std::endl;
+            m_input_x   = add_rnd_normal(input_x, noise);
+            m_input_y   = add_rnd_normal(input_y, noise);
             m_teacher = teacher;
             
             // determines the dimension of input x and y and teacher
@@ -119,6 +123,9 @@ class relational_auto_encoder{
        op_ptr get_factor_x(){return m_factor_x;} 
        op_ptr get_factor_y(){return m_factor_y;}
        op_ptr get_encoded(){return m_encoded;}
+       op_ptr get_input_x(){return m_input_x;} 
+       op_ptr get_input_y(){return m_input_y;}
+       op_ptr get_teacher(){return m_teacher;}
         
 
         /**
