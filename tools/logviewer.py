@@ -12,6 +12,16 @@ meta = """<?xml version="1.0" ?>
 </log4j:eventSet>
 """
 
+def value(event, prop):
+    elem = event.find("{%s}properties/{%s}data[@name='%s']" % \
+            (LOG4J_NAMESPACE,LOG4J_NAMESPACE,prop))
+    if elem is not None:
+        return elem.get("value")
+    return ""
+
+def message(event):
+    return event.findtext('{%s}message'%LOG4J_NAMESPACE) 
+
 def show_convergence(doc):
     convchecks = etree.ETXPath("//{%s}event[@logger='conv_check']" % LOG4J_NAMESPACE)
     results = convchecks(doc)
@@ -30,17 +40,15 @@ def show_convergence(doc):
     convmsg = filter(conv_filter, results)
     results = filter(perf_filter, results)
 
-    messages = [r.findtext('{%s}message'%LOG4J_NAMESPACE) for r in results]
+    messages = [message(r) for r in results]
     perfs = [ re.match(r".*: ([\d.]*)\s*$", m).group(1) for m in messages ]
     perfs = np.array(perfs)
 
-    properties = [r.find('{%s}properties'%LOG4J_NAMESPACE) for r in results]
-    epochs = [int(p.find("{%s}data[@name='epoch']"%LOG4J_NAMESPACE).get("value")) for p in properties]
-    epochs = np.array(epochs)
+    epochs = np.array([int(value(r, "epoch")) for r in results])
 
     def event_to_label(e):
-        host = e.find("{%s}properties/{%s}data[@name='host']"%(LOG4J_NAMESPACE, LOG4J_NAMESPACE)).get("value")
-        layer = e.find("{%s}properties/{%s}data[@name='layer']"%(LOG4J_NAMESPACE, LOG4J_NAMESPACE)).get("value")
+        host = value(e, "host")
+        layer = value(e, "layer")
         thread = e.get('thread')
         return "%s:%s L%d" % (host, thread, int(layer))
 
@@ -55,7 +63,7 @@ def show_convergence(doc):
         ax = plt.gca()
         for m in convmsg:
             if event_to_label(m) == ul:
-                epoch = int(m.find(".//{%s}data[@name='epoch']" % LOG4J_NAMESPACE).get("value"))
+                epoch = value(m, "epoch")
                 ax.axvline(epoch)
 
     plt.legend()
