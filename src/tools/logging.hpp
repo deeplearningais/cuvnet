@@ -3,88 +3,48 @@
 
 #include <string>
 #include <ostream>
-#include <mongo/client/dbclient.h>
+#include <cuv/tools/timing.hpp>
+#include <log4cxx/logger.h>
 
+namespace log4cxx
+{
+    class MDC;
+    class NDC;
+}
 namespace cuvnet
 {
     /**
-     * loggs data to mongodb.
-     * @deprecated
+     * Initializes logging via log4cxx
      * @ingroup tools
      */
 	class Logger{
 		public:
 			/**
 			 * constructor
-			 * 
-			 * @param url how to connect to mongodb
-			 * @param collection where in db to log 
 			 */
-			Logger(const std::string& url, const std::string& collection);
-
-			/**
-			 * filestream logger
-			 * 
-			 */
-			Logger(std::ostream& os);
-
-			template<class T>
-			struct kv{
-				kv(const std::string& n, const T& t)
-					:k(n),v(t){}
-				const std::string& k;
-				const T v;
-			};
-			struct record{
-				mongo::DBClientConnection* m_con;
-				const std::string* m_collection;
-				std::ostream* m_os;
-				const int m_level;
-				int   m_cnt;
-				int   m_mode;
-				std::auto_ptr<mongo::BSONObjBuilder> m_objb;
-				record(mongo::DBClientConnection* con, const std::string* col, std::ostream* os, int level, int mode);
-				~record();
-				record(const record& o);
-				template<class T>
-				record& operator<<(const kv<T>& p){
-					m_cnt++;
-					*m_objb<<p.k<<p.v;
-					return *this;
-				}
-			};
-
-			/**
-			 * use this to start logging a record
-			 * e.g. by running
-			 *
-			 * @code
-			 * logger.log(1)<<bson_pair("age",3)
-			 *              <<bson_pair("foo","bar");
-			 * @endcode
-			 */
-			record log(int level=4);
-
-		private:
-			/// keeps the connection to the db
-			mongo::DBClientConnection m_con;
-
-			/// refers to the collection in the db
-			const std::string m_collection;
-
-			/// a simple output stream in case db is closed
-			std::ostream* m_os;
-
-			/// mode: cout/mongodb
-			int m_mode;
+			Logger();
 	};
 
-	template<class T>
-	inline
-	Logger::kv<T> bson_pair(const std::string& k, const T& v){ return Logger::kv<T>(k,v); }
+#define TRACE(logger, msg) Tracer _trace(logger, msg);
+#define TRACE1(logger, msg, var, id) Tracer _trace(logger, msg, var, boost::lexical_cast<std::string>(id)) ;
 
-	inline
-	Logger::kv<std::string> bson_pair(const std::string& k, const char* v){ return Logger::kv<std::string>(k,v); }
+    /**
+     * logs at when instantiated and when destroyed.
+     */
+    class Tracer{
+        private:
+            std::string m_msg;
+            Timing m_tim;
+            log4cxx::MDC* m_mdc;
+            log4cxx::NDC* m_ndc;
+            log4cxx::LoggerPtr m_log;
+            Tracer(const Tracer&);
+            Tracer& operator=(const Tracer&);
+        public:
+            Tracer(log4cxx::LoggerPtr& log, const std::string& msg);
+            Tracer(log4cxx::LoggerPtr& log, const std::string& msg, const std::string& var, const std::string& val);
+            ~Tracer();
+    };
 }
 
 #endif /* __CUVNET_LOGGING_HPP */

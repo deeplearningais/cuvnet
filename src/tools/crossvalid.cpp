@@ -1,5 +1,6 @@
 #include <stdexcept>
 #include <boost/thread.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/serialization/shared_ptr.hpp>
@@ -13,6 +14,8 @@
 #include<cuv.hpp>
 #include<cuv/tools/device_tools.hpp>
 #include<cuv/tools/cuv_general.hpp>
+#include<tools/logging.hpp>
+#include<log4cxx/mdc.h>
 
 #include "crossvalid.hpp"
 
@@ -56,14 +59,15 @@ namespace cuvnet
             m_perf       = 0.f;
 		}
 		float all_splits_evaluator::operator()(){
+			log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("ase"));
 			for (unsigned int s = 0; s < m_ptr->n_splits(); ++s)
 			{
-                std::cout << "Processing split "<<s<<"/"<<m_ptr->n_splits()<<std::endl;
+                LOG4CXX_WARN(log, "Processing split "<<s<<"/"<<m_ptr->n_splits());
 				m_ptr->switch_dataset(s,CM_TRAIN);
 				m_ptr->fit();
 				m_ptr->switch_dataset(s,CM_VALID);
 				m_perf += m_ptr->predict();
-                std::cout << "X-val error:" << m_perf/(s+1)  << std::endl;
+                LOG4CXX_WARN(log, "X-val error:" << m_perf/(s+1));
                 if(s < m_ptr->n_splits()-1)
                     m_ptr->reset_params(); // otherwise taken care of below
 			}
@@ -72,21 +76,23 @@ namespace cuvnet
             if(m_ptr->refit_for_test()){
                 if(m_perf < m_ptr->refit_thresh()){ // save time!
                     // retrain on TRAINALL (incl. VAL) and test on TEST
-					std::cout << "Training on TRAINVAL..." << std::endl;
+                    LOG4CXX_WARN(log, "Training on TRAINVAL");
                     m_ptr->reset_params();
                     m_ptr->switch_dataset(0,CM_TRAINALL);
                     m_ptr->fit();
                 }else{
-					std::cout << "Skipping training on TRAINVAL: not good enough." << std::endl;
+                    LOG4CXX_WARN(log, "Skipping training on TRAINVAL: not good enough.");
 				}
                 m_ptr->switch_dataset(0,CM_TEST);
                 m_test_perf = m_ptr->predict();
-                std::cout << "Test error:" << m_test_perf << std::endl;
+                log4cxx::MDC mdc("test_loss", boost::lexical_cast<std::string>(m_test_perf));
+                LOG4CXX_WARN(log, "DONE");
             }else{
                 // test last model on TEST w/o retraining
                 m_ptr->switch_dataset(0,CM_TEST);
                 m_test_perf0 = m_ptr->predict();
-                std::cout << "Test0 error:" << m_test_perf0 << std::endl;
+                log4cxx::MDC mdc("test0_loss", boost::lexical_cast<std::string>(m_test_perf0));
+                LOG4CXX_WARN(log, "DONE");
             }
             return m_perf; /* return the X-val error for optimization! */
 		}
@@ -113,7 +119,8 @@ namespace cuvnet
 
 		void crossvalidation_worker::handle_task(const mongo::BSONObj& task){
 			namespace bar = boost::archive;
-			std::cout << "Handling task..."<<std::endl;
+            log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("cv_worker"));
+            LOG4CXX_WARN(log, "handling task: " << task);
 			if(task["task"].String() == "cv_allsplits"){
 				boost::shared_ptr<crossvalidatable> p;
 				int len;
