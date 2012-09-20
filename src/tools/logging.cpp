@@ -18,13 +18,13 @@
 
 namespace cuvnet
 {
-    Logger::Logger(){
+    Logger::Logger(const std::string& fn){
         using namespace log4cxx;
     
         xml::XMLLayoutPtr myXMLLayoutPtr = new xml::XMLLayout();
         myXMLLayoutPtr->setLocationInfo(true); // __FILE__ and __LINE__
         myXMLLayoutPtr->setProperties(true); // MDC objects
-        FileAppenderPtr myXMLFileAppenderPtr = new FileAppender(myXMLLayoutPtr, "log.xml", false, true, 1024);
+        FileAppenderPtr myXMLFileAppenderPtr = new FileAppender(myXMLLayoutPtr, fn, false, true, 1024);
     
         // OtrosLogViewer Setup: TIMESTAMP LEVEL [THREAD] NDC LOGGER - MESSAGE
         PatternLayoutPtr myLayoutPtr = new PatternLayout("%d{ISO8601} %-5p [%t] %x %c - %m%n");

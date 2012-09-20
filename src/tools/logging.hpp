@@ -22,7 +22,7 @@ namespace cuvnet
 			/**
 			 * constructor
 			 */
-			Logger();
+			Logger(const std::string& fn = "log.xml");
 	};
 
 #define TRACE(logger, msg) Tracer _trace(logger, msg);
