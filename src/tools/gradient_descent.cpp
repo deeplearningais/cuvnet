@@ -10,7 +10,7 @@
 namespace cuvnet
 {
     gradient_descent::gradient_descent(const Op::op_ptr& op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay)
-        : m_result(result), m_params(params), m_learnrate(learnrate), m_learnrate_decay(1.f), m_weightdecay(weightdecay)
+        : m_result(result), m_params(params), m_learnrate(learnrate), /*m_learnrate_decay(1.f), */m_weightdecay(weightdecay)
           , m_epoch(0), m_epoch_of_saved_params(0)
           , m_swipe(*op,result,params)
     { 
@@ -95,7 +95,7 @@ namespace cuvnet
                     after_batch(epoch, 0); // should accumulate errors etc
                     update_weights();
                     after_epoch(epoch, epoch); // wups==epoch
-                    m_learnrate *= m_learnrate_decay;
+                    //m_learnrate *= m_learnrate_decay;
                 }
                 done_learning();
     }
@@ -112,7 +112,7 @@ namespace cuvnet
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
             cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->delta(), -lr, wd);
             inp->reset_delta();
-            m_learnrate *= m_learnrate_decay;
+            //m_learnrate *= m_learnrate_decay;
         }
     }
 
@@ -214,7 +214,7 @@ namespace cuvnet
             // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
             cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), m_last_delta[i], -lr, wd);
-            m_learnrate *= m_learnrate_decay;
+            //m_learnrate *= m_learnrate_decay;
             inp->reset_delta();
         }
     }
@@ -260,12 +260,22 @@ namespace cuvnet
             m_gd.save_current_params(); // consider everything that did not go below threshold as "overtraining".
         }
 
-        if(current_epoch >= m_patience){
-            std::cout << "\r - convergence-test(stopping after "<<current_epoch<<" epochs):"<< perf << "                "<< std::endl;
-            throw convergence_stop();
+        if(wups >= m_patience){
+            m_steps ++;
+            if(m_steps >= m_max_steps){
+                LOG4CXX_WARN( log,"STOP after "<<current_epoch<<" epochs:"<< perf);
+                throw convergence_stop();
+            }
+            m_gd.decay_learnrate(m_lr_fact);
+            LOG4CXX_WARN(log, "converged: decreasing learnrate");
+            m_patience = std::max(m_patience, (unsigned int)(m_patience_inc_fact*wups));
         }
     }
 
+    void convergence_checker::decrease_lr(unsigned int max_steps, float lr_fact){
+        m_max_steps = max_steps;
+        m_lr_fact   = lr_fact;
+    }
 
     /*********************************************
      * early stopping
