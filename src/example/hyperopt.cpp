@@ -15,6 +15,7 @@
 #include <cuvnet/models/logistic_regression.hpp>
 #include <cuvnet/models/linear_regression.hpp>
 #include <tools/monitor.hpp>
+#include <tools/logging.hpp>
 
 #include <mdbq/client.hpp>
 
@@ -150,6 +151,7 @@ struct hyperopt_client
 int
 main(int argc, char **argv)
 {
+    cuvnet::Logger log;
     // start n_clt worker threads
     static const int n_clt = 4;
     hyperopt_client* clients[n_clt];

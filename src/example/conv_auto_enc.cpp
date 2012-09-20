@@ -13,6 +13,7 @@
 #include <datasets/natural.hpp>
 #include <datasets/splitter.hpp>
 #include <tools/monitor.hpp>
+#include <tools/logging.hpp>
 
 /// for no_regularization
 #include <cuvnet/models/simple_auto_encoder.hpp>
@@ -114,6 +115,7 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(1);
     cuv::initialize_mersenne_twister_seeds();
+    cuvnet::Logger log;
 
     //mnist_dataset ds_all("/home/local/datasets/MNIST");
     natural_dataset ds_all("/home/local/datasets/natural_images");

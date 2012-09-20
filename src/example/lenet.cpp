@@ -10,6 +10,7 @@
 #include <datasets/randomizer.hpp>
 #include <tools/preprocess.hpp>
 #include <tools/monitor.hpp>
+#include <tools/logging.hpp>
 
 #include <cuvnet/models/lenet.hpp>
 
@@ -38,6 +39,7 @@ int main(int argc, char **argv)
 {
     // initialize cuv library   
     cuv::initialize_mersenne_twister_seeds();
+    cuvnet::Logger log;
 
     // load the dataset
     //cifar_dataset ds("/home/local/datasets/CIFAR10");
