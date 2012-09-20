@@ -15,6 +15,7 @@
 #include <tools/learner.hpp>
 #include <tools/monitor.hpp>
 #include <tools/network_communication.hpp>
+#include <tools/logging.hpp>
 
 
 namespace cuvnet{
@@ -258,12 +259,13 @@ namespace cuvnet{
         using namespace boost::assign;
         unsigned int n_ae = m_aes.size();
         bool in_trainall = m_sdl.get_current_cv_mode() == CM_TRAINALL;
-        std::cout << m_sdl.describe_current_mode_split(true) << std::endl;
+        log4cxx::LoggerPtr log = log4cxx::Logger::getLogger("learner");
+        LOG4CXX_INFO( log, m_sdl.describe_current_mode_split(true) );
 
         set_batchsize(m_aes_bs);
         for (unsigned int ae_id = 0; ae_id < n_ae; ++ae_id)
         {
-            std::cout << "Pretraining level " << ae_id << std::endl;
+            TRACE1(log, "pretrain" , "layer", ae_id );
     
             // set the initial number of epochs to zero
             generic_auto_encoder& ae = m_aes.get_ae(ae_id);
@@ -300,7 +302,7 @@ namespace cuvnet{
     
         
         {
-            std::cout << "Supervised Finetuning" << std::endl;
+            TRACE(log, "finetune");
             m_aes.deinit();
             set_batchsize(m_mlp_bs);
             std::vector<Op*> aes_params = m_aes.supervised_params();
@@ -447,6 +449,7 @@ struct async_client
 int
 main(int argc, char **argv)
 {
+    cuvnet::Logger logger;
     if(std::string("worker") == argv[1]){
         cuvAssert(argc==3);
 
