@@ -20,7 +20,7 @@ def value(event, prop):
     return ""
 
 def message(event):
-    return event.findtext('{%s}message'%LOG4J_NAMESPACE) 
+    return event.findtext('{%s}message'%LOG4J_NAMESPACE)
 
 def show_convergence(doc):
     convchecks = etree.ETXPath("//{%s}event[@logger='conv_check']" % LOG4J_NAMESPACE)
@@ -42,6 +42,7 @@ def show_convergence(doc):
 
     messages = [message(r) for r in results]
     perfs = [ re.match(r".*: ([\d.]*)\s*$", m).group(1) for m in messages ]
+    #perfs = [ re.match(r".*\d+/\d+, ([\d.]*).*", m).group(1) for m in messages ]
     perfs = np.array(perfs)
 
     epochs = np.array([int(value(r, "epoch")) for r in results])
@@ -50,13 +51,16 @@ def show_convergence(doc):
         host = value(e, "host")
         layer = value(e, "layer")
         thread = e.get('thread')
-        return "%s:%s L%d" % (host, thread, int(layer))
+        if layer == "":
+            layer = "finetune"
+        return "%s:%s L%s" % (host, thread, layer)
 
     labels = map(event_to_label, results)
     unique_labels = np.unique(labels)
 
     import matplotlib.pyplot as plt
     for ul in unique_labels:
+        if "finetune" in ul: continue
         idx = np.where(np.array(labels) == ul)
         plt.plot(epochs[idx], perfs[idx], label=ul)
 
@@ -65,6 +69,48 @@ def show_convergence(doc):
             if event_to_label(m) == ul:
                 epoch = value(m, "epoch")
                 ax.axvline(epoch)
+        #plt.ylim(np.min(perfs[idx]), np.max(perfs[idx]))
+        #plt.yscale('log')
+
+    plt.legend()
+    plt.show()
+
+def show_earlystop(doc):
+    convchecks = etree.ETXPath("//{%s}event[@logger='early_stop']" % LOG4J_NAMESPACE)
+    results = convchecks(doc)
+    def perf_filter(r):
+        m = r.findtext('{%s}message'%LOG4J_NAMESPACE)
+        if re.match(r".*: ([\d.]*)\s*$", m):
+            return True
+        return False
+
+    results = filter(perf_filter, results)
+
+    messages = [message(r) for r in results]
+    perfs = [ re.match(r".*: ([\d.]*)\s*$", m).group(1) for m in messages ]
+    #perfs = [ re.match(r".*\d+ / \d+, ([\d.]*).*", m).group(1) for m in messages ]
+    perfs = np.array(perfs)
+
+    epochs = np.array([int(value(r, "epoch")) for r in results])
+
+    def event_to_label(e):
+        host = value(e, "host")
+        layer = value(e, "layer")
+        thread = e.get('thread')
+        if layer == "":
+            layer = "finetune"
+        return "%s:%s L%s" % (host, thread, layer)
+
+    labels = map(event_to_label, results)
+    unique_labels = np.unique(labels)
+
+    import matplotlib.pyplot as plt
+    for ul in unique_labels:
+        if "finetune" not in ul: continue
+        idx = np.where(np.array(labels) == ul)
+        plt.plot(epochs[idx], perfs[idx], label=ul)
+
+        #plt.yscale('log')
 
     plt.legend()
     plt.show()
@@ -84,5 +130,6 @@ if __name__ == "__main__":
     data = meta % data
     doc = etree.fromstring(data)
     show_convergence(doc)
+    show_earlystop(doc)
 
 
