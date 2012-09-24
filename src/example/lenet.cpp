@@ -30,14 +30,14 @@ void load_batch(
         unsigned int bs, unsigned int batch){
     //std::cout <<"."<<batch<<std::flush;
     input->data() = (*data)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
-    input->data().reshape(cuv::extents[bs][channels][input->data().shape(1)/channels]);
+    input->data().reshape(cuv::extents[bs][channels][28][28]);
     target->data() = (*labels)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
-
 }
 
 int main(int argc, char **argv)
 {
     // initialize cuv library   
+    cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
     cuvnet::Logger log;
 
@@ -60,7 +60,7 @@ int main(int argc, char **argv)
     // here we only need to specify the shape of the input and target correctly
     // \c load_batch will put values in it.
     boost::shared_ptr<ParameterInput> input(
-            new ParameterInput(cuv::extents[bs][ds.channels][ds.train_data.shape(1)/ds.channels],"input"));
+            new ParameterInput(cuv::extents[bs][ds.channels][28][28],"input"));
     boost::shared_ptr<ParameterInput> target(
             new ParameterInput(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
 
