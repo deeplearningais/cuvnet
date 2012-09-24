@@ -81,8 +81,9 @@ namespace cuvnet
              * @param type the type of the watchpoint, e.g. scalar stats or value sink
              * @param op   the op to watch
              * @param name a name by which the watchpoint can be identified
+             * @param result the number of the result of op
              */
-            monitor& add(watchpoint_type type, boost::shared_ptr<Op> op, const std::string& name);
+            monitor& add(watchpoint_type type, boost::shared_ptr<Op> op, const std::string& name, unsigned int result=0);
 
             template<class ValueType>
             monitor& add(const std::string& name, const ValueType& value){
