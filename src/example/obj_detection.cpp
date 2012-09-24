@@ -156,10 +156,13 @@ int main(int argc, char **argv)
     }
 
     // create a verbose monitor, so we can see progress 
-    // and register the decoded activations, so they can be displayed
-    // in \c visualize_filters
     monitor mon(true); // verbose
-    mon.add(monitor::WP_SCALAR_EPOCH_STATS, od->get_loss(),        "total loss");
+    mon.add(monitor::WP_SCALAR_EPOCH_STATS, od->get_loss(),      "total loss");
+    mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, od->get_f2(),   "F2");
+    mon.add(monitor::WP_SCALAR_EPOCH_STATS, od->get_f2(),        "tp", 1);
+    mon.add(monitor::WP_SCALAR_EPOCH_STATS, od->get_f2(),        "tn", 2);
+    mon.add(monitor::WP_SCALAR_EPOCH_STATS, od->get_f2(),        "fp", 3);
+    mon.add(monitor::WP_SCALAR_EPOCH_STATS, od->get_f2(),        "fn", 4);
 
     std::cout << std::endl << " Training phase: " << std::endl;
     {
