@@ -69,7 +69,7 @@ namespace cuvnet
                 }
                 void _determine_shapes(){
                     assert(m_params[0]->shape == m_params[1]->shape);
-                    m_results[0]->shape = m_params[0]->shape;
+                    m_results[0]->shape = std::vector<unsigned int>(1,1);
                 }
             private:
                 friend class boost::serialization::access;
