@@ -676,7 +676,7 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
         //gd.minibatch_learning(5000, 100*60); // 10 minutes maximum
         //load_batch(input_x, input_y, teacher, &train_data,bs,0);
         //gd.batch_learning(max_num_epochs, 100*60);
-        gd.minibatch_learning(max_num_epochs, 100*60, 0);
+        gd.minibatch_learning(max_num_epochs, 100*60, 0, false);
 
         // register dumper
         dataset_dumper dum("train_data.dat", ds.train_data.shape(1) / bs);
@@ -784,13 +784,20 @@ void load_batch_logistic(
 void regression(random_translation& ds, int bs){
     dataset_reader dum("train_data.dat", "test_data.dat");
     dum.read_from_file();
-    tensor_type whole_data  = dum.train_data;
 
     tensor_type encoder_train = dum.train_data;
     tensor_type encoder_test = dum.test_data;
 
     tensor_type labels_train = dum.train_labels;
     tensor_type labels_test = dum.test_labels;
+
+    for (int i = 0; i < encoder_train.shape(0); ++i)
+    {
+        for (int j = 0; j < encoder_train.shape(1); ++j)
+        {
+            std::cout << "ecoder tr " << labels_train(i,j) << "  ";
+        }
+    }
 
 
    // an \c Input is a function with 0 parameters and 1 output.
@@ -975,18 +982,18 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(device);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 2, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
+    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 1, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
 
-    float max_growing = 0.1f;
-    unsigned max_num_epochs = 1;
+    float max_growing = 0.f;
+    unsigned max_num_epochs = 500;
 
-    unsigned int num_hidden = 60;
+    unsigned int num_hidden = 5;
 
     unsigned int num_factors = 600;
     float sigma = gauss_dist / 3; 
     //float learning_rate = 0.001f;
     // generate random translation datas
-    unsigned int data_set_size = 10000;
+    unsigned int data_set_size = 5000;
     std::cout << "generating dataset: "<<std::endl;
     random_translation ds(input_size * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width, flag, morse_factor);
     ds.binary   = false;
