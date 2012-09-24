@@ -41,8 +41,8 @@ namespace cuvnet
             boost::archive::binary_iarchive oa_read(readfile);
 
             int num_batches;
-
             oa_read >> num_batches;
+
             tensor_type data_batch;
             tensor_type label_batch;
             oa_read >> data_batch;
