@@ -18,6 +18,7 @@
 #include <exception>
 #include <tools/dumper.hpp>
 #include <tools/dataset_dumper.hpp>
+#include <tools/logging.hpp>
 
 
 using namespace cuvnet;
@@ -977,8 +978,12 @@ int main(int argc, char **argv)
     int device = 2;
     if(argc >=1)
         device = boost::lexical_cast<int>(argv[1]);
-    if(argc >= 2)
-       param_name = argv[2];
+    if(argc >= 2){
+        param_name = argv[2];
+        Logger log(param_name + ".xml");
+    }else{
+        Logger log("log.xml");
+    }
     // initialize cuv library
     cuv::initCUDA(device);
     cuv::initialize_mersenne_twister_seeds();

@@ -23,6 +23,7 @@
 #include <tools/visualization.hpp>
 #include <tools/orthonormalization.hpp>
 #include <tools/dumper.hpp>
+#include <tools/logging.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/ops.hpp>
 
@@ -779,6 +780,7 @@ int main(int argc, char **argv)
 {
     cuv::initCUDA(0);
     cuv::initialize_mersenne_twister_seeds();
+    cuvnet::Logger log;
 
     //------- dataset selection ---------
     natural_dataset ds_all("/home/local/datasets/natural_images");

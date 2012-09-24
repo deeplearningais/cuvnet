@@ -15,6 +15,7 @@
 #include <cuvnet/models/logistic_regression.hpp>
 #include <cuvnet/models/linear_regression.hpp>
 #include <tools/monitor.hpp>
+#include <tools/logging.hpp>
 
 #include <mdbq/client.hpp>
 
@@ -106,7 +107,6 @@ struct hyperopt_client
 
         gradient_descent gd(lr.get_loss(),0,params, learnrate, -wd);
         m_mon = &mon; m_gd = &gd; m_loss = lr.get_loss();
-        mon.register_gd(gd);
 
         gd.before_batch.connect(boost::bind(load_batch,input, target,&m_data, &m_labels, bs,_2));
         gd.current_batch_num = boost::bind(&hyperopt_client::n_batches, this, bs);
@@ -115,11 +115,13 @@ struct hyperopt_client
         es.before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, 0));
         es.after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, CM_TRAIN, 0));
 
+        mon.register_gd(gd, es);
+
         gd.minibatch_learning(2, 60*60); // 10 minutes maximum
         
         m_n_epochs = gd.epoch_of_saved_params();
         std::cout << "gd.best_perf():" << es.best_perf() << std::endl;
-        return gd.best_perf();
+        return es.best_perf();
     }
 
     /**
@@ -149,6 +151,7 @@ struct hyperopt_client
 int
 main(int argc, char **argv)
 {
+    cuvnet::Logger log;
     // start n_clt worker threads
     static const int n_clt = 4;
     hyperopt_client* clients[n_clt];

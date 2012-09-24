@@ -20,6 +20,7 @@
 
 #include <tools/crossvalid.hpp>
 #include <tools/learner.hpp>
+#include <tools/logging.hpp>
 
 #include "stacked_auto_enc2.hpp"
 #include "pretrained_mlp.hpp"
@@ -516,6 +517,7 @@ void generate_and_test_models_test(boost::asio::deadline_timer* dt, boost::asio:
 
 int main(int argc, char **argv)
 {
+    cuvnet::Logger log;
 
     srand48(time(NULL));
     if(argc<=1){

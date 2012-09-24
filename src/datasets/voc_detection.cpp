@@ -137,20 +137,23 @@ namespace cuvnet
             std::list<voc_detection_dataset::pattern> storage;
 
             // size of resulting (square) patches
-            int min_crop_square_overlap = crop_square_size / 3;
+            int min_crop_square_overlap = crop_square_size / 4;
             int max_crop_square_overlap = crop_square_size / 2;
             
-            // split longest edge in N-1 subimages at highest resolution
-            int N = 3;
-            int pyr0_size = crop_square_size*N - (N-1)*min_crop_square_overlap;
+            // highest level in pyramid should have longest edge at crop_square_size
+            // lower layers are half the size... 
+            int pyr0_size = std::ceil(crop_square_size * pow(2.f, (float) n_scales-1));
             float orig_to_pyr0 = pyr0_size / (float) std::max(img.width(), img.height());
 
             // create a Gaussian pyramid
             pyramid[0] = img.get_blur(0.5f * orig_to_pyr0, 0.5f * orig_to_pyr0, 0, 1);
             pyramid[0].resize(orig_to_pyr0*img.width(), orig_to_pyr0*img.height(), -100, -100, 3);
+            std::cout << "crop_square_size:" << crop_square_size << std::endl;
+            std::cout << "pyramid[0].width():" << pyramid[0].width() << " pyramid[0].height():" << pyramid[0].height() << std::endl;
             for(unsigned int scale=1; scale < n_scales; scale++){
                 pyramid[scale] = pyramid[scale-1].get_blur(1.f, 1.f, 0, 1);
                 pyramid[scale].resize(pyramid[scale].width()/2, pyramid[scale].height()/2, -100, -100, 3);
+                std::cout << "pyramid[scale].width():" << pyramid[scale].width() << " pyramid[scale].height():" << pyramid[scale].height() << std::endl;
             }
 
             // take apart images from each scale of the pyramid
@@ -158,32 +161,45 @@ namespace cuvnet
                 cimg_library::CImg<unsigned char>& pimg = pyramid[scale];
                 int scaled_height = pimg.height();
                 int scaled_width  = pimg.width();
+
+                // determine number of subimages in each direction assuming minimum overlap
+                // this will yield a large number of subimages, which we can then relax.
                 int n_subimages_y = ceil((scaled_height-min_crop_square_overlap) / (float)(crop_square_size-min_crop_square_overlap));
                 int n_subimages_x = ceil((scaled_width -min_crop_square_overlap) / (float)(crop_square_size-min_crop_square_overlap));
 
-                // determine the /actual/ overlap we get
-                int overlap_y = -(scaled_height - n_subimages_y*crop_square_size) / std::max(1,n_subimages_y-1);
-                int overlap_x = -(scaled_width  - n_subimages_x*crop_square_size) / std::max(1,n_subimages_x-1);
+                // determine the /actual/ overlap we get, when images are evenly distributed
+                int overlap_y=0, overlap_x=0;
+                if(n_subimages_y > 1)
+                    overlap_y = (n_subimages_y*crop_square_size - scaled_height) / (n_subimages_y-1);
+                if(n_subimages_x > 1)
+                    overlap_x = (n_subimages_x*crop_square_size - scaled_width) / (n_subimages_x-1);
+                std::cout << "overlap_y:" << overlap_y << " overlap_x:" << overlap_x << std::endl;
+                std::cout << "max_crop_square_overlap:" << max_crop_square_overlap << std::endl;
 
                 // adjust number of images if overlap not good
-                if(n_subimages_y > 1  &&  overlap_y > max_crop_square_overlap)
+                while(n_subimages_y > 1  &&  overlap_y > max_crop_square_overlap){
                     n_subimages_y --;
-                if(n_subimages_x > 1  &&  overlap_x > max_crop_square_overlap)
+                    if(n_subimages_y == 1)
+                        overlap_y = 0;
+                    else
+                        overlap_y = (n_subimages_y*crop_square_size - scaled_height) / (n_subimages_y-1);
+                }
+                while(n_subimages_x > 1  &&  overlap_x > max_crop_square_overlap){
                     n_subimages_x --;
-
-                // re-determine the /actual/ overlap we get
-                overlap_y = -(scaled_height - n_subimages_y*crop_square_size) / std::max(1,n_subimages_y-1);
-                overlap_x = -(scaled_width  - n_subimages_x*crop_square_size) / std::max(1,n_subimages_x-1);
+                    if(n_subimages_x == 1)
+                        overlap_x = 0;
+                    else
+                        overlap_x = (n_subimages_x*crop_square_size - scaled_width) / (n_subimages_x-1);
+                }
+                std::cout << "n_subimages_y:" << n_subimages_y << std::endl;
+                std::cout << "n_subimages_x:" << n_subimages_x << std::endl;
+                std::cout << "scaled_height:" << scaled_height << " scaled_width:" << scaled_width << std::endl;
 
                 // determine the /actual/ stride we need to move at
-                int stride_y = scaled_height / ((float)n_subimages_y);
-                int stride_x = scaled_width  / ((float)n_subimages_x);
-
-                n_subimages_y = std::max(1, n_subimages_y);
-                n_subimages_x = std::max(1, n_subimages_x);
-
-                assert(n_subimages_y == 1 || overlap_y > 0);
-                assert(n_subimages_x == 1 || overlap_x > 0);
+                //int stride_y = scaled_height / ((float)n_subimages_y);
+                //int stride_x = scaled_width  / ((float)n_subimages_x);
+                int stride_y = crop_square_size;
+                int stride_x = crop_square_size;
 
                 for (int sy = 0; sy < n_subimages_y; ++sy)
                 {
@@ -243,7 +259,7 @@ namespace cuvnet
                             o.ymax = o.ymax/scale_y - ymin;
                         }
 
-#define STORE_IMAGES_SEQUENTIALLY 0
+#define STORE_IMAGES_SEQUENTIALLY 1
 #if STORE_IMAGES_SEQUENTIALLY
                         // store images into a local storage and put them in
                         // the queue as one block after the loops
@@ -253,7 +269,7 @@ namespace cuvnet
                                 boost::bind(static_cast<void (list_type::*)(const arg_type&)>(&list_type::push_back), &storage, _1), 
                                 simg, crop_square_size, pat, false /* no locking */);
 
-                        if(0){
+                        if(1){
                             voc_detection_dataset::pattern pat = storage.back();
                             cuv::tensor<float, cuv::host_memory_space> tmp = pat.img.copy();
                             tmp -= cuv::minimum(tmp);
@@ -280,7 +296,7 @@ namespace cuvnet
                 loaded_data->push(pat);
             }
 #endif
-            //exit(0);
+            exit(1);
 
         }
         template<class T>
@@ -396,8 +412,9 @@ namespace cuvnet
                 , m_request_stop(false)
                 , m_running(false)
             {
-                if(m_n_threads == 0)
-                    m_n_threads = boost::thread::hardware_concurrency();
+                //if(m_n_threads == 0)
+                //    m_n_threads = boost::thread::hardware_concurrency();
+                m_n_threads = 1;
             }
 
             /**

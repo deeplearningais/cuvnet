@@ -15,6 +15,7 @@
 #include <tools/learner.hpp>
 #include <tools/monitor.hpp>
 #include <tools/network_communication.hpp>
+#include <tools/logging.hpp>
 
 
 namespace cuvnet{
@@ -162,12 +163,12 @@ namespace cuvnet{
     
     unsigned int idx_to_bs(unsigned int idx){
         switch(idx){
-            case 0: return 1;
-            case 1: return 2;
-            case 2: return 4;
-            case 3: return 16;
-            case 4: return 64;
-            case 128: return 128;
+            case 0: return 16;
+            case 1: return 32;
+            case 2: return 64;
+            case 3: return 128;
+            case 4: return 256;
+            default: return idx;
         }
         throw std::runtime_error("Unknown batchsize index!");
     }
@@ -235,7 +236,7 @@ namespace cuvnet{
         // abuse gradient descent for looping over the dataset in batches.
         gradient_descent gd(m_regression->classification_error_direct(), 0, params, 0.0f); // learning rate 0
         gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_supervised,this,_2));
-        gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches, &m_sdl));
+        gd.current_batch_num = boost::bind(&sdl_t::n_batches, &m_sdl);
         if(mon) {
             mon->register_gd(gd);
             gd.minibatch_learning(1, INT_MAX);
@@ -258,11 +259,13 @@ namespace cuvnet{
         using namespace boost::assign;
         unsigned int n_ae = m_aes.size();
         bool in_trainall = m_sdl.get_current_cv_mode() == CM_TRAINALL;
-        std::cout << m_sdl.describe_current_mode_split(true) << std::endl;
+        log4cxx::LoggerPtr log = log4cxx::Logger::getLogger("learner");
+        LOG4CXX_INFO( log, m_sdl.describe_current_mode_split(true) );
 
         set_batchsize(m_aes_bs);
         for (unsigned int ae_id = 0; ae_id < n_ae; ++ae_id)
         {
+            TRACE1(log, "pretrain" , "layer", ae_id );
     
             // set the initial number of epochs to zero
             generic_auto_encoder& ae = m_aes.get_ae(ae_id);
@@ -272,7 +275,7 @@ namespace cuvnet{
             set_up_sync("pretrain-"+boost::lexical_cast<std::string>(ae_id),
                     gd, ae.unsupervised_params());
             gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_unsupervised,this,_2));
-            gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
+            gd.current_batch_num = boost::bind(&sdl_t::n_batches,&m_sdl);
     
             // set up monitor
             monitor mon(false);
@@ -288,15 +291,18 @@ namespace cuvnet{
             }
             else {
                 if(m_checker)
-                    gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.99f, 6, 2.0);
-                gd.minibatch_learning(100, INT_MAX);
+                {
+                    convergence_checker es(gd, boost::bind(&monitor::mean, &mon, "total loss"), 0.95f, 6, 2.0);
+                    gd.minibatch_learning(1000, INT_MAX);
+                }else
+                    gd.minibatch_learning(1000, INT_MAX);
                 m_epochs[ae_id] += gd.iters();
             }
         }
     
         
         {
-            // Supervised finetuning
+            TRACE(log, "finetune");
             m_aes.deinit();
             set_batchsize(m_mlp_bs);
             std::vector<Op*> aes_params = m_aes.supervised_params();
@@ -314,7 +320,7 @@ namespace cuvnet{
             G gd(loss,0,params,m_mlp_lr, -0);
             set_up_sync("sfinetune", gd, params);
             gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_supervised,this,_2));
-            gd.current_batch_num.connect(boost::bind(&sdl_t::n_batches,&m_sdl));
+            gd.current_batch_num = boost::bind(&sdl_t::n_batches,&m_sdl);
     
             // set up monitor
             monitor mon(false);
@@ -322,18 +328,21 @@ namespace cuvnet{
             mon.set_training_phase(m_sdl.get_current_cv_mode(), m_sdl.get_current_split());
             mon.add(monitor::WP_SCALAR_EPOCH_STATS, loss, "total loss");
             mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, m_regression->classification_error(), "classification error");
-            mon.register_gd(gd);
             //gd.after_epoch.connect(boost::bind(&ProfilerFlush));
     
+            boost::shared_ptr<early_stopper> es;
             if(m_checker && m_sdl.can_earlystop()){
-                gd.setup_early_stopping(boost::bind(&monitor::mean, &mon, "classification error"), 10, 0.995f, 2.f);
+                es.reset(new early_stopper(gd, boost::bind(&monitor::mean, &mon, "classification error"), 0.995f, 5, 2.f));
     
-                gd.before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
-                gd.before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, m_sdl.get_current_split()));
+                es->before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
+                es->before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, m_sdl.get_current_split()));
     
-                gd.after_early_stopping_epoch.connect(0,boost::bind(&sdl_t::after_early_stopping_epoch,&m_sdl));
-                gd.after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, CM_TRAIN, m_sdl.get_current_split()));
-            }
+                es->after_early_stopping_epoch.connect(0,boost::bind(&sdl_t::after_early_stopping_epoch,&m_sdl));
+                es->after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, CM_TRAIN, m_sdl.get_current_split()));
+                mon.register_gd(gd, *es);
+            }else
+                mon.register_gd(gd);
+
             // do the actual learning
             if(in_trainall)
             {
@@ -440,6 +449,7 @@ struct async_client
 int
 main(int argc, char **argv)
 {
+    cuvnet::Logger logger;
     if(std::string("worker") == argv[1]){
         cuvAssert(argc==3);
 
@@ -447,11 +457,12 @@ main(int argc, char **argv)
         mongo::BSONObj task;
         hc.get_next_task(task);
         hc.handle_task(task);
+        return 0;
     }
 
     mongo::BSONObjBuilder bob;
     bob<<"aes_bs" <<BSON_ARRAY(4);
-    bob<<"mlp_bs" <<BSON_ARRAY(4);
+    bob<<"mlp_bs" <<BSON_ARRAY(2);
     bob<<"mlp_lr" <<BSON_ARRAY(0.2839f);
     bob<<"mlp_wd" <<BSON_ARRAY(0.0001f);
 
@@ -459,13 +470,11 @@ main(int argc, char **argv)
     bob<<"aes_ls1_0" <<BSON_ARRAY( 940.f);
     //bob<<"aes_ls0_0" <<BSON_ARRAY( 64.f);
     //bob<<"aes_ls1_0" <<BSON_ARRAY( 64.f);
-    bob<<"aes_lr_0" <<BSON_ARRAY(0.0714f);
-    //bob<<"aes_lr_0" <<BSON_ARRAY(0.0100f);
-    bob<<"aes_wd_0" <<BSON_ARRAY(0.012f);
+    //bob<<"aes_lr_0" <<BSON_ARRAY(0.0714f);
+    bob<<"aes_lr_0" <<BSON_ARRAY(0.00001f);
 
-    //bob<<"aes_lr_1" <<BSON_ARRAY(0.01f);
-    //bob<<"aes_wd_1" <<BSON_ARRAY(0.01f);
-    //bob<<"aes_ls_1" <<BSON_ARRAY( 92.f);
+    //bob<<"aes_wd_0" <<BSON_ARRAY(0.012f);
+    bob<<"aes_wd_0" <<BSON_ARRAY(0.0000f);
 
     if(std::string("test") == argv[1]){
         cuvAssert(argc==3);
@@ -482,6 +491,7 @@ main(int argc, char **argv)
         //ProfilerStart("client-0");
         ase();
         //ProfilerStop();
+        return 0;
     }
 
     if(std::string("async") == argv[1]){
@@ -515,7 +525,7 @@ main(int argc, char **argv)
 
         cuvnet::network_communication::server s("131.220.7.92", db, key);
         s.cleanup();
-        boost::thread server_thread(boost::bind(&cuvnet::network_communication::server::run, &s, 40, -1));
+        boost::thread server_thread(boost::bind(&cuvnet::network_communication::server::run, &s, 1, -1));
 
         mongo::BSONObj task = BSON("vals"<<bob.obj());
         for (unsigned int i = 0; i < devs.size(); ++i)

@@ -12,6 +12,7 @@
 #include <datasets/natural.hpp>
 #include <datasets/splitter.hpp>
 #include <tools/monitor.hpp>
+#include <tools/logging.hpp>
 
 #include "cuvnet/models/simple_auto_encoder.hpp"
 
@@ -102,6 +103,7 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(2);
     cuv::initialize_mersenne_twister_seeds();
+    cuvnet::Logger log;
 
     // load the dataset
     natural_dataset ds_all("/home/local/datasets/natural_images");

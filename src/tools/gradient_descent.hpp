@@ -32,7 +32,7 @@ namespace cuvnet
             unsigned int     m_result;   ///< the number of the result of the loss op we want to minimize
             paramvec_t       m_params;   ///< all parameters wrt which we optimize
             float            m_learnrate; ///< learnrate for weight updates
-            float            m_learnrate_decay; ///< factor by which lr is multiplied after each epoch
+            //float            m_learnrate_decay; ///< factor by which lr is multiplied after each epoch
             float            m_weightdecay; ///< weight decay for weight updates
             unsigned long int  m_epoch;    ///< number of rounds until optimum on early-stopping set was attained
             std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >    m_best_perf_params; ///< copies of parameters for current best performance
@@ -40,9 +40,9 @@ namespace cuvnet
             swiper           m_swipe;    ///< does fprop and bprop for us
         public:
             /// triggered before an epoch starts.
-            boost::signal<void(unsigned int)> before_epoch;
+            boost::signal<void(unsigned int, unsigned int)> before_epoch;
             /// triggered after an epoch finished
-            boost::signal<void(unsigned int)> after_epoch;
+            boost::signal<void(unsigned int, unsigned int)> after_epoch;
             /// triggered before executing a batch (you should load batch data here!)
             boost::signal<void(unsigned int,unsigned int)> before_batch;
             /// triggered after executing a batch
@@ -127,7 +127,7 @@ namespace cuvnet
              * decay learnrate by factor
              */
             inline void decay_learnrate(float fact=0.98){
-                m_learnrate_decay = fact;
+                m_learnrate *= fact;
             }
 
 
@@ -178,6 +178,14 @@ namespace cuvnet
             /// how much to prolong stopping
             float m_patience_inc_fact;
 
+            /// when failed this many steps, throw convergence_stop
+            unsigned int m_max_steps;
+
+            /// counts the number of convergences (up to m_max_steps)
+            unsigned int m_steps;
+
+            /// decrease learnrate by this much if convergence reached, but not m_max_steps
+            float m_lr_fact;
 
         public:
 
@@ -193,18 +201,26 @@ namespace cuvnet
              * @param gd gradient_descent object to register with
              * @param performance a function which determines how good we are after an epoch
              * @param thresh stop when new value is more than thresh*best_value and no patience left
-             * @param min_epochs initial value for patience
+             * @param min_wups initial value for patience
              * @param patience_inc_fact patience is multiplied by this when better performance is found
              */
             convergence_checker(
                     gradient_descent& gd,
                     boost::function<float(void)> performance,
-                    float thresh=0.95f, unsigned int min_epochs=5, float patience_inc_fact=2.f);
+                    float thresh=0.95f, unsigned int min_wups=100, float patience_inc_fact=2.f);
+
+            /**
+             * modify learning rate upon convergence.
+             *
+             * @param max_steps converge this many times before stopping training
+             * @param lr_fact multiply learning rate with this factor upon convergence
+             */
+            void decrease_lr(unsigned int max_steps=4, float lr_fact=0.75f);
             
             /**
              * test for convergence. 
              */
-            void operator()(unsigned int current_epoch);
+            void operator()(unsigned int current_epoch, unsigned int wups);
 
     };
 
@@ -271,7 +287,7 @@ namespace cuvnet
             /**
              * test for early stopping. 
              */
-            void operator()(unsigned int current_epoch);
+            void operator()(unsigned int current_epoch, unsigned int wups);
 
             /**
              * return the best value we got during early_stopping

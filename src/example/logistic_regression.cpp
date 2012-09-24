@@ -12,6 +12,7 @@
 #include <cuvnet/models/logistic_regression.hpp>
 #include <cuvnet/models/linear_regression.hpp>
 #include <tools/monitor.hpp>
+#include <tools/logging.hpp>
 
 using namespace cuvnet;
 namespace ll = boost::lambda;
@@ -72,6 +73,7 @@ int main(int argc, char **argv)
 {
     // initialize cuv library   cuv::initCUDA(0);
     cuv::initialize_mersenne_twister_seeds();
+    cuvnet::Logger log;
 
     // load the dataset
     mnist_dataset ds("/home/local/datasets/MNIST");
