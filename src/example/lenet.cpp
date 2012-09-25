@@ -36,8 +36,8 @@ void load_batch(
 
 int main(int argc, char **argv)
 {
-    // initialize cuv library   
-    cuv::initCUDA(2);
+    // initialize cuv library  
+    cuv::initCUDA(0);
     cuv::initialize_mersenne_twister_seeds();
     cuvnet::Logger log;
 
