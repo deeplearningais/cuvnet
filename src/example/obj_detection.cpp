@@ -32,10 +32,10 @@ struct voc_loader{
     void done( boost::shared_ptr<Sink> output, voc_detection_dataset* ds){
         unsigned int cnt=0;
         BOOST_FOREACH(voc_detection_dataset::pattern& pat, L) {
-            pat.result = output->cdata()[cuv::indices[cnt][cuv::index_range()][cuv::index_range()][cuv::index_range()]];
+            //pat.result = output->cdata()[cuv::indices[cnt][cuv::index_range()][cuv::index_range()][cuv::index_range()]];
             cnt ++;
         }
-        ds->save_results(L);
+        //ds->save_results(L);
     }
     void load_batch(
             boost::shared_ptr<ParameterInput> input,
@@ -105,13 +105,13 @@ int main(int argc, char **argv)
     boost::shared_ptr<ParameterInput> target(
             new ParameterInput(cuv::extents[bs][2][30][30],"target"));
 #else
-    voc_detection_dataset ds("/home/local/datasets/VOC2011/voc_detection_train.txt", "/home/local/datasets/VOC2011/voc_detection_val.txt", true);
+    voc_detection_dataset ds("/home/local/datasets/VOC2011/voc_detection_train_small.txt", "/home/local/datasets/VOC2011/voc_detection_val.txt", true);
     boost::shared_ptr<ParameterInput> input(
             new ParameterInput(cuv::extents[bs][3][128][128],"input"));
     boost::shared_ptr<ParameterInput> ignore(
-            new ParameterInput(cuv::extents[bs][20][128][128],"ignore"));
+            new ParameterInput(cuv::extents[bs][1][128][128],"ignore"));
     boost::shared_ptr<ParameterInput> target(
-            new ParameterInput(cuv::extents[bs][20][128][128],"target"));
+            new ParameterInput(cuv::extents[bs][1][128][128],"target"));
 #endif
 
     boost::shared_ptr<obj_detector> od;
@@ -119,7 +119,7 @@ int main(int argc, char **argv)
     bool load_old_model_and_drop_to_python = argc > 1;
     if(! load_old_model_and_drop_to_python){
         // create new network
-        od.reset( new obj_detector(7,32,7,64) );
+        od.reset( new obj_detector(7,32,7,32) );
         od->init(input,ignore,target);
     }else{
         //bs = 1;
@@ -158,7 +158,7 @@ int main(int argc, char **argv)
     // create a verbose monitor, so we can see progress 
     monitor mon(true); // verbose
     mon.add(monitor::WP_SCALAR_EPOCH_STATS, od->get_loss(),      "total loss");
-    mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, od->get_f2(),   "F2");
+    mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, od->get_f2(),   "F2", 0);
     mon.add(monitor::WP_SCALAR_EPOCH_STATS, od->get_f2(),        "tp", 1);
     mon.add(monitor::WP_SCALAR_EPOCH_STATS, od->get_f2(),        "tn", 2);
     mon.add(monitor::WP_SCALAR_EPOCH_STATS, od->get_f2(),        "fp", 3);
@@ -168,8 +168,9 @@ int main(int argc, char **argv)
     {
         // create a \c gradient_descent object 
         rprop_gradient_descent gd(od->get_loss(),0,params);
-        //momentum_gradient_descent gd(od->get_loss(),0,params, 0.1f);
-        gd.decay_learnrate(.9999f);
+        //momentum_gradient_descent gd(od->get_loss(),0,params, 0.001f);
+        convergence_checker cs(gd, boost::bind(&monitor::mean, &mon, "total loss"));
+        cs.decrease_lr(10000, .95f);
         
         // register the monitor so that it receives learning events
         mon.register_gd(gd);
@@ -188,9 +189,10 @@ int main(int argc, char **argv)
         gd.after_epoch.connect(std::cout << ll::constant("\n"));
 
 #if !USE_BIOID
-        gd.before_batch.connect(boost::bind(serialize_to_file<obj_detector>, serialization_file, od, _2, 100));
+        gd.before_epoch.connect(boost::bind(serialize_to_file<obj_detector>, serialization_file, od, _2, 100));
+#else
+        gd.after_epoch.connect(boost::bind(serialize_to_file<obj_detector>, serialization_file, od, _2, 100));
 #endif
-        gd.after_epoch.connect(boost::bind(serialize_to_file<obj_detector>, serialization_file, od, _1, 100));
         //gd.before_batch.connect(boost::bind(save_weights, od.get(), _2));
         
         // the number of batches 
@@ -201,14 +203,11 @@ int main(int argc, char **argv)
 #endif
         //gd.current_batch_num.connect(ll::constant(128));
         
-        // do mini-batch learning for at most 10 epochs, or until timeout
-        // (whatever comes first)
-        //gd.minibatch_learning(1000, 10000*60,1,false);
-        gd.minibatch_learning(1, 10000*60,100,false);
-        gd.minibatch_learning(1, 10000*60,200,false);
-        gd.minibatch_learning(2, 10000*60,400,false);
-        gd.minibatch_learning(3, 10000*60,800,false);
-        gd.minibatch_learning(1000, 10000*60,0,false);
+        //gd.minibatch_learning(1E6, 10000*60,1,false);
+        gd.minibatch_learning(1, 10000*60,8,false);
+        gd.minibatch_learning(2, 10000*60,16,false);
+        gd.minibatch_learning(4, 10000*60,32,false);
+        gd.minibatch_learning(1E6, 10000*60,64,false);
         //load_batch(input,ignore,target,&ds, bs);
         //gd.batch_learning(1000, 10000*60);
     }

@@ -61,16 +61,15 @@ namespace cuvnet
         }
     }
 
-    void bb_teacher(
+    bool bb_teacher(
             cimg_library::CImg<unsigned char>& dst,
             int sq_size,
             voc_detection_dataset::image_meta_info& meta,
             unsigned int n_classes, float bbsize, int ttype /* 1: teacher, 0: ignore*/)
     {
         dst.resize(sq_size, sq_size, n_classes, 1, -1 /* -1: no interpolation, raw memory resize!*/);
-        dst = (unsigned char) 0; // initialize w/ 0
-        unsigned char color = 255;
-        bbsize /= 2.f;
+        dst = (unsigned char) 0; // initialize w/ "ignore everywhere" resp. "no object"
+        bool found_obj = false;
         BOOST_FOREACH(voc_detection_dataset::object& o, meta.objects){
             unsigned int cx = 0.5 * (o.xmax + o.xmin) + 0.5;
             unsigned int cy = 0.5 * (o.ymax + o.ymin) + 0.5;
@@ -78,29 +77,38 @@ namespace cuvnet
             unsigned int w = o.xmax - o.xmin;
             unsigned int h = o.ymax - o.ymin;
             float ignore_amount = 1.f - std::max(0.f, std::min(1.f, 4.f*std::pow(std::max(h,w)/(float)sq_size - 0.5f, 2.f)));
+            //float ignore_amount = 1.f;
 
-            /*
-             *unsigned int w  = o.xmax - o.x@;
-             *unsigned int h  = o.ymax - o.ymin;
-             *unsigned int xmin = cx - bbsize * w;
-             *unsigned int xmax = cx + bbsize * w;
-             *unsigned int ymin = cy - bbsize * h;
-             *unsigned int ymax = cy + bbsize * h;
-             *if(ttype == 0)
-             *    dst.get_shared_plane(o.klass).draw_rectangle(
-             *            xmin, ymin, 0, 0, 
-             *            xmax, ymax, 0, 0, 
-             *            color);
-             *else if(ttype == 1)
-             *    dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, bbsize * w, bbsize * h, 0.f, &color);
-             */
+            if(        cx-w/2 < 0 || cx+w/2 >= sq_size
+                    || cy-h/2 < 0 || cy+h/2 >= sq_size)
+                continue;
+
+            found_obj = true;
+
             if(ttype == 0) {
-                unsigned char strength = ignore_amount * 255;
-                dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, 20, 20, 0.f, &strength);
+                // set ignore amount (should be larger than
+                // teacher)
+                unsigned char strength = 255u * ignore_amount;
+                //dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, 20, 20, 0.f, &strength);
+                //dst.get_shared_plane(0).draw_ellipse(cx, cy, 20, 20, 0.f, &strength);
+
+                dst.get_shared_plane(0).draw_rectangle(
+                        cx-w/2, cy-h/2,0,0,
+                        cx+w/2, cy+h/2,0,0,
+                        strength);
+
             }
-            else if(ttype == 1)
-                dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, 10, 10, 0.f, &color);
+            else if(ttype == 1) {
+                // set teacher region (smaller than `ignore')
+                //dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, 10, 10, 0.f, &color);
+                //dst.get_shared_plane(0).draw_ellipse(cx, cy, 10, 10, 0.f, &color);
+                dst.get_shared_plane(0).draw_rectangle(
+                        cx-w*M_SQRT1_2/2, cy-h*M_SQRT1_2/2,0,0,
+                        cx+w*M_SQRT1_2/2, cy+h*M_SQRT1_2/2,0,0,
+                        255);
+            }
         }
+        return found_obj;
     }
 
     void ignore_margin(
@@ -131,8 +139,8 @@ namespace cuvnet
               , meta(_meta)
         {
         }
-        void split_up_scales2(cimg_library::CImg<unsigned char>& img, unsigned int crop_square_size){
-            static const unsigned int n_scales = 3;
+        void split_up_scales(cimg_library::CImg<unsigned char>& img, unsigned int crop_square_size){
+            static const unsigned int n_scales = 2;
             cimg_library::CImg<unsigned char> pyramid[n_scales];
             std::list<voc_detection_dataset::pattern> storage;
 
@@ -146,14 +154,11 @@ namespace cuvnet
             float orig_to_pyr0 = pyr0_size / (float) std::max(img.width(), img.height());
 
             // create a Gaussian pyramid
-            pyramid[0] = img.get_blur(0.5f * orig_to_pyr0, 0.5f * orig_to_pyr0, 0, 1);
+            pyramid[0] = img.get_blur(1.0f * orig_to_pyr0, 1.0f * orig_to_pyr0, 0, 1);
             pyramid[0].resize(orig_to_pyr0*img.width(), orig_to_pyr0*img.height(), -100, -100, 3);
-            std::cout << "crop_square_size:" << crop_square_size << std::endl;
-            std::cout << "pyramid[0].width():" << pyramid[0].width() << " pyramid[0].height():" << pyramid[0].height() << std::endl;
             for(unsigned int scale=1; scale < n_scales; scale++){
                 pyramid[scale] = pyramid[scale-1].get_blur(1.f, 1.f, 0, 1);
                 pyramid[scale].resize(pyramid[scale].width()/2, pyramid[scale].height()/2, -100, -100, 3);
-                std::cout << "pyramid[scale].width():" << pyramid[scale].width() << " pyramid[scale].height():" << pyramid[scale].height() << std::endl;
             }
 
             // take apart images from each scale of the pyramid
@@ -173,8 +178,6 @@ namespace cuvnet
                     overlap_y = (n_subimages_y*crop_square_size - scaled_height) / (n_subimages_y-1);
                 if(n_subimages_x > 1)
                     overlap_x = (n_subimages_x*crop_square_size - scaled_width) / (n_subimages_x-1);
-                std::cout << "overlap_y:" << overlap_y << " overlap_x:" << overlap_x << std::endl;
-                std::cout << "max_crop_square_overlap:" << max_crop_square_overlap << std::endl;
 
                 // adjust number of images if overlap not good
                 while(n_subimages_y > 1  &&  overlap_y > max_crop_square_overlap){
@@ -191,13 +194,8 @@ namespace cuvnet
                     else
                         overlap_x = (n_subimages_x*crop_square_size - scaled_width) / (n_subimages_x-1);
                 }
-                std::cout << "n_subimages_y:" << n_subimages_y << std::endl;
-                std::cout << "n_subimages_x:" << n_subimages_x << std::endl;
-                std::cout << "scaled_height:" << scaled_height << " scaled_width:" << scaled_width << std::endl;
 
                 // determine the /actual/ stride we need to move at
-                //int stride_y = scaled_height / ((float)n_subimages_y);
-                //int stride_x = scaled_width  / ((float)n_subimages_x);
                 int stride_y = crop_square_size;
                 int stride_x = crop_square_size;
 
@@ -259,7 +257,7 @@ namespace cuvnet
                             o.ymax = o.ymax/scale_y - ymin;
                         }
 
-#define STORE_IMAGES_SEQUENTIALLY 1
+#define STORE_IMAGES_SEQUENTIALLY 0
 #if STORE_IMAGES_SEQUENTIALLY
                         // store images into a local storage and put them in
                         // the queue as one block after the loops
@@ -269,7 +267,7 @@ namespace cuvnet
                                 boost::bind(static_cast<void (list_type::*)(const arg_type&)>(&list_type::push_back), &storage, _1), 
                                 simg, crop_square_size, pat, false /* no locking */);
 
-                        if(1){
+                        if(0){
                             voc_detection_dataset::pattern pat = storage.back();
                             cuv::tensor<float, cuv::host_memory_space> tmp = pat.img.copy();
                             tmp -= cuv::minimum(tmp);
@@ -296,35 +294,49 @@ namespace cuvnet
                 loaded_data->push(pat);
             }
 #endif
-            exit(1);
+            //exit(1);
 
         }
         template<class T>
         void ensure_square_and_enqueue(T output, cimg_library::CImg<unsigned char>& img, unsigned int sq_size, voc_detection_dataset::pattern& pat, bool lock){
             cimg_library::CImg<unsigned char> tch;
             cimg_library::CImg<unsigned char> ign;
+            unsigned int n_classes = 1;
             square(img, sq_size, pat.meta_info);    // ensure image size is sq_size x sq_size
-            bb_teacher(tch, sq_size, pat.meta_info, 20, .6, 1); // generate teacher for image (ellipse)
-            bb_teacher(ign, sq_size, pat.meta_info, 20, 1., 0); // generate teacher for image (rect)
+            bool found_obj =
+            bb_teacher(tch, sq_size, pat.meta_info, n_classes, .6, 1); // generate teacher for image (ellipse)
+            bb_teacher(ign, sq_size, pat.meta_info, n_classes, 1., 0); // generate teacher for image (rect)
+
+            if(!found_obj)
+                return;
 
             ignore_margin(ign, pat.meta_info);
-            ign = 255 - (ign - tch).cut(0,255);
+            tch = 255 - (ign - tch).cut(0,255);
+            //ign = (ign - tch).cut(0,255);
 
-            ign.blur(5.f,5.f,0.f);
+            //ign.blur(5.f,5.f,0.f);
             //tch.blur(5.f);
+
 
             // convert to cuv
             pat.img.resize(cuv::extents[3][sq_size][sq_size]);
             //img.RGBtoYCbCr();
             cuv::convert(pat.img, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[3][sq_size][sq_size] , img.data()));
-            pat.tch.resize(cuv::extents[20][sq_size][sq_size]);
-            cuv::convert(pat.tch, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[20][sq_size][sq_size], tch.data()));
-            pat.ign.resize(cuv::extents[20][sq_size][sq_size]);
-            cuv::convert(pat.ign, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[20][sq_size][sq_size], ign.data()));
+            pat.tch.resize(cuv::extents[n_classes][sq_size][sq_size]);
+            cuv::convert(pat.tch, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[n_classes][sq_size][sq_size], tch.data()));
+            pat.ign.resize(cuv::extents[n_classes][sq_size][sq_size]);
+            cuv::convert(pat.ign, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[n_classes][sq_size][sq_size], ign.data()));
+
             pat.img /= 255.f;
             pat.img -= 0.5f;
             pat.ign /= 255.f;
 
+            // set ignore to a non-zero value where teacher is "no object".
+            // this reweights errors, so that it is easier to produce a
+            // "positive" output.
+            //cuv::tensor<unsigned char, cuv::host_memory_space> idx(pat.tch.shape());
+            //cuv::apply_scalar_functor(idx, pat.tch, cuv::SF_LT, 128);
+            //cuv::apply_scalar_functor(pat.ign, cuv::SF_MIN, 0.001f, &idx);
 #if 1
             pat.tch /= 127.f;
             pat.tch -=   1.f;
@@ -347,6 +359,8 @@ namespace cuvnet
             img.load_jpeg(meta->filename.c_str()); // load image from file
 
             if(0){
+                // we do not want to use sliding window, and only the scale of
+                // the image itself.
                 voc_detection_dataset::pattern pat;
                 pat.meta_info = *meta;
 
@@ -368,7 +382,9 @@ namespace cuvnet
                             , loaded_data, _1),
                         img, 128, pat, true);
             }else{
-                split_up_scales2(img, 128);
+                // split up the image into multiple scales, extract images with
+                // size 128x128 on all scales, and enqueue them.
+                split_up_scales(img, 128);
             }
         }
     };
@@ -412,9 +428,9 @@ namespace cuvnet
                 , m_request_stop(false)
                 , m_running(false)
             {
-                //if(m_n_threads == 0)
-                //    m_n_threads = boost::thread::hardware_concurrency();
-                m_n_threads = 1;
+                if(m_n_threads == 0)
+                   m_n_threads = boost::thread::hardware_concurrency();
+                //m_n_threads = 1;
             }
 
             /**
