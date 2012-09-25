@@ -297,7 +297,7 @@ namespace cuvnet{
                 if(m_checker)
                 {
                     convergence_checker cc(gd, boost::bind(&monitor::mean, &mon, "total loss"), 0.95f, 6, 2.0);
-                    cc.decrease_lr();
+                    cc.decrease_lr(20);
                     gd.minibatch_learning(1000, INT_MAX);
                 }else
                     gd.minibatch_learning(1000, INT_MAX);
