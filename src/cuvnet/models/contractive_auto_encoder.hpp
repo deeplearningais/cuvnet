@@ -100,7 +100,7 @@ class two_layer_contractive_auto_encoder
 
             op_ptr J1 = m_l1.jacobian_x(result(m_rs,1));
             op_ptr J0 = m_l0.jacobian_x(result(m_rs,0));
-            op_ptr tmp = pow(prod(J1,J0), 2.f);
+            op_ptr tmp = mean(pow(prod(J1,J0), 2.f));
             if(i == 0) 
                 contractive_loss = tmp;
             else if(i == 1)
