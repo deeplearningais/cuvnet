@@ -292,7 +292,8 @@ namespace cuvnet{
             else {
                 if(m_checker)
                 {
-                    convergence_checker es(gd, boost::bind(&monitor::mean, &mon, "total loss"), 0.95f, 6, 2.0);
+                    convergence_checker cc(gd, boost::bind(&monitor::mean, &mon, "total loss"), 0.95f, 6, 2.0);
+                    cc.decrease_lr();
                     gd.minibatch_learning(1000, INT_MAX);
                 }else
                     gd.minibatch_learning(1000, INT_MAX);
@@ -339,9 +340,14 @@ namespace cuvnet{
     
                 es->after_early_stopping_epoch.connect(0,boost::bind(&sdl_t::after_early_stopping_epoch,&m_sdl));
                 es->after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, CM_TRAIN, m_sdl.get_current_split()));
+                
                 mon.register_gd(gd, *es);
             }else
                 mon.register_gd(gd);
+
+            // decrease the learning rate everytime we seem to have converged
+            convergence_checker cc(gd, boost::bind(&monitor::mean, &mon, "total loss"), 0.95f, 6, 1.5);
+            cc.decrease_lr(INT_MAX); // don't stop learning, that is the job of early stopper
 
             // do the actual learning
             if(in_trainall)
