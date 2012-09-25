@@ -221,15 +221,16 @@ class obj_detector
                 m_conv2_weights->data() -=   diff;
             } 
             {
-                //float fan_in = m_n_filters2 * m_filter_size3 * m_filter_size3;
+                float fan_in = m_n_filters2 * m_filter_size3 * m_filter_size3;
                 //float fan_out = 1 * 1 * 1;
                 //float diff = std::sqrt(6.f/(fan_in + fan_out));
+                float diff = std::sqrt(3.f/(fan_in));
                 //diff *= .1f;
     
-                //cuv::fill_rnd_uniform(m_conv2_weights->data());
-                //m_conv3_weights->data() *= 2*diff;
-                //m_conv3_weights->data() -=   diff;
-                m_conv3_weights->data() = 0.f;
+                cuv::fill_rnd_uniform(m_conv3_weights->data());
+                m_conv3_weights->data() *= 2*diff;
+                m_conv3_weights->data() -=   diff;
+                //m_conv3_weights->data() = 0.f;
             } 
 
             m_conv1_weights->set_learnrate_factor ( 1.f / 3.f );
@@ -239,7 +240,7 @@ class obj_detector
 
             m_bias1->data() =  0.f;
             m_bias2->data() =  0.f;
-            m_bias3->data() =  -2.f;
+            m_bias3->data() =  0.f;
             //m_bias1->m_learnrate_factor = 1.f / (m_filter_size1 * m_filter_size1);
             //m_bias2->m_learnrate_factor = 1.f / (m_filter_size2 * m_filter_size2);
             //m_bias3->m_learnrate_factor = 1.f / (m_filter_size3 * m_filter_size3);
