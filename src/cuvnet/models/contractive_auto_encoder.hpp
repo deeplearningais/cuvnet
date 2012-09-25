@@ -96,24 +96,11 @@ class two_layer_contractive_auto_encoder
         //unsigned int n_contrib = std::max(1u,bs/16);
         unsigned int n_contrib = 1;
         for(unsigned int i=0;i<n_contrib;i++){
-            m_rs  = row_select(m_hl0,m_hl1); // select same (random) row in m_hl0 and m_hl1
-            op_ptr h0r = result(m_rs,0);
-            op_ptr h1r = result(m_rs,1);
+            m_rs  = row_select(m_l0.m_y,m_l1.m_y); // select same (random) row in m_hl0 and m_hl1
 
-            op_ptr h0_ = (1.5f-pow(h0r,2.f));// tanh(x) + 0.5x 
-            op_ptr h1_ = (1.5f-pow(h1r,2.f));// tanh(x) + 0.5x 
-            //op_ptr h0_ = (1.f-pow(h0r,2.f));// tanh
-            //op_ptr h1_ = (1.f-pow(h1r,2.f));// tanh
-            //op_ptr h0_ = h0r*(1.f-h0r); // logistic
-            //op_ptr h1_ = h1r*(1.f-h1r); // logistic
-
-            op_ptr tmp = sum( sum_to_vec(
-                        pow(
-                            prod(
-                                mat_times_vec(m_weights0,h0_,1),
-                                m_weights1),
-                            2.f), 1)
-                    * pow(h1_, 2.f));
+            op_ptr J1 = m_l1.jacobian_x(result(m_rs,1));
+            op_ptr J0 = m_l0.jacobian_x(result(m_rs,0));
+            op_ptr tmp = pow(prod(J1,J0), 2.f);
             if(i == 0) 
                 contractive_loss = tmp;
             else if(i == 1)
