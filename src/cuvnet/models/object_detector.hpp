@@ -139,6 +139,10 @@ class obj_detector
             //m_loss = mean(subsampled_ignore * epsilon_insensitive_loss(0.05f, subsampled_target, hl3));
             m_loss = mean(subsampled_ignore * squared_hinge_loss(subsampled_target, hl3));
 
+            m_f2.reset(new F2Measure(
+                        sink("sst", subsampled_target)->result(),
+                        sink("hl3", hl3)->result(), 0.f));
+
             reset_weights();
         }
 
@@ -159,6 +163,11 @@ class obj_detector
         };
 
         op_ptr get_loss(){ return m_loss; }
+
+        op_ptr m_f2;
+        op_ptr get_f2(){ 
+            return m_f2; 
+        }
 
         /**
          * constructor
