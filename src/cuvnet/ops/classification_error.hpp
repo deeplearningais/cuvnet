@@ -95,13 +95,14 @@ namespace cuvnet
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
             private:
-                float m_thresh;
+                float m_thresh_tch, m_thresh_res;
 
             public:
                 F2Measure():Op(2,5){} /// for serialization
-                F2Measure(result_t& teacher, result_t& result, float thresh = 0.f)
+                F2Measure(result_t& teacher, result_t& result, float thresh_tch = 0.f, float thresh_res = 0.f)
                     :Op(2,5)
-                    ,m_thresh(thresh)
+                    ,m_thresh_tch(thresh_tch)
+                    ,m_thresh_res(thresh_res)
                 {
                     add_param(0,teacher);
                     add_param(1,result);
@@ -122,8 +123,8 @@ namespace cuvnet
                     cuv::tensor<unsigned char, Op::value_type::memory_space_type> vtch (tch.shape());
                     cuv::tensor<unsigned char, Op::value_type::memory_space_type> vres (tch.shape());
 
-                    vres = res > m_thresh;
-                    vtch = tch > m_thresh;
+                    vres = res > m_thresh_res;
+                    vtch = tch > m_thresh_tch;
                     float tp = cuv::count( vres &&  vtch, (unsigned char)1);
                     float tn = cuv::count( vres ||  vtch, (unsigned char)0);
                     float fp = cuv::count( vres && !vtch, (unsigned char)1);
@@ -174,7 +175,7 @@ namespace cuvnet
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
-                        ar & m_thresh;
+                        ar & m_thresh_tch & m_thresh_res;
                     }
         };
     
