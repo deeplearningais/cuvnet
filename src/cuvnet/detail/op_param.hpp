@@ -75,7 +75,7 @@ namespace cuvnet
                     const op_result<T>& p = **m_single_result;
                     if(!p.delta) return false;
 #ifndef NDEBUG
-                    cuvAssert(p.delta->effective_shape() == p.shape);
+                    //cuvAssert(p.delta->effective_shape() == p.shape);
                     //if(p.delta->shape()!=p.shape) return false; 
 #endif
                     if(p.delta_set) return true;
