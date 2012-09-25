@@ -159,7 +159,7 @@ struct shortcut_layer{
             m_C.reset(new ParameterInput(cuv::extents[input_dim][m_dim],"C"));
             m_beta.reset(new ParameterInput(cuv::extents[m_dim], "beta"));
             m_alpha.reset(new ParameterInput(cuv::extents[m_dim], "alpha"));
-            m_bias.reset(new ParameterInput(cuv::extents[input_dim], "bias_y"));
+            m_bias.reset(new ParameterInput(cuv::extents[input_dim], "inbias"));
         }
 
         m_Bx = prod(inp,   m_B);
@@ -173,7 +173,8 @@ struct shortcut_layer{
         return m_y;
     }
     op_ptr jacobian_x(op_ptr enc){
-        return mat_times_vec(m_B, 1.f-pow(m_tanh_Bx, 2.f) + m_alpha, 1) + m_C;
+        // TODO: m_alpha has wrong shape for "+"!
+        return mat_times_vec(m_B, 1.f-pow(enc, 2.f) + m_alpha, 1) + m_C;
     }
 
     op_ptr decode(op_ptr enc){
