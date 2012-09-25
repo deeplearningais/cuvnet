@@ -32,7 +32,7 @@ if ( PYTHONLIBS_FOUND )
         png npy pthread X11
         )
     target_link_libraries(logistic_regression ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)
-    target_link_libraries(lenet ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)
+    target_link_libraries(lenet ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread cuv_convolution_ops cuv_convert)
     target_link_libraries(conv_auto_enc ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)
     target_link_libraries(auto_enc ${Boost_LIBRARIES}  ${PYTHON_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)
     target_link_libraries(mlp ${Boost_LIBRARIES}  ${PYTHON_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)
