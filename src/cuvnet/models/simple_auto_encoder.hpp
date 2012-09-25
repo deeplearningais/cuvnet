@@ -165,7 +165,7 @@ struct shortcut_layer{
         m_Bx = prod(inp,   m_B);
         m_tanh_Bx = tanh(m_Bx);
         op_ptr alphaBx = mat_times_vec(m_Bx, m_alpha, 1);
-        op_ptr alphaBx_plus_beta = mat_plus_vec(alphaBx_plus_beta, m_beta, 1);
+        op_ptr alphaBx_plus_beta = mat_plus_vec(alphaBx, m_beta, 1);
         op_ptr Cx = prod(inp, m_C);
         m_y = m_tanh_Bx + alphaBx_plus_beta + Cx;
 
