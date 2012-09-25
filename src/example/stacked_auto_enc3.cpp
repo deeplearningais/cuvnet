@@ -177,8 +177,10 @@ namespace cuvnet{
     template<class G>
     void
     pretrained_mlp_learner<G>::constructFromBSON(const mongo::BSONObj& o){
+        std::cout << "o:" << o << std::endl;
         m_aes_bs = idx_to_bs(get<int>(o, "aes_bs"));
         m_mlp_bs = idx_to_bs(get<int>(o, "mlp_bs"));
+
 
         m_sdl.init(m_aes_bs, "mnist_rot", 1);
 
@@ -189,8 +191,10 @@ namespace cuvnet{
             try{
                 m_aes_lr.push_back(get<float>(o,"aes_lr", n_layers));
                 m_aes_wd.push_back(get<float>(o,"aes_wd", n_layers));
-                int layer_size0 = get<float>(o,"aes_ls0", n_layers);
-                int layer_size1 = get<float>(o,"aes_ls1", n_layers);
+                int layer_size0 = 1024;
+                int layer_size1 = 1024;
+                //int layer_size0 = get<float>(o,"aes_ls0", n_layers);
+                //int layer_size1 = get<float>(o,"aes_ls1", n_layers);
                 m_aes.add<two_layer_contractive_auto_encoder>(layer_size0, layer_size1, m_sdl.get_ds().binary, m_aes_wd.back());
             }catch(const detail::value_not_found_exception& e){
                 break;
@@ -469,15 +473,15 @@ main(int argc, char **argv)
     mongo::BSONObjBuilder bob;
     bob<<"aes_bs" <<BSON_ARRAY(4);
     bob<<"mlp_bs" <<BSON_ARRAY(2);
-    bob<<"mlp_lr" <<BSON_ARRAY(0.2839f);
-    bob<<"mlp_wd" <<BSON_ARRAY(0.0001f);
+    bob<<"mlp_lr" <<BSON_ARRAY(0.01f);
+    bob<<"mlp_wd" <<BSON_ARRAY(0.00001f);
 
     bob<<"aes_ls0_0" <<BSON_ARRAY( 1942.f);
     bob<<"aes_ls1_0" <<BSON_ARRAY( 940.f);
     //bob<<"aes_ls0_0" <<BSON_ARRAY( 64.f);
     //bob<<"aes_ls1_0" <<BSON_ARRAY( 64.f);
     //bob<<"aes_lr_0" <<BSON_ARRAY(0.0714f);
-    bob<<"aes_lr_0" <<BSON_ARRAY(0.00001f);
+    bob<<"aes_lr_0" <<BSON_ARRAY(0.005f);
 
     //bob<<"aes_wd_0" <<BSON_ARRAY(0.012f);
     bob<<"aes_wd_0" <<BSON_ARRAY(0.0000f);
