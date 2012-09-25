@@ -43,7 +43,7 @@ class simple_auto_encoder
             cuvAssert(m_weights->data().shape(0)==input_dim);
         }
 
-        return logistic(mat_plus_vec(
+        return tanh(mat_plus_vec(
                     prod( inp, m_weights)
                     ,m_bias_h,1));
     }
@@ -95,7 +95,8 @@ class simple_auto_encoder
     virtual void reset_weights(){
         unsigned int input_dim = m_weights->data().shape(0);
         unsigned int hidden_dim = m_weights->data().shape(1);
-        float diff = 4.f*std::sqrt(6.f/(input_dim+hidden_dim));
+        //float diff = 4.f*std::sqrt(6.f/(input_dim+hidden_dim)); // logistic
+        float diff = 2.f*std::sqrt(6.f/(input_dim+hidden_dim)); // tanh
         cuv::fill_rnd_uniform(m_weights->data());
         m_weights->data() *= 2*diff;
         m_weights->data() -=   diff;
@@ -150,14 +151,20 @@ class two_layer_auto_encoder
                 cuvAssert(m_weights0->data().shape(0)==input_dim);
             }
 
-            m_hl0 = logistic(mat_plus_vec(prod(inp,   m_weights0),m_bias_h0,1));
-            m_hl1 = logistic(mat_plus_vec(prod(m_hl0, m_weights1),m_bias_h1,1));
+            op_ptr hl0_netin = mat_plus_vec(prod(inp,   m_weights0),m_bias_h0,1);
+            m_hl0 = tanh(hl0_netin) + 0.5 * hl0_netin;
+            //m_hl0 = tanh(hl0_netin);
+
+            op_ptr hl1_netin = mat_plus_vec(prod(m_hl0, m_weights1),m_bias_h1,1);
+            m_hl1 = tanh(hl1_netin) + 0.5 * hl1_netin;
+            //m_hl1 = tanh(hl1_netin);
+
             return m_hl1;
         }
         /// decode the encoded value given in `enc`
         virtual op_ptr  decode(op_ptr& enc){ 
-            op_ptr h0_ = logistic(mat_plus_vec(prod(enc, m_weights1, 'n','t'), m_bias_h0_, 1));
-            op_ptr y_  =          mat_plus_vec(prod(h0_, m_weights0, 'n','t'), m_bias_y, 1);
+            op_ptr h0_ = tanh(mat_plus_vec(prod(enc, m_weights1, 'n','t'), m_bias_h0_, 1));
+            op_ptr y_  =      mat_plus_vec(prod(h0_, m_weights0, 'n','t'), m_bias_y, 1);
             return y_;
         }
 
@@ -205,14 +212,16 @@ class two_layer_auto_encoder
         virtual void reset_weights(){
             {
                 unsigned int input_dim = m_weights0->data().shape(0);
-                float diff = 4.f*std::sqrt(6.f/(input_dim+m_hidden_dim0));
+                //float diff = 4.f*std::sqrt(6.f/(input_dim+m_hidden_dim0)); // logistic
+                float diff = 2.f*std::sqrt(6.f/(input_dim+m_hidden_dim0));   // tanh
                 cuv::fill_rnd_uniform(m_weights0->data());
                 m_weights0->data() *= 2*diff;
                 m_weights0->data() -=   diff;
             }
             {
                 unsigned int input_dim = m_weights1->data().shape(0);
-                float diff = 4.f*std::sqrt(6.f/(input_dim+m_hidden_dim1));
+                //float diff = 4.f*std::sqrt(6.f/(input_dim+m_hidden_dim1)); // logistic
+                float diff = 2.f*std::sqrt(6.f/(input_dim+m_hidden_dim1));  // tanh
                 cuv::fill_rnd_uniform(m_weights1->data());
                 m_weights1->data() *= 2*diff;
                 m_weights1->data() -=   diff;

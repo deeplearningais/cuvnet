@@ -38,9 +38,11 @@ class contractive_auto_encoder
      * Returns the L2 regularization loss.
      */
     virtual boost::tuple<float,op_ptr> regularize(){
+        //op_ptr h_ = m_encoded*(1.f-m_encoded);
+        op_ptr h_ = 1.f - pow(m_encoded, 2.f); // tanh
         return boost::make_tuple(
                 m_reg,
-                sum(  sum_to_vec(pow(m_encoded*(1.f-m_encoded),2.f),1)
+                sum(  sum_to_vec(pow(h_,2.f),1)
                     * sum_to_vec(pow(m_weights,2.f),1))
                 );
     }
@@ -98,11 +100,20 @@ class two_layer_contractive_auto_encoder
             op_ptr h0r = result(m_rs,0);
             op_ptr h1r = result(m_rs,1);
 
+            op_ptr h0_ = (1.5f-pow(h0r,2.f));// tanh(x) + 0.5x 
+            op_ptr h1_ = (1.5f-pow(h1r,2.f));// tanh(x) + 0.5x 
+            //op_ptr h0_ = (1.f-pow(h0r,2.f));// tanh
             //op_ptr h1_ = (1.f-pow(h1r,2.f));// tanh
-            op_ptr h0_ = h0r*(1.f-h0r); // logistic
-            op_ptr h1_ = h1r*(1.f-h1r); // logistic
+            //op_ptr h0_ = h0r*(1.f-h0r); // logistic
+            //op_ptr h1_ = h1r*(1.f-h1r); // logistic
 
-            op_ptr tmp = sum( sum_to_vec(pow(prod(mat_times_vec(m_weights0,h0_,1), m_weights1),2.f),1)*pow(h1_,2.f));
+            op_ptr tmp = sum( sum_to_vec(
+                        pow(
+                            prod(
+                                mat_times_vec(m_weights0,h0_,1),
+                                m_weights1),
+                            2.f), 1)
+                    * pow(h1_, 2.f));
             if(i == 0) 
                 contractive_loss = tmp;
             else if(i == 1)
