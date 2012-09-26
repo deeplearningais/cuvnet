@@ -103,6 +103,8 @@ def show_earlystop(doc):
 
     labels = map(event_to_label, results)
     unique_labels = np.unique(labels)
+    if len(unique_labels) == 0:
+        return
 
     import matplotlib.pyplot as plt
     for ul in unique_labels:
