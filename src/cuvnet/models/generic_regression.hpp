@@ -93,7 +93,7 @@ class generic_regression
          */
         op_ptr get_loss(){
             if(!m_loss){
-                m_user_loss = label("reg_loss", loss());
+                m_user_loss = label("regression_loss", loss());
                 float lambda;
                 boost::tie(lambda, m_regularization_loss) = regularize();
                 if(lambda && m_regularization_loss) 
