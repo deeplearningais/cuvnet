@@ -87,6 +87,7 @@ class two_layer_contractive_auto_encoder
     {
     }
 
+    op_ptr m_schraudolph_reg;
     /**
      * Returns the L2 regularization loss.
      */
@@ -100,7 +101,7 @@ class two_layer_contractive_auto_encoder
 
             op_ptr J1 = m_l1.jacobian_x(result(m_rs,1));
             op_ptr J0 = m_l0.jacobian_x(result(m_rs,0));
-            op_ptr tmp = mean(pow(prod(J1,J0), 2.f));
+            op_ptr tmp = mean(pow(prod(J1,J0,'t', 't'), 2.f));
             if(i == 0) 
                 contractive_loss = tmp;
             else if(i == 1)
@@ -109,6 +110,10 @@ class two_layer_contractive_auto_encoder
                 contractive_loss = add_to_param(contractive_loss,tmp);
 
         }
+        m_schraudolph_reg = 
+              m_l0.schraudolph_regularizer()
+            + m_l1.schraudolph_regularizer();
+        contractive_loss = contractive_loss + m_schraudolph_reg;
         //op_ptr J      = mat_times_vec(prod(mat_times_vec(m_weights1,h2_,1), m_weights2),h1_,0);
         //contractive_loss = sum( pow(J, 2.f) );
 

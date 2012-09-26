@@ -285,7 +285,25 @@ namespace cuvnet{
             monitor mon(false);
             mon.set_training_phase(m_sdl.get_current_cv_mode(), m_sdl.get_current_split());
             mon.add("layer", ae_id);
-            mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.loss(), "total loss");
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.loss(), "total_loss");
+
+            if(ae.reg_loss())
+                mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.reg_loss(), "reg_loss");
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.rec_loss(), "rec_loss");
+
+            {   // set up monitoring for contractive auto-encoder
+                two_layer_contractive_auto_encoder* cae = dynamic_cast<two_layer_contractive_auto_encoder*>(&ae);
+                if(cae){
+                    if(cae->m_schraudolph_reg){
+                        mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_schraudolph_reg, "schraudolph");
+                    }
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_alpha, "alpha0");
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_alpha, "alpha1");
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_beta, "beta0");
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_beta, "beta1");
+                }
+            }
+
             mon.register_gd(gd);
 
             // do the actual learning
@@ -296,8 +314,8 @@ namespace cuvnet{
             else {
                 if(m_checker)
                 {
-                    convergence_checker cc(gd, boost::bind(&monitor::mean, &mon, "total loss"), 0.95f, 6, 2.0);
-                    cc.decrease_lr(20);
+                    convergence_checker cc(gd, boost::bind(&monitor::mean, &mon, "total_loss"), 0.95f, 10, 2.0);
+                    cc.decrease_lr(4);
                     gd.minibatch_learning(1000, INT_MAX);
                 }else
                     gd.minibatch_learning(1000, INT_MAX);
@@ -331,7 +349,7 @@ namespace cuvnet{
             monitor mon(false);
             mon.add("layer", n_ae);
             mon.set_training_phase(m_sdl.get_current_cv_mode(), m_sdl.get_current_split());
-            mon.add(monitor::WP_SCALAR_EPOCH_STATS, loss, "total loss");
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS, loss, "total_loss");
             mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, m_regression->classification_error(), "classification error");
             //gd.after_epoch.connect(boost::bind(&ProfilerFlush));
     
@@ -350,7 +368,7 @@ namespace cuvnet{
                 mon.register_gd(gd);
 
             // decrease the learning rate everytime we seem to have converged
-            convergence_checker cc(gd, boost::bind(&monitor::mean, &mon, "total loss"), 0.95f, 6, 1.5);
+            convergence_checker cc(gd, boost::bind(&monitor::mean, &mon, "total_loss"), 0.95f, 6, 1.5);
             cc.decrease_lr(INT_MAX); // don't stop learning, that is the job of early stopper
 
             // do the actual learning

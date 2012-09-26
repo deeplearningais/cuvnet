@@ -101,6 +101,18 @@ class generic_auto_encoder{
         virtual op_ptr& loss(){ return m_loss; };
 
         /**
+         * Regularizer (eg for monitoring)
+         * @return a function that calculates the regularizer of the auto-encoder
+         */
+        virtual op_ptr& reg_loss(){ return m_reg_loss; };
+
+        /**
+         * Reconstruction loss (eg for monitoring)
+         * @return a function that calculates the reconstruction loss of the auto-encoder
+         */
+        virtual op_ptr& rec_loss(){ return m_rec_loss; };
+
+        /**
          * Reset the weights so that the model can be retrained (eg for Crossvalidation).
          */
         virtual void reset_weights(){};
