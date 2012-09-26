@@ -33,25 +33,25 @@ class simple_auto_encoder
         if(!m_weights){
             inp->visit(determine_shapes_visitor()); 
             unsigned int input_dim = inp->result()->shape[1];
-            
+
             m_weights.reset(new ParameterInput(cuv::extents[input_dim][m_hidden_dim],"weights"));
             m_bias_h.reset(new ParameterInput(cuv::extents[m_hidden_dim],            "bias_h"));
             m_bias_y.reset(new ParameterInput(cuv::extents[input_dim],             "bias_y"));
-        }else{
-            inp->visit(determine_shapes_visitor()); 
-            unsigned int input_dim = inp->result()->shape[1];
-            cuvAssert(m_weights->data().shape(0)==input_dim);
         }
 
-        return tanh(mat_plus_vec(
-                    prod( inp, m_weights)
-                    ,m_bias_h,1));
+        if(!m_encoded)
+            m_encoded =tanh(mat_plus_vec(
+                        prod( inp, m_weights)
+                        ,m_bias_h,1));
+        return     m_encoded;
     }
     /// \f$  h W^T + b_y \f$
     virtual op_ptr  decode(op_ptr& enc){ 
-        return mat_plus_vec(
-                prod( enc, m_weights, 'n','t')
-                ,m_bias_y,1);
+        if(!m_decoded)
+            m_decoded = mat_plus_vec(
+                    prod( enc, m_weights, 'n','t')
+                    ,m_bias_y,1);
+        return m_decoded;
     }
 
     /**
@@ -173,7 +173,7 @@ struct shortcut_layer{
         m_y = m_tanh_Bx + alphaBx_plus_beta + Cx;
 
 
-        return m_y;
+        return label("encoder_1l",m_y);
     }
     op_ptr jacobian_x(op_ptr enc){
         return mat_times_vec(m_B, 1.f-pow(enc, 2.f) + m_alpha, 1) + m_C;
@@ -182,7 +182,7 @@ struct shortcut_layer{
         // f(x) and f'(x) should both be zero
         // derive w.r.t. alpha and beta
         op_ptr d_y_d_x = mat_plus_vec(1.f-pow(m_tanh_Bx,2.f), m_alpha, 1);
-        return mean(pow(m_y, 2.f)) + mean(pow(d_y_d_x, 2.f));
+        return label("schraudolph_1l", mean(pow(m_y, 2.f)) + mean(pow(d_y_d_x, 2.f)));
     }
 
     op_ptr decode(op_ptr enc){
@@ -192,15 +192,15 @@ struct shortcut_layer{
         // we therefore approximate 
         //
         //    tanh(Bx) + \alpha Bx    by 
-        //    Bx+\alpha Bx            or shorter
-        //    (1+\alpha) Bx           and get for the full inversion:
+        //    Bx+\alpha^{-1} Bx       or shorter
+        //    (1+\alpha^{-1}) Bx      and get for the full inversion:
         //
-        // \hat x = C'y + bias + B' [1/(1+alpha)] y
+        // \hat x = C'y + bias + B' [1+1/(alpha)] y
         op_ptr beta_and_C  =  mat_plus_vec(prod(enc, m_C, 'n','t'), m_inbias, 1);
         op_ptr alpha_and_B =  prod(
-                mat_times_vec(enc, pow(1.f + m_alpha, -1.f), 1),
+                mat_times_vec(enc, 1 + pow(m_alpha, -1.f), 1),
                 m_B, 'n', 't');
-        return beta_and_C + alpha_and_B;
+        return label("decoder_1l", beta_and_C + alpha_and_B);
     }
 
     /**
@@ -254,7 +254,9 @@ class two_layer_auto_encoder
         }
         /// decode the encoded value given in `enc`
         virtual op_ptr  decode(op_ptr& enc){ 
-            return m_l0.decode(tanh(m_l1.decode(enc)));
+            if(!m_decoded)
+                m_decoded = m_l0.decode(tanh(m_l1.decode(enc)));
+            return m_decoded;
         }
 
         /**

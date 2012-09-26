@@ -21,12 +21,14 @@ class generic_auto_encoder{
          * the autoencoder
          */
         typedef boost::shared_ptr<Op>     op_ptr;
+        enum mode{ AEM_SUPERVISED, AEM_UNSUPERVISED };
     private:
         template<class Archive>
             void serialize(Archive& ar, const unsigned int version) { 
-                ar & m_input & m_encoded & m_decoded & m_reg_loss & m_rec_loss & m_loss & m_binary;
+                ar & m_input & m_encoded & m_decoded & m_reg_loss & m_rec_loss & m_loss & m_binary & m_mode;
             }
     protected:
+        mode m_mode;        ///< whether we are in supervised/unsupervised mode now
         op_ptr m_input;     ///< the input of the auto-encoder (might be different from what is supplied in \c init())
         op_ptr m_encoded;   ///< the encoder function
         op_ptr m_decoded;   ///< the decoder function
@@ -49,9 +51,51 @@ class generic_auto_encoder{
          * but should not touch any parameters.
          */
         virtual void deinit(){
+            //std::cout << typeid(*this).name() << " -- m_loss.use_count():" << m_loss.use_count() << std::endl;
+            if(m_loss){
+                m_loss->detach_from_results();
+                m_loss->detach_from_params();
+            }
             m_loss.reset();
+
+            if(m_reg_loss){
+                m_reg_loss->detach_from_results();
+                m_reg_loss->detach_from_params();
+            }
             m_reg_loss.reset();
+
+            if(m_rec_loss){
+                m_rec_loss->detach_from_results();
+                m_rec_loss->detach_from_params();
+            }
             m_rec_loss.reset();
+        }
+
+        /**
+         * switch to supervised mode.
+         *
+         * This can be used if e.g. different regularizers are
+         * to be used during finetuning.
+         *
+         * loss and regularization loss will be resetted, so
+         * that they have to be created again.
+         *
+         * @param m the new mode
+         */
+        virtual void switch_mode(mode m){
+            if(m!=m_mode){
+                if(m_loss){
+                    m_loss->detach_from_results();
+                    m_loss->detach_from_params();
+                }
+                m_loss.reset();
+
+                if(m_reg_loss){
+                    m_reg_loss->detach_from_results();
+                    m_reg_loss->detach_from_params();
+                }
+                m_reg_loss.reset();
+            }
         }
 
 
@@ -90,7 +134,7 @@ class generic_auto_encoder{
         virtual op_ptr decode(op_ptr& enc)=0;
 
         /**
-         * Loss
+         * the total loss, including regularization.
          *
          * The loss depends on whether this is a binary auto-encoder or not
          * i.e. binary AE will use the log-loss, otherwise mean square loss
@@ -98,7 +142,17 @@ class generic_auto_encoder{
          * 
          * @return a function that calculates the loss of the auto-encoder
          */
-        virtual op_ptr& loss(){ return m_loss; };
+        virtual op_ptr& loss(){
+            if(!m_loss){
+                float lambda;
+                boost::tie(lambda, m_reg_loss)  = regularize();
+                if(!lambda || !m_reg_loss)
+                    m_loss = m_rec_loss;
+                else
+                    m_loss = axpby(m_rec_loss, lambda, label("regularizer", m_reg_loss));
+            }
+            return m_loss;
+        };
 
         /**
          * Regularizer (eg for monitoring)
@@ -124,7 +178,8 @@ class generic_auto_encoder{
          * @param binary if true, assume that input variables are bernoulli-distributed
          */
         generic_auto_encoder(bool binary)
-            :m_binary(binary)
+            :m_mode(AEM_UNSUPERVISED)
+            ,m_binary(binary)
         {
         }
 
@@ -179,12 +234,6 @@ class generic_auto_encoder{
             m_decoded   = label("decoded",decode(m_encoded));
             m_rec_loss  = label("rec_loss",reconstruction_loss(m_input, m_decoded));
 
-            float lambda;
-            boost::tie(lambda, m_reg_loss)  = regularize();
-            if(!lambda || !m_reg_loss)
-                m_loss = m_rec_loss;
-            else
-                m_loss = axpby(m_rec_loss, lambda, label("regularizer", m_reg_loss));
             reset_weights();
         }
 

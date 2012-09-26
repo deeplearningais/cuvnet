@@ -270,10 +270,11 @@ namespace cuvnet{
         for (unsigned int ae_id = 0; ae_id < n_ae; ++ae_id)
         {
             TRACE1(log, "pretrain" , "layer", ae_id );
+            m_aes.switch_mode(generic_auto_encoder::AEM_UNSUPERVISED);
     
             // set the initial number of epochs to zero
             generic_auto_encoder& ae = m_aes.get_ae(ae_id);
-    
+
             // set up gradient descent
             G gd(ae.loss(), 0, ae.unsupervised_params(), m_aes_lr[ae_id], 0.f);
             set_up_sync("pretrain-"+boost::lexical_cast<std::string>(ae_id),
@@ -327,6 +328,7 @@ namespace cuvnet{
         {
             TRACE(log, "finetune");
             m_aes.deinit();
+            m_aes.switch_mode(generic_auto_encoder::AEM_SUPERVISED);
             set_batchsize(m_mlp_bs);
             std::vector<Op*> aes_params = m_aes.supervised_params();
             std::vector<Op*> params     = m_regression->params();
