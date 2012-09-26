@@ -257,7 +257,7 @@ namespace cuvnet
             m_last_perf = perf;
             m_patience = std::max(m_patience, (unsigned int)(m_patience_inc_fact*wups));
 
-            m_gd.save_current_params(); // consider everything that did not go below threshold as "overtraining".
+            //m_gd.save_current_params(); // consider everything that did not go below threshold as "overtraining".
         }
 
         if(wups >= m_patience){
