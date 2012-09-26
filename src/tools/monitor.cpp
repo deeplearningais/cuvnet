@@ -215,8 +215,7 @@ namespace cuvnet
         }
         BOOST_FOREACH(const watchpoint* p, m_impl->m_watchpoints){
             if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
-                // writes to the file the loss
-                m_logfile  << '\t' <<  mean(p->name)  << '\t' << stddev(p->name);
+                m_logfile  << '\t' <<  mean(p->name);
             }
         }
         m_logfile << std::endl;
