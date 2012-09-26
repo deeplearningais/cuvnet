@@ -33,7 +33,7 @@ def show_convergence(doc):
 
     def conv_filter(r):
         m = r.findtext('{%s}message'%LOG4J_NAMESPACE)
-        if re.match(r"converged", m):
+        if re.match(r"(converged|unsteady)", m):
             return True
         return False
 
@@ -60,7 +60,7 @@ def show_convergence(doc):
 
     import matplotlib.pyplot as plt
     for ul in unique_labels:
-        if "finetune" in ul: continue
+        #if "finetune" in ul: continue
         idx = np.where(np.array(labels) == ul)
         plt.plot(epochs[idx], perfs[idx], label=ul)
 
