@@ -39,7 +39,7 @@ int main(int argc, char **argv)
             new ParameterInput(cuv::extents[10][1][200][200],"target"));
 
     // creates the LeNet
-    conv_nopool net(5, 16, 5);
+    conv_nopool net(9, 16, 9, 16);
     net.init(input, target);
 
 
@@ -63,11 +63,12 @@ int main(int argc, char **argv)
         // create a \c gradient_descent object that derives the logistic loss
         // w.r.t. \c params and has learning rate 0.1f
         rprop_gradient_descent gd(net.get_loss(),0,params,0.1f);
+        //gd.after_epoch.connect(boost::bind(&gradient_descent::decay_learnrate, &gd, 0.99));
         
         // register the monitor so that it receives learning events
         mon.register_gd(gd);
 
-        gd.batch_learning(100, 10*60); // 10 minutes maximum
+        gd.batch_learning(1000, 60*60); // 10 minutes maximum
     }
     initialize_python();
     export_ops();
@@ -79,6 +80,8 @@ int main(int argc, char **argv)
     {
         matrix test_data = ds.test_data;
         matrix test_labels(ds.test_labels);
+        input->data() = test_data;
+        target->data() = test_labels;
         gradient_descent gd(net.get_loss(),0,params,0.f);
         mon.register_gd(gd);
 
