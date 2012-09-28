@@ -84,6 +84,7 @@ namespace cuvnet
             ar.template register_type<Abs>();
             ar.template register_type<RowSelector>();
             ar.template register_type<RectifiedLinear>();
+            ar.template register_type<Printer>();
         } 
 }
 

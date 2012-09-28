@@ -27,6 +27,7 @@
 #include <cuvnet/ops/rectified_linear.hpp>
 #include <cuvnet/ops/classification_error.hpp>
 #include <cuvnet/ops/global_max_pool.hpp>
+#include <cuvnet/ops/debug.hpp>
 
 namespace cuvnet
 {
@@ -253,5 +254,8 @@ namespace cuvnet
     /// annotate the given operator with a label
     inline
         Op::op_ptr label(const std::string& l, Op::op_ptr x){ x->set_label(l); return x; }
+    /// write statistics to log whenever fprop/bprop is called
+    inline
+        Op::op_ptr printer(const std::string& l, Op::op_ptr x, bool fprop=true, bool bprop=true){ return boost::make_shared<Printer>(l,x->result(), fprop, bprop); }
 }
 #endif /* __OPS_HPP__ */
