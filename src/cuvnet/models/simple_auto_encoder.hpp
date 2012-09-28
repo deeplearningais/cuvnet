@@ -119,13 +119,16 @@ struct shortcut_layer{
 
     typedef boost::shared_ptr<Op>     op_ptr;
     boost::shared_ptr<ParameterInput>  m_B; 
-    boost::shared_ptr<ParameterInput>  m_C; 
-    boost::shared_ptr<ParameterInput>  m_alpha;
-    boost::shared_ptr<ParameterInput>  m_beta;
-    boost::shared_ptr<ParameterInput>  m_inbias;
-    boost::shared_ptr<ParameterInput>  m_outbias;
+    boost::shared_ptr<ParameterInput>  m_C_enc; 
+    boost::shared_ptr<ParameterInput>  m_C_dec; 
+    boost::shared_ptr<ParameterInput>  m_alpha_enc;
+    boost::shared_ptr<ParameterInput>  m_alpha_dec;
+    boost::shared_ptr<ParameterInput>  m_beta_enc;
+    boost::shared_ptr<ParameterInput>  m_beta_dec;
+    boost::shared_ptr<ParameterInput>  m_bias_enc;
+    boost::shared_ptr<ParameterInput>  m_bias_dec;
 
-    op_ptr m_y;
+    op_ptr m_y, m_f_enc, m_f_dec;
 
     void reset_weights(){
         {
@@ -137,70 +140,83 @@ struct shortcut_layer{
         }
         {
             /*
-             *unsigned int input_dim = m_C->data().shape(0);
+             *unsigned int input_dim = m_C_enc->data().shape(0);
              *float diff = 2.f*std::sqrt(6.f/(input_dim+m_dim));   // tanh
-             *cuv::fill_rnd_uniform(m_C->data());
-             *m_C->data() *= 2*diff;
-             *m_C->data() -=   diff;
+             *cuv::fill_rnd_uniform(m_C_enc->data());
+             *m_C_enc->data() *= 2*diff;
+             *m_C_enc->data() -=   diff;
              */
-             m_C->data() = 0.f;
+             m_C_enc->data() = 0.f;
+             if(m_C_dec)
+                 m_C_dec->data() = 0.f;
         }
-        m_alpha->data()  = -0.5f;
-        m_beta->data()   =  0.f;
-        m_inbias->data() =  0.f;
-        m_outbias->data() =  0.f;
+        m_alpha_enc->data()  = -0.5f;
+        m_beta_enc->data()   =  0.f;
+        if(m_alpha_dec)
+            m_alpha_dec->data()  = -0.5f;
+        if(m_beta_dec)
+            m_beta_dec->data()   =  0.f;
+        m_bias_enc->data() =  0.f;
+        m_bias_dec->data() =  0.f;
     }
     op_ptr m_Bx;
     op_ptr m_tanh_Bx;
+    op_ptr m_tanh_BTx;
     op_ptr  encode(op_ptr inp){
         if(!m_B){
             inp->visit(determine_shapes_visitor()); 
             unsigned int input_dim = inp->result()->shape[1];
 
             m_B.reset(new ParameterInput(cuv::extents[input_dim][m_dim],"B"));
-            m_C.reset(new ParameterInput(cuv::extents[input_dim][m_dim],"C"));
-            m_beta.reset(new ParameterInput(cuv::extents[m_dim], "beta"));
-            m_alpha.reset(new ParameterInput(cuv::extents[m_dim], "alpha"));
-            m_inbias.reset(new ParameterInput(cuv::extents[input_dim], "inbias"));
-            m_outbias.reset(new ParameterInput(cuv::extents[m_dim], "inbias"));
+            m_C_enc.reset(new ParameterInput(cuv::extents[input_dim][m_dim],"C"));
+            m_C_dec.reset(new ParameterInput(cuv::extents[m_dim][input_dim],"C'"));
+            m_beta_enc.reset(new ParameterInput(cuv::extents[m_dim], "beta"));
+            m_beta_dec.reset(new ParameterInput(cuv::extents[input_dim], "beta'"));
+            m_alpha_enc.reset(new ParameterInput(cuv::extents[m_dim], "alpha"));
+            m_alpha_dec.reset(new ParameterInput(cuv::extents[input_dim], "alpha'"));
+            m_bias_enc.reset(new ParameterInput(cuv::extents[m_dim], "bias_enc"));
+            m_bias_dec.reset(new ParameterInput(cuv::extents[input_dim], "bias_dec"));
         }
 
-        m_Bx = mat_plus_vec(prod(inp,   m_B), m_outbias, 1);
+        m_Bx = mat_plus_vec(prod(inp, m_B), m_bias_enc, 1);
         m_tanh_Bx = tanh(m_Bx);
-        op_ptr alphaBx = mat_times_vec(m_Bx, m_alpha, 1);
-        op_ptr alphaBx_plus_beta = mat_plus_vec(alphaBx, m_beta, 1);
-        op_ptr Cx = prod(inp, m_C);
-        m_y = m_tanh_Bx + alphaBx_plus_beta + Cx;
+        op_ptr alphaBx = mat_times_vec(m_Bx, m_alpha_enc, 1);
+        op_ptr alphaBx_plus_beta = mat_plus_vec(alphaBx, m_beta_enc, 1);
+        op_ptr Cx = prod(inp, m_C_enc);
+        m_f_enc = m_tanh_Bx + alphaBx_plus_beta;
+        m_y = m_f_enc + Cx;
 
 
         return label("encoder_1l",m_y);
     }
     op_ptr jacobian_x(op_ptr enc){
-        return mat_times_vec(m_B, 1.f-pow(enc, 2.f) + m_alpha, 1) + m_C;
+        return mat_times_vec(m_B, 1.f-pow(enc, 2.f) + m_alpha_enc, 1) + m_C_enc;
     }
     op_ptr schraudolph_regularizer(){
         // f(x) and f'(x) should both be zero
         // derive w.r.t. alpha and beta
-        op_ptr d_y_d_x = mat_plus_vec(1.f-pow(m_tanh_Bx,2.f), m_alpha, 1);
-        return label("schraudolph_1l", mean(pow(m_y, 2.f)) + mean(pow(d_y_d_x, 2.f)));
+        op_ptr d_fenc_d_x = mat_plus_vec(1.f-pow(m_tanh_Bx,2.f), m_alpha_enc, 1);
+        op_ptr res = label("schraudolph_1l_enc", mean(pow(m_f_enc, 2.f)) + mean(pow(d_fenc_d_x, 2.f)));
+        if(m_tanh_BTx){
+            op_ptr d_fdec_d_x = mat_plus_vec(1.f-pow(m_tanh_BTx,2.f), m_alpha_dec, 1);
+            return res + label("schraudolph_1l_dec", mean(pow(m_f_dec, 2.f)) + mean(pow(d_fdec_d_x, 2.f)));
+        }
+        return res;
     }
 
-    op_ptr decode(op_ptr enc){
-        // we assume that tanh(Bx) is to be reconstructed linearly, as in
-        // normal auto-encoders.
-        //
-        // we therefore approximate 
-        //
-        //    tanh(Bx) + \alpha Bx    by 
-        //    Bx+\alpha^{-1} Bx       or shorter
-        //    (1+\alpha^{-1}) Bx      and get for the full inversion:
-        //
-        // \hat x = C'y + bias + B' [1+1/(alpha)] y
-        op_ptr beta_and_C  =  mat_plus_vec(prod(enc, m_C, 'n','t'), m_inbias, 1);
-        op_ptr alpha_and_B =  prod(
-                mat_times_vec(enc, 1 + pow(m_alpha, -1.f), 1),
-                m_B, 'n', 't');
-        return label("decoder_1l", beta_and_C + alpha_and_B);
+    op_ptr decode(op_ptr enc, bool linear=false){
+        if(linear){
+            m_y = mat_plus_vec(prod(enc, m_B, 'n', 't'), m_bias_dec, 1);
+            m_C_dec.reset();
+            m_alpha_dec.reset();
+            m_beta_dec.reset();
+        }else{
+            op_ptr res = mat_plus_vec(prod(enc, m_B, 'n', 't'), m_bias_dec, 1);
+            m_tanh_BTx = tanh(res);
+            m_f_dec = m_tanh_BTx + mat_plus_vec(mat_times_vec(res, m_alpha_dec, 1), m_beta_dec, 1);
+            m_y = m_f_dec + prod(enc, m_C_dec);
+        }
+        return label("decoder_1l", m_y);
     }
 
     /**
@@ -210,8 +226,11 @@ struct shortcut_layer{
     std::vector<Op*> unsupervised_params(){
         using namespace boost::assign;
         std::vector<Op*> v;
-        v += m_B.get(), m_C.get(), m_outbias.get(), m_inbias.get();
-        v += m_alpha.get(), m_beta.get();
+        v += m_B.get(), m_C_enc.get(), m_bias_dec.get(), m_bias_enc.get();
+        v += m_alpha_enc.get(), m_beta_enc.get();
+        if(m_C_dec){
+            v += m_C_dec.get(), m_alpha_dec.get(), m_beta_dec.get();
+        }
         return v;
     };
 
@@ -222,8 +241,8 @@ struct shortcut_layer{
     std::vector<Op*> supervised_params(){
         using namespace boost::assign;
         std::vector<Op*> v;
-        v += m_B.get(), m_C.get(), m_outbias.get();
-        v += m_alpha.get(), m_beta.get();
+        v += m_B.get(), m_C_enc.get(), m_bias_enc.get();
+        v += m_alpha_enc.get(), m_beta_enc.get();
         return v;
     };
 
@@ -255,7 +274,7 @@ class two_layer_auto_encoder
         /// decode the encoded value given in `enc`
         virtual op_ptr  decode(op_ptr& enc){ 
             if(!m_decoded)
-                m_decoded = m_l0.decode(tanh(m_l1.decode(enc)));
+                m_decoded = m_l0.decode(m_l1.decode(enc), true);
             return m_decoded;
         }
 
