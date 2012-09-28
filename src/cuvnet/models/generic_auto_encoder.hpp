@@ -96,6 +96,7 @@ class generic_auto_encoder{
                 }
                 m_reg_loss.reset();
             }
+            m_mode = m;
         }
 
 
