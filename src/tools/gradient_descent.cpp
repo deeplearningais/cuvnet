@@ -3,7 +3,7 @@
 #include<cuv/tensor_ops/rprop.hpp>
 #include "gradient_descent.hpp"
 #include <log4cxx/logger.h>
-#include <log4cxx/ndc.h>
+#include <log4cxx/mdc.h>
 #include <cuv/tools/device_tools.hpp>
 #include <tools/logging.hpp>
 
