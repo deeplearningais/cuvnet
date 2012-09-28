@@ -298,10 +298,14 @@ namespace cuvnet{
                     if(cae->m_schraudolph_reg){
                         mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_schraudolph_reg, "schraudolph");
                     }
-                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_alpha, "alpha0");
-                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_alpha, "alpha1");
-                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_beta, "beta0");
-                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_beta, "beta1");
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_alpha_enc, "alpha0");
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_alpha_enc, "alpha1");
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_beta_enc, "beta0");
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_beta_enc, "beta1");
+                    //mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_alpha_dec, "alpha0'");
+                    //mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_beta_dec, "beta0'");
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_beta_dec, "beta1'");
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_alpha_dec, "alpha1'");
                 }
             }
 
@@ -317,9 +321,9 @@ namespace cuvnet{
                 {
                     convergence_checker cc(gd, boost::bind(&monitor::mean, &mon, "total_loss"), 0.95f, 10, 2.0);
                     cc.decrease_lr(4);
-                    gd.minibatch_learning(1000, INT_MAX);
+                    gd.minibatch_learning(300, INT_MAX);
                 }else
-                    gd.minibatch_learning(1000, INT_MAX);
+                    gd.minibatch_learning(300, INT_MAX);
                 m_epochs[ae_id] += gd.iters();
             }
         }
@@ -335,13 +339,14 @@ namespace cuvnet{
             std::copy(aes_params.begin(), aes_params.end(), std::back_inserter(params));
             
             boost::shared_ptr<Op> loss = m_regression->get_loss();
+            boost::shared_ptr<Op> reg;
             if(m_mlp_wd){
                 float lambda;
-                boost::shared_ptr<Op> reg;
                 boost::tie(lambda,reg) = m_aes.regularize();
                 if(lambda && reg)
                     loss = axpby(loss, lambda, reg);
             }
+
             G gd(loss,0,params,m_mlp_lr, -0);
             set_up_sync("sfinetune", gd, params);
             gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_supervised,this,_2));
@@ -352,9 +357,10 @@ namespace cuvnet{
             mon.add("layer", n_ae);
             mon.set_training_phase(m_sdl.get_current_cv_mode(), m_sdl.get_current_split());
             mon.add(monitor::WP_SCALAR_EPOCH_STATS, loss, "total_loss");
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS, reg, "schraudolph");
             mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, m_regression->classification_error(), "classification error");
             //gd.after_epoch.connect(boost::bind(&ProfilerFlush));
-    
+
             boost::shared_ptr<early_stopper> es;
             if(m_checker && m_sdl.can_earlystop()){
                 es.reset(new early_stopper(gd, boost::bind(&monitor::mean, &mon, "classification error"), 0.995f, 5, 2.f));
