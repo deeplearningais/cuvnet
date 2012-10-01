@@ -70,6 +70,9 @@ void define_graphviz_node_visitor::preorder(Op* o){
         n.label = o->get_label() + "\\n"+ n.label;
         n.penwidth = 3.f;
     }
+    if(o->get_group().size()){
+        n.group = o->get_group();
+    }
 
 	if(m_mark_order.size()){
 		std::vector<Op*>::iterator it = std::find(m_mark_order.begin(),m_mark_order.end(),o);
@@ -90,11 +93,13 @@ void define_graphviz_node_visitor::preorder(Op* o){
 
     // define the op-node itself
     std::string opstr = "n" + boost::lexical_cast<std::string>( o );
+    std::string groupstr = n.group.size() ? "group=\"" + n.group + "\"," : "";
     m_seen[o] = opstr;
 	os << opstr
 	   << " ["
 	   << " URL=\""<<type<<boost::lexical_cast<std::string>(o)<<"\","
 	   << " label=\""<<n.label<<"\","
+	   << groupstr
 	   << " shape=\""<<n.shape<<"\","
 	   << " style=\""<<n.style<<"\","
 	   << " penwidth=\""<<n.penwidth<<"\","

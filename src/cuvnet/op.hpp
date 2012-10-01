@@ -15,6 +15,17 @@
 namespace cuvnet
 {
     /**
+     * push a group name onto the stack (thereby placing all consecutive nodes in that group until obj is destroyed).
+     * @ingroup Ops
+     */
+    struct op_group
+    {
+        op_group(const std::string& name, bool uniq=true);
+        ~op_group();
+    };
+
+
+    /**
      * The central (abstract) symbolic operator all others derive from.
      *
      * An Op has a tuple of parameters and a tuple of results.
@@ -62,6 +73,7 @@ namespace cuvnet
                 bool                  m_need_derivative; ///< true if the Op needs to be evaluated in \c fprop
                 bool                  m_need_result;  ///< true if the Op needs to be evaluated in \c bprop
                 std::string           m_label; ///< a graph annotation label for debugging purposes
+                std::string           m_group; ///< a graph annotation group for debugging purposes
 
             public:
                 /**
@@ -133,6 +145,11 @@ namespace cuvnet
                  * get the label used for annotation in the function graph
                  */
                 inline const std::string& get_label()const{ return m_label; }
+
+                /**
+                 * get the group used for annotation in the function graph
+                 */
+                inline const std::string& get_group()const{ return m_group; }
 
                 /**
                  * Calculate recursively what needs to be calculated to

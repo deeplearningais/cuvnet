@@ -3,6 +3,16 @@
 
 using namespace cuvnet;
 
+namespace 
+{
+    std::vector<std::string> g_groups;
+}
+op_group::op_group(const std::string& name, bool uniq){
+    g_groups.push_back(name + "_" + boost::lexical_cast<std::string>(rand()));
+}
+op_group::~op_group(){
+    g_groups.pop_back();
+}
 
 Op::Op(){}
 
@@ -10,6 +20,8 @@ Op::Op(unsigned int n_params, unsigned int n_results)
     :m_need_derivative(false)
     ,m_need_result(false)
 {
+    if(g_groups.size())
+        m_group = g_groups.back();
     set_n_params(n_params);
     set_n_results(n_results);
 }

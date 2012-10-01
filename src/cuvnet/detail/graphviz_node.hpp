@@ -9,6 +9,7 @@ namespace cuvnet
 		struct graphviz_node{
 			std::string label;
 			std::string shape;
+			std::string group;
 			std::string color;
 			std::string fillcolor;
 			std::string style;
