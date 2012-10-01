@@ -5,6 +5,7 @@
 #include "regularizers.hpp"
 #include <cuvnet/op_utils.hpp>
 #include "generic_auto_encoder.hpp"
+#include <log4cxx/logger.h>
 
 namespace cuvnet
 {
@@ -114,138 +115,123 @@ class simple_auto_encoder
  */
 struct shortcut_layer{
 
-    shortcut_layer(unsigned int dim) :m_dim(dim){}
-    unsigned int m_dim;
+    shortcut_layer(unsigned int dim0, unsigned int dim1) :m_dim0(dim0), m_dim1(dim1){}
+    unsigned int m_dim0, m_dim1;
 
     typedef boost::shared_ptr<Op>     op_ptr;
+    boost::shared_ptr<ParameterInput>  m_A; 
     boost::shared_ptr<ParameterInput>  m_B; 
-    boost::shared_ptr<ParameterInput>  m_C_enc; 
-    boost::shared_ptr<ParameterInput>  m_C_dec; 
-    boost::shared_ptr<ParameterInput>  m_alpha_enc;
-    boost::shared_ptr<ParameterInput>  m_alpha_dec;
-    boost::shared_ptr<ParameterInput>  m_beta_enc;
-    boost::shared_ptr<ParameterInput>  m_beta_dec;
-    boost::shared_ptr<ParameterInput>  m_bias_enc;
-    boost::shared_ptr<ParameterInput>  m_bias_dec;
+    boost::shared_ptr<ParameterInput>  m_C; 
+    boost::shared_ptr<ParameterInput>  m_alpha;
+    boost::shared_ptr<ParameterInput>  m_beta;
+    boost::shared_ptr<ParameterInput>  m_Bbias;
+    boost::shared_ptr<ParameterInput>  m_Cbias;
 
-    op_ptr m_y, m_f_enc, m_f_dec;
+    op_ptr m_y, m_f;
 
     void reset_weights(){
-        {
+        if(m_B)
+        {   // B: input_dim x dim0
             unsigned int input_dim = m_B->data().shape(0);
-            float diff = 2.f*std::sqrt(6.f/(input_dim+m_dim));   // tanh
+            float diff = 2.f*std::sqrt(6.f/(input_dim+m_dim0));   // tanh
             cuv::fill_rnd_uniform(m_B->data());
             m_B->data() *= 2*diff;
             m_B->data() -=   diff;
         }
-        {
-            /*
-             *unsigned int input_dim = m_C_enc->data().shape(0);
-             *float diff = 2.f*std::sqrt(6.f/(input_dim+m_dim));   // tanh
-             *cuv::fill_rnd_uniform(m_C_enc->data());
-             *m_C_enc->data() *= 2*diff;
-             *m_C_enc->data() -=   diff;
-             */
-             m_C_enc->data() = 0.f;
-             if(m_C_dec)
-                 m_C_dec->data() = 0.f;
+        if(m_A)
+        {   // A: dim0 x dim1
+            float diff = 2.f*std::sqrt(6.f/(m_dim0+m_dim1));   // tanh
+            cuv::fill_rnd_uniform(m_A->data());
+            m_A->data() *= 2*diff;
+            m_A->data() -=   diff;
         }
-        m_alpha_enc->data()  = -0.5f;
-        m_beta_enc->data()   =  0.f;
-        if(m_alpha_dec)
-            m_alpha_dec->data()  = -0.5f;
-        if(m_beta_dec)
-            m_beta_dec->data()   =  0.f;
-        m_bias_enc->data() =  0.f;
-        m_bias_dec->data() =  0.f;
+        {   // C: input_dim x dim1  (=shortcut)
+            /*
+             *unsigned int input_dim = m_C->data().shape(0);
+             *float diff = 2.f*std::sqrt(6.f/(input_dim+m_dim1));   // tanh
+             *cuv::fill_rnd_uniform(m_C->data());
+             *m_C->data() *= 2*diff;
+             *m_C->data() -=   diff;
+             */
+             m_C->data() = 0.f;
+             m_Cbias->data() =  0.f;
+        }
+        if(m_alpha)
+            m_alpha->data()  = -0.5f;
+        if(m_beta)
+            m_beta->data()   =  0.f;
+        if(m_Bbias)
+            m_Bbias->data() =  0.f;
     }
     op_ptr m_Bx;
     op_ptr m_tanh_Bx;
     op_ptr m_tanh_BTx;
-    op_ptr  encode(op_ptr inp){
-        if(!m_B){
-            inp->visit(determine_shapes_visitor()); 
-            unsigned int input_dim = inp->result()->shape[1];
+    op_ptr encode(op_ptr inp, bool linear=false){
+        op_group ("shortcut");
+        if(linear){
+            if(!m_C){
+                inp->visit(determine_shapes_visitor()); 
+                unsigned int input_dim = inp->result()->shape[1];
+                m_C.reset(new ParameterInput(cuv::extents[input_dim][m_dim1],"C"));
+                m_Cbias.reset(new ParameterInput(cuv::extents[m_dim1], "Cbias"));
+            }
+            m_y = mat_plus_vec(prod(inp, m_C), m_Cbias, 1);
+        }else{
+            if(!m_B){
+                inp->visit(determine_shapes_visitor()); 
+                unsigned int input_dim = inp->result()->shape[1];
 
-            m_B.reset(new ParameterInput(cuv::extents[input_dim][m_dim],"B"));
-            m_C_enc.reset(new ParameterInput(cuv::extents[input_dim][m_dim],"C"));
-            m_C_dec.reset(new ParameterInput(cuv::extents[m_dim][input_dim],"C'"));
-            m_beta_enc.reset(new ParameterInput(cuv::extents[m_dim], "beta"));
-            m_beta_dec.reset(new ParameterInput(cuv::extents[input_dim], "beta'"));
-            m_alpha_enc.reset(new ParameterInput(cuv::extents[m_dim], "alpha"));
-            m_alpha_dec.reset(new ParameterInput(cuv::extents[input_dim], "alpha'"));
-            m_bias_enc.reset(new ParameterInput(cuv::extents[m_dim], "bias_enc"));
-            m_bias_dec.reset(new ParameterInput(cuv::extents[input_dim], "bias_dec"));
+                m_A.reset(new ParameterInput(cuv::extents[m_dim0][m_dim1],"A"));
+                m_B.reset(new ParameterInput(cuv::extents[input_dim][m_dim0],"B"));
+                m_C.reset(new ParameterInput(cuv::extents[input_dim][m_dim1],"C"));
+                m_beta.reset(new ParameterInput(cuv::extents[m_dim0], "beta"));
+                m_alpha.reset(new ParameterInput(cuv::extents[m_dim0], "alpha"));
+                m_Bbias.reset(new ParameterInput(cuv::extents[m_dim0], "Bbias"));
+                m_Cbias.reset(new ParameterInput(cuv::extents[m_dim1], "Cbias"));
+            }
+            m_Bx = mat_plus_vec(prod(inp, m_B), m_Bbias, 1);
+            op_ptr Cx = mat_plus_vec(prod(inp, m_C), m_Cbias, 1);
+            m_tanh_Bx = tanh(m_Bx);
+            op_ptr alphaBx = mat_times_vec(m_Bx, m_alpha, 1);
+            op_ptr alphaBx_plus_beta = mat_plus_vec(alphaBx, m_beta, 1);
+
+            m_f = m_tanh_Bx + alphaBx_plus_beta;
+            m_y = prod(m_f, m_A) + Cx;
         }
 
-        m_Bx = mat_plus_vec(prod(inp, m_B), m_bias_enc, 1);
-        m_tanh_Bx = tanh(m_Bx);
-        op_ptr alphaBx = mat_times_vec(m_Bx, m_alpha_enc, 1);
-        op_ptr alphaBx_plus_beta = mat_plus_vec(alphaBx, m_beta_enc, 1);
-        op_ptr Cx = prod(inp, m_C_enc);
-        m_f_enc = m_tanh_Bx + alphaBx_plus_beta;
-        m_y = m_f_enc + Cx;
-
-
-        return label("encoder_1l",m_y);
+        return label("shortcut_layer",m_y);
     }
     op_ptr jacobian_x(op_ptr enc){
-        return mat_times_vec(m_B, 1.f-pow(enc, 2.f) + m_alpha_enc, 1) + m_C_enc;
+        if(m_alpha){
+            // this is a "real" shortcut layer
+            return mat_times_vec(m_B, 1.f-pow(enc, 2.f) + m_alpha, 1) + m_C;
+        }
+        // this is a linear layer
+        return m_C;
     }
     op_ptr schraudolph_regularizer(){
         // f(x) and f'(x) should both be zero
         // derive w.r.t. alpha and beta
-        op_ptr d_fenc_d_x = mat_plus_vec(1.f-pow(m_tanh_Bx,2.f), m_alpha_enc, 1);
-        op_ptr res = label("schraudolph_1l_enc", mean(pow(m_f_enc, 2.f)) + mean(pow(d_fenc_d_x, 2.f)));
-        if(m_tanh_BTx){
-            op_ptr d_fdec_d_x = mat_plus_vec(1.f-pow(m_tanh_BTx,2.f), m_alpha_dec, 1);
-            return res + label("schraudolph_1l_dec", mean(pow(m_f_dec, 2.f)) + mean(pow(d_fdec_d_x, 2.f)));
-        }
+        if(!m_tanh_Bx)
+            return op_ptr();
+        op_ptr d_fenc_d_x = mat_plus_vec(1.f-pow(m_tanh_Bx,2.f), m_alpha, 1);
+        op_ptr res = label("schraudolph_1l", mean(pow(m_f, 2.f)) + mean(pow(d_fenc_d_x, 2.f)));
         return res;
     }
 
-    op_ptr decode(op_ptr enc, bool linear=false){
-        if(linear){
-            m_y = mat_plus_vec(prod(enc, m_B, 'n', 't'), m_bias_dec, 1);
-            m_C_dec.reset();
-            m_alpha_dec.reset();
-            m_beta_dec.reset();
-        }else{
-            op_ptr res = mat_plus_vec(prod(enc, m_B, 'n', 't'), m_bias_dec, 1);
-            m_tanh_BTx = tanh(res);
-            m_f_dec = m_tanh_BTx + mat_plus_vec(mat_times_vec(res, m_alpha_dec, 1), m_beta_dec, 1);
-            m_y = m_f_dec + prod(enc, m_C_dec);
-        }
-        return label("decoder_1l", m_y);
-    }
-
     /**
-     * Determine the parameters learned during pre-training
-     * @overload
+     * Determine the parameters 
      */
-    std::vector<Op*> unsupervised_params(){
+    std::vector<Op*> params(){
         using namespace boost::assign;
         std::vector<Op*> v;
-        v += m_B.get(), m_C_enc.get(), m_bias_dec.get(), m_bias_enc.get();
-        v += m_alpha_enc.get(), m_beta_enc.get();
-        if(m_C_dec){
-            v += m_C_dec.get(), m_alpha_dec.get(), m_beta_dec.get();
-        }
+        if(m_B.get()){
+            v += m_A.get(), m_B.get(), m_C.get(), m_Bbias.get(), m_Cbias.get();
+            v += m_alpha.get(), m_beta.get();
+        }else
+            v +=  m_C.get(), m_Cbias.get();
         return v;
     };
-
-    /**
-     * Determine the parameters learned during fine-tuning
-     * @overload
-     */
-    std::vector<Op*> supervised_params(){
-        using namespace boost::assign;
-        std::vector<Op*> v;
-        v += m_B.get(), m_C_enc.get(), m_bias_enc.get();
-        v += m_alpha_enc.get(), m_beta_enc.get();
-        return v;
-    };
-
 
 };
 
@@ -262,19 +248,34 @@ class two_layer_auto_encoder
 
     public:
         // these are the parameters of the model
-        shortcut_layer m_l0;
-        shortcut_layer m_l1;
+        boost::shared_ptr<shortcut_layer> m_l0, m_l0a;
+        boost::shared_ptr<shortcut_layer> m_l1, m_l1a;
+
+        unsigned int m_n_hidden0, m_n_hidden1;
 
     public:
 
         /// \f$ h := \sigma ( x W + b_h ) \f$
         virtual op_ptr  encode(op_ptr& inp){
-            return m_l1.encode(m_l0.encode(inp));
+            if(!m_encoded){
+                inp->visit(determine_shapes_visitor());
+                unsigned int input_dim = inp->result()->shape[1];
+                m_l0.reset( new shortcut_layer(m_n_hidden0, m_n_hidden0) );
+                m_l0a.reset( new shortcut_layer(m_n_hidden0, m_n_hidden1) );
+                m_l1.reset( new shortcut_layer(m_n_hidden0, m_n_hidden0) );
+                m_l1a.reset( new shortcut_layer(m_n_hidden0, input_dim) );
+
+                //m_l0.reset( new shortcut_layer(m_n_hidden0, m_n_hidden1) );
+                //m_l1.reset( new shortcut_layer(m_n_hidden0, input_dim) );
+                m_encoded = m_l0a->encode(m_l0->encode(inp));
+            }
+            return m_encoded;
         }
+
         /// decode the encoded value given in `enc`
         virtual op_ptr  decode(op_ptr& enc){ 
             if(!m_decoded)
-                m_decoded = m_l0.decode(m_l1.decode(enc), true);
+                m_decoded = m_l1a->encode(m_l1->encode(enc), true);
             return m_decoded;
         }
 
@@ -283,10 +284,14 @@ class two_layer_auto_encoder
          * @overload
          */
         virtual std::vector<Op*> unsupervised_params(){
-            std::vector<Op*> v0 = m_l0.unsupervised_params();
-            std::vector<Op*> v1 = m_l1.unsupervised_params();
-            v0.reserve(v0.size() + v1.size());
+            std::vector<Op*> v0 = m_l0->params();
+            std::vector<Op*> v0a = m_l0a->params();
+            std::vector<Op*> v1 = m_l1->params();
+            std::vector<Op*> v1a = m_l1a->params();
+            v0.reserve(v0.size() + v1.size() + v0a.size() + v1a.size());
             v0.insert(v0.end(), v1.begin(), v1.end());
+            v0.insert(v0.end(), v0a.begin(), v0a.end());
+            v0.insert(v0.end(), v1a.begin(), v1a.end());
             return v0;
         };
 
@@ -295,10 +300,10 @@ class two_layer_auto_encoder
          * @overload
          */
         virtual std::vector<Op*> supervised_params(){
-            std::vector<Op*> v0 = m_l0.supervised_params();
-            std::vector<Op*> v1 = m_l1.supervised_params();
-            v0.reserve(v0.size() + v1.size());
-            v0.insert(v0.end(), v1.begin(), v1.end());
+            std::vector<Op*> v0 = m_l0->params();
+            //std::vector<Op*> v1 = m_l1->supervised_params();
+            //v0.reserve(v0.size() + v1.size());
+            //v0.insert(v0.end(), v1.begin(), v1.end());
             return v0;
         };
 
@@ -312,8 +317,8 @@ class two_layer_auto_encoder
          */
         two_layer_auto_encoder(unsigned int hidden_dim0, unsigned int hidden_dim1, bool binary)
             :generic_auto_encoder(binary)
-             ,m_l0(hidden_dim0)
-             ,m_l1(hidden_dim1)
+             , m_n_hidden0(hidden_dim0)
+             , m_n_hidden1(hidden_dim1)
     {
     }
 
@@ -322,8 +327,10 @@ class two_layer_auto_encoder
          * @overload
          */
         virtual void reset_weights(){
-            m_l0.reset_weights();
-            m_l1.reset_weights();
+            m_l0->reset_weights();
+            m_l1->reset_weights();
+            m_l0a->reset_weights();
+            m_l1a->reset_weights();
         }
 };
 
