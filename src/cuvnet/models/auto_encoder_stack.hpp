@@ -188,12 +188,17 @@ class auto_encoder_stack
          */
         virtual void init(op_ptr input){
             for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
+                // initialize each separate AE consecutively
+                // - every AE has an /encoded/
+                // - every AE has a /decoded/
+                // - every AE has reconstruction-loss, regularizer, ...
                 bool is_first = it == m_stack.begin();
                 if(is_first)
                     (*it)->init(input);
                 else
                     (*it)->init(boost::dynamic_pointer_cast<Op>((*(it-1))->get_encoded()));
             }
+            // initialize the /combined/ AE
             generic_auto_encoder::init(input);
             reset_weights();
         }
