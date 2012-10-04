@@ -3,11 +3,11 @@
 
 #include <cuvnet/op_utils.hpp>
 #include <datasets/random_translation.hpp>
+#include <tools/dataset_dumper.hpp>
 #include <datasets/voc_detection.hpp>
 #include <cuv/libs/cimg/cuv_cimg.hpp>
 
 #include <boost/test/unit_test.hpp>
-
 using namespace cuvnet;
 using namespace std;
 
@@ -208,4 +208,72 @@ BOOST_AUTO_TEST_CASE(realdata){
         }
     }
 }
+
+
+
+BOOST_AUTO_TEST_CASE(DatasetDumper){
+
+
+    std::cout << " starting test dumper" << std::endl; 
+    {
+        dataset_dumper dum("test_dumper_train.dat", 2);
+        cuv::tensor<float,cuv::host_memory_space> act(cuv::extents[2][3]);
+        act(0,0) = 0.f;
+        act(0,1) = 0.6f;
+        act(0,2) = 0.3f;
+        act(1,0) = 0.4f;
+        act(1,1) = 1.f;
+        act(1,2) = 0.63f;
+
+
+        cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[2][2]);
+        labels(0,0) = 1.3f;
+        labels(0,1) = 0.53f;
+        labels(1,0) = 0.42f;
+        labels(1,1) = 1.1f;
+
+        dum.write_to_file(act,labels);
+
+
+    }
+    {
+        dataset_dumper dum("test_dumper_test.dat", 2);
+        cuv::tensor<float,cuv::host_memory_space> act(cuv::extents[2][3]);
+        act(0,0) = 1.f;
+        act(0,1) = 0.5f;
+        act(0,2) = 0.3f;
+        act(1,0) = 0.4f;
+        act(1,1) = 1.f;
+        act(1,2) = 0.63f;
+
+
+        cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[2][2]);
+        labels(0,0) = 1.73f;
+        labels(0,1) = 0.73f;
+        labels(1,0) = 0.72f;
+        labels(1,1) = 1.7f;
+
+        dum.write_to_file(act,labels);
+
+
+    }
+    dataset_reader reader("test_dumper_train.dat", "test_dumper_test.dat");
+    reader.read_from_file();
+    for (int i = 0; i < reader.train_data.shape(0); ++i)
+    {
+        for (int j = 0; j < reader.train_data.shape(1); ++j)
+        {
+            std::cout << "  " << reader.train_data(i,j);
+        }
+        std::cout <<  " labels " << std::endl;/* cursor */
+        for (int j = 0; j < reader.train_labels.shape(1); ++j)
+        {
+            std::cout << "  " << reader.train_labels(i,j);
+        }
+    }
+
+}
+
+
+
 BOOST_AUTO_TEST_SUITE_END()
