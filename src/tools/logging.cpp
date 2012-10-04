@@ -39,6 +39,9 @@ namespace cuvnet
         BasicConfigurator::configure(myAppenderPtr);
         //BasicConfigurator::configure(myFileAppenderPtr);
         BasicConfigurator::configure(myXMLFileAppenderPtr);
+
+        log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
+        log->setLevel(Level::getError());
     }
 
     Tracer::Tracer(const Tracer&){
