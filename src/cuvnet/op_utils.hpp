@@ -178,7 +178,7 @@ namespace cuvnet
                 plist.push_back(o);
                 return false;
             }
-            return true; // we can never reurn "false" here, since we might need this for the /forward/ pass.
+            return true; // we can never return "false" here, since we might need this for the /forward/ pass.
         }
         inline void postorder(Op* o){
             plist.push_back(o);
