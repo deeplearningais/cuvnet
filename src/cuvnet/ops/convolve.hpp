@@ -1,6 +1,7 @@
 #ifndef __OP_CONVOLVE_HPP__
 #     define __OP_CONVOLVE_HPP__
 
+#include <cmath>
 #include <cuvnet/op.hpp>
 #include <cuv/convolution_ops/convolution_ops.hpp>
 namespace cuvnet
@@ -80,7 +81,7 @@ namespace cuvnet
                             // I'll emulate a less restricted version at some expense here
                             // by creating larger arrays if necessary>
                             unsigned int nFiltReal = r0.shape[0];
-                            unsigned int nFiltTmp  = 16 * ceil(nFiltReal / 16.);                            // create intermediate representation of the outputs
+                            unsigned int nFiltTmp  = 16 * std::ceil(nFiltReal / 16.);                            // create intermediate representation of the outputs
                             value_type tmp_dst(extents[nFiltTmp][r0.shape[1]][r0.shape[2]][r0.shape[3]]);
 
                             // create intermediate copy of weights
