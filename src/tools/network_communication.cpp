@@ -14,6 +14,7 @@
 #include <cuvnet/ops/input.hpp>
 #include <tools/gradient_descent.hpp> /* for network_stop exception */
 #include <cuv/tools/timing.hpp>
+#include <tools/logging.hpp>
 
 #include "network_communication.hpp"
 
@@ -29,6 +30,9 @@
             }
 #endif
 
+namespace {
+    log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("netcom"));
+}
 
 namespace cuvnet { namespace network_communication {
 
@@ -122,7 +126,6 @@ namespace cuvnet { namespace network_communication {
 
     }
     void server::merge(){
-
         mongo::BSONObj query = BSON(
                 "params" << true <<
                 "state" << "delta" <<
@@ -134,6 +137,7 @@ namespace cuvnet { namespace network_communication {
                     "update"<<BSON("$set"<<BSON("state"<<"staged")));
 
         int queue_len = m_impl->m_con.count(m_impl->m_prefix+".nc", query);
+        CHECK_DB_ERR(m_impl->m_con);
         static int warned = 0;
         static const int warn_step = 200;
         if(queue_len < warned)
@@ -143,7 +147,7 @@ namespace cuvnet { namespace network_communication {
             warned += warn_step;
         }
 
-        int process_max = 2*m_merged.size();
+        int process_max = std::max((size_t) 5, 2*m_merged.size());
 
         std::auto_ptr<mongo::DBClientCursor> p =
             m_impl->m_con.query( m_impl->m_prefix+".nc",
@@ -200,8 +204,7 @@ namespace cuvnet { namespace network_communication {
 
         if(queue_len > warn_step)
         {
-            //std::cout << "WARNING: async server: clearing stale queries" << std::endl;
-            std::cout << "WARNING: Async SGD: queue-length is " << queue_len <<" --> clearing, you're loosing work!"<<std::endl;
+            LOG4CXX_WARN(g_log, "WARNING: Async SGD: queue-length is " << queue_len <<" --> clearing, you're loosing work!");
             m_impl->m_con.remove(m_impl->m_prefix+".nc", query);
         }
 
@@ -343,9 +346,13 @@ namespace cuvnet { namespace network_communication {
 
     void param_synchronizer::test_stop(){
         if(m_client.got_stop_signal(m_stage))
+        {
+            LOG4CXX_INFO(g_log, "got stop signal from co-worker: "<< m_stage);
             throw network_stop();
+        }
     }
     void param_synchronizer::stop_coworkers(){
+        LOG4CXX_INFO(g_log, "sending stop to co-workers: "<< m_stage);
         m_client.send_stop_signal(m_stage);
     }
     void param_synchronizer::operator()(
@@ -353,7 +360,7 @@ namespace cuvnet { namespace network_communication {
             unsigned int, unsigned int
             ){
         ++m_cnt;
-        if( m_cnt % m_push_steps == m_push_steps){
+        if( m_cnt % m_push_steps == m_push_off){
             int idx = 0;
             BOOST_FOREACH(Op* op, m_ops){
                 ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
@@ -373,7 +380,7 @@ namespace cuvnet { namespace network_communication {
         }
         //cuvAssert(m_pull_steps > 1 || m_push_steps/2==0);
         //if( m_cnt % m_pull_steps == m_push_steps/2){
-        if( m_cnt % m_pull_steps == m_pull_steps){
+        if( m_cnt % m_pull_steps == m_pull_off){
             int idx = 0;
             BOOST_FOREACH(Op* op, m_ops){
                 ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
