@@ -67,6 +67,7 @@ namespace cuvnet
                         if(iter % update_every == 0) {
                             update_weights(); 
                             wups ++;
+                            after_weight_update(wups);
                         }
                     }
                     after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
@@ -94,6 +95,7 @@ namespace cuvnet
                     m_swipe.bprop();
                     after_batch(epoch, 0); // should accumulate errors etc
                     update_weights();
+                    after_weight_update(epoch);
                     after_epoch(epoch, epoch); // wups==epoch
                     //m_learnrate *= m_learnrate_decay;
                 }

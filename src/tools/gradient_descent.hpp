@@ -47,6 +47,8 @@ namespace cuvnet
             boost::signal<void(unsigned int,unsigned int)> before_batch;
             /// triggered after executing a batch
             boost::signal<void(unsigned int,unsigned int)> after_batch;
+            /// triggered after updating weights
+            boost::signal<void(unsigned int)> after_weight_update;
 
             /// triggered when finished with learning
             boost::signal<void()> done_learning;
