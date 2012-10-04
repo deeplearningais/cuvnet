@@ -53,7 +53,7 @@ namespace cuvnet
         ,m_log(log)
     {
         using namespace log4cxx;
-        LOG4CXX_INFO(log, "ENTRY " << m_msg);
+        LOG4CXX_DEBUG(log, "ENTRY " << m_msg);
         m_ndc = new NDC(m_msg);
         m_mdc = NULL;
     }
@@ -62,13 +62,13 @@ namespace cuvnet
         ,m_log(log)
     {
         using namespace log4cxx;
-        LOG4CXX_INFO(log, "ENTRY " << m_msg);
+        LOG4CXX_DEBUG(log, "ENTRY " << m_msg);
         m_mdc = new MDC(var, id);
         m_ndc = new NDC(m_msg);
     }
     Tracer::~Tracer(){
         m_tim.update();
-        LOG4CXX_INFO(m_log, 
+        LOG4CXX_DEBUG(m_log, 
                 "EXIT " << m_msg << 
                 " ms=" << std::setprecision(4) 
                 <<  1000.f * m_tim.perf());
