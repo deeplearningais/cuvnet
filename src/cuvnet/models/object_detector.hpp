@@ -3,6 +3,7 @@
 
 #include <boost/assign.hpp>
 #include <cuvnet/ops.hpp>
+#include <tools/normalization.hpp>
 
 using namespace cuvnet;
 using boost::make_shared;
@@ -192,6 +193,15 @@ class obj_detector
 
         /** Default constructor for serialization purposes */
         obj_detector() { }
+
+        /**
+         * project all weights to the allowed set.
+         */
+        void project_to_allowed_region(){
+            project_to_unit_ball(m_conv1_weights->data(), 2, 5.f);
+            project_to_unit_ball(m_conv2_weights->data(), 2, 5.f);
+            project_to_unit_ball(m_conv3_weights->data(), 2, 5.f);
+        }
 
         /**
          * initialize the weights and biases with random numbers
