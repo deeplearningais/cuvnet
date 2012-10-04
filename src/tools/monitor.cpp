@@ -79,8 +79,8 @@ namespace cuvnet
             delete p;
         }
     }
-    monitor& monitor::add(watchpoint_type type, boost::shared_ptr<Op> op, const std::string& name){
-        m_impl->m_watchpoints.push_back(new watchpoint(type,op,name));
+    monitor& monitor::add(watchpoint_type type, boost::shared_ptr<Op> op, const std::string& name, unsigned int result){
+        m_impl->m_watchpoints.push_back(new watchpoint(type,op,name,result));
         m_impl->m_wpmap[name] = m_impl->m_watchpoints.back();
         return *this;
     }
@@ -215,14 +215,13 @@ namespace cuvnet
         }
         BOOST_FOREACH(const watchpoint* p, m_impl->m_watchpoints){
             if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
-                // writes to the file the loss
-                m_logfile  << '\t' <<  mean(p->name)  << '\t' << stddev(p->name);
+                m_logfile  << '\t' <<  mean(p->name);
             }
         }
         m_logfile << std::endl;
     }
     void monitor::simple_logging()const{
-        std::cout << "\r epoch "<<m_epochs<<"/"<<m_batch_presentations<<":  free_mb="<<cuv::getFreeDeviceMemory()/1024/1024<<",  ";
+        std::cout << "\r epoch "<<m_epochs<<":"<<m_batch_presentations<<",  free_mb="<<cuv::getFreeDeviceMemory()/1024/1024<<",  ";
         typedef std::pair<std::string, std::string> ss_t;
         BOOST_FOREACH(const ss_t& p, m_constants){
             std::cout << p.first<<"="<<p.second<<" ";

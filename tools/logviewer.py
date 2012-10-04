@@ -33,7 +33,7 @@ def show_convergence(doc):
 
     def conv_filter(r):
         m = r.findtext('{%s}message'%LOG4J_NAMESPACE)
-        if re.match(r"converged", m):
+        if re.match(r"(converged|unsteady)", m):
             return True
         return False
 
@@ -60,7 +60,7 @@ def show_convergence(doc):
 
     import matplotlib.pyplot as plt
     for ul in unique_labels:
-        if "finetune" in ul: continue
+        #if "finetune" in ul: continue
         idx = np.where(np.array(labels) == ul)
         plt.plot(epochs[idx], perfs[idx], label=ul)
 
@@ -103,6 +103,8 @@ def show_earlystop(doc):
 
     labels = map(event_to_label, results)
     unique_labels = np.unique(labels)
+    if len(unique_labels) == 0:
+        return
 
     import matplotlib.pyplot as plt
     for ul in unique_labels:

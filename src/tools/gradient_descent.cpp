@@ -3,7 +3,7 @@
 #include<cuv/tensor_ops/rprop.hpp>
 #include "gradient_descent.hpp"
 #include <log4cxx/logger.h>
-#include <log4cxx/ndc.h>
+#include <log4cxx/mdc.h>
 #include <cuv/tools/device_tools.hpp>
 #include <tools/logging.hpp>
 
@@ -257,7 +257,7 @@ namespace cuvnet
             m_last_perf = perf;
             m_patience = std::max(m_patience, (unsigned int)(m_patience_inc_fact*wups));
 
-            m_gd.save_current_params(); // consider everything that did not go below threshold as "overtraining".
+            //m_gd.save_current_params(); // consider everything that did not go below threshold as "overtraining".
         }
 
         if(wups >= m_patience){
@@ -269,6 +269,10 @@ namespace cuvnet
             m_gd.decay_learnrate(m_lr_fact);
             LOG4CXX_WARN(log, "converged: decreasing learnrate");
             m_patience = std::max(m_patience, (unsigned int)(m_patience_inc_fact*wups));
+        }
+        else if( perf > 1.1f * m_last_perf ){
+            m_gd.decay_learnrate(m_lr_fact);
+            LOG4CXX_WARN(log, "unsteady: decreasing learnrate");
         }
     }
 

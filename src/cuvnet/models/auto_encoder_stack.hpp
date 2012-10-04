@@ -150,23 +150,24 @@ class auto_encoder_stack
          * @return a function that decodes the encoded values
          */
         virtual op_ptr  decode(op_ptr& enc){ 
-            assert(m_stack.size());
-            op_ptr op;
-            for (ae_vec_type::reverse_iterator  it = m_stack.rbegin(); it != m_stack.rend(); ++it) {
-                bool is_first = it == m_stack.rend()-1;
-                bool is_last  = it == m_stack.rbegin();
+            if(!m_decoded){
+                assert(m_stack.size());
+                for (ae_vec_type::reverse_iterator  it = m_stack.rbegin(); it != m_stack.rend(); ++it) {
+                    bool is_first = it == m_stack.rend()-1;
+                    bool is_last  = it == m_stack.rbegin();
 
-                if(0);
-                else if(is_first && is_last)
-                    op = (*it)->decode(enc);
-                else if(is_first)
-                    op = (*it)->decode(op);
-                else if(is_last)
-                    op = logistic((*it)->decode(enc));
-                else 
-                    op = logistic((*it)->decode(op));
+                    if(0);
+                    else if(is_first && is_last)
+                        m_decoded = (*it)->decode(enc);
+                    else if(is_first)
+                        m_decoded = (*it)->decode(m_decoded);
+                    else if(is_last)
+                        m_decoded = logistic((*it)->decode(enc));
+                    else 
+                        m_decoded = logistic((*it)->decode(m_decoded));
+                }
             }
-            return op;
+            return m_decoded;
         }
 
         /**
@@ -208,6 +209,16 @@ class auto_encoder_stack
                 (*it)->deinit();
             }
             generic_auto_encoder::deinit();
+        }
+        /**
+         * calls switch_mode on all contained encoders.
+         * @overload
+         */
+        virtual void switch_mode(mode m){
+            for (ae_vec_type::iterator  it = m_stack.begin(); it != m_stack.end(); ++it) {
+                (*it)->switch_mode(m);
+            }
+            generic_auto_encoder::switch_mode(m);
         }
 
         /**

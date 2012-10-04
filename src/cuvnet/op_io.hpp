@@ -62,6 +62,7 @@ namespace cuvnet
             ar.template register_type<Softmax>();
             ar.template register_type<MultinomialLogisticLoss>();
             ar.template register_type<ClassificationLoss>();
+            ar.template register_type<F2Measure>();
             ar.template register_type<EpsilonInsensitiveLoss>();
             ar.template register_type<HingeLoss>();
 
@@ -83,6 +84,7 @@ namespace cuvnet
             ar.template register_type<Abs>();
             ar.template register_type<RowSelector>();
             ar.template register_type<RectifiedLinear>();
+            ar.template register_type<Printer>();
         } 
 }
 

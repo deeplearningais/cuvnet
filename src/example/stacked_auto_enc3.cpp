@@ -177,8 +177,10 @@ namespace cuvnet{
     template<class G>
     void
     pretrained_mlp_learner<G>::constructFromBSON(const mongo::BSONObj& o){
+        std::cout << "o:" << o << std::endl;
         m_aes_bs = idx_to_bs(get<int>(o, "aes_bs"));
         m_mlp_bs = idx_to_bs(get<int>(o, "mlp_bs"));
+
 
         m_sdl.init(m_aes_bs, "mnist_rot", 1);
 
@@ -189,8 +191,10 @@ namespace cuvnet{
             try{
                 m_aes_lr.push_back(get<float>(o,"aes_lr", n_layers));
                 m_aes_wd.push_back(get<float>(o,"aes_wd", n_layers));
-                int layer_size0 = get<float>(o,"aes_ls0", n_layers);
-                int layer_size1 = get<float>(o,"aes_ls1", n_layers);
+                int layer_size0 = 1024;
+                int layer_size1 = 1024;
+                //int layer_size0 = get<float>(o,"aes_ls0", n_layers);
+                //int layer_size1 = get<float>(o,"aes_ls1", n_layers);
                 m_aes.add<two_layer_contractive_auto_encoder>(layer_size0, layer_size1, m_sdl.get_ds().binary, m_aes_wd.back());
             }catch(const detail::value_not_found_exception& e){
                 break;
@@ -266,10 +270,11 @@ namespace cuvnet{
         for (unsigned int ae_id = 0; ae_id < n_ae; ++ae_id)
         {
             TRACE1(log, "pretrain" , "layer", ae_id );
+            m_aes.switch_mode(generic_auto_encoder::AEM_UNSUPERVISED);
     
             // set the initial number of epochs to zero
             generic_auto_encoder& ae = m_aes.get_ae(ae_id);
-    
+
             // set up gradient descent
             G gd(ae.loss(), 0, ae.unsupervised_params(), m_aes_lr[ae_id], 0.f);
             set_up_sync("pretrain-"+boost::lexical_cast<std::string>(ae_id),
@@ -281,7 +286,29 @@ namespace cuvnet{
             monitor mon(false);
             mon.set_training_phase(m_sdl.get_current_cv_mode(), m_sdl.get_current_split());
             mon.add("layer", ae_id);
-            mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.loss(), "total loss");
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.loss(), "total_loss");
+
+            if(ae.reg_loss())
+                mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.reg_loss(), "reg_loss");
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.rec_loss(), "rec_loss");
+
+            {   // set up monitoring for contractive auto-encoder
+                two_layer_contractive_auto_encoder* cae = dynamic_cast<two_layer_contractive_auto_encoder*>(&ae);
+                if(cae){
+                    if(cae->m_schraudolph_reg){
+                        mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_schraudolph_reg, "schraudolph");
+                    }
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_alpha_enc, "alpha0");
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_alpha_enc, "alpha1");
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_beta_enc, "beta0");
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_beta_enc, "beta1");
+                    //mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_alpha_dec, "alpha0'");
+                    //mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_beta_dec, "beta0'");
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_beta_dec, "beta1'");
+                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_alpha_dec, "alpha1'");
+                }
+            }
+
             mon.register_gd(gd);
 
             // do the actual learning
@@ -292,10 +319,11 @@ namespace cuvnet{
             else {
                 if(m_checker)
                 {
-                    convergence_checker es(gd, boost::bind(&monitor::mean, &mon, "total loss"), 0.95f, 6, 2.0);
-                    gd.minibatch_learning(1000, INT_MAX);
+                    convergence_checker cc(gd, boost::bind(&monitor::mean, &mon, "total_loss"), 0.95f, 10, 2.0);
+                    cc.decrease_lr(4);
+                    gd.minibatch_learning(300, INT_MAX);
                 }else
-                    gd.minibatch_learning(1000, INT_MAX);
+                    gd.minibatch_learning(300, INT_MAX);
                 m_epochs[ae_id] += gd.iters();
             }
         }
@@ -304,19 +332,21 @@ namespace cuvnet{
         {
             TRACE(log, "finetune");
             m_aes.deinit();
+            m_aes.switch_mode(generic_auto_encoder::AEM_SUPERVISED);
             set_batchsize(m_mlp_bs);
             std::vector<Op*> aes_params = m_aes.supervised_params();
             std::vector<Op*> params     = m_regression->params();
             std::copy(aes_params.begin(), aes_params.end(), std::back_inserter(params));
             
             boost::shared_ptr<Op> loss = m_regression->get_loss();
+            boost::shared_ptr<Op> reg;
             if(m_mlp_wd){
                 float lambda;
-                boost::shared_ptr<Op> reg;
                 boost::tie(lambda,reg) = m_aes.regularize();
                 if(lambda && reg)
                     loss = axpby(loss, lambda, reg);
             }
+
             G gd(loss,0,params,m_mlp_lr, -0);
             set_up_sync("sfinetune", gd, params);
             gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_supervised,this,_2));
@@ -326,10 +356,11 @@ namespace cuvnet{
             monitor mon(false);
             mon.add("layer", n_ae);
             mon.set_training_phase(m_sdl.get_current_cv_mode(), m_sdl.get_current_split());
-            mon.add(monitor::WP_SCALAR_EPOCH_STATS, loss, "total loss");
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS, loss, "total_loss");
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS, reg, "schraudolph");
             mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, m_regression->classification_error(), "classification error");
             //gd.after_epoch.connect(boost::bind(&ProfilerFlush));
-    
+
             boost::shared_ptr<early_stopper> es;
             if(m_checker && m_sdl.can_earlystop()){
                 es.reset(new early_stopper(gd, boost::bind(&monitor::mean, &mon, "classification error"), 0.995f, 5, 2.f));
@@ -339,9 +370,14 @@ namespace cuvnet{
     
                 es->after_early_stopping_epoch.connect(0,boost::bind(&sdl_t::after_early_stopping_epoch,&m_sdl));
                 es->after_early_stopping_epoch.connect(1,boost::bind(&monitor::set_training_phase,&mon, CM_TRAIN, m_sdl.get_current_split()));
+                
                 mon.register_gd(gd, *es);
             }else
                 mon.register_gd(gd);
+
+            // decrease the learning rate everytime we seem to have converged
+            convergence_checker cc(gd, boost::bind(&monitor::mean, &mon, "total_loss"), 0.95f, 6, 1.5);
+            cc.decrease_lr(INT_MAX); // don't stop learning, that is the job of early stopper
 
             // do the actual learning
             if(in_trainall)
@@ -463,15 +499,15 @@ main(int argc, char **argv)
     mongo::BSONObjBuilder bob;
     bob<<"aes_bs" <<BSON_ARRAY(4);
     bob<<"mlp_bs" <<BSON_ARRAY(2);
-    bob<<"mlp_lr" <<BSON_ARRAY(0.2839f);
-    bob<<"mlp_wd" <<BSON_ARRAY(0.0001f);
+    bob<<"mlp_lr" <<BSON_ARRAY(0.01f);
+    bob<<"mlp_wd" <<BSON_ARRAY(0.00001f);
 
     bob<<"aes_ls0_0" <<BSON_ARRAY( 1942.f);
     bob<<"aes_ls1_0" <<BSON_ARRAY( 940.f);
     //bob<<"aes_ls0_0" <<BSON_ARRAY( 64.f);
     //bob<<"aes_ls1_0" <<BSON_ARRAY( 64.f);
     //bob<<"aes_lr_0" <<BSON_ARRAY(0.0714f);
-    bob<<"aes_lr_0" <<BSON_ARRAY(0.00001f);
+    bob<<"aes_lr_0" <<BSON_ARRAY(0.005f);
 
     //bob<<"aes_wd_0" <<BSON_ARRAY(0.012f);
     bob<<"aes_wd_0" <<BSON_ARRAY(0.0000f);
