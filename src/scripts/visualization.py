@@ -29,8 +29,9 @@ def generic_filters(x, trans=True, maxx=16, maxy=12, sepnorm=False):
         if sepnorm:
             flt -= flt.min()
             flt /= flt.max()
-        res = ax.matshow(flt.reshape(n_pix_x, n_pix_x), cmap="binary")
-        res.set_norm(norm)
+        t = np.abs(flt).max()
+        res = ax.matshow(flt.reshape(n_pix_x, n_pix_x), cmap="PuOr", vmin=-t, vmax=t)
+        #res.set_norm(norm)
         cfg(ax)
     if not sepnorm:
         cbaxes = fig.add_axes([0.1, 0.10, 0.8, 0.05])
