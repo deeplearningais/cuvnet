@@ -259,6 +259,8 @@ namespace cuvnet
             normalize_data_set(test_data); 
         }
 
+       
+
 
 
         // creates the vector, which is used to randomly translate/grow each example in the dataset which is being created
@@ -491,7 +493,6 @@ namespace cuvnet
                 for(int dim = 0; dim < max_num_pos; dim++){
                     for(unsigned int ch = 0; ch < morse.get_size(); ch++){
                         float tran = drand48() * 2*max_trans - max_trans;
-                        //float tran = rand() % 5 - 2;
                         float grow = 1 + (drand48() * 2 * max_grow - max_grow);
                         new_dim =  drand48() * m_dim;
                         // generate 1st input
