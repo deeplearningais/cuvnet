@@ -292,17 +292,18 @@ BOOST_AUTO_TEST_CASE(logistic_regression_derivative){
 
 BOOST_AUTO_TEST_CASE(obj_det){
    boost::shared_ptr<ParameterInput>  inp    = boost::make_shared<ParameterInput>(cuv::extents[2][1][28][28], "input");
-   boost::shared_ptr<ParameterInput>  ign    = boost::make_shared<ParameterInput>(cuv::extents[2][16][28][28], "ign");
-   boost::shared_ptr<ParameterInput>  target = boost::make_shared<ParameterInput>(cuv::extents[2][16][28][28], "target");
-   target->set_derivable(false); // cannot derive for target of logistic regression
-
-   cuv::fill_rnd_uniform(inp->data());
-   cuv::fill_rnd_uniform(target->data());
-   cuv::fill_rnd_uniform(ign->data());
-   inp->data() -= 0.5f;
 
    obj_detector od(5,16,5,16); 
-   od.init(inp,ign,target);
+   od.init(inp, 2);
+
+   boost::shared_ptr<ParameterInput>  ignore = boost::dynamic_pointer_cast<ParameterInput>(get_node<ParameterInput>(od.get_loss(), "ignore")->shared_from_this());
+   boost::shared_ptr<ParameterInput>  target = boost::dynamic_pointer_cast<ParameterInput>(get_node<ParameterInput>(od.get_loss(), "target")->shared_from_this());
+   target->set_derivable(false); // cannot derive for target of logistic regression
+   cuv::fill_rnd_uniform(inp->data());
+   cuv::fill_rnd_uniform(target->data());
+   cuv::fill_rnd_uniform(ignore->data());
+   inp->data() -= 0.5f;
+
    std::cout << "---hl2--" << std::endl;
    derivative_tester(*od.hl2, 0, true, .1, 0, 0);
 
