@@ -98,7 +98,16 @@ namespace cuvnet
                 float m_thresh_tch, m_thresh_res;
 
             public:
-                F2Measure():Op(2,5){} /// for serialization
+                F2Measure():Op(3,5){} /// for serialization
+                F2Measure(result_t& teacher, result_t& result, result_t& ignore, float thresh_tch = 0.f, float thresh_res = 0.f)
+                    :Op(3,5)
+                    ,m_thresh_tch(thresh_tch)
+                    ,m_thresh_res(thresh_res)
+                {
+                    add_param(0,teacher);
+                    add_param(1,result);
+                    add_param(2,ignore);
+                }
                 F2Measure(result_t& teacher, result_t& result, float thresh_tch = 0.f, float thresh_res = 0.f)
                     :Op(2,5)
                     ,m_thresh_tch(thresh_tch)
@@ -125,14 +134,32 @@ namespace cuvnet
 
                     vres = res > m_thresh_res;
                     vtch = tch > m_thresh_tch;
-                    float tp = cuv::count( vres &&  vtch, (unsigned char)1);
-                    float tn = cuv::count( vres ||  vtch, (unsigned char)0);
-                    float fp = cuv::count( vres && !vtch, (unsigned char)1);
-                    float fn = res.size() - (tp+tn+fp);
+                    float tp, tn, fp, fn;
+
+                    if(m_params.size()==2){
+                        // no `ignore' mask
+                        tp = cuv::count( vres &&  vtch, (unsigned char)1);
+                        tn = cuv::count( vres ||  vtch, (unsigned char)0);
+                        fp = cuv::count( vres && !vtch, (unsigned char)1);
+                        fn = res.size() - (tp+tn+fp);
+                    }
+                    else{
+                        // with `ignore' mask
+                        param_t::element_type&  p2 = *m_params[2];
+                        const value_type& ign = p2.value.cdata();
+                        cuv::tensor<unsigned char, Op::value_type::memory_space_type> vign (tch.shape());
+                        vign = ign > 0.01f;
+
+                        tp = cuv::count( vres &&  vtch && vign, (unsigned char)1);
+                        tn = cuv::count( (vres ||  vtch) && vign, (unsigned char)0);
+                        fp = cuv::count( (vres && !vtch) && vign, (unsigned char)1);
+                        fn = cuv::count( (!vres && vtch) && vign, (unsigned char)1);
+                    }
 
                     float precision = tp / (tp + fp);
                     float recall    = tp / (tp + fn);
-                    float f2 = 2 * precision * recall / ( precision + recall );
+                    float beta = 2;  // >2 weighs recall higher than precision
+                    float f2 = (1+beta*beta) * precision * recall / ( beta*beta*precision + recall );
                     if(m_results[0]->can_overwrite_directly()){
                         m_results[0]->overwrite_or_add_value().data() = f2;
                     }else{
@@ -164,6 +191,9 @@ namespace cuvnet
                 }
                 void _determine_shapes(){
                     assert(m_params[0]->shape == m_params[1]->shape);
+                    if(m_params.size() == 3){
+                        assert(m_params[1]->shape == m_params[2]->shape);
+                    }
                     m_results[0]->shape = std::vector<unsigned int>(1,1);
                     m_results[1]->shape = std::vector<unsigned int>(1,1);
                     m_results[2]->shape = std::vector<unsigned int>(1,1);
