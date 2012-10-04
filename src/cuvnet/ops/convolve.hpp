@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cuvnet/op.hpp>
 #include <cuv/convolution_ops/convolution_ops.hpp>
+#include <log4cxx/logger.h>
 namespace cuvnet
 {
 
@@ -231,21 +232,38 @@ namespace cuvnet
                     unsigned int nFltPixX = sqrt(flt[1]);
                     assert(nFltPixX*nFltPixX==flt[1]);
 
-                    if(m_padding_start)
+                    if(m_padding_start) // set to `1' in constructor when padding requested
                         m_padding_start = -(int)nFltPixX/2; // assume nFltPixX%2==1
 
-                    unsigned int nOutPixX = m_padding_start 
+                    unsigned int nOutPixX = is_padded()
                         ? (nImgPixX)
                         : (nImgPixX+1-nFltPixX);
-                    unsigned int nOutPixY = m_padding_start 
+                    unsigned int nOutPixY = is_padded()
                         ? (nImgPixY)
                         : (nImgPixY+1-nFltPixX);
+
+                    log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
+                    LOG4CXX_WARN(log, "Convolving image of shape ("
+                            + boost::lexical_cast<std::string>(nFilt) 
+                            + " x " + boost::lexical_cast<std::string>(nImgPixY) 
+                            + " x " + boost::lexical_cast<std::string>(nImgPixX) 
+                            + " x " + boost::lexical_cast<std::string>(img[3]) 
+                            + ") to shape ("
+                            + boost::lexical_cast<std::string>(nFilt) 
+                            + " x " + boost::lexical_cast<std::string>(nOutPixY) 
+                            + " x " + boost::lexical_cast<std::string>(nOutPixX) 
+                            + " x " + boost::lexical_cast<std::string>(img[3]) 
+                            + ") using filters of size " + boost::lexical_cast<std::string>(nFltPixX));
 
                     dst[0] = nFilt;
                     dst[1] = nOutPixY;
                     dst[2] = nOutPixX;
                     dst[3] = img[3];
                     m_results[0]->shape = dst;
+                }
+
+                inline bool is_padded()const{
+                    return m_padding_start != 0;
                 }
 
             private:
@@ -821,8 +839,28 @@ namespace cuvnet
                     dst[1] = img[1] / m_subsx;
                     dst[2] = img[2] / m_subsx;
                     dst[3] = img[3];
+
+                    log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
+                    LOG4CXX_WARN(log, "Pooling image of shape ("
+                            +         boost::lexical_cast<std::string>(img[0]) 
+                            + " x " + boost::lexical_cast<std::string>(img[1]) 
+                            + " x " + boost::lexical_cast<std::string>(img[2]) 
+                            + " x " + boost::lexical_cast<std::string>(img[3]) 
+                            + ") to shape ("
+                            +         boost::lexical_cast<std::string>(dst[0]) 
+                            + " x " + boost::lexical_cast<std::string>(dst[1]) 
+                            + " x " + boost::lexical_cast<std::string>(dst[2]) 
+                            + " x " + boost::lexical_cast<std::string>(dst[3]) 
+                            + ")");
+
                     cuvAssert(img[1]==img[2]); // currently, cudaConv2 only supports square images for pooling
-                    cuvAssert(m_subsx * dst[1] == img[1]);
+                    if(m_subsx * dst[1] != img[1]){
+                        throw std::runtime_error(
+                                "LocalPooling: incoming size `"
+                                + boost::lexical_cast<std::string>(img[1])
+                                + "' is not divisible by subsampling factor `"
+                                + boost::lexical_cast<std::string>(m_subsx));
+                    }
                     cuvAssert(m_subsx * dst[2] == img[2]);
                     m_results[0]->shape = dst;
                 }
@@ -837,10 +875,10 @@ namespace cuvnet
         };
 
     /**
-     * converts the (more natural) memory order nImg x nChann x nPix to the
+     * converts the (more natural) memory order nImg x nChann x nPixY x nPixX to the
      * order required by Alex' convolution routines.
      * 
-     * ...which is nChann x nPix x nImg
+     * ...which is nChann x nPixY x nPixX x nImg
      *
      * In bprop(), it does the opposite operation. This
      * is quite cheap compared to convolution itself.
