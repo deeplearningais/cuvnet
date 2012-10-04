@@ -1,9 +1,11 @@
 #include <vector>
 #include <algorithm>
 
+#include <boost/lexical_cast.hpp>
 #include <tools/argsort.hpp>
 #include <tools/preprocess.hpp>
 #include <tools/orthonormalization.hpp>
+#include <tools/normalization.hpp>
 
 #include <boost/test/unit_test.hpp>
 
@@ -42,6 +44,52 @@ BOOST_AUTO_TEST_CASE(inv){
     for(unsigned int i=1;i<50;i++){
         BOOST_CHECK_GT(v[idx[i-1]] , v[idx[i]]);
     }
+}
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE( t_normalization )
+BOOST_AUTO_TEST_CASE(everything){
+    cuv::tensor<float,cuv::host_memory_space> m(cuv::extents[20][3]);
+    cuv::tensor<float,cuv::host_memory_space> s(cuv::extents[20]);
+
+    float thresh = sqrt(75);
+
+    s = 0.f;
+
+    unsigned int cnt = 0;
+    for (unsigned int i = 0; i < m.shape(0); ++i)
+    {
+        for (unsigned int j = 0; j < m.shape(1); ++j)
+        {
+            float f = 10.f*drand48();
+            m(i,j) = f;
+            s(i) += f * f;
+        }
+        if(s(i) > thresh * thresh)
+            cnt++;
+    }
+    BOOST_CHECK_LT(cnt, 20);
+    BOOST_CHECK_GT(cnt, 0);
+
+    m.reshape(cuv::extents[4][5][3]);
+    cuvnet::project_to_unit_ball(m, 2, thresh);
+    m.reshape(cuv::extents[20][3]);
+    for (unsigned int i = 0; i < m.shape(0); ++i)
+    {
+        float sum = 0.f;
+        for (unsigned int j = 0; j < m.shape(1); ++j)
+        {
+            sum += m(i,j) * m(i,j);
+        }
+        if(s(i) > thresh * thresh){
+            BOOST_CHECK_CLOSE(sum, thresh*thresh, 0.001f);
+        }else{
+            BOOST_CHECK_CLOSE(sum, (float) s(i), 0.001f);
+        }
+    }
+
+    
+
 }
 BOOST_AUTO_TEST_SUITE_END()
 
