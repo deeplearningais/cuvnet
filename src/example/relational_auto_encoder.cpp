@@ -622,15 +622,13 @@ void visualize_prediction(monitor* mon, vector<tensor_type>& img, input_ptr inpu
         }
 }
 
-void log_activations(monitor * mon, dataset_dumper * dum, random_translation * ds, int bs, bool is_train_set, int batch){
-    tensor_type act = (*mon)["encoded"];
-    tensor_type labels;
+void log_activations(monitor * mon, dataset_dumper * dum, random_translation * ds, int bs,tensor_type& all_act, tensor_type& all_labels, bool is_train_set, int batch){
+    all_act[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]]= (*mon)["encoded"];
     if(is_train_set){
-        labels = ds->train_labels[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
+        all_labels[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]] = ds->train_labels[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
     }else{
-        labels = ds->test_labels[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
+        all_labels[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]] = ds->test_labels[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
     }
-    dum->write_to_file(act, labels);
 }
 
 /**
@@ -650,6 +648,7 @@ void log_activations(monitor * mon, dataset_dumper * dum, random_translation * d
 void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& ae, input_ptr input_x,input_ptr input_y, input_ptr teacher, int bs, int input_size, int num_hidden, std::vector<Op*>& params, unsigned int max_num_epochs){
         // copy training data to the device
         matrix train_data = ds.train_data;
+        
 
         // create a \c gradient_descent object that derives the auto-encoder loss
         // w.r.t. \c params and has learning rate 0.001f
@@ -680,9 +679,13 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
         gd.minibatch_learning(max_num_epochs, 100*60, 0, false);
 
         // register dumper
+        tensor_type all_act(cuv::extents[ds.train_data.shape(1)][num_hidden]);
+        tensor_type all_labels(cuv::extents[ds.train_labels.shape(0)][ds.train_labels.shape(1)]);
         dataset_dumper dum("train_data.dat", ds.train_data.shape(1) / bs);
-        gd.after_batch.connect(boost::bind(log_activations, &mon, &dum, &ds,bs, true, _2));
+        gd.after_batch.connect(boost::bind(log_activations, &mon, &dum, &ds,bs, all_act, all_labels, true, _2));
         gd.minibatch_learning(1, 100*60,0, false);
+        dum.write_to_file(all_act, all_labels);
+        dum.close();
 }
 
 
@@ -701,6 +704,10 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
  * @param param_name  this string is appended to image name of the input patterns, describing the transformations used
  */
 void test_phase(random_translation& ds, monitor& mon, relational_auto_encoder& ae, input_ptr input_x,input_ptr input_y, input_ptr teacher, int bs, int input_size, int num_hidden, std::string param_name){
+    tensor_type all_act(cuv::extents[ds.train_data.shape(1)][num_hidden]);
+    tensor_type all_labels(cuv::extents[ds.train_labels.shape(0)][ds.train_labels.shape(1)]);
+    
+
     dataset_dumper dum("test_data.dat", ds.train_data.shape(1) / bs);
     std::cout << std::endl << " Test phase: " << std::endl;
     //// evaluates test data. We use minibatch learning with learning rate zero and only one epoch.
@@ -711,9 +718,11 @@ void test_phase(random_translation& ds, monitor& mon, relational_auto_encoder& a
     mon.register_gd(gd);
     gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon, input_x, input_y, teacher, param_name, false,_1));
     gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
-    gd.after_batch.connect(boost::bind(log_activations, &mon, &dum, &ds,bs, false, _2));
+    gd.after_batch.connect(boost::bind(log_activations, &mon, &dum, &ds,bs,all_act, all_labels, false, _2));
     gd.current_batch_num = data.shape(1)/ll::constant(bs);
     gd.minibatch_learning(1, 100, 0, false);
+
+    dum.write_to_file(all_act, all_labels);
     dum.close();
     //load_batch(input_x, input_y, teacher, &data,bs,0);
     //gd.batch_learning(1, 10);
@@ -782,6 +791,21 @@ void load_batch_logistic(
 }
 
 
+void accumulate_batches(monitor * mon, tensor_type all_est,  tensor_type& all_teacher, int bs, int batch){
+   tensor_type est = (*mon)["est"];
+   tensor_type teacher = (*mon)["teacher"];
+   all_est[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]] = est;
+   all_teacher[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]] = teacher;
+}
+
+//void mean_variance_regression(tensor_type all_est,  tensor_type& all_teacher){
+//    tensor_type sqr_diff = all_teacher - all_est;
+//    tensor_type mean();
+//    apply_scalar_functor(sqr_diff, SF_SQUARE);
+//    reduce_to_row(sqr_diff, RF_MEAN);
+//}
+
+
 void regression(random_translation& ds, int bs){
     dataset_reader dum("train_data.dat", "test_data.dat");
     dum.read_from_file();
@@ -792,13 +816,13 @@ void regression(random_translation& ds, int bs){
     tensor_type labels_train = dum.train_labels;
     tensor_type labels_test = dum.test_labels;
 
-    for (int i = 0; i < encoder_train.shape(0); ++i)
-    {
-        for (int j = 0; j < encoder_train.shape(1); ++j)
-        {
-            std::cout << "ecoder tr " << labels_train(i,j) << "  ";
-        }
-    }
+    //for (int i = 0; i < encoder_train.shape(0); ++i)
+    //{
+    //    for (int j = 0; j < encoder_train.shape(1); ++j)
+    //    {
+    //        std::cout << "ecoder tr " << labels_train(i,j) << "  ";
+    //    }
+    //}
 
 
    // an \c Input is a function with 0 parameters and 1 output.
@@ -828,6 +852,8 @@ void regression(random_translation& ds, int bs){
    mon.add(monitor::WP_SCALAR_EPOCH_STATS, lr.get_loss(),        "total loss");
    mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, lr.classification_error(),        "classification error");
 
+   mon.add(monitor::WP_SINK, lr.get_estimator(), "est");
+   mon.add(monitor::WP_SINK, lr.get_target(), "teacher");
     
    std::cout << std::endl << " Training phase of regression: " << std::endl;
    {
@@ -854,19 +880,25 @@ void regression(random_translation& ds, int bs){
        // do mini-batch learning for at most 100 epochs, or 10 minutes
        // (whatever comes first)
        //gd.minibatch_learning(10000, 10*60); // 10 minutes maximum
-       gd.minibatch_learning(2000, 100*60, 0);
+       gd.minibatch_learning(500, 100*60, 0);
    }
    std::cout << std::endl << " Test phase: of regression " << std::endl;
 
    //evaluates test data, does it similary as with train data, minibatch_learing is running only one epoch
    {
+      tensor_type all_est(cuv::extents[labels_test.shape(0)][labels_test.shape(1)]);
+      tensor_type all_teacher(cuv::extents[labels_test.shape(0)][labels_test.shape(1)]);
+
       matrix test_data = encoder_test;
       matrix test_labels(labels_test);
       rprop_gradient_descent gd(lr.get_loss(), 0, params,   0.00001);
       mon.register_gd(gd);
       gd.before_batch.connect(boost::bind(load_batch_logistic, &lr, input, target,&test_data, &test_labels, bs,_2));
+      gd.after_batch.connect(boost::bind(accumulate_batches, &mon, all_est, all_teacher, bs,_2));
       gd.current_batch_num = encoder_test.shape(0)/ll::constant(bs);
       gd.minibatch_learning(1);
+
+
    }
    std::cout <<  std::endl;
 }
@@ -890,9 +922,11 @@ struct morse_pat_gen{
     float m_current_trans;
     float m_current_scale;
     int m_current_ex_type;
+    int m_gauss_dist;
+    float m_sigma;
     public:
 
-    morse_pat_gen(input_ptr input_x, input_ptr input_y, int min_trans, int max_trans, int min_pos, int max_pos, int min_ex_type, int max_ex_type, int factor, int input_size, int max_num_examples, float max_scale):
+    morse_pat_gen(input_ptr input_x, input_ptr input_y, int min_trans, int max_trans, int min_pos, int max_pos, int min_ex_type, int max_ex_type, int factor, int input_size, int max_num_examples, float max_scale, int gauss_dist, float sigma):
         m_input_x(input_x),
         m_input_y(input_y),
         m_min_trans(min_trans),
@@ -909,7 +943,9 @@ struct morse_pat_gen{
         m_current_pos(min_pos),
         m_current_trans(0),
         m_current_scale(0),
-        m_current_ex_type(0)
+        m_current_ex_type(0),
+        m_gauss_dist(gauss_dist),
+        m_sigma(sigma)
     {
         srand ( time(NULL) );
     }
@@ -926,8 +962,17 @@ struct morse_pat_gen{
         float scale;
         int ex_type;
         if(m_current_pos == m_min_pos){
-            scale =  1 + (drand48() * 2 * m_max_scale - m_max_scale);
-            trans = drand48() * 2 * m_max_trans - m_max_trans;
+            if(m_max_scale == 0.f){
+                scale = 1.f;
+            }else{
+                scale =  1 + (drand48() * 2 * m_max_scale - m_max_scale);
+            }
+            if(m_max_trans == 0.f){
+                trans = 0.f;
+            }else{
+                trans = drand48() * 2 * m_max_trans - m_max_trans;
+            }
+
             ex_type = (rand() % (m_max_ex_type - m_min_ex_type )) + m_min_ex_type;
             m_current_trans = trans;
             m_current_scale = scale;
@@ -939,28 +984,62 @@ struct morse_pat_gen{
             scale = m_current_scale;
         }
         m_current_example++;
-        int pos = m_current_pos;
+        //float pos = m_current_pos + drand48();
+        float pos = m_current_pos;
         m_current_pos++;
 
-        tensor_type example(cuv::extents[3][1][m_input_size]);
+        tensor_type example(cuv::extents[3][1][2*m_input_size]);
         example = 0.f;        
         morse_code morse(example, m_factor);
         morse.write_char(ex_type, 0, 0, pos);
         morse.write_char(ex_type, 1, 0, pos);
         morse.write_char(ex_type, 2, 0, pos);
+
         morse.translate_coordinates(1, 0, trans);
-        morse.translate_coordinates(1, 0, scale);
+        morse.scale_coordinates(1, 0, scale);
 
         morse.translate_coordinates(2, 0, trans);
+        morse.scale_coordinates(2, 0, scale);
         morse.translate_coordinates(2, 0, trans);
-        morse.translate_coordinates(2, 0, scale);
-        morse.translate_coordinates(2, 0, scale);
+        morse.scale_coordinates(2, 0, scale);
+
 
         morse.write_from_coordinates();
         example = morse.get_data();
 
+
+        //creates gaussian filter
+        cuv::tensor<float,cuv::host_memory_space> gauss;
+        fill_gauss(gauss, m_gauss_dist, m_sigma);
+
+        // convolves last dim of both train and test data with the gauss filter
+        convolve_last_dim(example, gauss);
+
+        // subsamples each "subsample" element
+        subsampling(example, 2);
+
+        normalize_data_set(example);
+
         m_input_x->data() = example[cuv::indices[0][cuv::index_range()][cuv::index_range()]];
         m_input_y->data() = example[cuv::indices[1][cuv::index_range()][cuv::index_range()]];
+
+
+        if (m_current_example % 1233 == 0){
+           tensor_type in_x = m_input_x->data();
+           tensor_type in_y = m_input_y->data();
+           tensor_type teacher_ = example[cuv::indices[2][cuv::index_range()][cuv::index_range()]];
+           tensor_type prediction(cuv::extents[in_x.shape(0)][in_x.shape(1)]);
+           prediction = 0.f;
+           int fa = 1;
+           int fb =  1;
+           std::string base;
+           base = (boost::format("example-test-%1%")% m_current_example).str();
+           auto wvis      = arrange_inputs_and_prediction(in_x, in_y, teacher_, prediction, fa, fb, (int)in_x.shape(1),true);
+           cuv::libs::cimg::save(wvis, base+"sb.png");
+
+        }
+
+
         map<string,float> param_map;
         param_map["translation"] = trans;
         param_map["scaling"] = scale;
@@ -987,18 +1066,18 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(device);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 1, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
+    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 0, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
 
-    float max_growing = 0.f;
-    unsigned max_num_epochs = 500;
+    float max_growing = 0.1f;
+    unsigned max_num_epochs = 5000;
 
-    unsigned int num_hidden = 5;
+    unsigned int num_hidden = 10;
 
-    unsigned int num_factors = 600;
+    unsigned int num_factors = 400;
     float sigma = gauss_dist / 3; 
     //float learning_rate = 0.001f;
     // generate random translation datas
-    unsigned int data_set_size = 5000;
+    unsigned int data_set_size = 10000;
     std::cout << "generating dataset: "<<std::endl;
     random_translation ds(input_size * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width, flag, morse_factor);
     ds.binary   = false;
@@ -1034,7 +1113,7 @@ int main(int argc, char **argv)
     // create a verbose monitor, so we can see progress 
     // and register the decoded activations, so they can be displayed
     // in \c visualize_filters
-    monitor mon(false);
+    monitor mon(true);
     mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.loss(),        "total loss");
     mon.add(monitor::WP_SINK,               ae.get_decoded_y(), "decoded");
     mon.add(monitor::WP_SINK,               ae.get_factor_x(), "factorx");
@@ -1054,18 +1133,18 @@ int main(int argc, char **argv)
     //prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
     
     // does regression on hidden layer activations, classifies transformation
-    regression(ds, bs);
+    //regression(ds, bs);
 
     // log to the file the generated examples for invariance analysis
 
-    //input_x->data().resize(cuv::extents[1][input_size]); 
-    //input_y->data().resize(cuv::extents[1][input_size]); 
+    input_x->data().resize(cuv::extents[1][input_size]); 
+    input_y->data().resize(cuv::extents[1][input_size]); 
     
-    //dumper a;
+    dumper a;
     
-    //int num_examples = 100000;
-    //morse_pat_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, num_examples, max_growing);
-    //a.generate_log_patterns(ae.get_encoded(), m, "invariance_test-" + param_name + ".txt"); 
+    int num_examples = 10000;
+    morse_pat_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, num_examples, max_growing, gauss_dist, sigma);
+    a.generate_log_patterns(ae.get_encoded(), m, "invariance_test-" + param_name + ".txt"); 
 
     
 
