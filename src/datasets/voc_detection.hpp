@@ -68,9 +68,28 @@ namespace cuvnet
 
                 cuv::tensor<float,cuv::host_memory_space> result;
             };
+
+            /** 
+             * assuming the input tensors are of shape NxN, the teacher/ignore
+             * tensors are of shape MxM, where M = (N-crop)/scale.
+             * This is useful if the teacher/ignore variables are to be used in
+             * a network that performs valid convolutions (crop) and pooling
+             * (scale) operations.
+             */
+            struct output_properties{
+                unsigned int scale_h, scale_w, crop_h, crop_w;
+            };
+            
+            output_properties m_output_properties;
+
+            void set_output_properties(
+                    unsigned int scale_h, unsigned int scale_w,
+                    unsigned int crop_h, unsigned int crop_w);
+            
         private:
             int m_n_threads;
             std::list<pattern> m_return_queue;
+
 
         public:
             /**
