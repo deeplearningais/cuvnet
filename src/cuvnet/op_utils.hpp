@@ -7,10 +7,13 @@
 #include <cuvnet/op.hpp>
 #include <cuvnet/ops/input.hpp>
 #include <cuvnet/ops/output.hpp>
+#include <cuvnet/ops/convolve.hpp>
 #include <algorithm>
+#include <log4cxx/logger.h>
 
 namespace cuvnet
 {
+
     /**
      * helper class to create visitors (you can derive from this so
      * that you eg only need to implement one method).
@@ -392,5 +395,107 @@ namespace cuvnet
         param_collector_visitor::container_type m_paramlist;
     };
 
+    /**
+     * exception thrown by valid_shape_info when finished.
+     */
+    struct valid_shape_info_finished{};
+
+    /** 
+     * Determine how to transform the teacher to a a series of convolutions/pooling
+     * operations given only valid convolutions.
+     *
+     * - Valid convolutions decrease the size of the input. 
+     *   A teacher containing pixel-wise annotation should therefore be cropped
+     *   by a margin. 
+     * - Pooling operations, on the other hand, change the size by a factor.
+     *   A pixel-wise annotated teacher should therefore be /scaled/.
+     *
+     * This function traverses the path from the teacher to the input and can be
+     * used to retrieve the combined scaling/cropping operations.
+     *
+     * @note for convinience, this is currently implemented using depth-first
+     * search. Thus, we cannot guarantee /shortest/ path or efficiency,
+     * however, this should not be a problem since most graphs will be small
+     * and the function will only be called once.
+     *
+     * @ingroup op_visitors
+     */
+    struct valid_shape_info
+        : public op_visitor_once_adaptor{
+        typedef std::vector<Op*> container_type;
+        Op *m_begin, *m_end;
+
+        valid_shape_info(boost::shared_ptr<Op> begin, boost::shared_ptr<Op> end)
+            :m_begin(begin.get()), m_end(end.get())
+        {
+            bool ok = false;
+            try{
+                end->visit(*this);
+            }catch(valid_shape_info_finished){
+                determine_shapes();
+                ok = true;
+            }
+            if(!ok){
+                log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("op"));
+                LOG4CXX_FATAL(log, "valid_shape_info: no path found!");
+            }
+        }
+
+        container_type     plist;
+        std::map<Op*,bool> visited;
+        inline bool discover(Op* o){
+            if(visited.find(o)!=visited.end()) 
+                return false;
+            visited[o] = true;
+            
+            if(o == m_begin) {
+                plist.push_back(o);
+                throw valid_shape_info_finished();
+            }
+            return true;
+        }
+        inline void preorder(Op* o){
+            plist.push_back(o);
+        }
+        inline void postorder(Op* o){
+            plist.pop_back();
+        }
+
+        unsigned int crop_h, crop_w;
+        unsigned int scale_h, scale_w;
+        void determine_shapes(){
+            // `it' points to the `output' object
+            container_type::iterator it = plist.begin();
+            (*it)->visit(determine_shapes_visitor());
+            std::vector<unsigned int> outshape = (*it)->result(0)->shape;
+            cuvAssert(outshape.size() == 4);
+
+            crop_h  = 0; crop_w = 0;
+            scale_h = 1; scale_w = 1;
+
+            LocalPooling* poolp;
+            Convolve* convp;
+
+            while(*it != plist.back()){
+                if((poolp = dynamic_cast<LocalPooling*>(*it))){
+                    std::vector<unsigned int> inshape  = poolp->param(0)->shape;
+                    std::vector<unsigned int> outshape = poolp->result(0)->shape;
+                    crop_h  *= inshape[1] / outshape[1];
+                    crop_w  *= inshape[2] / outshape[2];
+                    scale_h *= inshape[1] / outshape[1];
+                    scale_w *= inshape[2] / outshape[2];
+                }
+                else if((convp = dynamic_cast<Convolve*>(*it))){
+                    std::vector<unsigned int> inshape  = convp->param(0)->shape;
+                    std::vector<unsigned int> outshape = convp->result(0)->shape;
+                    // `valid' convolution amounts to /cropping/
+                    crop_h += inshape[1] - outshape[1];
+                    crop_w += inshape[2] - outshape[2];
+                }
+
+                it = it+1;
+            }
+        }
+    };
 }
 #endif /* __OP_UTILS_HPP__ */
