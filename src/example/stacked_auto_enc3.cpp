@@ -1,6 +1,7 @@
 #include <boost/program_options.hpp>
 #include <boost/bind.hpp>
 #include <boost/thread.hpp>                                                                  
+#include <sys/syscall.h> /* for pid_t, syscall, SYS_gettid */
 
 #include <mongo/client/dbclient.h>
 #include <mdbq/client.hpp>
@@ -257,8 +258,8 @@ namespace cuvnet{
     template<class G>
     void pretrained_mlp_learner<G>::fit(){
         // shuffle batches in DIFFERENT random order for every client!
-        srand48(getpid());
-        srand(getpid());
+        srand48(time(NULL) + (pid_t)syscall(SYS_gettid));
+        srand(time(NULL) + (pid_t)syscall(SYS_gettid));
 
         using namespace boost::assign;
         unsigned int n_ae = m_aes.size();
