@@ -30,6 +30,7 @@ class obj_detector
                 ar & m_n_channels;
                 ar & m_filter_size1 & m_filter_size2 & m_filter_size3;
                 ar & m_n_filters1 & m_n_filters2 & m_n_filters3;
+                ar & hl3; // needed for valid_shape_info
             }
     public:
         input_ptr m_conv1_weights;
@@ -44,8 +45,8 @@ class obj_detector
         unsigned int m_n_filters1, m_n_filters2, m_n_filters3;
 
         op_ptr actfunc(op_ptr f){
-            //return tanh(f);
-            return response_normalization(rectified_linear(f), 7, 1.f, 1.f);
+            return tanh(f);
+            //return response_normalization(rectified_linear(f), 7, 1.f, 1.f);
             //return contrast_normalization(tanh(f), 7, 1.f, 1.f);
         }
 
@@ -61,14 +62,16 @@ class obj_detector
             if((images->result()->shape[1] * images->result()->shape[2]) % partialSum != 0)
                 partialSum = 1;
             
+            bool pad = false;
             if(!bias)
-                return convolve(images, weights, true, partialSum);
+                return convolve(images, weights, pad, partialSum);
             else
-                return mat_plus_vec(convolve(images, weights, true, partialSum), bias, 0);
+                return mat_plus_vec(convolve(images, weights, pad, partialSum), bias, 0);
         }
 
-        op_ptr max_pool(op_ptr images){
+        op_ptr pool(op_ptr images){
             return local_pool(images, cuv::alex_conv::PT_MAX);
+            //return sqrt(local_pool(pow(images, 2.f), cuv::alex_conv::PT_AVG));
         }
 
     public:
@@ -79,15 +82,14 @@ class obj_detector
          * Inputs must be square images.
          *
          * @param inp the input images (shape: batch size X number of color channels x number of pixels)
-         * @param ignore a matrix which is 1 if the value
-         * @param target the target labels (one-out-of-n coded)
+         * @param n_omaps the number of output maps
          */
-        virtual void init(op_ptr inp, op_ptr ignore, op_ptr target){
+        virtual void init(op_ptr inp, unsigned int n_omaps){
             inp->visit(determine_shapes_visitor()); 
+            unsigned int bs= inp->result()->shape[0];
             m_n_channels   = inp->result()->shape[1];
 
-            target->visit(determine_shapes_visitor()); 
-            m_n_filters3   = target->result()->shape[1]; // number of output maps
+            m_n_filters3   = n_omaps;
 
             m_conv1_weights.reset(new ParameterInput(cuv::extents[m_n_channels][m_filter_size1*m_filter_size1][m_n_filters1], "conv_weights1"));
             m_conv2_weights.reset(new ParameterInput(cuv::extents[m_n_filters1][m_filter_size2*m_filter_size2][m_n_filters2], "conv_weights2"));
@@ -98,39 +100,24 @@ class obj_detector
             m_bias3.reset(new ParameterInput(cuv::extents[m_n_filters3], "bias3"));
 
             op_ptr input_pool0 = reorder_for_conv(inp);
-            op_ptr input_pool1 = local_pool(input_pool0, cuv::alex_conv::PT_AVG);
-            op_ptr input_pool2 = local_pool(input_pool1, cuv::alex_conv::PT_AVG);
+            hl1 = actfunc(conv_bias(input_pool0,   m_conv1_weights, m_bias1));
+            hl2 = actfunc(conv_bias(pool(hl1), m_conv2_weights, m_bias2));
+            hl3 =         conv_bias(pool(hl2), m_conv3_weights, m_bias3);
 
-            op_ptr p0 = actfunc(conv_bias(input_pool0, m_conv1_weights, m_bias1));
-            op_ptr p1 = actfunc(conv_bias(input_pool1, m_conv1_weights, m_bias1));
-            op_ptr p2 = actfunc(conv_bias(input_pool2, m_conv1_weights, m_bias1));
-
-            hl1 = axpby(0.33, conv_bias(max_pool(p0), m_conv2_weights), 0.33, conv_bias(p1, m_conv2_weights));
-
-            hl2 = axpby(0.66, max_pool(hl1), 0.33, conv_bias(p2, m_conv2_weights));
-            hl2 = mat_plus_vec(hl2, m_bias2, 0);
-            hl2 = actfunc(hl2);
-
-            hl3 = conv_bias(hl2, m_conv3_weights, m_bias3);
-
-            //m_output = sink("output", logistic(hl3));
             m_output = sink("output", hl3);
 
-            // pool target twice
-            op_ptr subsampled_target = 
-                        //reorder_for_conv(target)
-                max_pool( 
-                   max_pool( 
-                       reorder_for_conv(target)
-                       ))
-                    ;
-            // pool ignore twice
-            op_ptr subsampled_ignore = 
-                        //reorder_for_conv(ignore)
-                max_pool(
-                   max_pool( 
-                       reorder_for_conv(ignore)
-                       ))
+            hl3->visit(determine_shapes_visitor());
+            unsigned int out_h = hl3->result()->shape[1];
+            unsigned int out_w = hl3->result()->shape[2];
+            std::cout << "out_h:" << out_h << " out_w:" << out_w << std::endl;
+
+            boost::shared_ptr<ParameterInput> ignore(
+                    new ParameterInput(cuv::extents[bs][n_omaps][out_h][out_w],"ignore"));
+            boost::shared_ptr<ParameterInput> target(
+                    new ParameterInput(cuv::extents[bs][n_omaps][out_h][out_w],"target"));
+
+            op_ptr subsampled_target = reorder_for_conv(target);
+            op_ptr subsampled_ignore = reorder_for_conv(ignore);
                     ;
 
             // batch is in the dimension with index 2
@@ -142,7 +129,9 @@ class obj_detector
 
             m_f2.reset(new F2Measure(
                         sink("sst", subsampled_target)->result(),
-                        sink("hl3", hl3)->result(), 0.f));
+                        sink("hl3", hl3)->result(),
+                        sink("ign", subsampled_ignore)->result(),
+                        0.f));
 
             reset_weights();
         }
