@@ -1,7 +1,7 @@
 OPTION(USE_OPENCV "Use OpenCV if available" OFF)
-IF(USE_OPENCV)
-    FIND_PACKAGE( OpenCV REQUIRED )
-ENDIF(USE_OPENCV)
+#IF(USE_OPENCV)
+#    FIND_PACKAGE( OpenCV REQUIRED )
+#ENDIF(USE_OPENCV)
 
 FIND_PACKAGE( tbb )
 
@@ -21,7 +21,7 @@ INCLUDE_DIRECTORIES(/usr/local/src/magma_1.1.0/include)
 LINK_DIRECTORIES(/usr/local/src/magma_1.1.0/lib)
 
 IF (USE_OPENCV AND TBB_FOUND)
-   LIST(APPEND CUVNET_TOOLS_SRC preprocess.cpp data_source.cpp)
+   LIST(APPEND CUVNET_TOOLS_SRC  data_source.cpp)
 ENDIF (USE_OPENCV AND TBB_FOUND)
 
 if ( PYTHONLIBS_FOUND )
