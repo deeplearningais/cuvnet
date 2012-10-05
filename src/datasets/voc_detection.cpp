@@ -1,3 +1,4 @@
+#include <sys/syscall.h> /* for pid_t, syscall, SYS_gettid */
 #include<iostream>
 #include<fstream>
 #include<queue>
@@ -19,6 +20,11 @@ namespace cuvnet
 {
 
     void square(cimg_library::CImg<unsigned char>& orig, int sq_size, voc_detection_dataset::image_meta_info& meta){
+        if(std::max(orig.width(), orig.height()) < sq_size ){
+            float fact = sq_size / (float)std::max(orig.width(), orig.height());
+            orig.resize(fact * orig.width(), fact * orig.height(), -100, -100, 3, 2, 0.5f, 0.5f);
+        }
+
         int orig_rows = orig.height();
         int orig_cols = orig.width();
 
@@ -28,12 +34,13 @@ namespace cuvnet
         //orig.blur(0.5f*orig_cols/(float)new_cols, 0.5f*orig_rows/(float)new_rows, 0, 1);
         //orig.blur(orig_cols/(float)new_cols, orig_rows/(float)new_rows, 0, 1);
 
+
         // downsample if the supplied image is not already square
         if(new_cols != sq_size || new_rows != sq_size)
             orig.resize(new_cols, new_rows, -100/* z */, -100 /* c */, 3 /* 3: linear interpolation */);
 
         // square
-        orig.resize(sq_size, sq_size, -100, -100, 0 /* no interpolation */, 1 /* 0: zero border, 1: nearest neighbor */, 0.5f, 0.5f);
+        orig.resize(sq_size, sq_size, -100, -100, 0 /* no interpolation */, 1 /* 0: zero border, 1: nearest neighbor, 2: relect? */, 0.5f, 0.5f);
 
         // new_pos = stretch 
         float stretchx = new_cols / (float)orig_cols;
@@ -118,11 +125,15 @@ namespace cuvnet
             if(w > final_size/1.2 || h > final_size/1.2)
               continue;
 
-            if(ttype == 0){
-                static int cnt = 0;
-                cimg_library::CImg<unsigned char> simg = img.get_crop(mo.xmin, mo.ymin, 0, 0, mo.xmax, mo.ymax, 0, 3);
-                simg.save(boost::str(boost::format("obj-%05d.png") % cnt++ ).c_str());
-            }
+            /*
+             *if(ttype == 0){
+             *    static int cnt = 0;
+             *    cimg_library::CImg<unsigned char> simg(img, false);
+             *    const unsigned char white[] = {255,255,255};
+             *    simg.draw_rectangle(mo.xmin, mo.ymin, mo.xmax, mo.ymax, white, 1.f, ~0U);
+             *    simg.save(boost::str(boost::format("obj-%d-%05d.jpg") % (pid_t) syscall(SYS_gettid)% cnt++ ).c_str());
+             *}
+             */
 
             //if(cx < 0 || cx >= final_size)
             //   continue;
@@ -197,6 +208,139 @@ namespace cuvnet
               , meta(_meta)
               , output_properties(op)
         {
+        }
+        void split_up_bbs(cimg_library::CImg<unsigned char>& img, unsigned int crop_square_size){
+            std::list<voc_detection_dataset::pattern> storage;
+            BOOST_FOREACH(const voc_detection_dataset::object& bbox, meta->objects){
+                
+                float w = bbox.xmax - bbox.xmin;
+                float h = bbox.ymax - bbox.ymin;
+                float cx = (bbox.xmax + bbox.xmin)/2.f;
+                float cy = (bbox.ymax + bbox.ymin)/2.f;
+
+                float context_fact = 2.f + drand48() * 0.5f;
+                float x_off = drand48() * w/4.f;
+                float y_off = drand48() * w/4.f;
+                float xmin = cx - context_fact * w/2.f + x_off;
+                float xmax = cx + context_fact * w/2.f + x_off;
+                float ymin = cy - context_fact * h/2.f + y_off;
+                float ymax = cy + context_fact * h/2.f + y_off;
+
+
+                // the xminmax, yminmax now a `larger' version of the original bbox. 
+                // we now try to extend the smaller dimension so the new image
+                // is more square, but does not go over the original image boundaries
+                
+                float new_w = xmax-xmin;
+                float new_h = ymax-ymin;
+                float max_new_wh = std::max(new_w, new_h);
+
+                if(new_w > new_h){
+                    // grow y-direction
+                    ymin = ymin - (max_new_wh - new_h)/2.f;
+                    ymax = ymin + max_new_wh; // now it is square
+                }
+                // if we moved against an image boundary, move the box so
+                // that it coincides with the boundary
+                if(ymax >= img.height())
+                {
+                    float d = ymax - (img.height() - 1);
+                    ymax -= d;
+                    ymin -= d;
+                }
+                if(ymin < 0){
+                    float d = 0 - ymin;
+                    ymax += d;
+                    ymin += d;
+                }
+                // we might still be outside the valid range, but that will
+                // be fixed later.
+                new_h = ymax - ymin;
+
+                if(new_h > new_w + 0.5){
+                    // grow x-direction
+                    xmin = xmin - (max_new_wh - new_w)/2.f;
+                    xmax = xmin + max_new_wh; // now it is square
+                }
+                // if we moved against an image boundary, move the box so
+                // that it coincides with the boundary
+                if(xmax >= img.width())
+                {
+                    float d = xmax - (img.width() - 1);
+                    xmax -= d;
+                    xmin -= d;
+                }
+                if(xmin < 0){
+                    float d = 0 - xmin;
+                    xmax += d;
+                    xmin += d;
+                }
+                // we might still be outside the valid range, but that will
+                // be fixed later.
+
+                xmin = std::max(xmin, 0.f);
+                xmax = std::min(xmax, img.width()-1.f);
+                ymin = std::max(ymin, 0.f);
+                ymax = std::min(ymax, img.height()-1.f);
+
+                cimg_library::CImg<unsigned char> simg = img.get_crop(xmin, ymin, xmax, ymax, false);
+                /*
+                 *{
+                 *   static int cnt = 0;
+                 *   img.save(boost::str(boost::format("img-%d-%05da.jpg") % (pid_t) syscall(SYS_gettid)% cnt++ ).c_str());
+                 *   simg.save(boost::str(boost::format("img-%d-%05db.jpg") % (pid_t) syscall(SYS_gettid)% cnt++ ).c_str());
+                 *}
+                 */
+
+                voc_detection_dataset::pattern pat;
+                pat.meta_info = *meta;
+
+                // remember where current crop came from
+                pat.meta_info.orig_xmin = xmin;
+                pat.meta_info.orig_ymin = ymin;
+                pat.meta_info.orig_xmax = xmax;
+                pat.meta_info.orig_ymax = ymax;
+
+                // adjust object positions according to crop
+                BOOST_FOREACH(voc_detection_dataset::object& o, pat.meta_info.objects){
+                    o.xmin = o.xmin-xmin;
+                    o.xmax = o.xmax-xmin;
+
+                    o.ymin = o.ymin-ymin;
+                    o.ymax = o.ymax-ymin;
+                }
+
+#define STORE_IMAGES_SEQUENTIALLY 1
+#if STORE_IMAGES_SEQUENTIALLY
+                // store images into a local storage and put them in
+                // the queue as one block after the loops
+                typedef std::list<voc_detection_dataset::pattern> list_type;
+                typedef voc_detection_dataset::pattern arg_type;
+                ensure_square_and_enqueue(
+                        boost::bind(static_cast<void (list_type::*)(const arg_type&)>(&list_type::push_back), &storage, _1), 
+                        simg, crop_square_size, pat, false /* no locking */);
+#else
+                // store images into the queue as soon as they are ready
+                // TODO: for some reason, this does not seem to work --
+                //       images look like they're cut out before smoothing?
+                typedef std::queue<voc_detection_dataset::pattern> queue_type;
+                typedef voc_detection_dataset::pattern arg_type;
+
+                ensure_square_and_enqueue(
+                        boost::bind( static_cast<void (queue_type::*)(const arg_type&)>(&queue_type::push)
+                            , loaded_data, _1),
+                        img, crop_square_size, pat, true /* locking */);
+#endif
+            }
+#if STORE_IMAGES_SEQUENTIALLY
+            boost::mutex::scoped_lock lock(*mutex);
+            BOOST_FOREACH(voc_detection_dataset::pattern& pat, storage){
+                loaded_data->push(pat);
+            }
+#endif
+#undef STORE_IMAGES_SEQUENTIALLY
+            //exit(1);
+
         }
         void split_up_scales(cimg_library::CImg<unsigned char>& img, unsigned int crop_square_size){
             static const unsigned int n_scales = 3;
@@ -288,7 +432,7 @@ namespace cuvnet
                                 xmax = pimg.width()-1;
                         }
 
-                        cimg_library::CImg<unsigned char> simg = pimg.get_crop(xmin, ymin, 0, 0, xmax, ymax, 0, 3);
+                        cimg_library::CImg<unsigned char> simg = pimg.get_crop(xmin, ymin, xmax, ymax, false);
 
                         voc_detection_dataset::pattern pat;
                         pat.meta_info = *meta;
@@ -332,10 +476,12 @@ namespace cuvnet
                             tmp -= cuv::minimum(tmp);
                             tmp /= cuv::maximum(tmp) + 0.0001f;
                             tmp *= 255.f;
-                            cuv::libs::cimg::save(tmp, boost::str(boost::format("image-s%02d-c%05d.png") % pat.meta_info.scale_id % pat.meta_info.subimage_id ));
+                            cuv::libs::cimg::save(tmp, boost::str(boost::format("image-s%02d-c%05d.jpg") % pat.meta_info.scale_id % pat.meta_info.subimage_id ));
                         }
 #else
                         // store images into the queue as soon as they are ready
+                        // TODO: for some reason, this does not seem to work --
+                        //       images look like they're cut out before smoothing?
                         typedef std::queue<voc_detection_dataset::pattern> queue_type;
                         typedef voc_detection_dataset::pattern arg_type;
 
@@ -449,7 +595,8 @@ namespace cuvnet
             }else{
                 // split up the image into multiple scales, extract images with
                 // size 128x128 on all scales, and enqueue them.
-                split_up_scales(img, 128);
+                //split_up_scales(img, 128);
+                split_up_bbs(img, 128);
             }
         }
     };
@@ -496,9 +643,9 @@ namespace cuvnet
                 , m_request_stop(false)
                 , m_running(false)
             {
-                //if(m_n_threads == 0)
-                   //m_n_threads = boost::thread::hardware_concurrency();
-                m_n_threads = 1;
+                if(m_n_threads == 0)
+                   m_n_threads = boost::thread::hardware_concurrency();
+                //m_n_threads = 1;
             }
 
             /**
