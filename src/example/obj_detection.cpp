@@ -137,13 +137,12 @@ int main(int argc, char **argv)
                 boost::bind(&monitor::simple_logging, &mon));
         gd.after_epoch.connect(std::cout << ll::constant("\n"));
 
-        serialize_to_file<obj_detector>(serialization_file, od, 0, 1);
-        gd.after_weight_update.connect(boost::bind(serialize_to_file<obj_detector>, serialization_file, od, _1, 640));
+        gd.after_epoch.connect(boost::bind(serialize_to_file<obj_detector>, serialization_file, od, _1, 20));
         gd.after_weight_update.connect(boost::bind(&obj_detector::project_to_allowed_region, &*od));
         
         // the number of batches 
         //gd.current_batch_num = boost::bind(&voc_detection_dataset::trainset_size, &ds);
-        gd.current_batch_num = ll::constant(85);
+        gd.current_batch_num = ll::constant(119);
         //gd.current_batch_num.connect(ll::constant(128));
         
         gd.minibatch_learning(1E6, 10000*60,1,false);
