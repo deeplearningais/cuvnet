@@ -24,7 +24,7 @@ if ( PYTHONLIBS_FOUND )
         ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} 
         cuv_convert cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuv_opt cuv_convolution_ops 
         cuvnet_tools cuvnet_datasets cuvnet_ops  
-        npy pthread)
+        png jpeg X11 npy pthread)
     target_link_libraries(relational_auto_encoder  ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools cuvnet_datasets pthread)
     target_link_libraries(stacked_auto_enc3  ${Boost_LIBRARIES}
         ${PYTHON_LIBRARIES} 
