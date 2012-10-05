@@ -63,8 +63,8 @@ class relational_auto_encoder{
         void init(op_ptr input_x, op_ptr input_y, op_ptr teacher){
             m_input_x   = input_x;
             m_input_y   = input_y;
-            float noise = 0.6f;
-            std::cout << " adding noise to inputs with std = " << noise << std::endl;
+            //float noise = 0.6f;
+            //std::cout << " adding noise to inputs with std = " << noise << std::endl;
             //m_input_x   = add_rnd_normal(input_x, noise);
             //m_input_y   = add_rnd_normal(input_y, noise);
             m_teacher = teacher;

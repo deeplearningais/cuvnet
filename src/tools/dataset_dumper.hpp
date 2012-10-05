@@ -8,8 +8,15 @@
 #include<cuv.hpp>
 #include<cuv/basics/io.hpp>
 
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/level.hpp>
+#include <boost/serialization/tracking.hpp>
+
+
+
 namespace cuvnet
 {
+
     struct  dataset_reader: public dataset{
         
         typedef cuv::tensor<float,cuv::host_memory_space> tensor_type;
@@ -37,32 +44,13 @@ namespace cuvnet
         // reads data and labels from file
         void read(tensor_type& data, tensor_type& labels,const std::string file_name){
             using namespace cuv;
+            
             std::ifstream readfile(file_name.c_str());
             boost::archive::binary_iarchive oa_read(readfile);
 
-            int num_batches;
-            oa_read >> num_batches;
+            oa_read >> data;
+            oa_read >> labels;
 
-            tensor_type data_batch;
-            tensor_type label_batch;
-            oa_read >> data_batch;
-            oa_read >> label_batch;
-            int bs = data_batch.shape(0);
-
-            // read first tensor and init main tensor
-            data.resize(extents[bs * num_batches][data_batch.shape(1)]);
-            labels.resize(extents[bs * num_batches][label_batch.shape(1)]);
-            data[indices[index_range(0, bs)][index_range()]] = data_batch;
-            labels[indices[index_range(0, bs)][index_range()]] = label_batch;
-
-            // read one by one tensor 
-            for (int i = 1; i < num_batches; ++i)
-            {
-                oa_read >> data_batch;
-                oa_read >> label_batch;
-                data[indices[index_range(bs*i, bs *(i+1))][index_range()]] = data_batch;
-                labels[indices[index_range(bs*i, bs *(i+1))][index_range()]] = label_batch;
-            }
             readfile.close();
         }
     };
@@ -88,7 +76,6 @@ namespace cuvnet
             m_oa_log(m_logfile),
             m_file(file_name)
         {
-            m_oa_log << num_batches;
         }
 
         

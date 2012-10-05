@@ -87,7 +87,7 @@ loop::operator()(const tbb::blocked_range<unsigned int>& r)const{
             is.open(fd.name.c_str(), std::ios::binary | std::ios::in);
             is.read(&fd.content[0], fd.size);
         }
-        m_pp->process_filestring(m_res[i], &fd.content[0],fd.size);
+        //m_pp->process_filestring(m_res[i], &fd.content[0],fd.size);
     }
 };
 
