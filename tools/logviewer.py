@@ -1,5 +1,7 @@
 #!/usr/bin/python
 #from IPython import embed
+from datetime import datetime
+from matplotlib import dates
 import numpy as np
 import re
 
@@ -39,13 +41,16 @@ def show_convergence(doc):
 
     convmsg = filter(conv_filter, results)
     results = filter(perf_filter, results)
+    tstart = datetime.fromtimestamp(float(results[0].get('timestamp'))/1000)
+    print "tstart: ", tstart
 
     messages = [message(r) for r in results]
     perfs = [ re.match(r".*: ([\d.]*)\s*$", m).group(1) for m in messages ]
     #perfs = [ re.match(r".*\d+/\d+, ([\d.]*).*", m).group(1) for m in messages ]
     perfs = np.array(perfs)
 
-    epochs = np.array([int(value(r, "epoch")) for r in results])
+    #epochs = np.array([int(value(r, "epoch")) for r in results])
+    epochs = np.array([datetime.fromtimestamp(float(r.get('timestamp'))/1000)-tstart for r in results])
 
     def event_to_label(e):
         host = value(e, "host")
@@ -62,13 +67,18 @@ def show_convergence(doc):
     for ul in unique_labels:
         #if "finetune" in ul: continue
         idx = np.where(np.array(labels) == ul)
-        plt.plot(epochs[idx], perfs[idx], label=ul)
+        E = [e.total_seconds()/60. for e in epochs[idx]]
+        #plt.plot(epochs[idx], perfs[idx], label=ul)
+        plt.plot(E, perfs[idx], label=ul)
+        plt.xlabel('minutes')
+        plt.ylabel('loss')
 
         ax = plt.gca()
         for m in convmsg:
             if event_to_label(m) == ul:
-                epoch = value(m, "epoch")
-                ax.axvline(epoch)
+                #epoch = value(m, "epoch")
+                epoch = datetime.fromtimestamp(float(m.get('timestamp'))/1000)-tstart
+                ax.axvline(epoch.total_seconds()/60.)
         #plt.ylim(np.min(perfs[idx]), np.max(perfs[idx]))
         #plt.yscale('log')
 
@@ -122,12 +132,16 @@ def show_earlystop(doc):
 if __name__ == "__main__":
     
     from lxml import etree
+    import sys
+    fn = 'log.xml'
+    if len(sys.argv) > 1:
+        fn = sys.argv[1]
 
     LOG4J_NAMESPACE = "http://logging.apache.org/log4j/"
     LOG4J = "{%s}" % LOG4J_NAMESPACE
     NSMAP = {None : LOG4J_NAMESPACE}
 
-    with open('log.xml', 'r') as f:
+    with open(fn, 'r') as f:
         data = f.read()
     data = meta % data
     doc = etree.fromstring(data)
