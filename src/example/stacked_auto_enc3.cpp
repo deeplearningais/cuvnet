@@ -216,7 +216,8 @@ namespace cuvnet{
                     cuv::extents[m_sdl.batchsize()][m_sdl.get_ds().train_labels.shape(1)]);
 
         m_aes.init(input);
-        m_regression.reset(new logistic_ridge_regression(m_mlp_wd, m_aes.get_encoded(), target));
+        //m_regression.reset(new logistic_ridge_regression(m_mlp_wd, m_aes.get_encoded(), target));
+        m_regression.reset(new logistic_regression(m_aes.get_encoded(), target));
         
         // set the initial number of epochs to zero
         m_epochs.resize(n_layers+1);
@@ -296,17 +297,17 @@ namespace cuvnet{
             {   // set up monitoring for contractive auto-encoder
                 two_layer_contractive_auto_encoder* cae = dynamic_cast<two_layer_contractive_auto_encoder*>(&ae);
                 if(cae){
-                    if(cae->m_schraudolph_reg){
-                        mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_schraudolph_reg, "schraudolph");
-                    }
-                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_alpha_enc, "alpha0");
-                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_alpha_enc, "alpha1");
-                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_beta_enc, "beta0");
-                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_beta_enc, "beta1");
-                    //mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_alpha_dec, "alpha0'");
-                    //mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_beta_dec, "beta0'");
-                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_beta_dec, "beta1'");
-                    mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_alpha_dec, "alpha1'");
+                    //if(cae->m_schraudolph_reg){
+                        //mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_schraudolph_reg, "schraudolph");
+                    //}
+                    //mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_alpha_enc, "alpha0");
+                    //mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_alpha_enc, "alpha1");
+                    //mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_beta_enc, "beta0");
+                    //mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_beta_enc, "beta1");
+                    ////mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_alpha_dec, "alpha0'");
+                    ////mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l0.m_beta_dec, "beta0'");
+                    //mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_beta_dec, "beta1'");
+                    //mon.add(monitor::WP_SCALAR_EPOCH_STATS, cae->m_l1.m_alpha_dec, "alpha1'");
                 }
             }
 
@@ -318,13 +319,15 @@ namespace cuvnet{
                 gd.minibatch_learning(n, INT_MAX);
             }
             else {
+                convergence_checker cc(gd, boost::bind(&monitor::mean, &mon, "total_loss"), 0.95f, 10, 2.0);
                 if(m_checker)
                 {
-                    convergence_checker cc(gd, boost::bind(&monitor::mean, &mon, "total_loss"), 0.95f, 10, 2.0);
                     cc.decrease_lr(4);
                     gd.minibatch_learning(300, INT_MAX);
-                }else
+                }else{
+                    cc.decrease_lr(INT_MAX); // only checker stops
                     gd.minibatch_learning(300, INT_MAX);
+                }
                 m_epochs[ae_id] += gd.iters();
             }
         }
@@ -345,7 +348,7 @@ namespace cuvnet{
                 float lambda;
                 boost::tie(lambda,reg) = m_aes.regularize();
                 if(lambda && reg)
-                    loss = axpby(loss, lambda, reg);
+                    loss = axpby(loss, m_mlp_wd, reg);
             }
 
             G gd(loss,0,params,m_mlp_lr, -0);
@@ -377,7 +380,7 @@ namespace cuvnet{
                 mon.register_gd(gd);
 
             // decrease the learning rate everytime we seem to have converged
-            convergence_checker cc(gd, boost::bind(&monitor::mean, &mon, "total_loss"), 0.95f, 6, 1.5);
+            convergence_checker cc(gd, boost::bind(&monitor::mean, &mon, "total_loss"), 0.95f, 10000, 2.0);
             cc.decrease_lr(INT_MAX); // don't stop learning, that is the job of early stopper
 
             // do the actual learning
@@ -387,7 +390,7 @@ namespace cuvnet{
                 gd.minibatch_learning(n, INT_MAX);
             }
             else {
-                gd.minibatch_learning(5000, INT_MAX);
+                gd.minibatch_learning(5000, 30*60);
                 m_epochs.back() += gd.iters();
             }
         }
@@ -455,6 +458,7 @@ struct async_client
 
     virtual void set_up_sync(const std::string& stage, gradient_descent_t& gd, std::vector<cuvnet::Op*> params){
         using namespace cuvnet::network_communication;
+        std::cout << "setting up sync for stage " << stage <<std::endl;
         m_clt.reset( 
                 new client(
                     "131.220.7.92","testnc",m_key,
@@ -466,6 +470,8 @@ struct async_client
         gd.done_learning.connect(boost::bind(&param_synchronizer::stop_coworkers, &*m_psync));
     }
     void run(mongo::BSONObj& obj){                                               
+        log4cxx::LoggerPtr log = log4cxx::Logger::getLogger("async_client");
+        LOG4CXX_INFO(log, "Starting async_client on device " << m_dev);
         if(cuv::IsSame<cuvnet::matrix::memory_space_type,cuv::dev_memory_space>::Result::value){
             cuv::initCUDA(boost::lexical_cast<int>(m_dev));
             //cuv::initialize_mersenne_twister_seeds(time(NULL));
