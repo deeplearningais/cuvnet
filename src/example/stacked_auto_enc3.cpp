@@ -526,7 +526,7 @@ main(int argc, char **argv)
             cuv::initialize_mersenne_twister_seeds(time(NULL));
         }
 
-        auto ml = boost::make_shared<cuvnet::pretrained_mlp_learner<cuvnet::gradient_descent> >(true);
+        auto ml = boost::make_shared<cuvnet::pretrained_mlp_learner<cuvnet::adagrad_gradient_descent> >(true);
         mongo::BSONObj task = BSON("vals"<<bob.obj());
         ml->constructFromBSON(task);
 
@@ -566,7 +566,10 @@ main(int argc, char **argv)
         std::vector<clt_ptr_t> clients(devs.size());
         std::vector<boost::shared_ptr<boost::thread> >  threads(devs.size());
 
-        cuvnet::network_communication::server s("131.220.7.92", db, key);
+        //cuvnet::network_communication::momentum_merger mrg(0.9);
+        //cuvnet::network_communication::merger mrg;
+        cuvnet::network_communication::adagrad_merger mrg;
+        cuvnet::network_communication::server s("131.220.7.92", db, key, &mrg);
         s.cleanup();
         boost::thread server_thread(boost::bind(&cuvnet::network_communication::server::run, &s, 1, -1));
 
@@ -576,8 +579,7 @@ main(int argc, char **argv)
             int f2 = sync_freq / devs.size();
 
             clients[i] = boost::make_shared<async_client<cuvnet::gradient_descent> >(devs[i], db, key, 
-                    sync_freq, f2,
-                    f2*i, f2/devs.size()*i);
+                    sync_freq, f2, 0, 0);
             //clients[i] = boost::make_shared<async_client<cuvnet::gradient_descent> >(devs[i], db, key, sync_freq, sync_freq);
             threads[i] = boost::make_shared<boost::thread>(boost::bind(&clt_ptr_t::element_type::run, clients[i], boost::ref(task)));
         }
