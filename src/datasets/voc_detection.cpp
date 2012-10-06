@@ -545,7 +545,7 @@ namespace cuvnet
             // this reweights errors, so that it is easier to produce a
             // "positive" output.
             //cuv::tensor<unsigned char, cuv::host_memory_space> idx(pat.tch.shape());
-            //cuv::apply_scalar_functor(idx, pat.tch, cuv::SF_LT, 128);
+            //cuv::apply_scalar_functor(idx, pat.tch, cuv::SF_LT, 176);
             //cuv::apply_scalar_functor(pat.ign, cuv::SF_MIN, 0.001f, &idx);
 
             // set teacher to "0" where ignore=1 (for visualization)
@@ -596,12 +596,12 @@ namespace cuvnet
                 ensure_square_and_enqueue(
                         boost::bind( static_cast<void (queue_type::*)(const arg_type&)>(&queue_type::push)
                             , loaded_data, _1),
-                        img, 128, pat, true);
+                        img, 176, pat, true);
             }else{
                 // split up the image into multiple scales, extract images with
                 // size 128x128 on all scales, and enqueue them.
-                //split_up_scales(img, 128);
-                split_up_bbs(img, 128);
+                //split_up_scales(img, 176);
+                split_up_bbs(img, 176);
             }
         }
     };
