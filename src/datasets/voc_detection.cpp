@@ -679,6 +679,8 @@ namespace cuvnet
                 while(size() < n)
                     boost::this_thread::sleep(boost::posix_time::millisec(10));
 
+                // TODO: when getting lock fails, loop again above!
+                //       that way, multiple clients can use the same queue
                 boost::mutex::scoped_lock lock(m_loaded_data_mutex);
                 for (unsigned int i = 0; i < n; ++i) {
                     dest.push_back(m_loaded_data.front());
