@@ -45,7 +45,8 @@ class obj_detector
         unsigned int m_n_filters1, m_n_filters2, m_n_filters3;
 
         op_ptr actfunc(op_ptr f){
-            return tanh(f);
+            //return tanh(f);
+            return rectified_linear(f);
             //return response_normalization(rectified_linear(f), 7, 1.f, 1.f);
             //return contrast_normalization(tanh(f), 7, 1.f, 1.f);
         }
