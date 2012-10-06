@@ -100,10 +100,13 @@ class two_layer_contractive_auto_encoder
         op_ptr s0a = m_l0a->schraudolph_regularizer();
         op_ptr s1 = m_l1->schraudolph_regularizer();
         op_ptr s1a = m_l1a->schraudolph_regularizer();
-        if(m_mode == AEM_UNSUPERVISED)
-            m_schraudolph_reg = s0 + s1 + s0a;
-        else if(m_mode == AEM_SUPERVISED)
-            m_schraudolph_reg = s0 + s0a;
+        if(s0){
+            // at least s0 should be regularized if it is possible at all
+            if(m_mode == AEM_UNSUPERVISED)
+                m_schraudolph_reg = s0 + s1 + s0a;
+            else if(m_mode == AEM_SUPERVISED)
+                m_schraudolph_reg = s0 + s0a;
+        }
                     
 
         if(m_mode == AEM_UNSUPERVISED){
@@ -124,10 +127,15 @@ class two_layer_contractive_auto_encoder
                 else
                     contractive_loss = add_to_param(contractive_loss,tmp);
             }
-            return boost::make_tuple( m_reg_strength, 
-                    axpby(
-                        bs / (float) n_contrib, contractive_loss, 
-                        schraudolph_fact,       m_schraudolph_reg));
+            if(m_schraudolph_reg)
+                return boost::make_tuple( m_reg_strength, 
+                        axpby(
+                            bs / (float) n_contrib, contractive_loss, 
+                            schraudolph_fact,       m_schraudolph_reg));
+            else
+                return boost::make_tuple( 
+                        m_reg_strength * bs / (float) n_contrib, 
+                        contractive_loss);
         }else /*if(m_mode == AEM_SUPERVISED)*/{
             //return boost::make_tuple( 0.0 , op_ptr());
             return boost::make_tuple( schraudolph_fact,
