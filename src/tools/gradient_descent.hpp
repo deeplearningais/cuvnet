@@ -374,6 +374,39 @@ namespace cuvnet
         virtual void update_weights();
 
     };
+    /**
+     * does AdaGrad gradient descent.
+     *
+     * @ingroup learning
+     */
+    struct adagrad_gradient_descent
+    : public gradient_descent
+    {
+        public:
+            typedef std::vector<Op*> paramvec_t;
+        private:
+            /// per-weight squared gradient sum
+            std::vector<Op::value_type> m_sq_grad_sum; 
+        public:
+            /**
+             * constructor
+             *
+             * @param op the function we want to minimize
+             * @param result which result of op to minimize
+             * @param params the parameters w.r.t. which we want to optimize op
+             * @param learnrate the initial learningrate
+             * @param weightdecay weight decay for weight updates
+             */
+        adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f);
+
+        protected:
+        /**
+         * @overload
+         * updates the weights with momentum
+         */
+        virtual void update_weights();
+
+    };
 
     /** 
      * An aspect that allows to store gradient updates for asynchronous gradient descent.
@@ -442,7 +475,10 @@ namespace cuvnet
 
                 for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
                     ParameterInput* inp = (ParameterInput*) *it;
-                    //matrix tmp = old_w[inp].copy();
+#define UPDATE_ONLY_ON_SERVER 0
+#if UPDATE_ONLY_ON_SERVER
+                    matrix tmp = old_w[inp].copy();
+#endif
                     cuv::apply_binary_functor(old_w[inp], inp->data(), cuv::BF_AXPBY, -1.f, 1.f);
                     
                     std::map<Op*, storage_t>::iterator upit = m_updates.find(inp);
@@ -450,7 +486,9 @@ namespace cuvnet
                         m_updates[inp] += (storage_t) old_w[inp];
                     else
                         m_updates[inp]  = (storage_t) old_w[inp];
-                    //inp->data() = tmp;
+#if UPDATE_ONLY_ON_SERVER
+                    inp->data() = tmp;
+#endif
                 }
             }
     };

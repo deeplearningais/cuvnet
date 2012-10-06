@@ -189,6 +189,7 @@ namespace cuvnet
         m_n_batches = 0;
     }
 
+    // ------------ momentum gradient descent  ---------  \\-
     momentum_gradient_descent::momentum_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float momentum)
         :gradient_descent(op, result, params, learnrate, weightdecay), m_last_delta(params.size()), m_momentum(momentum)
     { 
@@ -217,6 +218,49 @@ namespace cuvnet
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
             cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), m_last_delta[i], -lr, wd);
             //m_learnrate *= m_learnrate_decay;
+            inp->reset_delta();
+        }
+    }
+    
+    // ------------ adagrad gradient descent  ---------  \\-
+    adagrad_gradient_descent::adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay)
+        :gradient_descent(op, result, params, learnrate, weightdecay),
+        m_sq_grad_sum(params.size())
+    { 
+        unsigned int i=0;
+        for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
+            m_sq_grad_sum[i].resize(((ParameterInput*)*it)->data().shape());
+            m_sq_grad_sum[i] = 0.f;
+        }
+    }
+
+    void adagrad_gradient_descent::update_weights(){
+        using namespace cuv;
+        unsigned int i=0;
+        for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
+            ParameterInput* inp = (ParameterInput*) *it;
+
+            matrix lr(inp->delta().shape());
+            cuv::apply_scalar_functor(lr, m_sq_grad_sum[i], cuv::SF_ABS);
+            cuv::apply_scalar_functor(lr, cuv::SF_SQRT);
+            lr += 0.01f;
+            cuv::apply_binary_functor(lr, inp->delta(), lr, cuv::BF_DIV);
+
+            // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
+            //       we're changing the underlying object all cow_ptrs pointing to it!!!
+            cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), lr, -m_learnrate, m_weightdecay);
+
+            // TODO: reset from time to time!
+            //if(++m_count[name] % m_resetcnt == 0)
+            //{
+            //    m_moments[name] = 0.f;
+            //}
+
+            matrix s = inp->delta() * inp->delta();
+            // moving average:
+            //cuv::apply_binary_functor(m_moments[name], s-m_moments[name], cuv::BF_XPBY, m_expwin);
+            // as in paper: add 'em all
+            cuv::apply_binary_functor(m_sq_grad_sum[i], s, cuv::BF_ADD);
             inp->reset_delta();
         }
     }
