@@ -22,7 +22,7 @@ namespace cuvnet
         using namespace log4cxx;
     
         xml::XMLLayoutPtr myXMLLayoutPtr = new xml::XMLLayout();
-        myXMLLayoutPtr->setLocationInfo(true); // __FILE__ and __LINE__
+        //myXMLLayoutPtr->setLocationInfo(true); // __FILE__ and __LINE__
         myXMLLayoutPtr->setProperties(true); // MDC objects
         FileAppenderPtr myXMLFileAppenderPtr = new FileAppender(myXMLLayoutPtr, fn, false, true, 1024);
     
@@ -40,8 +40,10 @@ namespace cuvnet
         //BasicConfigurator::configure(myFileAppenderPtr);
         BasicConfigurator::configure(myXMLFileAppenderPtr);
 
-        log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
-        log->setLevel(Level::getError());
+        {
+            log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
+            log->setLevel(Level::getError());
+        }
     }
 
     Tracer::Tracer(const Tracer&){
