@@ -107,6 +107,83 @@ class simple_auto_encoder
 };
 
 /**
+ * A small module implementing the poor-man's version of the shortcut idea from Schraudolph98.
+ *
+ * \f$
+ * y = tanh(Bx) - 0.5x
+ * \f$
+ */
+struct poormans_shortcut_layer{
+
+    poormans_shortcut_layer(unsigned int dim0, unsigned int dim1) :m_dim0(dim0), m_dim1(dim1){}
+    unsigned int m_dim0, m_dim1;
+
+    typedef boost::shared_ptr<Op>     op_ptr;
+    boost::shared_ptr<ParameterInput>  m_B; 
+    boost::shared_ptr<ParameterInput>  m_Bbias;
+    boost::shared_ptr<ParameterInput>  m_Cbias;
+
+    op_ptr m_y, m_f;
+
+    void reset_weights(){
+        if(m_B)
+        {   // B: input_dim x dim0
+            unsigned int input_dim = m_B->data().shape(0);
+            float diff = 2.f*std::sqrt(6.f/(input_dim+m_dim1));   // tanh
+            cuv::fill_rnd_uniform(m_B->data());
+            m_B->data() *= 2*diff;
+            m_B->data() -=   diff;
+        }
+        if(m_Bbias)
+            m_Bbias->data() =  0.f;
+    }
+    op_ptr m_Bx;
+    op_ptr m_tanh_Bx;
+    op_ptr m_tanh_BTx;
+    op_ptr encode(op_ptr inp, bool linear=false){
+        op_group ("shortcut");
+
+        if(!m_B){
+            inp->visit(determine_shapes_visitor()); 
+            unsigned int input_dim = inp->result()->shape[1];
+            m_B.reset(new ParameterInput(cuv::extents[input_dim][m_dim1],"B"));
+            m_Bbias.reset(new ParameterInput(cuv::extents[m_dim1], "Bbias"));
+        }
+        m_Bx = mat_plus_vec(prod(inp, m_B), m_Bbias, 1);
+        if(linear) {
+            m_y = m_Bx;
+        }else{
+            m_tanh_Bx = tanh(m_Bx);
+            m_y = m_tanh_Bx - 0.5 * m_Bx;
+        }
+        return label("poormans_shortcut_layer",m_y);
+    }
+    op_ptr jacobian_x(op_ptr enc){
+        if(m_tanh_Bx){
+            // this is a "real" shortcut layer
+            return mat_times_vec(m_B, -0.5f + 1.f-pow(enc, 2.f), 1);
+        }
+        // this is a linear layer
+        return m_B;
+    }
+    op_ptr schraudolph_regularizer(){
+        // n/a for the poorman's version
+        return op_ptr();
+    }
+
+    /**
+     * Determine the parameters 
+     */
+    std::vector<Op*> params(){
+        using namespace boost::assign;
+        std::vector<Op*> v;
+        v += m_B.get();
+        v += m_Bbias.get();
+        return v;
+    };
+
+};
+/**
  * A small module implementing the shortcut idea from Schraudolph98.
  *
  * \f$
@@ -247,9 +324,10 @@ class two_layer_auto_encoder
         typedef boost::shared_ptr<Op>     op_ptr;
 
     public:
+        typedef poormans_shortcut_layer sc_t;
         // these are the parameters of the model
-        boost::shared_ptr<shortcut_layer> m_l0, m_l0a;
-        boost::shared_ptr<shortcut_layer> m_l1, m_l1a;
+        boost::shared_ptr<sc_t> m_l0, m_l0a;
+        boost::shared_ptr<sc_t> m_l1, m_l1a;
 
         unsigned int m_n_hidden0, m_n_hidden1;
 
@@ -260,13 +338,13 @@ class two_layer_auto_encoder
             if(!m_encoded){
                 inp->visit(determine_shapes_visitor());
                 unsigned int input_dim = inp->result()->shape[1];
-                m_l0.reset( new shortcut_layer(m_n_hidden0, m_n_hidden0) );
-                m_l0a.reset( new shortcut_layer(m_n_hidden0, m_n_hidden1) );
-                m_l1.reset( new shortcut_layer(m_n_hidden0, m_n_hidden0) );
-                m_l1a.reset( new shortcut_layer(m_n_hidden0, input_dim) );
+                m_l0.reset( new sc_t(m_n_hidden0, m_n_hidden0) );
+                m_l0a.reset( new sc_t(m_n_hidden0, m_n_hidden1) );
+                m_l1.reset( new sc_t(m_n_hidden0, m_n_hidden0) );
+                m_l1a.reset( new sc_t(m_n_hidden0, input_dim) );
 
-                //m_l0.reset( new shortcut_layer(m_n_hidden0, m_n_hidden1) );
-                //m_l1.reset( new shortcut_layer(m_n_hidden0, input_dim) );
+                //m_l0.reset( new sc_t(m_n_hidden0, m_n_hidden1) );
+                //m_l1.reset( new sc_t(m_n_hidden0, input_dim) );
                 m_encoded = m_l0a->encode(m_l0->encode(inp));
             }
             return m_encoded;
