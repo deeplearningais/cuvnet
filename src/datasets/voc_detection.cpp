@@ -9,11 +9,16 @@
 #include <boost/format.hpp>
 #include <cuv.hpp>
 #include <cuv/libs/cimg/cuv_cimg.hpp>
+#include <log4cxx/logger.h>
 
 #define cimg_use_jpeg
 #include <CImg.h>
 
 #include "voc_detection.hpp"
+
+namespace{
+    log4cxx::LoggerPtr g_log = log4cxx::Logger::getLogger("voc_ds");
+}
 
 
 namespace cuvnet
@@ -697,6 +702,10 @@ namespace cuvnet
             /** main loop, ensures queue stays filled and stops when \c m_request_stop is true */
             void operator()(){
                 unsigned int cnt = 0;
+                std::vector<unsigned int> idxs(dataset.size());
+                for(unsigned int i=0;i<dataset.size();i++)
+                    idxs[i] = i;
+
                 while(!m_request_stop){
 
                     unsigned int size = this->size();
@@ -709,11 +718,13 @@ namespace cuvnet
                                     voc_detection_file_loader(
                                         &m_loaded_data_mutex,
                                         &m_loaded_data,
-                                        &dataset[cnt],
+                                        &dataset[idxs[cnt]],
                                         &m_output_properties));
                             cnt = (cnt+1) % dataset.size();
-                            if(cnt % dataset.size() == 0)
-                                std::cout << "Roundtrip through dataset completed" << std::endl;
+                            if(cnt == 0) {
+                                LOG4CXX_INFO(g_log, "Roundtrip through dataset completed. Shuffling.");
+                                std::random_shuffle(idxs.begin(), idxs.end());
+                            }
                         }
                         grp.join_all();
                     }
@@ -759,7 +770,7 @@ namespace cuvnet
         read_meta_info(m_test_set, test_filename, verbose);
         srand(time(NULL));
         std::random_shuffle(m_training_set.begin(), m_training_set.end());
-        switch_dataset(SS_TRAIN);
+        //switch_dataset(SS_TRAIN);
     }
 
     void voc_detection_dataset::get_batch(std::list<pattern>& dest, unsigned int n){
