@@ -16,6 +16,83 @@ namespace cuvnet
 
         struct connection;
 
+
+        /**
+         * a merger merges parameter objects and their deltas.
+         * The simplest form simply adds all deltas to the parameter objs.
+         * A simple addon could be a momentum term.
+         */
+        struct merger{
+            std::map<std::string, htensor_t> m_merged; ///< contains merged weight vectors
+            /**
+             * add a previously unknown parameter to the list
+             */
+            virtual void add_param(const std::string& name, const htensor_t& t);
+            /**
+             * merge a parameter update into its parameter object.
+             */
+            virtual void merge(const std::string& name, const htensor_t& delta);
+            /**
+             * @return whether the named parameter is known
+             */
+            bool has(const std::string& name);
+            /**
+             * @return the number of tracked parameters
+             */
+            inline size_t n_params(){return m_merged.size();}
+            /**
+             * @return the named parameter 
+             */
+            htensor_t& operator[](const std::string& name);
+        };
+
+        /**
+         * merge with momentum.
+         */
+        struct momentum_merger : public merger{
+            float m_momentum;
+            std::map<std::string, htensor_t> m_moments; ///< contains the per-variable momentum
+            /**
+             * ctor.
+             * @param momentum the momentum to be used in weight updates
+             */
+            momentum_merger(float momentum);
+            /**
+             * merge a parameter update into its parameter object.
+             */
+            virtual void merge(const std::string& name, const htensor_t& delta);
+            /**
+             * add a previously unknown parameter to the list
+             */
+            virtual void add_param(const std::string& name, const htensor_t& t);
+        };
+
+        /**
+         * merge with adagrad.
+         */
+        struct adagrad_merger : public merger{
+            float m_expwin;
+            int m_resetcnt;
+            std::map<std::string, unsigned int> m_count;
+            std::map<std::string, htensor_t> m_moments; ///< contains the per-variable momentum
+            //std::map<std::string, std::list<htensor_t> > m_queue; ///< contains the per-variable momentum
+            /**
+             * ctor.
+             * @param expwin integration constant of window in [0,1]. Larger means more adaptive.
+             * @param resetcnt reset squared gradient sum every this many updates
+             */
+            adagrad_merger(float expwin=0.1, int resetcnt=500);
+            /**
+             * merge a parameter update into its parameter object.
+             */
+            virtual void merge(const std::string& name, const htensor_t& delta);
+            /**
+             * add a previously unknown parameter to the list
+             */
+            virtual void add_param(const std::string& name, const htensor_t& t);
+        };
+
+
         // TODO:
         // - split up datasets (not necessary if randomized?)
         // - initialize networks with fixed seed
@@ -30,9 +107,10 @@ namespace cuvnet
         class server{
             private:
                 boost::shared_ptr<connection> m_impl;      ///< PImpl idiom: DB connection is stored in here.
-                std::map<std::string, htensor_t> m_merged; ///< contains merged weight vectors
+                //std::map<std::string, htensor_t> m_merged; ///< contains merged weight vectors
                 std::map<std::string, bool>      m_need_push; ///< the marked weights need pushing to MongoDB
                 std::map<std::string, int>       m_versions; ///< a version increased when changed
+                merger*                          m_merger;  ///< merges deltas into params
             public:
                 /**
                  * ctor.
@@ -40,8 +118,11 @@ namespace cuvnet
                  * @param url ip of mongodb instance
                  * @param prefix database in mongodb
                  * @param key identifies instances working on the same tasks uniquely.
+                 * @param m merger. If Null, set to plain merger
                  */
-                server(const std::string& url, const std::string& prefix, const std::string key="");
+                server( const std::string& url, const std::string& prefix, const std::string key="", merger* m=NULL);
+
+                inline void set_merger(merger* m){m_merger = m;}
 
                 /**
                  * pull information from server (eg after a crash).
@@ -90,8 +171,13 @@ namespace cuvnet
                  * @param url ip of mongodb instance
                  * @param prefix database in mongodb
                  * @param key identifies instances working on the same tasks uniquely.
+                 * @param id identifies the client uniquely
                  */
                 client(const std::string& url, const std::string& prefix, const std::string key="", const std::string id="");
+                /**
+                 * @return the unique client id
+                 */
+                inline const std::string& id()const{return m_id;}
                 /**
                  * fetch a merged weight vector from the database.
                  * @throw value_not_found_exception if it cannot be found
@@ -126,6 +212,7 @@ namespace cuvnet
                 int m_push_steps;
                 int m_pull_steps;
                 int m_push_off;
+                int m_last_push;
                 int m_pull_off;
                 int m_cnt;
                 std::vector<Op*> m_ops;
@@ -141,6 +228,7 @@ namespace cuvnet
                         m_push_steps(push_steps)
                       , m_pull_steps(pull_steps)
                       , m_push_off(push_off)
+                      , m_last_push(0)
                       , m_pull_off(pull_off)
                       , m_cnt(0)
                       , m_ops(ops)

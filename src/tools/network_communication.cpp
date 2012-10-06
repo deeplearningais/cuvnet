@@ -36,6 +36,67 @@ namespace {
 
 namespace cuvnet { namespace network_communication {
 
+    void merger::add_param(const std::string& name, const htensor_t& t){
+        m_merged[name] = t;
+    }
+    void merger::merge(const std::string& name, const htensor_t& delta){
+        //LOG4CXX_INFO(g_log, "delta norm for "<<name<<": "<<cuv::norm1(delta));
+        m_merged[name] += delta;
+    }
+    bool merger::has(const std::string& name){
+        return m_merged.find(name) != m_merged.end();
+    }
+    htensor_t& merger::operator[](const std::string& name){
+        return m_merged[name];
+    }
+
+    momentum_merger::momentum_merger(float momentum)
+        :m_momentum(momentum){}
+    void momentum_merger::add_param(const std::string& name, const htensor_t& t){
+        m_merged[name] = t;
+        m_moments[name] = htensor_t(t.shape());
+        m_moments[name] = 0.f;
+    }
+    void momentum_merger::merge(const std::string& name, const htensor_t& delta){
+        htensor_t& m = m_moments[name];
+        cuv::apply_binary_functor(m, delta, cuv::BF_AXPY, m_momentum);
+        m_merged[name] += m;
+    }
+
+    adagrad_merger::adagrad_merger(float expwin, int resetcnt)
+        :m_expwin(expwin), m_resetcnt(resetcnt){}
+    void adagrad_merger::add_param(const std::string& name, const htensor_t& t){
+        m_merged[name] = t;
+        m_moments[name] = htensor_t(t.shape());
+        m_moments[name] = 0.f;
+    }
+    void adagrad_merger::merge(const std::string& name, const htensor_t& delta){
+        htensor_t lr(delta.shape());
+        // This would be the fastest thing to do:
+        //cuv::apply_scalar_functor(lr, m_moments[name], cuv::SF_POW, -0.5f);
+        // however, to be sure we're stable:
+        cuv::apply_scalar_functor(lr, m_moments[name], cuv::SF_ABS); // should be >0, since sum of squares
+        cuv::apply_scalar_functor(lr, cuv::SF_SQRT);
+        lr += 0.01f;
+        cuv::apply_binary_functor(lr, delta, lr, cuv::BF_DIV);
+
+        //cuv::apply_binary_functor(m_merged[name], lr, cuv::BF_XPBY, 0.01f);
+        m_merged[name] += lr;
+
+        if(++m_count[name] % m_resetcnt == 0)
+        {
+            LOG4CXX_INFO(g_log, "adagrad_merger: Resetting sums for "<<name);
+            m_moments[name] = 0.f;
+        }
+
+        htensor_t s = delta*delta;
+        // moving average:
+        //cuv::apply_binary_functor(m_moments[name], s-m_moments[name], cuv::BF_XPBY, m_expwin);
+        // as in paper: add 'em all
+        cuv::apply_binary_functor(m_moments[name], s, cuv::BF_ADD);
+    }
+    
+
     struct connection{
         connection(const std::string& url, const std::string& prefix, const std::string key){
             m_con.connect(url);
@@ -49,8 +110,10 @@ namespace cuvnet { namespace network_communication {
         mongo::DBClientConnection m_con;
     };
 
-    server::server(const std::string& url, const std::string& prefix, const std::string key){
+    server::server(const std::string& url, const std::string& prefix, const std::string key, merger* m){
         m_impl.reset(new connection(url,prefix,key));
+        // TODO: (uncritical...) Leak!
+        m_merger = m ? m : new merger();
     }
     
     void server::push_merged(){
@@ -64,7 +127,7 @@ namespace cuvnet { namespace network_communication {
             std::ostringstream os(std::ios::binary);
             {   // serialize the contents of the merged parameter
                 boost::archive::binary_oarchive oa(os);
-                oa << m_merged[it->first];
+                oa << (*m_merger)[it->first];
             }
             std::string ms = os.str();
             mongo::BSONObjBuilder bob;
@@ -103,7 +166,7 @@ namespace cuvnet { namespace network_communication {
         while(p->more()){
             mongo::BSONObj f = p->next();
             std::string name = f["name"].String();
-            if(m_merged.find(name) != m_merged.end()){
+            if(m_merger->has(name)){
                 // TODO: no need to pull this in the first place?
                 continue;
             }
@@ -120,7 +183,7 @@ namespace cuvnet { namespace network_communication {
 
 
             m_versions[name] = f["version"].Int();
-            m_merged[name] = m;
+            m_merger->add_param(name, m);
             m_need_push[name] = false;
         }
 
@@ -147,7 +210,7 @@ namespace cuvnet { namespace network_communication {
             warned += warn_step;
         }
 
-        int process_max = std::max((size_t) 5, 2*m_merged.size());
+        int process_max = std::max((size_t) 5, 2*m_merger->n_params());
 
         std::auto_ptr<mongo::DBClientCursor> p =
             m_impl->m_con.query( m_impl->m_prefix+".nc",
@@ -184,16 +247,14 @@ namespace cuvnet { namespace network_communication {
             }
 
             std::string name = f["name"].String();
-            if( m_merged.find(name) == m_merged.end() )
+            if( !m_merger->has(name) )
             {
                 pull_merged();
-                if( m_merged.find(name) == m_merged.end() ){
+                if( !m_merger->has(name) ){
                     throw value_not_found_exception();
                 }
             }
-            //std::cout << name<<": "<< cuv::norm1(m)/m.size()<<std::endl;
-            //cuv::apply_binary_functor(m_merged[name],m,cuv::BF_XPBY,0.00f);
-            m_merged[name] += m;
+            m_merger->merge(name, m);
 
             m_versions[name] ++;
             m_need_push[name] = true;
@@ -360,39 +421,46 @@ namespace cuvnet { namespace network_communication {
             unsigned int, unsigned int
             ){
         ++m_cnt;
+        cuvAssert(m_push_steps > m_push_off);
         if( m_cnt % m_push_steps == m_push_off){
             int idx = 0;
             BOOST_FOREACH(Op* op, m_ops){
                 ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
                 cuvAssert(inp);
-                std::string name = inp->name() + boost::lexical_cast<std::string>(idx);
+                std::string name = m_stage + inp->name() + boost::lexical_cast<std::string>(idx);
                 htensor_t m = inp->data();
                 std::map<Op*, cuv::tensor<float, cuv::host_memory_space> >::iterator 
                     it = updates->find(inp);
                 if(it != updates->end()){
                     // push results to server
+                    // we need to ensure that all updates are weighted equally here
+                    // since they may incorporate more or less client updates
+                    it->second /= (float)(m_cnt-m_last_push);
                     m_client.put_for_merging(name, it->second, inp->data());
                     // now that results are pushed, start recording changes over
                     it->second = 0.f; 
                 }
                 idx ++;
             }
+            m_last_push = m_cnt;
+            m_push_off = m_push_steps / 2 + drand48() * (m_push_steps/2);
         }
-        //cuvAssert(m_pull_steps > 1 || m_push_steps/2==0);
-        //if( m_cnt % m_pull_steps == m_push_steps/2){
+        cuvAssert(m_pull_steps > m_pull_off);
         if( m_cnt % m_pull_steps == m_pull_off){
             int idx = 0;
             BOOST_FOREACH(Op* op, m_ops){
                 ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
                 cuvAssert(inp);
-                std::string name = inp->name() + boost::lexical_cast<std::string>(idx);
+                std::string name = m_stage + inp->name() + boost::lexical_cast<std::string>(idx);
                 try{
                     matrix m = m_client.fetch_merged(name);
                     inp->data() = m;
+                    //LOG4CXX_INFO(g_log, m_client.id() << ": got new value for "<<name);
                 }catch(value_not_found_exception){
                 }
                 idx ++;
             }
+            m_pull_off = m_pull_steps / 2 + drand48() * (m_pull_steps/2);
         }
     }
         
