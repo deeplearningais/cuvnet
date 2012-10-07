@@ -255,7 +255,7 @@ namespace cuvnet
             matrix lr(delta.shape());
             cuv::apply_scalar_functor(lr, m_sq_grad_sum[i], cuv::SF_MAX, 0.f);
             cuv::apply_scalar_functor(lr, cuv::SF_SQRT);
-            lr += 0.01f;
+            lr += m_delta;
             cuv::apply_binary_functor(lr, delta, lr, cuv::BF_DIV);
 
             // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
