@@ -80,12 +80,12 @@ class TestBandit2(hyperopt.Bandit):
 
 class TestBandit3(hyperopt.Bandit):
     def sample_layer_cfg(self, i):
-        lr = hp.loguniform('aes_lr_%d' % i, np.log(1e-5), np.log(1e-2))
-        wd = hp.loguniform('aes_wd_%d' % i, np.log(1e-5), np.log(1e-2))
-        #ls0 = hp.uniform('aes_ls0_%d' % i, 1024, 1024.5)  # we assume that l0
-        #ls1 = hp.uniform('aes_ls1_%d' % i, 1024, 1024.5)   # needs to be > than l1
-        #return [lr, wd, ls0, ls1]
-        return [lr, wd]
+        lr = hp.loguniform('aes_lr_%d' % i, np.log(1e-5), np.log(1e-3))
+        wd = hp.loguniform('aes_wd_%d' % i, np.log(1e-3), np.log(1e-1))
+        ls0 = hp.uniform('aes_ls0_%d' % i, 1024, 2048)  # we assume that l0
+        ls1 = hp.uniform('aes_ls1_%d' % i, 512, 1024.5)   # needs to be > than l1
+        return [lr, wd, ls0, ls1]
+        #return [lr, wd]
 
     def __init__(self):
 
@@ -97,8 +97,8 @@ class TestBandit3(hyperopt.Bandit):
             layer_choice = hp.choice('layers',
                     [layers[:i + 1] for i in xrange(2, len(layers))])
 
-        mlp_lr = hp.loguniform('mlp_lr', np.log(1e-4), np.log(1e-1))
-        mlp_wd = hp.loguniform('mlp_wd', np.log(1e-5), np.log(1e-3))
+        mlp_lr = hp.loguniform('mlp_lr', np.log(1e-3), np.log(1e-1))
+        mlp_wd = hp.loguniform('mlp_wd', np.log(1e-3), np.log(1e-1))
 
         aes_bs = hp.randint('aes_bs', 5)
         mlp_bs = hp.randint('mlp_bs', 5)

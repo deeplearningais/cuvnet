@@ -121,7 +121,7 @@ struct poormans_shortcut_layer{
     typedef boost::shared_ptr<Op>     op_ptr;
     boost::shared_ptr<ParameterInput>  m_B; 
     boost::shared_ptr<ParameterInput>  m_Bbias;
-    boost::shared_ptr<ParameterInput>  m_Cbias;
+    boost::shared_ptr<ParameterInput>  m_Btbias;
 
     op_ptr m_y, m_f;
 
@@ -136,6 +136,8 @@ struct poormans_shortcut_layer{
         }
         if(m_Bbias)
             m_Bbias->data() =  0.f;
+        if(m_Btbias)
+            m_Btbias->data() =  0.f;
     }
     op_ptr m_Bx;
     op_ptr m_tanh_Bx;
@@ -148,6 +150,7 @@ struct poormans_shortcut_layer{
             unsigned int input_dim = inp->result()->shape[1];
             m_B.reset(new ParameterInput(cuv::extents[input_dim][m_dim1],"B"));
             m_Bbias.reset(new ParameterInput(cuv::extents[m_dim1], "Bbias"));
+            m_Btbias.reset(new ParameterInput(cuv::extents[input_dim], "BtBias"));
         }
         m_Bx = mat_plus_vec(prod(inp, m_B), m_Bbias, 1);
         if(linear) {
@@ -157,6 +160,13 @@ struct poormans_shortcut_layer{
             m_y = m_tanh_Bx - 0.5 * m_Bx;
         }
         return label("poormans_shortcut_layer",m_y);
+    }
+    op_ptr decode(op_ptr enc, bool linear=false){
+        if(linear)
+            return mat_plus_vec(2.f*prod(enc, m_B, 'n','t'), m_Btbias, 1);
+        op_ptr tmp = mat_plus_vec(2.f*prod(enc, m_B, 'n','t'), m_Btbias, 1);
+        //return tanh(tmp) - 0.5f * tmp; // empirically worse classification-wise
+        return tanh(tmp);
     }
     op_ptr jacobian_x(op_ptr enc){
         if(m_tanh_Bx){
@@ -174,11 +184,13 @@ struct poormans_shortcut_layer{
     /**
      * Determine the parameters 
      */
-    std::vector<Op*> params(){
+    std::vector<Op*> params(bool unsupervised){
         using namespace boost::assign;
         std::vector<Op*> v;
         v += m_B.get();
         v += m_Bbias.get();
+        if(unsupervised)
+            v += m_Btbias.get();
         return v;
     };
 
@@ -353,7 +365,8 @@ class two_layer_auto_encoder
         /// decode the encoded value given in `enc`
         virtual op_ptr  decode(op_ptr& enc){ 
             if(!m_decoded)
-                m_decoded = m_l1a->encode(m_l1->encode(enc), true);
+                //m_decoded = m_l1a->encode(m_l1->encode(enc), true);
+                m_decoded = m_l0->decode(m_l0a->decode(enc), true);
             return m_decoded;
         }
 
@@ -362,14 +375,14 @@ class two_layer_auto_encoder
          * @overload
          */
         virtual std::vector<Op*> unsupervised_params(){
-            std::vector<Op*> v0 = m_l0->params();
-            std::vector<Op*> v0a = m_l0a->params();
-            std::vector<Op*> v1 = m_l1->params();
-            std::vector<Op*> v1a = m_l1a->params();
+            std::vector<Op*> v0 = m_l0->params(true);
+            std::vector<Op*> v0a = m_l0a->params(true);
+            std::vector<Op*> v1 = m_l1->params(true);
+            std::vector<Op*> v1a = m_l1a->params(true);
             v0.reserve(v0.size() + v1.size() + v0a.size() + v1a.size());
-            v0.insert(v0.end(), v1.begin(), v1.end());
             v0.insert(v0.end(), v0a.begin(), v0a.end());
-            v0.insert(v0.end(), v1a.begin(), v1a.end());
+            //v0.insert(v0.end(), v1.begin(), v1.end());
+            //v0.insert(v0.end(), v1a.begin(), v1a.end());
             return v0;
         };
 
@@ -378,10 +391,11 @@ class two_layer_auto_encoder
          * @overload
          */
         virtual std::vector<Op*> supervised_params(){
-            std::vector<Op*> v0 = m_l0->params();
+            std::vector<Op*> v0 = m_l0->params(false);
+            std::vector<Op*> v0a = m_l0a->params(false);
             //std::vector<Op*> v1 = m_l1->supervised_params();
-            //v0.reserve(v0.size() + v1.size());
-            //v0.insert(v0.end(), v1.begin(), v1.end());
+            v0.reserve(v0.size() + v0a.size());
+            v0.insert(v0.end(), v0a.begin(), v0a.end());
             return v0;
         };
 

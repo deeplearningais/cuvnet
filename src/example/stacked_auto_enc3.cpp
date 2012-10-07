@@ -169,6 +169,7 @@ namespace cuvnet{
             case 2: return 64;
             case 3: return 128;
             case 4: return 256;
+            case 5: return 512;
             default: return idx;
         }
         throw std::runtime_error("Unknown batchsize index!");
@@ -192,10 +193,10 @@ namespace cuvnet{
             try{
                 m_aes_lr.push_back(get<float>(o,"aes_lr", n_layers));
                 m_aes_wd.push_back(get<float>(o,"aes_wd", n_layers));
-                int layer_size0 = 1024;
-                int layer_size1 = 1024;
-                //int layer_size0 = get<float>(o,"aes_ls0", n_layers);
-                //int layer_size1 = get<float>(o,"aes_ls1", n_layers);
+                //int layer_size0 = 2048;
+                //int layer_size1 = 256;
+                int layer_size0 = get<float>(o,"aes_ls0", n_layers);
+                int layer_size1 = get<float>(o,"aes_ls1", n_layers);
                 m_aes.add<two_layer_contractive_auto_encoder>(layer_size0, layer_size1, m_sdl.get_ds().binary, m_aes_wd.back());
             }catch(const detail::value_not_found_exception& e){
                 break;
@@ -323,10 +324,10 @@ namespace cuvnet{
                 if(m_checker)
                 {
                     cc.decrease_lr(4);
-                    gd.minibatch_learning(300, INT_MAX);
+                    gd.minibatch_learning(1000, 10*60); // limit by time
                 }else{
                     cc.decrease_lr(INT_MAX); // only checker stops
-                    gd.minibatch_learning(300, INT_MAX);
+                    gd.minibatch_learning(1000, 10*60); // limit by time
                 }
                 m_epochs[ae_id] += gd.iters();
             }
@@ -414,7 +415,7 @@ struct hyperopt_client
             m_init = true;
         }
 
-        auto ml = boost::make_shared<cuvnet::pretrained_mlp_learner<cuvnet::gradient_descent> >(true);
+        auto ml = boost::make_shared<cuvnet::pretrained_mlp_learner<cuvnet::adagrad_gradient_descent> >(true);
         ml->constructFromBSON(o);
 
         cuvnet::cv::all_splits_evaluator ase(ml);
@@ -445,7 +446,7 @@ struct async_client
 
 
     async_client(int dev, const std::string& db, const std::string& key, int push_freq, int pull_freq, int push_off, int pull_off)
-        :cuvnet::pretrained_mlp_learner<gradient_descent_t>(true, dev==0)
+        :cuvnet::pretrained_mlp_learner<gradient_descent_t>(true, dev==1)
         ,m_push_freq(push_freq)
         ,m_pull_freq(pull_freq)
         ,m_push_off(push_off)
@@ -504,20 +505,20 @@ main(int argc, char **argv)
     }
 
     mongo::BSONObjBuilder bob;
-    bob<<"aes_bs" <<BSON_ARRAY(4);
-    bob<<"mlp_bs" <<BSON_ARRAY(2);
+    bob<<"aes_bs" <<BSON_ARRAY(128);
+    bob<<"mlp_bs" <<BSON_ARRAY(128);
     bob<<"mlp_lr" <<BSON_ARRAY(0.01f);
-    bob<<"mlp_wd" <<BSON_ARRAY(0.00001f);
+    bob<<"mlp_wd" <<BSON_ARRAY(0.01f);
 
-    bob<<"aes_ls0_0" <<BSON_ARRAY( 1942.f);
-    bob<<"aes_ls1_0" <<BSON_ARRAY( 940.f);
+    bob<<"aes_ls0_0" <<BSON_ARRAY( 1024.f);
+    bob<<"aes_ls1_0" <<BSON_ARRAY( 512.f);
     //bob<<"aes_ls0_0" <<BSON_ARRAY( 64.f);
     //bob<<"aes_ls1_0" <<BSON_ARRAY( 64.f);
     //bob<<"aes_lr_0" <<BSON_ARRAY(0.0714f);
-    bob<<"aes_lr_0" <<BSON_ARRAY(0.005f);
+    bob<<"aes_lr_0" <<BSON_ARRAY(0.0001f);
 
     //bob<<"aes_wd_0" <<BSON_ARRAY(0.012f);
-    bob<<"aes_wd_0" <<BSON_ARRAY(0.0000f);
+    bob<<"aes_wd_0" <<BSON_ARRAY(0.01f);
 
     if(std::string("test") == argv[1]){
         cuvAssert(argc==3);

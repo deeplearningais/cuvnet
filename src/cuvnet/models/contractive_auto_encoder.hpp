@@ -109,15 +109,15 @@ class two_layer_contractive_auto_encoder
         }
                     
 
-        if(m_mode == AEM_UNSUPERVISED){
+        if(1 || m_mode == AEM_UNSUPERVISED){
             op_ptr contractive_loss;
             unsigned int bs = m_input->result()->shape[0];
             //unsigned int n_contrib = std::max(1u,bs/16);
             unsigned int n_contrib = 1;
             for(unsigned int i=0;i<n_contrib;i++){
-                m_rs  = row_select(m_l0->m_y,m_l1->m_y); // select same (random) row in m_hl0 and m_hl1
+                m_rs  = row_select(m_l0->m_y,m_l0a->m_y); // select same (random) row in m_hl0 and m_hl1
 
-                op_ptr J1 = label("J1", m_l1->jacobian_x(result(m_rs,1)));
+                op_ptr J1 = label("J1", m_l0a->jacobian_x(result(m_rs,1)));
                 op_ptr J0 = label("J0", m_l0->jacobian_x(result(m_rs,0)));
                 op_ptr tmp = sum(pow(prod(J1,J0,'t', 't'), 2.f));
                 if(i == 0) 
