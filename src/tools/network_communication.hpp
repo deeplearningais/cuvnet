@@ -71,17 +71,19 @@ namespace cuvnet
          * merge with adagrad.
          */
         struct adagrad_merger : public merger{
-            float m_expwin;
-            int m_resetcnt;
+            /// numerical stabilization \f$H = \delta I + \|g\|_2\f$
+            float m_delta;
+            /// window size (how long to look back)
+            int m_winsize;
             std::map<std::string, unsigned int> m_count;
-            std::map<std::string, htensor_t> m_moments; ///< contains the per-variable momentum
+            std::map<std::string, htensor_t> m_sq_grad_sum; ///< contains the per-variable momentum
             //std::map<std::string, std::list<htensor_t> > m_queue; ///< contains the per-variable momentum
             /**
              * ctor.
-             * @param expwin integration constant of window in [0,1]. Larger means more adaptive.
-             * @param resetcnt reset squared gradient sum every this many updates
+             * @param delta numerical stabilization: \f$H=\delta I + \|g\|_2\f$
+             * @param winsize how long to look back (in weight updates)
              */
-            adagrad_merger(float expwin=0.1, int resetcnt=500);
+            adagrad_merger(float delta=0.01f, int winsize=INT_MAX);
             /**
              * merge a parameter update into its parameter object.
              */

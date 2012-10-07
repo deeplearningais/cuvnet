@@ -387,6 +387,12 @@ namespace cuvnet
         private:
             /// per-weight squared gradient sum
             std::vector<Op::value_type> m_sq_grad_sum; 
+            /// numerical stabilization constant: \f$H=\delta I+\|g\|_2\f$
+            float m_delta;
+            /// after how many weight updates to reset squared gradient sums
+            int m_winsize;
+            /// how many weight updates have been performed so far
+            int m_count;
         public:
             /**
              * constructor
@@ -396,8 +402,10 @@ namespace cuvnet
              * @param params the parameters w.r.t. which we want to optimize op
              * @param learnrate the initial learningrate
              * @param weightdecay weight decay for weight updates
+             * @param delta numerical stabilization constant: \f$H=\delta I+\|g\|_2\f$
+             * @param winsize after how many weight updates to reset squared gradient sums
              */
-        adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f);
+        adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float delta=0.01f, int winsize=INT_MAX);
 
         protected:
         /**

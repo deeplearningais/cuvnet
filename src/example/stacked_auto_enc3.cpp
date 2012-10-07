@@ -19,6 +19,10 @@
 #include <tools/logging.hpp>
 
 
+void sleeper(){
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+}
+
 namespace cuvnet{
     class simple_crossvalidatable_learner
     : public crossvalidatable{
@@ -54,7 +58,7 @@ namespace cuvnet{
     template<class GradientDescentType>
     class pretrained_mlp_learner
     : public simple_crossvalidatable_learner{
-        private:
+        protected:
             friend class boost::serialization::access;
             std::vector<int>   m_epochs; ///< number of epochs learned
             std::vector<float> m_aes_lr; ///< auto encoder learning rates
@@ -66,6 +70,9 @@ namespace cuvnet{
             auto_encoder_stack m_aes; ///< contains all auto-encoders
             boost::shared_ptr<generic_regression> m_regression; ///< does the regression for us
             bool m_checker; ///< whether I should perform convergence/early stopping testing
+
+            float m_adagrad_delta; ///< numerical stability of adagrad
+            int   m_adagrad_winsize; ///< how often to reset adagrad
     
             template<class Archive>
                 void serialize(Archive& ar, const unsigned int version) { 
@@ -97,6 +104,14 @@ namespace cuvnet{
     
             /// return minimum on VAL before retraining for TEST is performed
             virtual float refit_thresh()const{ return INT_MAX; };
+
+            /// create a gradient descent object (may differ depending on type of G)
+            virtual
+            boost::shared_ptr<GradientDescentType> 
+            create_gd(
+                    boost::shared_ptr<Op> loss,
+                    const std::vector<cuvnet::Op*>& params,
+                    float lr, float wd);
     
             /// should return true if retrain for fit is required
             /// @return true
@@ -176,6 +191,23 @@ namespace cuvnet{
     }
 
 
+    template<class G>            
+        boost::shared_ptr<G>     
+        pretrained_mlp_learner<G>::create_gd(
+                boost::shared_ptr<Op> loss,
+                const std::vector<cuvnet::Op*>& params,
+                float lr, float wd){
+            if(cuv::IsSame<G,gradient_descent>::Result::value){
+                return boost::dynamic_pointer_cast<G>(boost::make_shared<gradient_descent>(loss,0,params,lr,wd));
+            }
+            if(cuv::IsSame<G,momentum_gradient_descent>::Result::value){
+                return boost::dynamic_pointer_cast<G>(boost::make_shared<momentum_gradient_descent>(loss,0,params,lr,wd));
+            }
+            if(cuv::IsSame<G,adagrad_gradient_descent>::Result::value){
+                return boost::dynamic_pointer_cast<G>(boost::make_shared<adagrad_gradient_descent>(loss,0,params,lr,wd, m_adagrad_delta, m_adagrad_winsize));
+            }
+            throw std::runtime_error("Factory does not know how to construct a GD object of required type!");
+        }
     template<class G>
     void
     pretrained_mlp_learner<G>::constructFromBSON(const mongo::BSONObj& o){
@@ -183,6 +215,8 @@ namespace cuvnet{
         m_aes_bs = idx_to_bs(get<int>(o, "aes_bs"));
         m_mlp_bs = idx_to_bs(get<int>(o, "mlp_bs"));
 
+        m_adagrad_delta = get<float>(o, "ag_delta");
+        m_adagrad_winsize = (int) get<float>(o, "ag_winsize");
 
         m_sdl.init(m_aes_bs, "mnist_rot", 1);
 
@@ -279,7 +313,10 @@ namespace cuvnet{
             generic_auto_encoder& ae = m_aes.get_ae(ae_id);
 
             // set up gradient descent
-            G gd(ae.loss(), 0, ae.unsupervised_params(), m_aes_lr[ae_id], 0.f);
+            boost::shared_ptr<G> p_gd=
+                create_gd(ae.loss(), ae.unsupervised_params(), m_aes_lr[ae_id], 0.f);
+            G& gd = *p_gd;
+
             set_up_sync("pretrain-"+boost::lexical_cast<std::string>(ae_id),
                     gd, ae.unsupervised_params());
             gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_unsupervised,this,_2));
@@ -352,7 +389,9 @@ namespace cuvnet{
                     loss = axpby(loss, m_mlp_wd, reg);
             }
 
-            G gd(loss,0,params,m_mlp_lr, -0);
+            boost::shared_ptr<G> p_gd=
+                create_gd(loss, params,m_mlp_lr, -0.f);
+            G& gd = *p_gd;
             set_up_sync("sfinetune", gd, params);
             gd.before_batch.connect(boost::bind(&pretrained_mlp_learner::load_batch_supervised,this,_2));
             gd.current_batch_num = boost::bind(&sdl_t::n_batches,&m_sdl);
@@ -368,6 +407,7 @@ namespace cuvnet{
 
             boost::shared_ptr<early_stopper> es;
             if(m_checker && m_sdl.can_earlystop()){
+                    //gd.after_batch.connect(boost::bind(sleeper));
                 es.reset(new early_stopper(gd, boost::bind(&monitor::mean, &mon, "classification error"), 0.995f, 5, 2.f));
     
                 es->before_early_stopping_epoch.connect(boost::bind(&sdl_t::before_early_stopping_epoch,&m_sdl));
@@ -519,6 +559,8 @@ main(int argc, char **argv)
 
     //bob<<"aes_wd_0" <<BSON_ARRAY(0.012f);
     bob<<"aes_wd_0" <<BSON_ARRAY(0.01f);
+    bob<<"ag_delta" <<BSON_ARRAY(0.01f);
+    bob<<"ag_winsize" <<BSON_ARRAY(100000.f);
 
     if(std::string("test") == argv[1]){
         cuvAssert(argc==3);

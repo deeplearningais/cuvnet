@@ -63,37 +63,36 @@ namespace cuvnet { namespace network_communication {
         m_merged[name] += m;
     }
 
-    adagrad_merger::adagrad_merger(float expwin, int resetcnt)
-        :m_expwin(expwin), m_resetcnt(resetcnt){}
+    adagrad_merger::adagrad_merger(float delta, int winsize)
+        :m_delta(delta), m_winsize(winsize){}
     void adagrad_merger::add_param(const std::string& name, const htensor_t& t){
         m_merged[name] = t;
-        m_moments[name] = htensor_t(t.shape());
-        m_moments[name] = 0.f;
+        m_sq_grad_sum[name] = htensor_t(t.shape());
+        m_sq_grad_sum[name] = 0.f;
+        m_count[name] = 0;
     }
     void adagrad_merger::merge(const std::string& name, const htensor_t& delta){
-        htensor_t lr(delta.shape());
-        // This would be the fastest thing to do:
-        //cuv::apply_scalar_functor(lr, m_moments[name], cuv::SF_POW, -0.5f);
-        // however, to be sure we're stable:
-        cuv::apply_scalar_functor(lr, m_moments[name], cuv::SF_ABS); // should be >0, since sum of squares
-        cuv::apply_scalar_functor(lr, cuv::SF_SQRT);
-        lr += 0.01f;
-        cuv::apply_binary_functor(lr, delta, lr, cuv::BF_DIV);
-
-        //cuv::apply_binary_functor(m_merged[name], lr, cuv::BF_XPBY, 0.01f);
-        m_merged[name] += lr;
-
-        if(++m_count[name] % m_resetcnt == 0)
-        {
-            LOG4CXX_INFO(g_log, "adagrad_merger: Resetting sums for "<<name);
-            m_moments[name] = 0.f;
-        }
+        htensor_t& sqsums = m_sq_grad_sum[name];
 
         htensor_t s = delta*delta;
-        // moving average:
-        //cuv::apply_binary_functor(m_moments[name], s-m_moments[name], cuv::BF_XPBY, m_expwin);
-        // as in paper: add 'em all
-        cuv::apply_binary_functor(m_moments[name], s, cuv::BF_ADD);
+        sqsums += s;
+
+        htensor_t lr(delta.shape());
+
+        // sqsums should be >0 anyway, since it is the sum of squares
+        cuv::apply_scalar_functor(lr, sqsums, cuv::SF_MAX, 0.f); 
+        cuv::apply_scalar_functor(lr, cuv::SF_SQRT);
+        lr += m_delta;
+        cuv::apply_binary_functor(lr, delta, lr, cuv::BF_DIV);
+
+        // assume that the learning rate was already applied to lr in the worker!
+        m_merged[name] += lr;
+
+        if(++m_count[name] % m_winsize == 0)
+        {
+            LOG4CXX_INFO(g_log, "adagrad_merger: Resetting sums for "<<name);
+            sqsums = 0.f;
+        }
     }
     
 
