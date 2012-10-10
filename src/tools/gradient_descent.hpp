@@ -264,6 +264,9 @@ namespace cuvnet
 
             /// box filter for smoothing results
             unsigned int m_box_filter_size;
+            
+            /// connection of early stopping
+            boost::signals::connection m_connection;
 
         public:
             /// triggered when starting a early-stopping epoch.
@@ -297,6 +300,12 @@ namespace cuvnet
             inline float best_perf(){
                 return m_best_perf;
             }
+
+
+            /**
+             * disconnects early stopping. 
+             */
+            void disconnect();
     };
 
     /**

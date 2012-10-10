@@ -349,10 +349,14 @@ namespace cuvnet
     {
         cuvAssert(patience_increase > 1.);
         m_best_perf = std::numeric_limits<float>::infinity();
-        gd.before_epoch.connect(boost::ref(*this), boost::signals::at_front);
+        m_connection = gd.before_epoch.connect(boost::ref(*this), boost::signals::at_front);
         m_patience = 4000;
     }
 
+    void early_stopper::disconnect(){
+        m_connection.disconnect();
+        assert(!m_connection.connected());
+    }
 
     void early_stopper::operator()(unsigned int current_epoch, unsigned int wups){
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("early_stop"));
