@@ -289,7 +289,6 @@ arrange_filters(const tensor_type& fx_, const tensor_type& fy_,  unsigned int ds
  * arrange images stored in rows/columns of a matrix nicely for viewing
  *
  * @param fx_          the matrix containing the filters Fx
- * @param fy_          the matrix containing the filters Fy
  * @param dstMapCount number of columns in the arrangement
  * @param srcMapCount number of rows in the arrangement
  * @param fs          input size
@@ -301,7 +300,9 @@ arrange_filters(const tensor_type& fx_, const tensor_type& fy_,  unsigned int ds
 tensor_type
 arrange_single_filter(const tensor_type& fx_ ,  unsigned int dstMapCount, unsigned int srcMapCount, unsigned int fs, bool normalize_separately=false){
     tensor_type fx = fx_.copy();
-
+    int s1 = fx.shape(0);
+    int s2 = fx.shape(1);
+    std::cout << " s1 " << s1 << " s2 " << s2 << std::endl; 
     // the image which is visualized
     tensor_type img(cuv::extents[srcMapCount * 2][dstMapCount*(fs + 1)]);
     img = 0.f;
@@ -332,6 +333,32 @@ arrange_single_filter(const tensor_type& fx_ ,  unsigned int dstMapCount, unsign
 }
 
 
+
+
+
+
+/**
+ * visualizes  filters learned during regression
+ *
+ * @param mon         monitor, which is storing the intermediete values of loss
+ * @return rearranged view
+ *
+ */
+void visualize_filters_regression(linear_regression* lr){
+    std::string base = "weights_regression";
+
+    tensor_type w = trans(lr->get_weights()->data());
+    std::cout << " min regression weights : " << cuv::minimum(w) << " max " << cuv::maximum(w) << std::endl;
+
+    w = zoom(w);
+    cuv::libs::cimg::save(w, base+".png");
+
+}
+
+
+
+
+
 /**
  * visualizes inputs, hidden layer, factors, filters 
  *
@@ -349,25 +376,28 @@ arrange_single_filter(const tensor_type& fx_ ,  unsigned int dstMapCount, unsign
  *
  */
 void visualize_filters(relational_auto_encoder* ae, monitor* mon,  input_ptr input_x, input_ptr input_y, input_ptr teacher,std::string param_name,  bool is_train_set, unsigned int epoch){
-    int fa, fb = 8;
+    int fa;
+    int fb;
     //if((epoch%1000 != 0 || epoch <= 1) && is_train_set)
     if(epoch%300 != 0   && is_train_set)
         return;
      std::cout << " visualizing inputs " << std::endl;
-    //{
-    //std::string base = (boost::format("fx&y-%06d-")%epoch).str();
+    {
+    std::string base = (boost::format("fx&y-%06d-")%param_name).str();
 
-    //tensor_type fx = trans(ae->get_fx()->data());
+    tensor_type fx = trans(ae->get_fx()->data());
 
-    //tensor_type fy = trans(ae->get_fy()->data());
+    tensor_type fy = trans(ae->get_fy()->data());
         
-    //std::cout << " min elem fx: " << cuv::minimum(fx) << endl;
-    //auto wvis = arrange_filters(fx, fy, fa, fb, fx.shape(1),false);
-    //cuv::libs::cimg::save(wvis, base+"nb.png");
+    std::cout << " min elem fx: " << cuv::minimum(fx) << endl;
+    fa = 5;
+    fb = fx.shape(0) / fa;
+    auto wvis = arrange_filters(fx, fy, fa, fb, fx.shape(1),false);
+    cuv::libs::cimg::save(wvis, base+"nb.png");
 
-    //wvis      = arrange_filters(fx, fy, fa, fb, fx.shape(1),true);
-    //cuv::libs::cimg::save(wvis, base+"sb.png");
-    //}
+    wvis      = arrange_filters(fx, fy, fa, fb, fx.shape(1),true);
+    cuv::libs::cimg::save(wvis, base+"sb.png");
+    }
     {
      std::string base;
      if(is_train_set)
@@ -394,18 +424,18 @@ void visualize_filters(relational_auto_encoder* ae, monitor* mon,  input_ptr inp
      // wvis = arrange_inputs_and_prediction(in_x, in_y, teacher_, prediction, fa, fb, (int)in_x.shape(1),false);
      //cuv::libs::cimg::save(wvis, base+"nb.png");
     }
-    ////{
-    ////  std::string base = (boost::format("factors-%06d-")%epoch).str();
-    ////  tensor_type fx = (*mon)["factorx"].copy();
-    ////  tensor_type fy = (*mon)["factory"].copy();
-    ////  tensor_type elem_mult = fx * fy;
-    ////  fa = 10;
-    ////  fb = fx.shape(0) / 10;
+    {
+     std::string base = (boost::format("factors-%06d-")%param_name).str();
+     tensor_type fx = (*mon)["factorx"].copy();
+     tensor_type fy = (*mon)["factory"].copy();
+     tensor_type elem_mult = fx * fy;
+     fa = 2;
+     fb = fx.shape(0) / fa;
 
-    ////  auto wvis = arrange_input_filters(fx, fy, elem_mult, fa, fb, (int)fx.shape(1), false);
-    ////  cuv::libs::cimg::save(wvis, base+".png");
+     auto wvis = arrange_input_filters(fx, fy, elem_mult, fa, fb, (int)fx.shape(1), true);
+     cuv::libs::cimg::save(wvis, base+"sb.png");
 
-    //}
+    }
     //{
     //std::string base = (boost::format("encoder-%06d-")%epoch).str();
     //tensor_type encoder = (*mon)["encoded"].copy();
@@ -655,6 +685,7 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
         //gradient_descent gd(ae.loss(),0,params, learning_rate);
         //rprop_gradient_descent gd(ae.loss(), 0, params, 0.00001, 0.0005f);
         rprop_gradient_descent gd(ae.loss(), 0, params,   0.00001);
+        //adagrad_gradient_descent gd(ae.loss(), 0, params,   0.01, 0, 0.01, 100);
         //gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.45f,350);
 
         early_stopper es(gd, boost::bind(test_phase_early_stopping, &mon, &gd, &ds,  &ae,  input_x,  input_y, teacher,bs), 1.f, 100, 2.f);
@@ -683,7 +714,7 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
         tensor_type all_labels(cuv::extents[ds.train_labels.shape(0)][ds.train_labels.shape(1)]);
         dataset_dumper dum("train_data.dat", ds.train_data.shape(1) / bs);
         gd.after_batch.connect(boost::bind(log_activations, &mon, &dum, &ds,bs, all_act, all_labels, true, _2));
-        gd.minibatch_learning(1, 100*60,0, false);
+        gd.minibatch_learning(1, 100*60,1, false);
         dum.write_to_file(all_act, all_labels);
         dum.close();
 }
@@ -868,9 +899,6 @@ void regression(random_translation& ds, int bs){
        // register the monitor so that it receives learning events
        mon.register_gd(gd);
         
-       // after each epoch, run \c visualize_filters
-       //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&normalizer,ds.image_size,ds.channels, input,_1));
-        
        // before each batch, load data into \c input
        gd.before_batch.connect(boost::bind(load_batch_logistic, &lr, input, target,&train_data, &train_labels, bs,_2));
         
@@ -896,6 +924,7 @@ void regression(random_translation& ds, int bs){
       gd.before_batch.connect(boost::bind(load_batch_logistic, &lr, input, target,&test_data, &test_labels, bs,_2));
       gd.after_batch.connect(boost::bind(accumulate_batches, &mon, all_est, all_teacher, bs,_2));
       gd.current_batch_num = encoder_test.shape(0)/ll::constant(bs);
+      gd.after_epoch.connect(boost::bind(visualize_filters_regression,&lr));
       gd.minibatch_learning(1);
 
 
@@ -962,16 +991,18 @@ struct morse_pat_gen{
         float scale;
         int ex_type;
         if(m_current_pos == m_min_pos){
-            if(m_max_scale == 0.f){
-                scale = 1.f;
-            }else{
-                scale =  1 + (drand48() * 2 * m_max_scale - m_max_scale);
-            }
+            //if(m_max_scale == 0.f){
+            //    scale = 1.f;
+            //}else{
+            //    scale =  1 + (drand48() * 2 * m_max_scale - m_max_scale);
+            //}
+            scale = 1.f;
             if(m_max_trans == 0.f){
-                trans = 0.f;
+               trans = 0.f;
             }else{
-                trans = drand48() * 2 * m_max_trans - m_max_trans;
+               trans = drand48() * 2 * m_max_trans - m_max_trans;
             }
+
 
             ex_type = (rand() % (m_max_ex_type - m_min_ex_type )) + m_min_ex_type;
             m_current_trans = trans;
@@ -1069,7 +1100,7 @@ int main(int argc, char **argv)
     unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 0, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
 
     float max_growing = 0.1f;
-    unsigned max_num_epochs = 5000;
+    unsigned max_num_epochs = 4000;
 
     unsigned int num_hidden = 10;
 
@@ -1133,18 +1164,19 @@ int main(int argc, char **argv)
     //prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
     
     // does regression on hidden layer activations, classifies transformation
-    //regression(ds, bs);
+    regression(ds, bs);
 
     // log to the file the generated examples for invariance analysis
 
-    input_x->data().resize(cuv::extents[1][input_size]); 
-    input_y->data().resize(cuv::extents[1][input_size]); 
+    //input_x->data().resize(cuv::extents[1][input_size]); 
+    //input_y->data().resize(cuv::extents[1][input_size]); 
     
-    dumper a;
+    //dumper a;
     
-    int num_examples = 10000;
-    morse_pat_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, num_examples, max_growing, gauss_dist, sigma);
-    a.generate_log_patterns(ae.get_encoded(), m, "invariance_test-" + param_name + ".txt"); 
+    //int num_examples = 500000;
+
+    //morse_pat_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, num_examples, max_growing, gauss_dist, sigma);
+    //a.generate_log_patterns(ae.get_encoded(), m, "invariance_test-" + param_name + ".txt"); 
 
     
 
