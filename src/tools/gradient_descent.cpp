@@ -289,9 +289,14 @@ namespace cuvnet
             m_lr_fact(1.f)
     {
         cuvAssert(patience_inc_fact > 1.);
-        gd.after_epoch.connect(boost::ref(*this), boost::signals::at_front);
+        m_connection = gd.after_epoch.connect(boost::ref(*this), boost::signals::at_front);
     }
 
+
+    void convergence_checker::disconnect(){
+        m_connection.disconnect();
+        assert(!m_connection.connected());
+    }
 
     void convergence_checker::operator()(unsigned int current_epoch, unsigned int wups){
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("conv_check"));

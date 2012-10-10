@@ -188,6 +188,10 @@ namespace cuvnet
 
             /// decrease learnrate by this much if convergence reached, but not m_max_steps
             float m_lr_fact;
+            
+            /// connection of convergence checker
+            boost::signals::connection m_connection;
+
 
         public:
 
@@ -223,7 +227,8 @@ namespace cuvnet
              * test for convergence. 
              */
             void operator()(unsigned int current_epoch, unsigned int wups);
-
+            
+            void disconnect();
     };
 
     /**
