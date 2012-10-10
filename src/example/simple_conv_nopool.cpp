@@ -1,4 +1,4 @@
-
+#include <cstdlib>
 #include <boost/bind.hpp>
 #include <boost/lambda/lambda.hpp>
 
@@ -18,15 +18,53 @@ using namespace boost::assign;
 using namespace cuvnet;
 namespace ll = boost::lambda;
 
+void gradient_norms(monitor *pmon){
+    monitor& mon = *pmon;
+    double total_dnorm = 0;
+    total_dnorm += cuv::norm1(mon["dweights1"]);
+    total_dnorm += cuv::norm1(mon["dweights2"]);
+    total_dnorm += cuv::norm1(mon["dlinear"]);
+    total_dnorm += cuv::norm1(mon["dbias1"]);
+    total_dnorm += cuv::norm1(mon["dbias2"]);
+    std::cout << "gradient norm: " << total_dnorm << std::endl;
+
+
+    tofile("dweights1.npy", mon["dweights1"]);
+    tofile("dweights2.npy", mon["dweights2"]);
+    tofile("dlinear.npy", mon["dlinear"]);
+    tofile("dbias1.npy", mon["dbias1"]);
+    tofile("dbias2.npy", mon["dbias2"]);
+
+    tofile("weights1.npy", mon["weights1"]);
+    tofile("weights2.npy", mon["weights2"]);
+    tofile("linear.npy", mon["linear"]);
+    tofile("bias1.npy", mon["bias1"]);
+    tofile("bias2.npy", mon["bias2"]);
+
+    //double total_norm = 0;
+    //total_norm += cuv::norm1(mon["weights1"]);
+    //total_norm += cuv::norm1(mon["weights2"]);
+    //total_norm += cuv::norm1(mon["linear"]);
+    //total_norm += cuv::norm1(mon["bias1"]);
+    //total_norm += cuv::norm1(mon["bias2"]);
+    //std::cout << "weight norm: " << total_norm << std::endl;
+
+}
+
+
 int main(int argc, char **argv)
 {
     // initialize cuv library   
     cuv::initCUDA(0);
-    cuv::initialize_mersenne_twister_seeds();
+    cuv::initialize_mersenne_twister_seeds(10);
+    std::srand(10);
+    srand48(10);
     cuvnet::Logger log;
 
     // load the dataset
     letters_inpainting ds("/home/VI/staff/amueller/datasets/letters/");
+
+    //letters_inpainting ds("/home/VI/staff/amueller/datasets/letters_one/");
     //randomizer().transform(ds.train_data, ds.train_labels);
    
 
@@ -39,7 +77,7 @@ int main(int argc, char **argv)
             new ParameterInput(cuv::extents[10][1][200][200],"target"));
 
     // creates the LeNet
-    conv_nopool net(5, 16, 5);
+    conv_nopool net(9, 16, 9, 16);
     net.init(input, target);
 
 
@@ -52,6 +90,18 @@ int main(int argc, char **argv)
     mon.add(monitor::WP_SCALAR_EPOCH_STATS, net.get_loss(),        "total_loss");
     mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, net.classification_error(),        "classification_error");
 
+    mon.add(monitor::WP_D_SINK, net.m_conv1_weights,        "dweights1");
+    mon.add(monitor::WP_D_SINK, net.m_conv2_weights,        "dweights2");
+    mon.add(monitor::WP_D_SINK, net.m_linear,        "dlinear");
+    mon.add(monitor::WP_D_SINK, net.m_bias1,        "dbias1");
+    mon.add(monitor::WP_D_SINK, net.m_bias2,        "dbias2");
+
+    mon.add(monitor::WP_SINK, net.m_conv1_weights,        "weights1");
+    mon.add(monitor::WP_SINK, net.m_conv2_weights,        "weights2");
+    mon.add(monitor::WP_SINK, net.m_linear,        "linear");
+    mon.add(monitor::WP_SINK, net.m_bias1,        "bias1");
+    mon.add(monitor::WP_SINK, net.m_bias2,        "bias2");
+
     // copy training data and labels to the device, and converts train_labels from int to float
     matrix train_data = ds.train_data;
     matrix train_labels(ds.train_labels);
@@ -62,12 +112,15 @@ int main(int argc, char **argv)
     {
         // create a \c gradient_descent object that derives the logistic loss
         // w.r.t. \c params and has learning rate 0.1f
-        rprop_gradient_descent gd(net.get_loss(),0,params,0.1f);
+        //  0.01 kind of works
+        gradient_descent gd(net.get_loss(),0,params,.3f);
+        //gd.after_epoch.connect(boost::bind(&gradient_descent::decay_learnrate, &gd, 0.999));
+        gd.after_batch.connect(boost::bind(gradient_norms, &mon));
         
         // register the monitor so that it receives learning events
         mon.register_gd(gd);
 
-        gd.batch_learning(100, 10*60); // 10 minutes maximum
+        gd.batch_learning(1, 6000*60); // 10 minutes maximum
     }
     initialize_python();
     export_ops();
@@ -79,6 +132,8 @@ int main(int argc, char **argv)
     {
         matrix test_data = ds.test_data;
         matrix test_labels(ds.test_labels);
+        input->data() = test_data;
+        target->data() = test_labels;
         gradient_descent gd(net.get_loss(),0,params,0.f);
         mon.register_gd(gd);
 

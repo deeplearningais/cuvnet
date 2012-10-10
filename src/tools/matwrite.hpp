@@ -1,3 +1,6 @@
+#ifndef __MATWRITE_HPP__
+#     define __MATWRITE_HPP__
+
 #include <cuv/basics/tensor.hpp>
 #include <cuv/tools/meta_programming.hpp>
 #include <third_party/libnpy-0.5/include/npy.h>
@@ -35,3 +38,4 @@ namespace cuvnet
         tofile(fn,m);
     }
 }
+#endif

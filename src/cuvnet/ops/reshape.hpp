@@ -138,12 +138,12 @@ namespace cuvnet
                     result_t::element_type& r0 = *m_results[0];
                     if(r0.can_overwrite_directly()){
                         value_type& v = *r0.overwrite_or_add_value();
-                        v = p0.value.cdata(); // this is O(1), but violates const-correctness(!)
-                        //v = p0.value.cdata().copy(); // this safer but slower
+                        //v = p0.value.cdata(); // this is O(1), but violates const-correctness(!)
+                        v = p0.value.cdata().copy(); // this safer but slower
                         v.reshape(r0.shape);
                     }else{
-                        value_ptr v(new value_type(p0.value.cdata())); // this is O(1), but violates const-correctness(!)
-                        //value_ptr v(new value_type(p0.value.cdata().copy())); // this safer but slower
+                        //value_ptr v(new value_type(p0.value.cdata())); // this is O(1), but violates const-correctness(!)
+                        value_ptr v(new value_type(p0.value.cdata().copy())); // this safer but slower
                         v->reshape(r0.shape);
                         r0.push(v);
                     }
@@ -158,13 +158,13 @@ namespace cuvnet
 
                     if(p0.can_overwrite_directly()){
                         value_type& v = *p0.overwrite_or_add_value();
-                        v = r0.delta.cdata(); // O(1), but violates const-correctness again!
-                        //v = r0.delta.cdata().copy(); // safe but slow
+                        //v = r0.delta.cdata(); // O(1), but violates const-correctness again!
+                        v = r0.delta.cdata().copy(); // safe but slow
                         v.reshape(p0.shape);
                     }else{
                         value_ptr v(new value_type(p0.shape));
-                        *v = r0.delta.cdata(); // O(1), but violates const-correctness
-                        //*v = r0.delta.cdata().copy(); // safe but slow
+                        //*v = r0.delta.cdata(); // O(1), but violates const-correctness
+                        *v = r0.delta.cdata().copy(); // safe but slow
                         v->reshape(p0.shape);
                         p0.push(v);
                     }
