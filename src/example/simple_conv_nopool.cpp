@@ -1,4 +1,4 @@
-
+#include <cstdlib>
 #include <boost/bind.hpp>
 #include <boost/lambda/lambda.hpp>
 
@@ -28,6 +28,19 @@ void gradient_norms(monitor *pmon){
     total_dnorm += cuv::norm1(mon["dbias2"]);
     std::cout << "gradient norm: " << total_dnorm << std::endl;
 
+
+    tofile("dweights1.npy", mon["dweights1"]);
+    tofile("dweights2.npy", mon["dweights2"]);
+    tofile("dlinear.npy", mon["dlinear"]);
+    tofile("dbias1.npy", mon["dbias1"]);
+    tofile("dbias2.npy", mon["dbias2"]);
+
+    tofile("weights1.npy", mon["weights1"]);
+    tofile("weights2.npy", mon["weights2"]);
+    tofile("linear.npy", mon["linear"]);
+    tofile("bias1.npy", mon["bias1"]);
+    tofile("bias2.npy", mon["bias2"]);
+
     //double total_norm = 0;
     //total_norm += cuv::norm1(mon["weights1"]);
     //total_norm += cuv::norm1(mon["weights2"]);
@@ -42,13 +55,16 @@ void gradient_norms(monitor *pmon){
 int main(int argc, char **argv)
 {
     // initialize cuv library   
-    cuv::initCUDA(2);
+    cuv::initCUDA(0);
     cuv::initialize_mersenne_twister_seeds(10);
+    std::srand(10);
+    srand48(10);
     cuvnet::Logger log;
 
     // load the dataset
-    //letters_inpainting ds("/home/VI/staff/amueller/datasets/letters/");
-    letters_inpainting ds("/home/VI/staff/amueller/datasets/letters_one/");
+    letters_inpainting ds("/home/VI/staff/amueller/datasets/letters/");
+
+    //letters_inpainting ds("/home/VI/staff/amueller/datasets/letters_one/");
     //randomizer().transform(ds.train_data, ds.train_labels);
    
 
@@ -56,9 +72,9 @@ int main(int argc, char **argv)
     // here we only need to specify the shape of the input and target correctly
     // \c load_batch will put values in it.
     boost::shared_ptr<ParameterInput> input(
-            new ParameterInput(cuv::extents[2][1][200][200],"input"));
+            new ParameterInput(cuv::extents[10][1][200][200],"input"));
     boost::shared_ptr<ParameterInput> target(
-            new ParameterInput(cuv::extents[2][1][200][200],"target"));
+            new ParameterInput(cuv::extents[10][1][200][200],"target"));
 
     // creates the LeNet
     conv_nopool net(9, 16, 9, 16);
@@ -104,7 +120,7 @@ int main(int argc, char **argv)
         // register the monitor so that it receives learning events
         mon.register_gd(gd);
 
-        gd.batch_learning(1000, 6000*60); // 10 minutes maximum
+        gd.batch_learning(1, 6000*60); // 10 minutes maximum
     }
     initialize_python();
     export_ops();

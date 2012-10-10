@@ -25,8 +25,8 @@ namespace cuvnet
             assert(ftestd.is_open());
             assert(ftestl.is_open());
 
-            cuv::tensor<unsigned char,cuv::host_memory_space> traind(cuv::extents[2][1][200][200]);
-            cuv::tensor<unsigned char,cuv::host_memory_space> trainl(cuv::extents[2][1][200][200]);
+            cuv::tensor<unsigned char,cuv::host_memory_space> traind(cuv::extents[10][1][200][200]);
+            cuv::tensor<unsigned char,cuv::host_memory_space> trainl(cuv::extents[10][1][200][200]);
             cuv::tensor<unsigned char,cuv::host_memory_space> testd(cuv::extents[10][1][200][200]);
             cuv::tensor<unsigned char,cuv::host_memory_space> testl(cuv::extents[10][1][200][200]);
             ftraind.read((char*)traind.ptr(), traind.size()); assert(ftraind.good());
