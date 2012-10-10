@@ -18,6 +18,7 @@
 #include <exception>
 #include <tools/dumper.hpp>
 #include <tools/dataset_dumper.hpp>
+#include <datasets/dataset_reader.hpp>
 #include <tools/logging.hpp>
 
 
@@ -489,7 +490,7 @@ float test_phase_early_stopping(monitor* mon, gradient_descent* orig_gd, random_
     {
         tensor_type fx = ae->get_fx()->data();
         tensor_type fy = ae->get_fy()->data();
-        std::cout << " min fx = " << cuv::minimum(fx) << " min fy " << cuv::minimum(fy) << " max fx = " << cuv::maximum(fx) << " max fy " << cuv::maximum(fy) << " min fh " << cuv::minimum(ae->get_fh()->data()) << " max fh " << cuv::maximum(ae->get_fh()->data()) << std::endl;
+        std::cout << "In early stopping min fx = " << cuv::minimum(fx) << " min fy " << cuv::minimum(fy) << " max fx = " << cuv::maximum(fx) << " max fy " << cuv::maximum(fy) << " min fh " << cuv::minimum(ae->get_fh()->data()) << " max fh " << cuv::maximum(ae->get_fh()->data()) << std::endl;
 
         matrix data = ds->test_data;
         std::vector<Op*> params; // empty!
@@ -505,6 +506,7 @@ float test_phase_early_stopping(monitor* mon, gradient_descent* orig_gd, random_
         //gd.batch_learning(1, 100*60);
         mon->set_training_phase(CM_TRAIN);
         mean = mon->mean("total loss");
+        std::cout << "out of early stoppinug" << std::endl;/* cursor */
     }
     orig_gd->repair_swiper();
     return mean;
@@ -652,13 +654,15 @@ void visualize_prediction(monitor* mon, vector<tensor_type>& img, input_ptr inpu
         }
 }
 
-void log_activations(monitor * mon, dataset_dumper * dum, random_translation * ds, int bs,tensor_type& all_act, tensor_type& all_labels, bool is_train_set, int batch){
-    all_act[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]]= (*mon)["encoded"];
+void log_activations(monitor * mon, dataset_dumper * dum, random_translation * ds, int bs, bool is_train_set, int batch){
+    tensor_type act = (*mon)["encoded"];
+    tensor_type labels; 
     if(is_train_set){
-        all_labels[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]] = ds->train_labels[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
+        labels = ds->train_labels[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
     }else{
-        all_labels[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]] = ds->test_labels[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
+        labels = ds->test_labels[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
     }
+    dum->write_to_file(act, labels);
 }
 
 /**
@@ -686,12 +690,11 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
         //rprop_gradient_descent gd(ae.loss(), 0, params, 0.00001, 0.0005f);
         rprop_gradient_descent gd(ae.loss(), 0, params,   0.00001);
         //adagrad_gradient_descent gd(ae.loss(), 0, params,   0.01, 0, 0.01, 100);
-        //gd.setup_convergence_stopping(boost::bind(&monitor::mean, &mon, "total loss"), 0.45f,350);
 
         early_stopper es(gd, boost::bind(test_phase_early_stopping, &mon, &gd, &ds,  &ae,  input_x,  input_y, teacher,bs), 1.f, 100, 2.f);
 
-        // register the monitor so that it receives learning events
-        mon.register_gd(gd, es);
+        //// register the monitor so that it receives learning events
+        //mon.register_gd(gd, es);
 
         // after each epoch, run \c visualize_filters
 
@@ -710,13 +713,12 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
         gd.minibatch_learning(max_num_epochs, 100*60, 0, false);
 
         // register dumper
-        tensor_type all_act(cuv::extents[ds.train_data.shape(1)][num_hidden]);
-        tensor_type all_labels(cuv::extents[ds.train_labels.shape(0)][ds.train_labels.shape(1)]);
-        dataset_dumper dum("train_data.dat", ds.train_data.shape(1) / bs);
-        gd.after_batch.connect(boost::bind(log_activations, &mon, &dum, &ds,bs, all_act, all_labels, true, _2));
+        dataset_dumper dum("train_data.dat", ds.train_data.shape(1) / bs, bs, num_hidden,  ds.train_labels.shape(1));
+        gd.after_batch.connect(boost::bind(log_activations, &mon, &dum, &ds,bs, true, _2));
+        es.disconnect();
         gd.minibatch_learning(1, 100*60,1, false);
-        dum.write_to_file(all_act, all_labels);
         dum.close();
+        std::cout << "Train phase finished " << std::endl;
 }
 
 
@@ -735,11 +737,7 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
  * @param param_name  this string is appended to image name of the input patterns, describing the transformations used
  */
 void test_phase(random_translation& ds, monitor& mon, relational_auto_encoder& ae, input_ptr input_x,input_ptr input_y, input_ptr teacher, int bs, int input_size, int num_hidden, std::string param_name){
-    tensor_type all_act(cuv::extents[ds.train_data.shape(1)][num_hidden]);
-    tensor_type all_labels(cuv::extents[ds.train_labels.shape(0)][ds.train_labels.shape(1)]);
-    
-
-    dataset_dumper dum("test_data.dat", ds.train_data.shape(1) / bs);
+    dataset_dumper dum("test_data.dat", ds.train_data.shape(1) / bs, bs, num_hidden,  ds.train_labels.shape(1));
     std::cout << std::endl << " Test phase: " << std::endl;
     //// evaluates test data. We use minibatch learning with learning rate zero and only one epoch.
     matrix data = ds.test_data;
@@ -749,14 +747,17 @@ void test_phase(random_translation& ds, monitor& mon, relational_auto_encoder& a
     mon.register_gd(gd);
     gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon, input_x, input_y, teacher, param_name, false,_1));
     gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
-    gd.after_batch.connect(boost::bind(log_activations, &mon, &dum, &ds,bs,all_act, all_labels, false, _2));
+    gd.after_batch.connect(boost::bind(log_activations, &mon, &dum, &ds,bs, false, _2));
     gd.current_batch_num = data.shape(1)/ll::constant(bs);
     gd.minibatch_learning(1, 100, 0, false);
 
-    dum.write_to_file(all_act, all_labels);
     dum.close();
     //load_batch(input_x, input_y, teacher, &data,bs,0);
     //gd.batch_learning(1, 10);
+
+
+
+    std::cout << "Test phase finished " << std::endl;
 }
 
 
@@ -1097,10 +1098,10 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(device);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 0, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
+    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 1, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
 
-    float max_growing = 0.1f;
-    unsigned max_num_epochs = 4000;
+    float max_growing = 0.f;
+    unsigned max_num_epochs = 20;
 
     unsigned int num_hidden = 10;
 
@@ -1164,7 +1165,7 @@ int main(int argc, char **argv)
     //prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
     
     // does regression on hidden layer activations, classifies transformation
-    regression(ds, bs);
+    //regression(ds, bs);
 
     // log to the file the generated examples for invariance analysis
 
