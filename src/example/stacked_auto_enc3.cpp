@@ -355,8 +355,7 @@ namespace cuvnet{
             mon.add("layer", ae_id);
             mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.loss(), "total_loss");
 
-            if(ae.reg_loss())
-                mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.reg_loss(), "reg_loss");
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.reg_loss(), "reg_loss");
             mon.add(monitor::WP_SCALAR_EPOCH_STATS, ae.rec_loss(), "rec_loss");
 
             {   // set up monitoring for contractive auto-encoder
