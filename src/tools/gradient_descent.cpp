@@ -376,7 +376,7 @@ namespace cuvnet
         // function of the construct you're trying to minimize)
         float perf = m_performance();
         if(perf != perf){
-            LOG4CXX_WARN( log,  "STOP Got NaN in convergence check!");
+            LOG4CXX_WARN( log,  "STOP Got NaN in early-stopping check!");
             throw arithmetic_error_stop();
         }
 

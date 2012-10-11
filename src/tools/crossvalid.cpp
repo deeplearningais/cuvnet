@@ -86,12 +86,14 @@ namespace cuvnet
                 m_ptr->switch_dataset(0,CM_TEST);
                 m_test_perf = m_ptr->predict();
                 log4cxx::MDC mdc("test_loss", boost::lexical_cast<std::string>(m_test_perf));
+                LOG4CXX_WARN(log, "Evaluated on CM_TEST with refitting, result: "<<m_test_perf);
                 LOG4CXX_WARN(log, "DONE");
             }else{
                 // test last model on TEST w/o retraining
                 m_ptr->switch_dataset(0,CM_TEST);
                 m_test_perf0 = m_ptr->predict();
                 log4cxx::MDC mdc("test0_loss", boost::lexical_cast<std::string>(m_test_perf0));
+                LOG4CXX_WARN(log, "Evaluated on CM_TEST WITHOUT refitting, result: "<<m_test_perf0);
                 LOG4CXX_WARN(log, "DONE");
             }
             return m_perf; /* return the X-val error for optimization! */
