@@ -22,9 +22,6 @@
 
 
 bool g_refit_for_test;
-void sleeper(){
-    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-}
 
 namespace cuvnet{
     class simple_crossvalidatable_learner
