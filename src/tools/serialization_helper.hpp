@@ -38,6 +38,33 @@ namespace cuvnet
             boost::shared_ptr<T>  obj;
             ia >> obj;
             return obj;
+        }
+    template<class T, class R>
+        void serialize_to_file_r(std::string file, const boost::shared_ptr<T> obj, const R& r, int idx=-1, int every=-1){
+            namespace bar= boost::archive;
+            if(every >= 0 && (idx % every != 0))
+                return;
+            if(idx>=0)
+                file = (boost::format(file) % idx).str();
+            std::cout << "serializing model to:" << file << std::endl;
+            std::ofstream f(file.c_str());
+            bar::binary_oarchive oa(f);
+            register_objects(oa);
+            r(oa);
+            oa << obj;
+        }
+
+    template<class T, class R>
+        boost::shared_ptr<T> deserialize_from_file_r(std::string file, const R& r, int idx=-1){
+            namespace bar= boost::archive;
+            if(idx>=0)
+                file = (boost::format(file) % idx).str();
+            std::ifstream f(file.c_str());
+            bar::binary_iarchive ia(f);
+            register_objects(ia);
+            r(ia);
+            boost::shared_ptr<T>  obj;
+            ia >> obj;
             return obj;
         }
 }
