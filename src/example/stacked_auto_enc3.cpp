@@ -387,10 +387,12 @@ namespace cuvnet{
                 if(m_checker)
                 {
                     cc.decrease_lr(4);
-                    gd.minibatch_learning(1000, 10*60); // limit by time
+                    gd.minibatch_learning(10000, 15*60); // limit by time
+                    //gd.minibatch_learning(1, 15*60); // limit by time
                 }else{
                     cc.decrease_lr(INT_MAX); // only checker stops
-                    gd.minibatch_learning(1000, 10*60); // limit by time
+                    gd.minibatch_learning(10000, 15*60); // limit by time
+                    //gd.minibatch_learning(1, 15*60); // limit by time
                 }
                 m_epochs[ae_id] += gd.iters();
             }
@@ -460,7 +462,7 @@ namespace cuvnet{
                 gd.minibatch_learning(n, INT_MAX);
             }
             else {
-                gd.minibatch_learning(5000, 30*60);
+                gd.minibatch_learning(10000, 40*60);
                 m_epochs.back() += gd.iters();
             }
         }
