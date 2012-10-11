@@ -43,27 +43,26 @@ namespace cuvnet
             m_logfile(file_name.c_str()),
             m_oa_log(m_logfile),
             m_file(file_name),
+            m_num_batches(num_batches),
             m_bs(bs),
             m_data_dim_2(data_dim_2),
             m_label_dim_2(label_dim_2),
-            m_current_batch_num(0),
-            m_whole_data(cuv::extents[num_batches * bs][data_dim_2]),
-            m_whole_labels(cuv::extents[num_batches * bs][label_dim_2])
+            m_current_batch_num(0)
         {
-            
+            m_whole_data.resize(cuv::extents[num_batches * bs][data_dim_2]);
+            m_whole_labels.resize(cuv::extents[num_batches * bs][label_dim_2]);
         }
 
         
         void write_to_file(const tensor_type& data, const tensor_type& labels){
-           //m_whole_data[cuv::indices[cuv::index_range(m_current_batch_num * m_bs, (m_current_batch_num+1) * m_bs)][cuv::index_range()]]= data;
-           //m_whole_labels[cuv::indices[cuv::index_range(m_current_batch_num * m_bs,(m_current_batch_num+1) * m_bs)][cuv::index_range()]]= labels;
+           m_whole_data[cuv::indices[cuv::index_range(m_current_batch_num * m_bs, (m_current_batch_num+1) * m_bs)][cuv::index_range()]]= data;
+           m_whole_labels[cuv::indices[cuv::index_range(m_current_batch_num * m_bs,(m_current_batch_num+1) * m_bs)][cuv::index_range()]]= labels;
            m_current_batch_num++;
-           std::cout << "batch num " << m_current_batch_num << std::endl;/* cursor */
-           // writes to the file the whole data ones it is accumulated 
-           //if(m_current_batch_num == m_num_batches){
-           //    m_oa_log << m_whole_data; 
-           //    m_oa_log << m_whole_labels;
-           //}
+           //writes to the file the whole data ones it is accumulated 
+           if(m_current_batch_num == m_num_batches){
+              m_oa_log << m_whole_data; 
+              m_oa_log << m_whole_labels;
+           }
         }
 
 
