@@ -138,13 +138,29 @@ struct poormans_shortcut_layer{
                 ar & m_y & m_f;
             }
     public:
-    poormans_shortcut_layer(unsigned int dim0, unsigned int dim1) :m_dim0(dim0), m_dim1(dim1){}
+
+        /** default ctor for serialization */
+    poormans_shortcut_layer() :m_linear(false),m_dim0(0), m_dim1(0){}
+    poormans_shortcut_layer(bool linear, unsigned int dim0, unsigned int dim1) :m_linear(linear),m_dim0(dim0), m_dim1(dim1){}
+    bool m_linear;
     unsigned int m_dim0, m_dim1;
 
     typedef boost::shared_ptr<Op>     op_ptr;
-    boost::shared_ptr<ParameterInput>  m_B; 
-    boost::shared_ptr<ParameterInput>  m_Bbias;
-    boost::shared_ptr<ParameterInput>  m_Btbias;
+    boost::shared_ptr<ParameterInput>  m_A, m_B, m_C; 
+    boost::shared_ptr<ParameterInput>  m_Bbias, m_Cbias, m_Abias, m_CbiasT; 
+
+    op_ptr prodbias(op_ptr x, op_ptr M, op_ptr b = op_ptr()){
+        if(b)
+            return mat_plus_vec(prod(x, M), b, 1);
+        else
+            return prod(x, M);
+    }
+    op_ptr prodbias_t(op_ptr x, op_ptr M, op_ptr b = op_ptr()){
+        if(b)
+            return mat_plus_vec(prod(x, M, 'n','t'), b, 1);
+        else
+            return prod(x, M, 'n','t');
+    }
 
     op_ptr m_y, m_f;
 
@@ -157,47 +173,86 @@ struct poormans_shortcut_layer{
             m_B->data() *= 2*diff;
             m_B->data() -=   diff;
         }
+        if(m_C)
+        {   // C: input_dim x dim1
+            //unsigned int input_dim = m_C->data().shape(0);
+            //unsigned int out_dim = m_C->data().shape(1);
+            //float diff = 2.f*std::sqrt(6.f/(input_dim+out_dim));   // tanh
+            //cuv::fill_rnd_uniform(m_C->data());
+            //m_C->data() *= 2*diff;
+            //m_C->data() -=   diff;
+            
+            m_C->data() =   0.f;
+            m_C->set_learnrate_factor(0.5f);
+        }
+        if(m_A)
+        {   // A: dim0 x dim1
+            unsigned int input_dim = m_A->data().shape(0);
+            unsigned int out_dim = m_A->data().shape(1);
+            float diff = 2.f*std::sqrt(6.f/(input_dim+out_dim));   // tanh
+            cuv::fill_rnd_uniform(m_A->data());
+            m_A->data() *= 2*diff;
+            m_A->data() -=   diff;
+        }
+        if(m_Cbias)
+            m_Cbias->data() = 0.f;
         if(m_Bbias)
-            m_Bbias->data() =  0.f;
-        if(m_Btbias)
-            m_Btbias->data() =  0.f;
+            m_Bbias->data() = 0.f;
+        if(m_CbiasT)
+            m_CbiasT->data() = 0.f;
+        //if(m_BbiasT)
+            //m_BbiasT->data() = 0.f;
     }
+    boost::shared_ptr<RowSelector> m_rs;
     op_ptr m_Bx;
     op_ptr m_tanh_Bx;
     op_ptr m_tanh_BTx;
-    op_ptr encode(op_ptr inp, bool linear=false){
-        op_group ("shortcut");
+    op_ptr encode(op_ptr inp){
+        op_group ("shortcut-encode");
 
         if(!m_B){
             inp->visit(determine_shapes_visitor()); 
             unsigned int input_dim = inp->result()->shape[1];
-            m_B.reset(new ParameterInput(cuv::extents[input_dim][m_dim1],"B"));
-            m_Bbias.reset(new ParameterInput(cuv::extents[m_dim1], "Bbias"));
-            m_Btbias.reset(new ParameterInput(cuv::extents[input_dim], "BtBias"));
+            m_B.reset(new ParameterInput(cuv::extents[input_dim][m_dim0],"B"));
+            m_C.reset(new ParameterInput(cuv::extents[input_dim][m_dim1],"C"));
+            m_A.reset(new ParameterInput(cuv::extents[m_dim0][m_dim1],"A"));
+
+            m_Bbias.reset(new ParameterInput(cuv::extents[m_dim0], "Bbias"));
+            m_Cbias.reset(new ParameterInput(cuv::extents[m_dim1], "Cbias"));
+            m_Abias.reset(new ParameterInput(cuv::extents[m_dim0], "Abias"));
+            m_CbiasT.reset(new ParameterInput(cuv::extents[input_dim], "CbiasT"));
         }
-        m_Bx = mat_plus_vec(prod(inp, m_B), m_Bbias, 1);
-        if(linear) {
-            m_y = m_Bx;
-        }else{
-            m_tanh_Bx = tanh(m_Bx);
-            m_y = m_tanh_Bx - 0.5 * m_Bx;
-        }
+        m_Bx = prodbias(inp, m_B, m_Bbias);
+        m_tanh_Bx = tanh(m_Bx);
+        m_y = prod(axpby(m_tanh_Bx, - 0.5, m_Bx), m_A) + prodbias(inp, m_C, m_Cbias);
+        if(!m_linear)
+            m_y = tanh(m_y);
         return label("poormans_shortcut_layer",m_y);
     }
-    op_ptr decode(op_ptr enc, bool linear=false){
-        if(linear)
-            return mat_plus_vec(2.f*prod(enc, m_B, 'n','t'), m_Btbias, 1);
-        op_ptr tmp = mat_plus_vec(2.f*prod(enc, m_B, 'n','t'), m_Btbias, 1);
-        //return tanh(tmp) - 0.5f * tmp; // empirically worse classification-wise
-        return tanh(tmp);
+    op_ptr decode(op_ptr enc){
+        op_group ("shortcut-decode");
+        //return prodbias_t(enc, m_C, m_CbiasT) + prodbias_t(tanh(2.f*prodbias_t(enc, m_A)), m_B);
+        op_ptr Ah = prodbias_t(enc, m_A, m_Abias);
+        return prodbias_t(axpby(tanh(Ah),-0.5f, Ah), m_B) 
+            +  prodbias_t(enc, m_C, m_CbiasT);
     }
-    op_ptr jacobian_x(op_ptr enc){
-        if(m_tanh_Bx){
-            // this is a "real" shortcut layer
-            return mat_times_vec(m_B, -0.5f + 1.f-pow(enc, 2.f), 1);
+    op_ptr jacobian_x(){
+        op_ptr tmp;
+        if(!m_linear){
+            m_rs  = row_select(m_tanh_Bx, m_y); // select same (random) row in m_hl0 and m_hl1
+            op_ptr h0_2 = pow(result(m_rs,0), 2.f);
+            op_ptr h1_2 = pow(result(m_rs,1), 2.f);
+
+            op_ptr inner = mat_times_vec(m_B, 0.5f - h0_2,1);
+            tmp = m_C + prod(inner, m_A);
+            tmp = mat_times_vec(tmp, 1.f-h1_2,1);
+        }else{
+            m_rs  = row_select(m_tanh_Bx);
+            op_ptr h0_2 = pow(result(m_rs,0), 2.f);
+            op_ptr inner = mat_times_vec(m_B, 0.5f - h0_2,1);
+            tmp = m_C + prod(inner, m_A);
         }
-        // this is a linear layer
-        return m_B;
+        return tmp;
     }
     op_ptr schraudolph_regularizer(){
         // n/a for the poorman's version
@@ -211,9 +266,14 @@ struct poormans_shortcut_layer{
         using namespace boost::assign;
         std::vector<Op*> v;
         v += m_B.get();
+        v += m_A.get();
+        v += m_C.get();
         v += m_Bbias.get();
-        if(unsupervised)
-            v += m_Btbias.get();
+        v += m_Cbias.get();
+        if(unsupervised){
+            v += m_Abias.get();
+            v += m_CbiasT.get();
+        }
         return v;
     };
 
@@ -393,14 +453,15 @@ class two_layer_auto_encoder
             if(!m_encoded){
                 inp->visit(determine_shapes_visitor());
                 unsigned int input_dim = inp->result()->shape[1];
-                m_l0.reset( new sc_t(m_n_hidden0, m_n_hidden0) );
-                m_l0a.reset( new sc_t(m_n_hidden0, m_n_hidden1) );
-                m_l1.reset( new sc_t(m_n_hidden0, m_n_hidden0) );
-                m_l1a.reset( new sc_t(m_n_hidden0, input_dim) );
+                m_l0.reset( new sc_t(false, m_n_hidden0, m_n_hidden1) );
+                //m_l0a.reset( new sc_t(m_n_hidden0, m_n_hidden1) );
+                //m_l1.reset( new sc_t(m_n_hidden0, m_n_hidden0) );
+                //m_l1a.reset( new sc_t(m_n_hidden0, input_dim) );
 
                 //m_l0.reset( new sc_t(m_n_hidden0, m_n_hidden1) );
                 //m_l1.reset( new sc_t(m_n_hidden0, input_dim) );
-                m_encoded = m_l0a->encode(m_l0->encode(inp));
+                //m_encoded = m_l0a->encode(m_l0->encode(inp));
+                m_encoded = m_l0->encode(inp);
             }
             return m_encoded;
         }
@@ -409,7 +470,8 @@ class two_layer_auto_encoder
         virtual op_ptr  decode(op_ptr& enc){ 
             if(!m_decoded)
                 //m_decoded = m_l1a->encode(m_l1->encode(enc), true);
-                m_decoded = m_l0->decode(m_l0a->decode(enc), true);
+                //m_decoded = m_l0->decode(m_l0a->decode(enc), true);
+                m_decoded = m_l0->decode(enc);
             return m_decoded;
         }
 
@@ -419,11 +481,11 @@ class two_layer_auto_encoder
          */
         virtual std::vector<Op*> unsupervised_params(){
             std::vector<Op*> v0 = m_l0->params(true);
-            std::vector<Op*> v0a = m_l0a->params(true);
-            std::vector<Op*> v1 = m_l1->params(true);
-            std::vector<Op*> v1a = m_l1a->params(true);
-            v0.reserve(v0.size() + v1.size() + v0a.size() + v1a.size());
-            v0.insert(v0.end(), v0a.begin(), v0a.end());
+            //std::vector<Op*> v0a = m_l0a->params(true);
+            //std::vector<Op*> v1 = m_l1->params(true);
+            //std::vector<Op*> v1a = m_l1a->params(true);
+            //v0.reserve(v0.size() + v1.size() + v0a.size() + v1a.size());
+            //v0.insert(v0.end(), v0a.begin(), v0a.end());
             //v0.insert(v0.end(), v1.begin(), v1.end());
             //v0.insert(v0.end(), v1a.begin(), v1a.end());
             return v0;
@@ -435,10 +497,10 @@ class two_layer_auto_encoder
          */
         virtual std::vector<Op*> supervised_params(){
             std::vector<Op*> v0 = m_l0->params(false);
-            std::vector<Op*> v0a = m_l0a->params(false);
+            //std::vector<Op*> v0a = m_l0a->params(false);
             //std::vector<Op*> v1 = m_l1->supervised_params();
-            v0.reserve(v0.size() + v0a.size());
-            v0.insert(v0.end(), v0a.begin(), v0a.end());
+            //v0.reserve(v0.size() + v0a.size());
+            //v0.insert(v0.end(), v0a.begin(), v0a.end());
             return v0;
         };
 
@@ -469,9 +531,9 @@ class two_layer_auto_encoder
          */
         virtual void reset_weights(){
             m_l0->reset_weights();
-            m_l1->reset_weights();
-            m_l0a->reset_weights();
-            m_l1a->reset_weights();
+            //m_l1->reset_weights();
+            //m_l0a->reset_weights();
+            //m_l1a->reset_weights();
         }
 };
 
