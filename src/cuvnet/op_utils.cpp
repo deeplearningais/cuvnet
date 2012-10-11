@@ -67,8 +67,8 @@ void define_graphviz_node_visitor::preorder(Op* o){
 #endif
     if(o->get_label().size())
     {
-        n.label = o->get_label() + "\\n"+ n.label;
-        n.penwidth = 3.f;
+        n.label = n.label + "\\n"+ o->get_label();
+        n.penwidth = 4.f;
     }
     if(o->get_group().size()){
         n.group = o->get_group();
@@ -76,8 +76,10 @@ void define_graphviz_node_visitor::preorder(Op* o){
 
 	if(m_mark_order.size()){
 		std::vector<Op*>::iterator it = std::find(m_mark_order.begin(),m_mark_order.end(),o);
+#ifndef NDEBUG
 		if(it!=m_mark_order.end())
 			n.label += " <" + boost::lexical_cast<std::string>(std::distance(m_mark_order.begin(),it))+">";
+#endif
 	}
     if(current_op()==o){
         n.fillcolor = "firebrick1";
