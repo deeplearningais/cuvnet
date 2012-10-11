@@ -227,6 +227,18 @@ struct poormans_shortcut_layer{
  */
 struct shortcut_layer{
 
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & m_A & m_B & m_C & m_alpha & m_beta & m_Bbias & m_Cbias &
+                    m_y & m_f;
+            }
+    public:
+
+    /** default ctor for serialization */
+    shortcut_layer() :m_dim0(0), m_dim1(0){}
+
     shortcut_layer(unsigned int dim0, unsigned int dim1) :m_dim0(dim0), m_dim1(dim1){}
     unsigned int m_dim0, m_dim1;
 
@@ -355,6 +367,14 @@ struct shortcut_layer{
 class two_layer_auto_encoder 
 : public generic_auto_encoder
 {
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & boost::serialization::base_object<generic_auto_encoder>(*this);;
+                ar & m_n_hidden0 & m_n_hidden1;
+                ar & m_l0 & m_l0a & m_l1 & m_l1a;
+            }
     public:
         typedef boost::shared_ptr<Op>     op_ptr;
 
@@ -422,6 +442,12 @@ class two_layer_auto_encoder
             return v0;
         };
 
+        /** default ctor for serialization */
+        two_layer_auto_encoder()
+            :m_n_hidden0(0),
+             m_n_hidden1(0)
+    {
+    }
         /**
          * constructor
          * 
@@ -456,6 +482,14 @@ struct l2reg_simple_auto_encoder
 : public simple_auto_encoder
 , public simple_weight_decay
 {
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & boost::serialization::base_object<simple_auto_encoder>(*this);;
+                ar & boost::serialization::base_object<simple_weight_decay>(*this);;
+            }
+    public:
     typedef boost::shared_ptr<Op>     op_ptr;
     /**
      * constructor
@@ -468,6 +502,9 @@ struct l2reg_simple_auto_encoder
     :simple_auto_encoder(hidden_dim, binary)
     ,simple_weight_decay(l2)
     {
+    }
+    /** default ctor for serialization */
+    l2reg_simple_auto_encoder(){
     }
     /**
      * Returns the L2 regularization loss.
