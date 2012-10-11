@@ -50,7 +50,8 @@ namespace cuvnet
      * @param train_set train data which is initialized
      * @param test_set test data which is initialized
      */
-    void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set, cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels, int num_examples, int dim);
+    void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set,  cuv::tensor<float,cuv::host_memory_space>& val_set,
+ cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels, int num_examples, int dim);
 
 
     /**
@@ -88,7 +89,7 @@ namespace cuvnet
      * @param morse_factor the width of the morse input
      *
      */
-    void initialize_data_sets(cuv::tensor<float,cuv::host_memory_space>& train_data, cuv::tensor<float,cuv::host_memory_space>& test_data, 
+    void initialize_data_sets(cuv::tensor<float,cuv::host_memory_space>& train_data, cuv::tensor<float,cuv::host_memory_space>& test_data, cuv::tensor<float,cuv::host_memory_space>& val_data,
             cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels,
             int m_num_train_example, int m_num_test_example, int m_dim, float m_thres, int max_size, int min_size, 
             int max_translation, float max_growing, int flag, int morse_factor);

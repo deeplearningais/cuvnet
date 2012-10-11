@@ -490,9 +490,8 @@ float test_phase_early_stopping(monitor* mon, gradient_descent* orig_gd, random_
     {
         tensor_type fx = ae->get_fx()->data();
         tensor_type fy = ae->get_fy()->data();
-        std::cout << "In early stopping min fx = " << cuv::minimum(fx) << " min fy " << cuv::minimum(fy) << " max fx = " << cuv::maximum(fx) << " max fy " << cuv::maximum(fy) << " min fh " << cuv::minimum(ae->get_fh()->data()) << " max fh " << cuv::maximum(ae->get_fh()->data()) << std::endl;
 
-        matrix data = ds->test_data;
+        matrix data = ds->val_data;
         std::vector<Op*> params; // empty!
         rprop_gradient_descent gd(ae->loss(), 0, params,   0);
         //gradient_descent gd(ae->loss(), 0, params, 0);
@@ -506,7 +505,6 @@ float test_phase_early_stopping(monitor* mon, gradient_descent* orig_gd, random_
         //gd.batch_learning(1, 100*60);
         mon->set_training_phase(CM_TRAIN);
         mean = mon->mean("total loss");
-        std::cout << "out of early stoppinug" << std::endl;/* cursor */
     }
     orig_gd->repair_swiper();
     return mean;
@@ -694,7 +692,7 @@ void train_phase(random_translation& ds, monitor& mon, relational_auto_encoder& 
         early_stopper es(gd, boost::bind(test_phase_early_stopping, &mon, &gd, &ds,  &ae,  input_x,  input_y, teacher,bs), 1.f, 100, 2.f);
 
         //// register the monitor so that it receives learning events
-        //mon.register_gd(gd, es);
+        mon.register_gd(gd, es);
 
         // after each epoch, run \c visualize_filters
 
@@ -745,7 +743,7 @@ void test_phase(random_translation& ds, monitor& mon, relational_auto_encoder& a
     rprop_gradient_descent gd(ae.loss(), 0, params, 0);
     //gradient_descent gd(ae.loss(),0,params,0.f);
     mon.register_gd(gd);
-    gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon, input_x, input_y, teacher, param_name, false,_1));
+    //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon, input_x, input_y, teacher, param_name, false,_1));
     gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
     gd.after_batch.connect(boost::bind(log_activations, &mon, &dum, &ds,bs, false, _2));
     gd.current_batch_num = data.shape(1)/ll::constant(bs);
@@ -838,7 +836,21 @@ void accumulate_batches(monitor * mon, tensor_type all_est,  tensor_type& all_te
 //}
 
 
-void regression(random_translation& ds, int bs){
+// dumps the estimator and teacher values to the file
+void dump_est_teacher_regression(std::string file_name, tensor_type &all_est, tensor_type &all_teacher){
+      std::ofstream m_logfile;
+      m_logfile.open(file_name.c_str(), std::ios::out);
+      m_logfile << "est_tran,teacher_tran,est_scale,teacher_scale" << std::endl;
+      for (unsigned int i = 0; i < all_est.shape(0); ++i)
+      {
+          m_logfile << all_est(i,0) << "," << all_teacher(i, 0) << "," << all_est(i,1) << "," << all_teacher(i, 1) << std::endl;
+      }
+      m_logfile.close();
+}
+
+
+
+void regression(random_translation& ds, int bs, std::string param_name){
     dataset_reader dum("train_data.dat", "test_data.dat");
     dum.read_from_file();
 
@@ -847,14 +859,6 @@ void regression(random_translation& ds, int bs){
 
     tensor_type labels_train = dum.train_labels;
     tensor_type labels_test = dum.test_labels;
-
-    //for (int i = 0; i < encoder_train.shape(0); ++i)
-    //{
-    //    for (int j = 0; j < encoder_train.shape(1); ++j)
-    //    {
-    //        std::cout << "ecoder tr " << labels_train(i,j) << "  ";
-    //    }
-    //}
 
 
    // an \c Input is a function with 0 parameters and 1 output.
@@ -867,15 +871,26 @@ void regression(random_translation& ds, int bs){
 
 
 
-
+    
+    //creates stacked autoencoder with one simple autoencoder. has fa*fb number of hidden units
+    //auto_encoder_stack ae_s(false);
+    //typedef l2reg_simple_auto_encoder ae_type;
+    //ae_s.add<ae_type>(30, false, 0.01f);
+    //ae_s.init(input);
 
    // creates the linear regression 
    linear_regression lr( input, target);
+   //linear_regression lr(ae_s.get_encoded(), target);
    //linear_lasso_regression lr(0.1, input, target);
    //linear_ridge_regression lr(0.1, input, target);
 
    // puts the supervised parameters of the stacked autoencoder and logistic regression parameters in one vector
    std::vector<Op*> params = lr.params();
+
+
+   //std::vector<Op*> params = ae_s.supervised_params();
+   //std::vector<Op*> params_log = lr.params();
+   //std::copy(params_log.begin(), params_log.end(), std::back_inserter(params));
 
    // create a verbose monitor, so we can see progress 
    // and register the decoded activations, so they can be displayed
@@ -909,7 +924,7 @@ void regression(random_translation& ds, int bs){
        // do mini-batch learning for at most 100 epochs, or 10 minutes
        // (whatever comes first)
        //gd.minibatch_learning(10000, 10*60); // 10 minutes maximum
-       gd.minibatch_learning(500, 100*60, 0);
+       gd.minibatch_learning(2000, 100*60, 0);
    }
    std::cout << std::endl << " Test phase: of regression " << std::endl;
 
@@ -927,6 +942,11 @@ void regression(random_translation& ds, int bs){
       gd.current_batch_num = encoder_test.shape(0)/ll::constant(bs);
       gd.after_epoch.connect(boost::bind(visualize_filters_regression,&lr));
       gd.minibatch_learning(1);
+      // writes estimator and teacher to the file
+      dump_est_teacher_regression("est_teacher" + param_name + ".dat", all_est, all_teacher);
+          
+
+
 
 
    }
@@ -1098,10 +1118,11 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(device);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 1, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
+    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 0, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
 
-    float max_growing = 0.f;
-    unsigned max_num_epochs = 20;
+    float max_growing = 0.05f;
+
+    unsigned max_num_epochs = 4000;
 
     unsigned int num_hidden = 10;
 
@@ -1109,7 +1130,7 @@ int main(int argc, char **argv)
     float sigma = gauss_dist / 3; 
     //float learning_rate = 0.001f;
     // generate random translation datas
-    unsigned int data_set_size = 10000;
+    unsigned int data_set_size = 5000;
     std::cout << "generating dataset: "<<std::endl;
     random_translation ds(input_size * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width, flag, morse_factor);
     ds.binary   = false;
@@ -1165,7 +1186,7 @@ int main(int argc, char **argv)
     //prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
     
     // does regression on hidden layer activations, classifies transformation
-    //regression(ds, bs);
+    regression(ds, bs, param_name);
 
     // log to the file the generated examples for invariance analysis
 

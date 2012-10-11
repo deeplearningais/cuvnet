@@ -238,7 +238,7 @@ namespace cuvnet
             srand ( time(NULL) );
 
 
-            initialize_data_sets( train_data,  test_data, train_labels, test_labels,  m_num_train_example,  m_num_test_example,  m_dim,  m_thres,  max_size,  min_size,  max_translation,  max_growing, flag, morse_factor);
+            initialize_data_sets( train_data,  test_data, val_data, train_labels, test_labels,  m_num_train_example,  m_num_test_example,  m_dim,  m_thres,  max_size,  min_size,  max_translation,  max_growing, flag, morse_factor);
 
             if(subsample > 1){
                 //creates gaussian filter
@@ -248,15 +248,18 @@ namespace cuvnet
                 // convolves last dim of both train and test data with the gauss filter
                 convolve_last_dim(train_data, gauss);
                 convolve_last_dim(test_data, gauss);
+                convolve_last_dim(val_data, gauss);
 
                 // subsamples each "subsample" element
                 subsampling(train_data, subsample);
                 subsampling(test_data,subsample);
+                subsampling(val_data,subsample);
             }
 
 
             normalize_data_set(train_data);
             normalize_data_set(test_data); 
+            normalize_data_set(val_data); 
         }
 
        
@@ -272,7 +275,7 @@ namespace cuvnet
             }
         }
 
-        void initialize_data_sets(cuv::tensor<float,cuv::host_memory_space>& train_data, cuv::tensor<float,cuv::host_memory_space>& test_data, 
+        void initialize_data_sets(cuv::tensor<float,cuv::host_memory_space>& train_data, cuv::tensor<float,cuv::host_memory_space>& test_data, cuv::tensor<float,cuv::host_memory_space>& val_data,
                                   cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels,
                                   int m_num_train_example, int m_num_test_example, int m_dim, float m_thres, int max_size, int min_size, 
                                   int max_translation, float max_growing, int flag, int morse_factor){
@@ -291,6 +294,7 @@ namespace cuvnet
             //}
 
             train_data.resize(cuv::extents[3][m_num_train_example][m_dim]);
+            val_data.resize(cuv::extents[3][m_num_train_example][m_dim]);
             test_data.resize(cuv::extents[3][m_num_test_example][m_dim]);
             train_labels.resize(cuv::extents[m_num_train_example][label_dim]);
             test_labels.resize(cuv::extents[m_num_test_example][label_dim]);
@@ -298,22 +302,24 @@ namespace cuvnet
             if (flag == 0){
                 // fills the train and test sets with random uniform numbers
                 cuv::fill_rnd_uniform(train_data);
+                cuv::fill_rnd_uniform(val_data);
                 cuv::fill_rnd_uniform(test_data);
                 cuv::apply_scalar_functor(train_data,cuv::SF_LT,m_thres);
+                cuv::apply_scalar_functor(val_data,cuv::SF_LT,m_thres);
                 cuv::apply_scalar_functor(test_data,cuv::SF_LT,m_thres);
             }else if(flag == 1){
                 // initializes the data by randomly writing a single bars with random dimension between min_size and max_size 
                 cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][m_dim * (max_size - min_size) * (max_translation * 2 + 1)][m_dim]);
                 cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[m_dim * (max_size - min_size) * (max_translation * 2 + 1)][num_transformations]);
                 initialize_data_set_iter(max_size, min_size, data, m_dim, max_translation);
-                split_data_set(data, labels, train_data, test_data, train_labels, test_labels, m_num_train_example, m_dim);
+                split_data_set(data, labels, train_data, test_data, val_data, train_labels, test_labels, m_num_train_example, m_dim);
                 translated = false;
             }else{
                 // morse code
                 cuv::tensor<float,cuv::host_memory_space> data(cuv::extents[3][max_num_pos * 38 * num_transformations][m_dim]);
                 cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[max_num_pos * 38 * num_transformations][label_dim]);
                 initialize_morse_code(data, labels, m_dim, max_translation, morse_factor, max_growing);
-                split_data_set(data, labels, train_data, test_data, train_labels, test_labels, m_num_train_example, m_dim);
+                split_data_set(data, labels, train_data, test_data, val_data, train_labels, test_labels, m_num_train_example, m_dim);
                 translated = false;
             }
           
@@ -375,15 +381,18 @@ namespace cuvnet
 
 
         // initializes the data in the way that ones are next to each other
-        void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set, cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels, int num_examples, int dim){
+        void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set, cuv::tensor<float,cuv::host_memory_space>& val_set,
+                cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels, int num_examples, int dim){
+
             shuffle(data, labels);
             std::cout << " num_examples " << num_examples << " total num " << data.shape(1) << std::endl;
-            for(int ex = 0; ex < num_examples * 2; ex+=2){
-                train_labels[cuv::indices[ex/2][cuv::index_range()]] = labels[cuv::indices[ex][cuv::index_range()]];
-                test_labels[cuv::indices[ex/2][cuv::index_range()]] = labels[cuv::indices[ex + 1][cuv::index_range()]];
+            for(int ex = 0; ex < num_examples * 3; ex+=3){
+                train_labels[cuv::indices[ex/3][cuv::index_range()]] = labels[cuv::indices[ex][cuv::index_range()]];
+                test_labels[cuv::indices[ex/3][cuv::index_range()]] = labels[cuv::indices[ex + 1][cuv::index_range()]];
                 for(int d = 0; d < 3; d++){
-                    train_set[cuv::indices[d][ex/2][cuv::index_range()]] = data[cuv::indices[d][ex][cuv::index_range()]];
-                    test_set[cuv::indices[d][ex/2][cuv::index_range()]] = data[cuv::indices[d][ex + 1][cuv::index_range()]];
+                    train_set[cuv::indices[d][ex/3][cuv::index_range()]] = data[cuv::indices[d][ex][cuv::index_range()]];
+                    test_set[cuv::indices[d][ex/3][cuv::index_range()]] = data[cuv::indices[d][ex + 1][cuv::index_range()]];
+                    val_set[cuv::indices[d][ex/3][cuv::index_range()]] = data[cuv::indices[d][ex + 2][cuv::index_range()]];
                 }
 
             }
@@ -493,7 +502,8 @@ namespace cuvnet
                 for(int dim = 0; dim < max_num_pos; dim++){
                     for(unsigned int ch = 0; ch < morse.get_size(); ch++){
                         float tran = drand48() * 2*max_trans - max_trans;
-                        float grow = 1 + (drand48() * 2 * max_grow - max_grow);
+                        float rand_grow = (drand48() * 2 * max_grow - max_grow);
+                        float grow = 1 + rand_grow;
                         new_dim =  drand48() * m_dim;
                         // generate 1st input
                         morse.write_char(ch, 0, example, new_dim);
@@ -519,7 +529,7 @@ namespace cuvnet
                         }
 
                         labels(example, 0) = tran;
-                        labels(example, 1) = grow;
+                        labels(example, 1) = rand_grow * 10;
                         example++;
                     }
                 }
