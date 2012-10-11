@@ -577,22 +577,30 @@ main(int argc, char **argv)
     }
 
     mongo::BSONObjBuilder bob;
-    bob<<"aes_bs" <<BSON_ARRAY(128);
-    bob<<"mlp_bs" <<BSON_ARRAY(128);
-    bob<<"mlp_lr" <<BSON_ARRAY(0.01f);
-    bob<<"mlp_wd" <<BSON_ARRAY(0.01f);
-
-    bob<<"aes_ls0_0" <<BSON_ARRAY( 1024.f);
-    bob<<"aes_ls1_0" <<BSON_ARRAY( 512.f);
-    //bob<<"aes_ls0_0" <<BSON_ARRAY( 64.f);
-    //bob<<"aes_ls1_0" <<BSON_ARRAY( 64.f);
-    //bob<<"aes_lr_0" <<BSON_ARRAY(0.0714f);
-    bob<<"aes_lr_0" <<BSON_ARRAY(0.0001f);
-
-    //bob<<"aes_wd_0" <<BSON_ARRAY(0.012f);
-    bob<<"aes_wd_0" <<BSON_ARRAY(0.01f);
-    bob<<"ag_delta" <<BSON_ARRAY(0.01f);
-    bob<<"ag_winsize" <<BSON_ARRAY(100000.f);
+    // loss = 0.094254 auf validation set
+    bob<<"aes_bs" <<BSON_ARRAY(0);
+    bob<<"mlp_bs" <<BSON_ARRAY(1);
+    bob<<"mlp_lr" <<BSON_ARRAY(.004732f);
+    bob<<"mlp_wd" <<BSON_ARRAY(16 * .00107f);
+    bob<<"aes_ls0_0" <<BSON_ARRAY(1917.1f);
+    bob<<"aes_ls1_0" <<BSON_ARRAY(849.1f);
+    bob<<"aes_lr_0" <<BSON_ARRAY(.00004682);
+    bob<<"aes_wd_0" <<BSON_ARRAY(32 * .00101);
+    bob<<"ag_delta" <<BSON_ARRAY(.001004);
+    bob<<"ag_winsize" <<BSON_ARRAY(1635.1);
+    
+    /*
+     *bob<<"aes_bs" <<BSON_ARRAY(128);
+     *bob<<"mlp_bs" <<BSON_ARRAY(128);
+     *bob<<"mlp_lr" <<BSON_ARRAY(0.005091456883743236f);
+     *bob<<"mlp_wd" <<BSON_ARRAY(0.0f);
+     *bob<<"aes_ls0_0" <<BSON_ARRAY(1024.1);
+     *bob<<"aes_ls1_0" <<BSON_ARRAY(512.1);
+     *bob<<"aes_lr_0" <<BSON_ARRAY(0.00006735709088128198);
+     *bob<<"aes_wd_0" <<BSON_ARRAY(0.0f);
+     *bob<<"ag_delta" <<BSON_ARRAY(0.0010084553887359403);
+     *bob<<"ag_winsize" <<BSON_ARRAY(1000.1);
+     */
 
     typedef cuvnet::pretrained_mlp_learner<cuvnet::adagrad_gradient_descent> pml_t;
     if(std::string("load") == argv[1]){
