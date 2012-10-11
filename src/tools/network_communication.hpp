@@ -99,7 +99,6 @@ namespace cuvnet
         // - split up datasets (not necessary if randomized?)
         // - initialize networks with fixed seed
         // - disable in validation epochs
-        // - add "stage" parameter to weights?
 
         /**
          * Does tasks which cannot be done by clients.
