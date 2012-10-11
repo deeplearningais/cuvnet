@@ -24,7 +24,7 @@ namespace cuvnet
             std::ofstream f(file.c_str());
             bar::binary_oarchive oa(f);
             register_objects(oa);
-            oa << *obj;
+            oa << obj;
         }
 
     template<class T>
@@ -35,8 +35,9 @@ namespace cuvnet
             std::ifstream f(file.c_str());
             bar::binary_iarchive ia(f);
             register_objects(ia);
-            boost::shared_ptr<T>  obj (new T());
-            ia >> *obj;
+            boost::shared_ptr<T>  obj;
+            ia >> obj;
+            return obj;
             return obj;
         }
 }
