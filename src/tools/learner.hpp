@@ -3,6 +3,7 @@
 
 #include <datasets/dataset.hpp>
 #include <datasets/splitter.hpp>
+#include <boost/serialization/split_member.hpp>
 
 namespace cuvnet
 {
@@ -24,6 +25,29 @@ namespace cuvnet
     template<class StorageSpace>
     class SimpleDatasetLearner
     {
+    private:
+        friend class boost::serialization::access;
+
+        template<class Archive>
+            void save(Archive & ar, const unsigned int version) const
+            {
+                unsigned int n_splits = m_splits.size();
+                ar << m_bs << m_ds_name << n_splits;
+            }
+
+        template<class Archive>
+            void load(Archive & ar, const unsigned int version)
+            {
+                unsigned int n_splits;
+                ar >> m_bs >> m_ds_name >> n_splits;
+                init(m_bs, m_ds_name, n_splits);
+            }
+
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                boost::serialization::split_member(ar, *this, version);
+            }
+    public:
         protected:
             /// Batch size
             unsigned int m_bs;
@@ -31,6 +55,9 @@ namespace cuvnet
             splitter     m_splits;
             /// true if we are evaluating for early stopping
             bool         m_in_early_stopping;
+
+            /// dataset name for de-serialization
+            std::string m_ds_name;
 
             /// the current cv_mode
             cv_mode      m_current_mode;

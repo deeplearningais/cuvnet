@@ -38,7 +38,7 @@ class auto_encoder_stack
         /** ctor.
          * @param binary whether the inputs are Bernoulli-distributed
          */
-        auto_encoder_stack(bool binary)
+        auto_encoder_stack(bool binary=false)
         :generic_auto_encoder(binary)
         {
         }

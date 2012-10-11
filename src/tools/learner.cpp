@@ -105,6 +105,7 @@ namespace cuvnet
 
     template<class StorageSpace>
     void SimpleDatasetLearner<StorageSpace>::init(int bs, std::string ds, unsigned int nsplits, float es_frac){
+        m_ds_name = ds;
         m_bs = bs;
         m_in_early_stopping = false;
         if(0);

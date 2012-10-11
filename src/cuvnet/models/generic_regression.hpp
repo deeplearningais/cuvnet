@@ -24,6 +24,13 @@ class generic_regression
          */
         typedef boost::shared_ptr<Op> op_ptr;
         typedef boost::shared_ptr<ParameterInput> input_ptr; 
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & m_input & m_target & m_user_loss & m_regularization_loss;
+                ar & m_weights & m_bias & m_loss & m_est;
+            }
     protected:
        op_ptr m_input;    ///< x 
        op_ptr m_target;   ///< y

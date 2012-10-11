@@ -21,6 +21,16 @@ namespace cuvnet
             unsigned int m_n_splits; ///< the number of splits
             float m_val_frac; ///< fraction of samples in the validation set
             cuv::tensor<int,cuv::host_memory_space> m_indicators; ///< values indicate number of split this belongs to
+
+            friend class boost::serialization::access;
+            template<class Archive>
+                void serialize(Archive& ar, const unsigned int version) { 
+                    ar & m_ds.train_data & m_ds.val_data & m_ds.test_data;
+                    ar & m_ds.train_labels & m_ds.val_labels & m_ds.test_labels;
+                    ar & m_ds.binary & m_ds.channels & m_ds.image_size;
+
+                    ar & m_n_splits & m_val_frac & m_indicators;
+                }
         public:
             const dataset& get_ds()const{ return m_ds; }
             unsigned int size()const{return m_n_splits;}

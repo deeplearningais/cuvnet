@@ -12,6 +12,13 @@ namespace cuvnet
  */
 struct simple_weight_decay
 {
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & m_strength;
+            }
+    public:
     float m_strength;
 
     simple_weight_decay(float strength=0.f):m_strength(strength){}
@@ -51,6 +58,13 @@ struct simple_weight_decay
  */
 struct lasso_regularizer
 {
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & m_strength;
+            }
+    public:
     float m_strength;
 
     lasso_regularizer(float strength=0.f):m_strength(strength){}

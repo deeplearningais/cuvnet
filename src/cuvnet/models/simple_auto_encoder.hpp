@@ -21,6 +21,13 @@ namespace cuvnet
 class simple_auto_encoder 
 : public generic_auto_encoder
 {
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & m_hidden_dim;
+                ar & m_weights & m_bias_h & m_bias_y;
+            }
     protected:
     // these are the parameters of the model
     boost::shared_ptr<ParameterInput>  m_weights, m_bias_h, m_bias_y;
@@ -88,6 +95,13 @@ class simple_auto_encoder
     ,m_hidden_dim(hidden_dim)
     {
     }
+    /**
+     * default ctor for serialization.
+     */
+    simple_auto_encoder()
+    : m_hidden_dim(0)
+    {
+    }
 
     /**
      * initialize the weights with random numbers
@@ -115,6 +129,15 @@ class simple_auto_encoder
  */
 struct poormans_shortcut_layer{
 
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & m_linear & m_dim0 & m_dim1;
+                ar & m_A & m_B & m_C & m_Bbias & m_Cbias & m_Abias & m_CbiasT;
+                ar & m_y & m_f;
+            }
+    public:
     poormans_shortcut_layer(unsigned int dim0, unsigned int dim1) :m_dim0(dim0), m_dim1(dim1){}
     unsigned int m_dim0, m_dim1;
 

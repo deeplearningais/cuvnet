@@ -23,6 +23,7 @@ class generic_auto_encoder{
         typedef boost::shared_ptr<Op>     op_ptr;
         enum mode{ AEM_SUPERVISED, AEM_UNSUPERVISED };
     private:
+        friend class boost::serialization::access;
         template<class Archive>
             void serialize(Archive& ar, const unsigned int version) { 
                 ar & m_input & m_encoded & m_decoded & m_reg_loss & m_rec_loss & m_loss & m_binary & m_mode;
@@ -181,6 +182,12 @@ class generic_auto_encoder{
         generic_auto_encoder(bool binary)
             :m_mode(AEM_UNSUPERVISED)
             ,m_binary(binary)
+        {
+        }
+        /** default ctor for serialization */
+        generic_auto_encoder()
+            :m_mode(AEM_UNSUPERVISED)
+            ,m_binary(false)
         {
         }
 

@@ -16,6 +16,12 @@ namespace cuvnet
  * @ingroup models
  */
 class logistic_regression:  public generic_regression{
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & boost::serialization::base_object<generic_regression>(*this);
+            }
     public:
         typedef boost::shared_ptr<Op> op_ptr;
     
@@ -52,6 +58,14 @@ struct logistic_ridge_regression
 : public logistic_regression
 , public simple_weight_decay
 {
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & boost::serialization::base_object<generic_regression>(*this);
+                ar & boost::serialization::base_object<simple_weight_decay>(*this);
+            }
+    public:
     typedef boost::shared_ptr<Op>     op_ptr;
     /**
      * constructor forwards all except 1st arguments to logistic_regression.
@@ -64,6 +78,8 @@ struct logistic_ridge_regression
         , simple_weight_decay(l2)
         {
         }
+    /** default ctor for serialization */
+    logistic_ridge_regression(){}
     /**
      * Returns the L2 regularization loss.
      */
@@ -81,6 +97,14 @@ struct logistic_lasso_regression
 : public logistic_regression
 , public lasso_regularizer
 {
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & boost::serialization::base_object<generic_regression>(*this);
+                ar & boost::serialization::base_object<lasso_regularizer>(*this);
+            }
+    public:
     typedef boost::shared_ptr<Op>     op_ptr;
     /**
      * constructor forwards all except 1st arguments to logistic_regression.
@@ -93,6 +117,8 @@ struct logistic_lasso_regression
         , lasso_regularizer(l1)
         {
         }
+    /** default ctor for serialization */
+    logistic_lasso_regression(){}
     /**
      * Returns the L1 regularization loss.
      */

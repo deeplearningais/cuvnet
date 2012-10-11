@@ -15,6 +15,14 @@ namespace cuvnet
 class contractive_auto_encoder 
 : public simple_auto_encoder
 {
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & boost::serialization::base_object<simple_auto_encoder>(*this);
+                ar & m_reg_strength;
+            }
+    protected:
     /// how much regularization is required
     float m_reg_strength;
     op_ptr m_reg;
@@ -32,6 +40,11 @@ class contractive_auto_encoder
     contractive_auto_encoder(unsigned int hidden_dim, bool binary, float reg)
     :simple_auto_encoder(hidden_dim,binary)
     ,m_reg_strength(reg)
+    {
+    }
+    /** default ctor for serialization */
+    contractive_auto_encoder()
+    : m_reg_strength(0.f)
     {
     }
 
@@ -58,6 +71,15 @@ class contractive_auto_encoder
 class two_layer_contractive_auto_encoder 
 : public two_layer_auto_encoder
 {
+    private:
+        friend class boost::serialization::access;
+        template<class Archive>
+            void serialize(Archive& ar, const unsigned int version) { 
+                ar & boost::serialization::base_object<two_layer_auto_encoder>(*this);
+                ar & m_reg_strength;
+                ar & m_schraudolph_reg;
+            }
+    protected:
     /// how much regularization is required
     float m_reg_strength;
 
@@ -86,6 +108,14 @@ class two_layer_contractive_auto_encoder
     two_layer_contractive_auto_encoder(unsigned int hidden_dim0, unsigned int hidden_dim1, bool binary, float reg)
     :two_layer_auto_encoder(hidden_dim0, hidden_dim1,binary)
     ,m_reg_strength(reg)
+    {
+    }
+
+    /**
+     * default ctor for serialization.
+     */
+    two_layer_contractive_auto_encoder()
+    :m_reg_strength(0.f)
     {
     }
 
