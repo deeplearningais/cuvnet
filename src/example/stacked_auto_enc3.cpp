@@ -6,6 +6,7 @@
 #include <mongo/client/dbclient.h>
 #include <mdbq/client.hpp>
 
+#include <tools/serialization_helper.hpp>
 #include <cuvnet/ops.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/models/auto_encoder_stack.hpp>
@@ -17,6 +18,7 @@
 #include <tools/monitor.hpp>
 #include <tools/network_communication.hpp>
 #include <tools/logging.hpp>
+#include <tools/python_helper.hpp>
 
 
 void sleeper(){
@@ -25,8 +27,10 @@ void sleeper(){
 
 namespace cuvnet{
     class simple_crossvalidatable_learner
-    : public crossvalidatable{
-        protected:
+    : public boost::enable_shared_from_this<simple_crossvalidatable_learner>,
+      public crossvalidatable
+    {
+        public:
             typedef SimpleDatasetLearner<matrix::memory_space_type> sdl_t; ///< provides access to dataset
             sdl_t m_sdl; ///< provides access to dataset
     
@@ -35,6 +39,7 @@ namespace cuvnet{
             template<class Archive>
                 void serialize(Archive& ar, const unsigned int version) { 
                     ar & boost::serialization::base_object<crossvalidatable>(*this);
+                    ar & m_sdl;
                 }
         public:
     
@@ -58,7 +63,7 @@ namespace cuvnet{
     template<class GradientDescentType>
     class pretrained_mlp_learner
     : public simple_crossvalidatable_learner{
-        protected:
+        public:
             friend class boost::serialization::access;
             std::vector<int>   m_epochs; ///< number of epochs learned
             std::vector<float> m_aes_lr; ///< auto encoder learning rates
@@ -71,14 +76,23 @@ namespace cuvnet{
             boost::shared_ptr<generic_regression> m_regression; ///< does the regression for us
             bool m_checker; ///< whether I should perform convergence/early stopping testing
 
+            boost::shared_ptr<ParameterInput> m_input; ///< where the data is loaded to
+            boost::shared_ptr<ParameterInput> m_target; ///< where the labels are loaded to
+
             float m_adagrad_delta; ///< numerical stability of adagrad
             int   m_adagrad_winsize; ///< how often to reset adagrad
     
             template<class Archive>
                 void serialize(Archive& ar, const unsigned int version) { 
                     ar & boost::serialization::base_object<simple_crossvalidatable_learner>(*this);
+                    ar & m_epochs & m_aes_lr & m_aes_wd & m_aes_bs & m_mlp_bs &
+                        m_mlp_lr & m_mlp_wd & m_aes & m_regression & m_checker
+                        & m_input & m_target & m_adagrad_delta &
+                        m_adagrad_winsize;
                 }
         public:
+            /** default ctor for serialization */
+            pretrained_mlp_learner():m_aes(true), m_checker(true){}
             /**
              * constructor.
              * @param binary if true, assume inputs are bernoulli-distributed.
@@ -138,6 +152,22 @@ namespace cuvnet{
             matrix& t = boost::dynamic_pointer_cast<ParameterInput>(m_regression->get_target())->data();
             t.resize(cuv::extents[b][t.shape(1)]);
         }
+    };
+    struct reg_classes{
+        template<class Archive>
+            void operator()(Archive& ar)const{
+                std::cout << "Exporting classes for archive" << std::endl;
+                //ar.template register_type<cuvnet::crossvalidatable>(); // abstract
+                //ar.template register_type<cuvnet::generic_regression>(); // abstract
+                ar.template register_type<cuvnet::logistic_regression>();
+                ar.template register_type<cuvnet::logistic_ridge_regression>();
+                ar.template register_type<cuvnet::simple_auto_encoder>();
+                ar.template register_type<cuvnet::two_layer_auto_encoder>();
+                ar.template register_type<cuvnet::two_layer_contractive_auto_encoder>();
+                //ar.template register_type<cuvnet::simple_crossvalidatable_learner>(); // abstract
+                typedef cuvnet::pretrained_mlp_learner<cuvnet::adagrad_gradient_descent> __pml_t;
+                ar.template register_type<__pml_t>();
+            }
     };
 
     namespace detail{
@@ -240,19 +270,14 @@ namespace cuvnet{
 
         // create a ParameterInput for the input
         cuvAssert(m_sdl.get_ds().train_data.ndim() == 2);
-        boost::shared_ptr<ParameterInput> input
-            = boost::make_shared<ParameterInput>(
+        m_input = boost::make_shared<ParameterInput>(
                     cuv::extents[m_sdl.batchsize()][m_sdl.get_ds().train_data.shape(1)]);
 
         // create a ParameterInput for the target
         cuvAssert(m_sdl.get_ds().train_labels.ndim() == 2);
-        boost::shared_ptr<ParameterInput> target 
-            = boost::make_shared<ParameterInput>(
+        m_target = boost::make_shared<ParameterInput>(
                     cuv::extents[m_sdl.batchsize()][m_sdl.get_ds().train_labels.shape(1)]);
 
-        m_aes.init(input);
-        //m_regression.reset(new logistic_ridge_regression(m_mlp_wd, m_aes.get_encoded(), target));
-        m_regression.reset(new logistic_regression(m_aes.get_encoded(), target));
         
         // set the initial number of epochs to zero
         m_epochs.resize(n_layers+1);
@@ -293,6 +318,10 @@ namespace cuvnet{
 
     template<class G>
     void pretrained_mlp_learner<G>::fit(){
+        m_aes.init(m_input);
+        //m_regression.reset(new logistic_ridge_regression(m_mlp_wd, m_aes.get_encoded(), target));
+        m_regression.reset(new logistic_regression(m_aes.get_encoded(), m_target));
+
         // shuffle batches in DIFFERENT random order for every client!
         srand48(time(NULL) + (pid_t)syscall(SYS_gettid));
         srand(time(NULL) + (pid_t)syscall(SYS_gettid));
@@ -370,6 +399,8 @@ namespace cuvnet{
             }
         }
     
+        //serialize_to_file_r("after_pretrain.ser", this->shared_from_this(), cuvnet::reg_classes() );
+        //exit(0);
         
         {
             TRACE(log, "finetune");
@@ -388,6 +419,7 @@ namespace cuvnet{
                 if(lambda && reg)
                     loss = axpby(loss, m_mlp_wd, reg);
             }
+
 
             boost::shared_ptr<G> p_gd=
                 create_gd(loss, params,m_mlp_lr, -0.f);
@@ -471,7 +503,6 @@ struct hyperopt_client
 template<class GradientDescentType>
 struct async_client
 : public cuvnet::pretrained_mlp_learner<cuvnet::diff_recording_gradient_descent<GradientDescentType> >
-, boost::enable_shared_from_this<async_client<GradientDescentType> >
 {
     typedef cuvnet::diff_recording_gradient_descent<GradientDescentType>  gradient_descent_t;
     int m_push_freq;
@@ -562,6 +593,21 @@ main(int argc, char **argv)
     bob<<"ag_delta" <<BSON_ARRAY(0.01f);
     bob<<"ag_winsize" <<BSON_ARRAY(100000.f);
 
+    typedef cuvnet::pretrained_mlp_learner<cuvnet::adagrad_gradient_descent> pml_t;
+    if(std::string("load") == argv[1]){
+        boost::shared_ptr<pml_t> pml = cuvnet::deserialize_from_file_r<pml_t>(argv[2], cuvnet::reg_classes());
+
+        using namespace cuvnet;
+        initialize_python();
+        export_ops();
+        export_op("loss", pml->m_regression->get_loss());
+
+        export_loadbatch(
+                boost::bind(&pml_t::load_batch_supervised,&*pml,_1),
+                boost::bind(&pml_t::sdl_t::n_batches, &(pml->m_sdl)));
+        embed_python();
+        return 0;
+    }
     if(std::string("test") == argv[1]){
         cuvAssert(argc==3);
         if(cuv::IsSame<cuvnet::matrix::memory_space_type,cuv::dev_memory_space>::Result::value){
@@ -569,7 +615,7 @@ main(int argc, char **argv)
             cuv::initialize_mersenne_twister_seeds(time(NULL));
         }
 
-        auto ml = boost::make_shared<cuvnet::pretrained_mlp_learner<cuvnet::adagrad_gradient_descent> >(true);
+        auto ml = boost::make_shared<pml_t>(true);
         mongo::BSONObj task = BSON("vals"<<bob.obj());
         ml->constructFromBSON(task);
 
