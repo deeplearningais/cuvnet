@@ -430,7 +430,7 @@ namespace cuvnet{
             mon.add("layer", n_ae);
             mon.set_training_phase(m_sdl.get_current_cv_mode(), m_sdl.get_current_split());
             mon.add(monitor::WP_SCALAR_EPOCH_STATS, loss, "total_loss");
-            mon.add(monitor::WP_SCALAR_EPOCH_STATS, reg, "schraudolph");
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS, reg, "regularizer");
             mon.add(monitor::WP_FUNC_SCALAR_EPOCH_STATS, m_regression->classification_error(), "classification error");
             //gd.after_epoch.connect(boost::bind(&ProfilerFlush));
 
