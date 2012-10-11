@@ -21,6 +21,7 @@
 #include <tools/python_helper.hpp>
 
 
+bool g_refit_for_test;
 void sleeper(){
     boost::this_thread::sleep(boost::posix_time::milliseconds(10));
 }
@@ -129,7 +130,7 @@ namespace cuvnet{
     
             /// should return true if retrain for fit is required
             /// @return true
-            virtual bool refit_for_test()const { return false; };
+            virtual bool refit_for_test()const { return g_refit_for_test; };
     
             /// reset parameters
             virtual void reset_params();
@@ -137,7 +138,7 @@ namespace cuvnet{
             /// returns performance of current parameters
             float perf(monitor* mon=NULL);
 
-    private:
+    //private:
         void load_batch_supervised(unsigned int batch){
             boost::dynamic_pointer_cast<ParameterInput>(m_aes.input())->data() = m_sdl.get_data_batch(batch).copy();
             boost::dynamic_pointer_cast<ParameterInput>(m_regression->get_target())->data() = m_sdl.get_label_batch(batch).copy();
@@ -561,9 +562,11 @@ struct async_client
     }
 };
 
+
 int
 main(int argc, char **argv)
 {
+    g_refit_for_test = false;
     cuvnet::Logger logger;
     if(std::string("worker") == argv[1]){
         cuvAssert(argc==3);
@@ -609,6 +612,7 @@ main(int argc, char **argv)
         return 0;
     }
     if(std::string("test") == argv[1]){
+        g_refit_for_test = true;
         cuvAssert(argc==3);
         if(cuv::IsSame<cuvnet::matrix::memory_space_type,cuv::dev_memory_space>::Result::value){
             cuv::initCUDA(boost::lexical_cast<int>(argv[2]));
