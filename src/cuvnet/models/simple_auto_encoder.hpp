@@ -173,18 +173,6 @@ struct poormans_shortcut_layer{
             m_B->data() *= 2*diff;
             m_B->data() -=   diff;
         }
-        if(m_C)
-        {   // C: input_dim x dim1
-            //unsigned int input_dim = m_C->data().shape(0);
-            //unsigned int out_dim = m_C->data().shape(1);
-            //float diff = 2.f*std::sqrt(6.f/(input_dim+out_dim));   // tanh
-            //cuv::fill_rnd_uniform(m_C->data());
-            //m_C->data() *= 2*diff;
-            //m_C->data() -=   diff;
-            
-            m_C->data() =   0.f;
-            m_C->set_learnrate_factor(0.5f);
-        }
         if(m_A)
         {   // A: dim0 x dim1
             unsigned int input_dim = m_A->data().shape(0);
@@ -193,6 +181,19 @@ struct poormans_shortcut_layer{
             cuv::fill_rnd_uniform(m_A->data());
             m_A->data() *= 2*diff;
             m_A->data() -=   diff;
+        }
+        if(m_C)
+        {   // C: input_dim x dim1
+            //unsigned int input_dim = m_C->data().shape(0);
+            //unsigned int out_dim = m_C->data().shape(1);
+            //float diff = 2.f*std::sqrt(6.f/(input_dim+out_dim));   // tanh
+            //cuv::fill_rnd_uniform(m_C->data());
+            //m_C->data() *= 2*diff;
+            //m_C->data() -=   diff;
+            //m_C->data() =   0.f;
+            cuv::prod(m_C->data(), m_B->data(), m_A->data(), 'n','n',0.5f,0.f);
+            
+            m_C->set_learnrate_factor(0.5f);
         }
         if(m_Cbias)
             m_Cbias->data() = 0.f;
