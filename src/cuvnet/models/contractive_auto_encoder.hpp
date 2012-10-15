@@ -83,9 +83,6 @@ class two_layer_contractive_auto_encoder
     /// how much regularization is required
     float m_reg_strength;
 
-    /// stored so we can make it non-stochastic for testing
-    boost::shared_ptr<RowSelector> m_rs;
-
     public:
     typedef two_layer_auto_encoder::op_ptr op_ptr;
 
@@ -94,7 +91,7 @@ class two_layer_contractive_auto_encoder
      *
      * Mainly useful for derivative testing.
      */
-    void set_stochastic(bool b){ m_rs->set_random(b); }
+    void set_stochastic(bool b){ m_l0->m_rs->set_random(b); }
 
     /**
      * constructor
@@ -126,45 +123,39 @@ class two_layer_contractive_auto_encoder
     virtual boost::tuple<float,op_ptr> regularize(){
         float schraudolph_fact = 1E6;
 
-        op_ptr s0 = m_l0->schraudolph_regularizer();
-        op_ptr s0a = m_l0a->schraudolph_regularizer();
-        op_ptr s1 = m_l1->schraudolph_regularizer();
-        op_ptr s1a = m_l1a->schraudolph_regularizer();
-        if(s0){
-            // at least s0 should be regularized if it is possible at all
-            if(m_mode == AEM_UNSUPERVISED)
-                m_schraudolph_reg = s0 + s1 + s0a;
-            else if(m_mode == AEM_SUPERVISED)
-                m_schraudolph_reg = s0 + s0a;
-        }
+        /*
+         *op_ptr s0 = m_l0->schraudolph_regularizer();
+         *op_ptr s0a = m_l0a->schraudolph_regularizer();
+         *op_ptr s1 = m_l1->schraudolph_regularizer();
+         *op_ptr s1a = m_l1a->schraudolph_regularizer();
+         *if(s0){
+         *    // at least s0 should be regularized if it is possible at all
+         *    if(m_mode == AEM_UNSUPERVISED)
+         *        m_schraudolph_reg = s0 + s1 + s0a;
+         *    else if(m_mode == AEM_SUPERVISED)
+         *        m_schraudolph_reg = s0 + s0a;
+         *}
+         */
                     
 
         if(1 || m_mode == AEM_UNSUPERVISED){
             op_ptr contractive_loss;
-            unsigned int bs = m_input->result()->shape[0];
             //unsigned int n_contrib = std::max(1u,bs/16);
             unsigned int n_contrib = 1;
+            op_ptr J_sum;
             for(unsigned int i=0;i<n_contrib;i++){
-                m_rs  = row_select(m_l0->m_y,m_l0a->m_y); // select same (random) row in m_hl0 and m_hl1
-
-                op_ptr J1 = label("J1", m_l0a->jacobian_x(result(m_rs,1)));
-                op_ptr J0 = label("J0", m_l0->jacobian_x(result(m_rs,0)));
-                op_ptr tmp = sum(pow(prod(J1,J0,'t', 't'), 2.f));
-                if(i == 0) 
-                    contractive_loss = tmp;
-                else if(i == 1)
-                    contractive_loss = tmp + contractive_loss;
-                else
-                    contractive_loss = add_to_param(contractive_loss,tmp);
+                op_ptr J = label("J", m_l0->jacobian_x()); // sample Jacobian for one random instance in batch
+                if(i == 0)      J_sum = J;
+                else if(i == 1) J_sum = J_sum + J;
+                else            J_sum = add_to_param(J_sum, J);
             }
+            contractive_loss = sum(pow(J_sum/(float) n_contrib, 2.f));
             if(m_schraudolph_reg)
                 return boost::make_tuple( m_reg_strength, 
-                        axpby(
-                            bs / (float) n_contrib, contractive_loss, 
-                            schraudolph_fact,       m_schraudolph_reg));
+                        axpby(contractive_loss, schraudolph_fact, m_schraudolph_reg));
             else
                 return boost::make_tuple( 
-                        m_reg_strength * bs / (float) n_contrib, 
+                        m_reg_strength, 
                         contractive_loss);
         }else /*if(m_mode == AEM_SUPERVISED)*/{
             //return boost::make_tuple( 0.0 , op_ptr());
