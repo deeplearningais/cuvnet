@@ -5,6 +5,7 @@
 #include <datasets/random_translation.hpp>
 #include <tools/dataset_dumper.hpp>
 #include <datasets/voc_detection.hpp>
+#include <datasets/dataset_reader.hpp>
 #include <cuv/libs/cimg/cuv_cimg.hpp>
 
 #include <boost/test/unit_test.hpp>
@@ -216,7 +217,7 @@ BOOST_AUTO_TEST_CASE(DatasetDumper){
 
     std::cout << " starting test dumper" << std::endl; 
     {
-        dataset_dumper dum("test_dumper_train.dat", 2);
+        dataset_dumper dum("test_dumper_train.dat", 2, 2,  3, 2);
         cuv::tensor<float,cuv::host_memory_space> act(cuv::extents[2][3]);
         act(0,0) = 0.f;
         act(0,1) = 0.6f;
@@ -237,7 +238,7 @@ BOOST_AUTO_TEST_CASE(DatasetDumper){
 
     }
     {
-        dataset_dumper dum("test_dumper_test.dat", 2);
+        dataset_dumper dum("test_dumper_test.dat", 2, 2, 3, 2);
         cuv::tensor<float,cuv::host_memory_space> act(cuv::extents[2][3]);
         act(0,0) = 1.f;
         act(0,1) = 0.5f;
