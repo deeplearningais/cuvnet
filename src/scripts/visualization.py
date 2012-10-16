@@ -72,6 +72,23 @@ def rgb_filters(x, trans=True, sepnorm=False):
         fig.colorbar(res, cax=cbaxes, orientation='horizontal')
     return fig
 
+def mnist_filters(data, n_filters_y=9, n_filters_x=16):
+    fig, axes = plt.subplots(n_filters_x, n_filters_y)
+    fig.subplots_adjust(hspace=0.00, wspace=0.00,
+            left=0, top=1, bottom=0.2, right=1)
+
+    norm = mpl.colors.Normalize(vmin=data.min(), vmax=data.max())
+    for ax, i in zip(axes.T.flatten(), xrange(np.prod(axes.shape))):
+        flt = data[:,i]
+        #if sepnorm:
+        #    flt -= flt.min()
+        #    flt /= flt.max()
+        n = int(np.sqrt(data.shape[0]))
+        #t = np.abs(flt).max()
+        #res = ax.matshow(flt.reshape(n,n), cmap="PuOr",vmin=-t,vmax=t)
+        res = ax.matshow(flt.reshape(n,n), cmap="binary")
+        res.set_norm(norm)
+        cfg(ax)
 
 import xdot
 import gtk
@@ -86,13 +103,19 @@ class MyDotWindow(xdot.DotWindow):
 
     def on_url_clicked(self, widget, url, event):
         typ, ptr = url.split()
+        node = self.op.get_parameter(long(ptr, 0))
         if typ == "input":
             node = self.op.get_parameter(long(ptr, 0))
+            print "node = loss.get_parameter(long(%s, 0))" % ptr
             data = node.data.np
             print "got shape: ", data.shape
             print "    stats: ", data.min(), data.mean(), data.max()
             #import pdb; pdb.set_trace()
-            if "weight" in node.name:
+            if len(data.shape) == 2:
+                mnist_filters(data)
+                plt.ion()
+                plt.show()
+            elif "weight" in node.name:
                 is_rgb = data.shape[0] == 3
                 data = np.rollaxis(data, 2)
                 if is_rgb:
@@ -120,9 +143,12 @@ class MyDotWindow(xdot.DotWindow):
                 plt.ion()
                 plt.show()
             else:
-                print data
+                plt.hist(data.flatten(),20)
+                plt.ion()
+                plt.show()
         elif typ == "generic":
             node = self.op.get_node(long(ptr, 0))
+            print "node = loss.get_node(long(%s, 0))" % ptr
             data = node.evaluate().np
             #data = 1 / (1 + np.exp(-data))
             #data = np.clip(data,-1,1)
@@ -132,7 +158,9 @@ class MyDotWindow(xdot.DotWindow):
                 plt.ion()
                 plt.show()
             else:
-                print data
+                plt.hist(data.flatten(),20)
+                plt.ion()
+                plt.show()
         return True
 
 
