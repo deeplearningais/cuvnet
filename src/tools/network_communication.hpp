@@ -112,6 +112,7 @@ namespace cuvnet
                 std::map<std::string, bool>      m_need_push; ///< the marked weights need pushing to MongoDB
                 std::map<std::string, int>       m_versions; ///< a version increased when changed
                 merger*                          m_merger;  ///< merges deltas into params
+                bool                             m_stop; ///< when stop is requested, this is set to true and run() finishes
             public:
                 /**
                  * ctor.
@@ -144,6 +145,11 @@ namespace cuvnet
                  * delete all data of the current key.
                  */
                 void cleanup();
+
+                /**
+                 * request to stop run() from another thread
+                 */
+                inline void request_stop(){ m_stop = true; }
 
                 /**
                  * run the server in a loop.

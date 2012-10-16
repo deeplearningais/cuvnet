@@ -39,14 +39,12 @@ BOOST_AUTO_TEST_CASE( save_mat ){
     md = m.copy();
     md *= 0.1f;
 
-    c.put_for_merging("m", md, m); // only puts m
-    c.put_for_merging("m", md, m); // only puts md
+    c.put_for_merging("m", md, m); // only puts m and md
 
     s.merge();
     s.push_merged();
 
-    BOOST_CHECK_NO_THROW(c.fetch_merged("m"));
-    n = c.fetch_merged("m");
+    BOOST_CHECK_NO_THROW(n = c.fetch_merged("m"));
     
     BOOST_CHECK_SMALL(cuv::norm1((m+md)-n), 0.001f);
 }
@@ -68,8 +66,7 @@ BOOST_AUTO_TEST_CASE( averaging ){
     md = m.copy();
     md = 2.f;
 
-    c0.put_for_merging("m", md, m); // puts m
-    c0.put_for_merging("m", md, m); // puts md
+    c0.put_for_merging("m", md, m); // puts m and md
 
     md = 4.f;
 
@@ -78,13 +75,15 @@ BOOST_AUTO_TEST_CASE( averaging ){
     s.merge();
     s.push_merged();
 
-    m = c0.fetch_merged("m") - 9.f;
+    m = c0.fetch_merged("m");
+    std::cout << "m=" << m << std::endl;
+    m -= 9.f;
 
     BOOST_CHECK_SMALL(cuv::norm1(m), 0.001f);
 }
 
 BOOST_AUTO_TEST_CASE( self_overwrite ){
-    // a client writes twice before averaging: only last written result should count
+    // a client writes twice before averaging: both will be merged!
     using namespace cuvnet;
     using namespace network_communication;
 
@@ -99,69 +98,87 @@ BOOST_AUTO_TEST_CASE( self_overwrite ){
     md = m.copy();
     md = 3.f;
 
-    c0.put_for_merging("m", md, m); // puts m
-    c0.put_for_merging("m", md, m); // puts md
+    c0.put_for_merging("m", md, m); // puts m and md
 
     md = 4.f;
 
-    c0.put_for_merging("m", md, m); // overwrites last md
+    c0.put_for_merging("m", md, m); // puts=adds new md
 
     s.merge();
     s.push_merged();
 
     BOOST_CHECK_NO_THROW(m = c0.fetch_merged("m"));
 
-    BOOST_CHECK_SMALL(cuv::norm1(m-6.f), 0.001f);
+    BOOST_CHECK_SMALL(cuv::norm1(m-9.f), 0.001f);
 }
 
+void sleeper(){ 
+    boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+}
 struct optimizer{
     typedef boost::shared_ptr<cuvnet::Op>     op_ptr;
     float lossval;
 
+
     void plain_gd(){
+        using cuvnet::Noiser;
         boost::shared_ptr<cuvnet::ParameterInput> inp1(new cuvnet::ParameterInput(cuv::extents[5][6]));
         boost::shared_ptr<cuvnet::ParameterInput> inp2(new cuvnet::ParameterInput(cuv::extents[5][6]));
-        op_ptr loss = cuvnet::mean(cuvnet::pow(inp1-inp2, 2.f));
+        boost::shared_ptr<Noiser> noisy_inp1 = boost::dynamic_pointer_cast<Noiser>(cuvnet::add_rnd_normal(inp1, 2.0f));
+        op_ptr loss = cuvnet::mean(cuvnet::pow(noisy_inp1-inp2, 2.f));
         cuvnet::function f(loss,0);
 
         {   // plain GD
             cuv::fill_rnd_uniform(inp1->data());
             cuv::fill_rnd_uniform(inp2->data());
+            //inp1->data() = 0.25f;
+            //inp2->data() = 0.5f;
             std::vector<cuvnet::Op*> params;
             params.push_back(inp1.get());
+            noisy_inp1->set_active(false);
             std::cout << "plain GD: before optimization: " << f.evaluate()[0] << std::endl;
-            cuvnet::gradient_descent gd(loss,0,params, 0.1f);
 
+            noisy_inp1->set_active(true);
+            cuvnet::gradient_descent gd(loss,0,params, 0.1f);
             gd.batch_learning(500, INT_MAX);
+            noisy_inp1->set_active(false);
+
             std::cout << "plain GD: after optimization: " << f.evaluate()[0] << std::endl;
-            BOOST_CHECK_SMALL(lossval = f.evaluate()[0], 0.001f);
+            BOOST_CHECK_SMALL(lossval = f.evaluate()[0], 0.02f);
         }
     }
 
     void async_gd(unsigned int i){
+        using cuvnet::Noiser;
         boost::shared_ptr<cuvnet::ParameterInput> inp1(new cuvnet::ParameterInput(cuv::extents[5][6],"inp1"));
         boost::shared_ptr<cuvnet::ParameterInput> inp2(new cuvnet::ParameterInput(cuv::extents[5][6],"inp2"));
-        op_ptr loss = cuvnet::mean(cuvnet::pow(inp1-inp2, 2.f));
+        boost::shared_ptr<Noiser> noisy_inp1 = boost::dynamic_pointer_cast<Noiser>(cuvnet::add_rnd_normal(inp1, 2.0f));
+        op_ptr loss = cuvnet::mean(cuvnet::pow(noisy_inp1-inp2, 2.f));
         cuvnet::function f(loss,0);
 
         {   
             cuv::fill_rnd_uniform(inp1->data());
+            //inp1->data() = 0.25f;
             //cuv::fill_rnd_uniform(inp2->data()); // 'teacher' should be same for all instances
-            inp2->data() = 0.85f;
+            inp2->data() = 0.5f;
             std::vector<cuvnet::Op*> params;
             params.push_back(inp1.get());
+            noisy_inp1->set_active(false);
             std::cout << "async GD: before optimization: " << f.evaluate()[0] << std::endl;
+            noisy_inp1->set_active(true);
             cuvnet::diff_recording_gradient_descent<cuvnet::gradient_descent> gd(loss,0,params, 0.1f);
 
             using namespace cuvnet::network_communication;
             std::string cid = "client-"+boost::lexical_cast<std::string>(i);
             client c(HOST,DB,KEY,cid);
-            param_synchronizer ps(cid, c,5,1,0,0,params);
+            param_synchronizer ps(cid, c, 2, 2, 0, 0, params);
             gd.set_sync_function(boost::ref(ps));
+            gd.after_epoch.connect(boost::bind(sleeper)); // artificially slow down to allow server to catch up
 
             gd.batch_learning(500, INT_MAX);
+            noisy_inp1->set_active(false);
             std::cout << "async GD: after optimization: " << (lossval = f.evaluate()[0]) << std::endl;
-            BOOST_CHECK_SMALL((float)f.evaluate()[0], 0.001f);
+            BOOST_CHECK_SMALL((float)f.evaluate()[0], 0.02f);
         }
     }
 
@@ -176,7 +193,8 @@ BOOST_AUTO_TEST_CASE( nc_gd ){
     static const int n_clt = 2;
     optimizer*      clients[n_clt];
     boost::thread*  threads[n_clt];
-    cuvnet::network_communication::server s(HOST,DB,KEY);
+    using cuvnet::network_communication::server;
+    server s(HOST,DB,KEY);
     s.cleanup();
 
     for (int i = 0; i < n_clt; ++i)
@@ -184,10 +202,13 @@ BOOST_AUTO_TEST_CASE( nc_gd ){
         clients[i] = new optimizer();
         threads[i] = new boost::thread(boost::bind(&optimizer::async_gd, clients[i], i));
     }
-    s.run(100,1000);
+    boost::thread server_thread(boost::bind(&server::run,&s,10,-1));
+
     for (int i = 0; i < n_clt; ++i) {
         threads[i]->join();
     }
+    s.request_stop();
+    server_thread.join();
     for (int i = 0; i < n_clt; ++i) {
         BOOST_CHECK_GT(opt.lossval, clients[i]->lossval);
     }

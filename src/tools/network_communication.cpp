@@ -110,6 +110,7 @@ namespace cuvnet { namespace network_communication {
     };
 
     server::server(const std::string& url, const std::string& prefix, const std::string key, merger* m){
+        m_stop = false;
         m_impl.reset(new connection(url,prefix,key));
         // TODO: (uncritical...) Leak!
         m_merger = m ? m : new merger();
@@ -347,7 +348,8 @@ namespace cuvnet { namespace network_communication {
             m_impl->m_con.insert( m_impl->m_prefix + ".nc", bob.obj());
             CHECK_DB_ERR(m_impl->m_con);
         }
-        else{
+
+        {
             // we just need to send a weight /update/ to the server
             std::ostringstream os(std::ios::binary);
             {   // serialize
@@ -397,7 +399,7 @@ namespace cuvnet { namespace network_communication {
     }
     void server::run(unsigned int sleep_msec, int n){
         //pull_merged(); // merge does pull when delta for unknown obj is found
-        for (int i = 0; i < n || n<0; ++i){
+        for (int i = 0; (i < n || n<0) && !m_stop; ++i){
             merge();
             push_merged();
             boost::this_thread::sleep(boost::posix_time::milliseconds(sleep_msec));
