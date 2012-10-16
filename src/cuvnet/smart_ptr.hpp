@@ -120,7 +120,7 @@ namespace cuvnet
 
                 /// \name data access: non-const versions
                 /// @{
-                T&        data_onlyshape()  { detach_onlyshape(); return *m_ptr; } ///< contained data, detaches if needed
+                T&        data_onlyshape()  { detach_onlyshape(); return *m_ptr; } ///< contained data, detaches if needed, but retains only the /shape/ of the input
                 T&        data()         { detach(); return *m_ptr; } ///< contained data, detaches if needed
                 const T& cdata()         {           return *m_ptr; } ///< contained data, detaches if needed
                 T& operator* ()          { detach(); return *m_ptr; } ///< contained data, detaches if needed
