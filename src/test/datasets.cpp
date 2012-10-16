@@ -216,63 +216,62 @@ BOOST_AUTO_TEST_CASE(DatasetDumper){
 
 
     std::cout << " starting test dumper" << std::endl; 
-    {
-        dataset_dumper dum("test_dumper_train.dat", 2, 2,  3, 2);
-        cuv::tensor<float,cuv::host_memory_space> act(cuv::extents[2][3]);
+        std::string file_name1 = "test_dumper_train.dat";
+        std::string file_name2 = "test_dumper_test.dat";
+
+        cuv::tensor<float,cuv::host_memory_space> act(cuv::extents[1][3]);
+        cuv::tensor<float,cuv::host_memory_space> act2(cuv::extents[1][3]);
+        cuv::tensor<float,cuv::host_memory_space> all_act(cuv::extents[2][3]);
+        cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[1][2]);
+        cuv::tensor<float,cuv::host_memory_space> labels2(cuv::extents[1][2]);
+        cuv::tensor<float,cuv::host_memory_space> all_labels(cuv::extents[2][2]);
+
         act(0,0) = 0.f;
         act(0,1) = 0.6f;
         act(0,2) = 0.3f;
-        act(1,0) = 0.4f;
-        act(1,1) = 1.f;
-        act(1,2) = 0.63f;
 
-
-        cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[2][2]);
         labels(0,0) = 1.3f;
         labels(0,1) = 0.53f;
-        labels(1,0) = 0.42f;
-        labels(1,1) = 1.1f;
 
-        dum.write_to_file(act,labels);
+        act2(0,0) = 0.4f;
+        act2(0,1) = 1.f;
+        act2(0,2) = 0.63f;
 
+        labels2(0,0) = 0.42f;
+        labels2(0,1) = 1.1f;
 
-    }
-    {
-        dataset_dumper dum("test_dumper_test.dat", 2, 2, 3, 2);
-        cuv::tensor<float,cuv::host_memory_space> act(cuv::extents[2][3]);
-        act(0,0) = 1.f;
-        act(0,1) = 0.5f;
-        act(0,2) = 0.3f;
-        act(1,0) = 0.4f;
-        act(1,1) = 1.f;
-        act(1,2) = 0.63f;
-
-
-        cuv::tensor<float,cuv::host_memory_space> labels(cuv::extents[2][2]);
-        labels(0,0) = 1.73f;
-        labels(0,1) = 0.73f;
-        labels(1,0) = 0.72f;
-        labels(1,1) = 1.7f;
-
-        dum.write_to_file(act,labels);
-
-
-    }
-    dataset_reader reader("test_dumper_train.dat", "test_dumper_test.dat");
-    reader.read_from_file();
-    for (int i = 0; i < reader.train_data.shape(0); ++i)
-    {
-        for (int j = 0; j < reader.train_data.shape(1); ++j)
+        all_act[cuv::indices[0][cuv::index_range()]] = act;
+        all_act[cuv::indices[1][cuv::index_range()]] = act2;
+        all_labels[cuv::indices[0][cuv::index_range()]] = labels;
+        all_labels[cuv::indices[1][cuv::index_range()]] = labels2;
         {
-            std::cout << "  " << reader.train_data(i,j);
+            dataset_dumper dum(file_name1, 2, 1,  3, 2);
+            dum.write_to_file(act,labels);
+            dum.write_to_file(act2,labels2);
         }
-        std::cout <<  " labels " << std::endl;/* cursor */
-        for (int j = 0; j < reader.train_labels.shape(1); ++j)
         {
-            std::cout << "  " << reader.train_labels(i,j);
+            dataset_dumper dum2(file_name2, 2, 1, 3, 2);
+            dum2.write_to_file(act.copy(),labels.copy());
+            dum2.write_to_file(act2.copy(),labels2.copy());
         }
-    }
-
+        {
+            dataset_reader reader(file_name1, file_name2);
+            reader.read_from_file();
+            for (unsigned int i = 0; i < reader.train_data.shape(0); ++i)
+            {
+                for (unsigned int j = 0; j < reader.train_data.shape(1); ++j)
+                {
+                    BOOST_CHECK_EQUAL(all_act(i,j), reader.train_data(i,j));
+                    BOOST_CHECK_EQUAL(all_act(i,j),reader.test_data(i,j));
+                }
+                for (unsigned int j = 0; j < reader.train_labels.shape(1); ++j)
+                {
+                    BOOST_CHECK_EQUAL(all_labels(i,j), reader.train_labels(i,j));
+                    BOOST_CHECK_EQUAL(all_labels(i,j), reader.test_labels(i,j));
+                }
+            }
+        }
+    std::cout << "test dataset dumper finished succesfully" << std::endl;
 }
 
 
