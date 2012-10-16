@@ -76,7 +76,6 @@ BOOST_AUTO_TEST_CASE( averaging ){
     s.push_merged();
 
     m = c0.fetch_merged("m");
-    std::cout << "m=" << m << std::endl;
     m -= 9.f;
 
     BOOST_CHECK_SMALL(cuv::norm1(m), 0.001f);
@@ -194,7 +193,11 @@ BOOST_AUTO_TEST_CASE( nc_gd ){
     optimizer*      clients[n_clt];
     boost::thread*  threads[n_clt];
     using cuvnet::network_communication::server;
-    server s(HOST,DB,KEY);
+    //cuvnet::network_communication::adagrad_merger mrg(0.01f);
+    //cuvnet::network_communication::momentum_merger mrg(0.1f);
+    cuvnet::network_communication::merger mrg;
+
+    server s(HOST,DB,KEY, &mrg);
     s.cleanup();
 
     for (int i = 0; i < n_clt; ++i)
