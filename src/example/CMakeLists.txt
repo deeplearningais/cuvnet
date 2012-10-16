@@ -10,6 +10,8 @@ add_executable(stacked_auto_enc3 stacked_auto_enc3.cpp)
 #add_executable(relational_ae relational_ae.cpp)
 #add_executable(descriptor_classification descriptor_classification.cpp)
 
+#include(PrecompiledHeader)
+#ADD_PRECOMPILED_HEADER(stacked_auto_enc3 stacked_auto_enc3.hpp)
 
 #target_link_libraries(stacked_auto_enc2 ${Boost_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)
 #target_link_libraries(relational_ae ${Boost_LIBRARIES} cuv cuv_tools cuv_basics cuv_tensor_ops cuv_matrix_ops cuv_random cuv_cimg cuvnet_ops cuv_opt npy cuvnet_tools pthread)
