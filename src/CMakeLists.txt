@@ -25,6 +25,10 @@ LINK_DIRECTORIES(~/lib)
 LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -fno-strict-aliasing")
 
+
+# this is for using tcmalloc, see http://code.google.com/p/gperftools/wiki/GooglePerformanceTools
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free")
+
 add_subdirectory(cuvnet)
 add_subdirectory(third_party)
 add_subdirectory(tools)
