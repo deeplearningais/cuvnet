@@ -701,10 +701,4 @@ BOOST_AUTO_TEST_CASE(derivative_test_reshape){
         BOOST_CHECK_EQUAL(func->result()->shape.at(2), 3);
     }
 }
-BOOST_AUTO_TEST_CASE(derivative_test_select_max){
-   typedef boost::shared_ptr<Op> ptr_t;
-   boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
-   ptr_t func = boost::make_shared<GlobalMaxPool>(inp->result());
-   derivative_tester(*func,0,false,0.01);
-}
 BOOST_AUTO_TEST_SUITE_END()
