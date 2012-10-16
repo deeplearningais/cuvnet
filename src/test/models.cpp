@@ -166,17 +166,19 @@ BOOST_AUTO_TEST_CASE(two_layer_contractive_ae_loss_derivative){
    {
        two_layer_contractive_auto_encoder ae(4,2, true,0.01f);
        ae.init(inp);
+       boost::shared_ptr<Op> loss = ae.loss();
        ae.set_stochastic(false);
        std::ofstream os("two_layer_contractive.dot");
-       write_graphviz(*ae.loss(), os);
-       derivative_tester(*ae.loss(),0,false,.01f, 0.f, 1.f); // generate inputs in interval 0,1
+       write_graphviz(*loss, os);
+       derivative_tester(*loss,0,false,.01f, 0.f, 1.f); // generate inputs in interval 0,1
    }
 
    {
        two_layer_contractive_auto_encoder ae(4,2, false,0.01f);
        ae.init(inp);
+       boost::shared_ptr<Op> loss = ae.loss();
        ae.set_stochastic(false);
-       derivative_tester(*ae.loss(),0,false,.01f);
+       derivative_tester(*loss,0,false,.01f);
    }
 }
 BOOST_AUTO_TEST_CASE(contractive_ae_loss_derivative){
