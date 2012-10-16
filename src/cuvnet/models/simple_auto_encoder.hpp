@@ -453,7 +453,7 @@ class two_layer_auto_encoder
         virtual op_ptr  encode(op_ptr& inp){
             if(!m_encoded){
                 inp->visit(determine_shapes_visitor());
-                unsigned int input_dim = inp->result()->shape[1];
+                //unsigned int input_dim = inp->result()->shape[1];
                 m_l0.reset( new sc_t(false, m_n_hidden0, m_n_hidden1) );
                 //m_l0a.reset( new sc_t(m_n_hidden0, m_n_hidden1) );
                 //m_l1.reset( new sc_t(m_n_hidden0, m_n_hidden0) );
