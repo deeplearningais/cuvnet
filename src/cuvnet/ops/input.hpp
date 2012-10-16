@@ -55,11 +55,9 @@ namespace cuvnet
                     else
                         desc.label = "Input";
                 }
-                virtual void fprop(){ throw std::runtime_error("fprop() not implemented for input `"+m_name+"'!"); }
-                virtual void bprop(){ throw std::runtime_error("bprop() not implemented for input `"+m_name+"'!"); }
-                void _determine_shapes(){
-                    m_results[0]->shape = m_shape;
-                }
+                virtual void fprop();
+                virtual void bprop();
+                void _determine_shapes();
                 inline bool     derivable()const{return m_derivable;}
                 inline void set_derivable(bool b){m_derivable = b;}
                 inline const std::string& name()const{ return m_name; }
@@ -108,23 +106,9 @@ namespace cuvnet
                     else
                         desc.label = "Input";
                 }
-                void fprop(){
-                    m_results[0]->push(m_data);
-                    // TODO: forget m_data now? (Inputs only, not weights)
-                }
-                void bprop(){
-                    if(!m_delta || m_delta.cdata().ndim()==0)
-                        m_delta = m_results[0]->delta;
-                    else 
-                        *m_delta += m_results[0]->delta.cdata();
-
-                    m_results[0]->delta.reset();
-                }
-                void _determine_shapes(){
-                    //cuvAssert(m_data->shape() == m_shape);
-                    //Input::_determine_shapes();
-                    m_results[0]->shape = m_data->shape();
-                }
+                void fprop();
+                void bprop();
+                void _determine_shapes();
                 //inline void reset_delta(){ if(!!m_delta) m_delta.data()=0.f; }
                 inline void reset_delta(){ m_delta.reset(); }
                 inline value_ptr&        data_ptr()     { return m_data; }

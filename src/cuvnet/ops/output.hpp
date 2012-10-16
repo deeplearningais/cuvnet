@@ -42,37 +42,21 @@ namespace cuvnet
                 Sink(result_t& p0):Op(1,1){ 
                     add_param(0,p0);
                 }
-                void fprop(){
-                    
-                    param_t::element_type&  p0 = *m_params[0];
-                    result_t::element_type& r0 = *m_results[0];
-
-                    if(r0.result_uses.size() > 0)
-                        r0.push(p0.value);
-                    
-                    // also, do not reset the m_params[0] to keep the value
-                }
-                void bprop(){}
+                void fprop();
+                void bprop();
                 //void _determine_shapes(){ }
                 //value_type&       data()      { return m_data; }
                 const value_type& cdata() const{ return m_params[0]->value.cdata(); }
 
                 /**
-                 * forget the stored value
+                 * manually forget the stored value.
                  *
                  * this may help during bprop, as it can be overwritten if only
                  * a single copy remains now.
                  */
-                void forget(){
-                    m_params[0]->value.reset();
-                }
+                void forget();
 
-                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
-                    if(m_name.size())
-                        desc.label = m_name;
-                    else
-                        desc.label = "Sink";
-                }
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
                 inline const std::string& name()const{ return m_name; }
             private:
                 std::string    m_name;
@@ -106,27 +90,16 @@ namespace cuvnet
                 ///  A sink always pretends it wants the derivative
                 /// @overload
                 virtual bool need_derivative()const{return true;}
-                void fprop(){
-                    // does nothing!
-                }
-                void bprop(){
-                    // simply do not reset m_result[0].delta
-                }
-                const value_type& cdata() const{ return m_results[0]->delta.cdata(); }
+                void fprop();
+                void bprop();
+                inline const value_type& cdata() const{ return m_results[0]->delta.cdata(); }
 
                 /**
                  * forget the stored value
                  */
-                void forget(){
-                    m_results[0]->delta.reset();
-                }
+                void forget();
 
-                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
-                    if(m_name.size())
-                        desc.label = m_name;
-                    else
-                        desc.label = "DeltaSink";
-                }
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
             private:
                 std::string    m_name;
                 friend class boost::serialization::access;
@@ -161,36 +134,9 @@ namespace cuvnet
                 Pipe(result_t& p0, unsigned int idx):Op(1,1), m_idx(idx){ 
                     add_param(0,p0);
                 }
-                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
-                    desc.label = "Pipe " + boost::lexical_cast<std::string>(m_idx);
-                }
-                void fprop(){
-                    using namespace cuv;
-                    param_t::element_type&  p = *m_params[0];
-                    result_t::element_type& r = *m_results[0];
-
-                    if(r.can_overwrite_directly()){
-                        r.overwrite_or_add_value().data() =p.value.cdata();
-                    }else if(r.can_add_directly()){
-                        r.overwrite_or_add_value().data()+=p.value.cdata();
-                    }else{
-                        r.push(p.value);
-                    }
-                    p.value.reset();
-                }
-                void bprop(){
-                    using namespace cuv;
-                    param_t::element_type&  p = *m_params[0];
-                    result_t::element_type& r = *m_results[0];
-                    if(p.can_overwrite_directly()){
-                        p.overwrite_or_add_value().data() = r.delta.cdata();
-                    }else if(p.can_add_directly()){
-                        p.overwrite_or_add_value().data()+= r.delta.cdata();
-                    }else{
-                        p.push(r.delta);
-                    }
-                    r.delta.reset();
-                }
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
+                void fprop();
+                void bprop();
             private:
                 friend class boost::serialization::access;
                 template<class Archive>

@@ -36,6 +36,55 @@ namespace cuvnet
                 add_param(0,mat);
             }
 
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
+                void fprop();
+                void bprop();
+                void _determine_shapes();
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_axis;
+                        ar & m_identity;
+                    }
+    };
+
+#if 0
+    /**
+     * Sum out one axis.
+     *
+     * E.g. a (3,4,5)-sized input with summed out dimension 0 results in a
+     * 2-dimensional vector with size (4,5).
+     *
+     * Due to limitations in cuv, only first and last axis are supported.
+     *
+     * @ingroup Ops
+     *
+     */
+    class SumOutAxis
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+
+            private:
+                unsigned int m_axis;
+                bool m_identity;
+            public:
+                SumMatToVec() :   Op(1,1){} // for serialization
+                SumMatToVec(result_t& mat, unsigned int axis)
+                    :   Op(1,1)
+                      , m_axis(axis)
+                      , m_identity(false)
+            {
+                add_param(0,mat);
+            }
+
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
                     if(m_identity){
                         desc.label = "reduce to vec (optimized out)";
@@ -123,5 +172,6 @@ namespace cuvnet
                         ar & m_identity;
                     }
     };
+#endif
 }
 #endif /* __OP_SUM_MAT_TO_VEC_HPP__ */
