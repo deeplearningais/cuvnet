@@ -175,26 +175,27 @@ BOOST_AUTO_TEST_CASE(init){
 
         // first object
         BOOST_CHECK_EQUAL( 0, pat.meta_info.objects[0].klass);
-        BOOST_CHECK_EQUAL( 0, pat.meta_info.objects[0].xmin);
-        BOOST_CHECK_EQUAL( 1, pat.meta_info.objects[0].xmax);
-        BOOST_CHECK_EQUAL( 2, pat.meta_info.objects[0].ymin);
-        BOOST_CHECK_EQUAL( 3, pat.meta_info.objects[0].ymax);
+        BOOST_CHECK_EQUAL( 0, pat.meta_info.objects[0].bb.xmin);
+        BOOST_CHECK_EQUAL( 1, pat.meta_info.objects[0].bb.xmax);
+        BOOST_CHECK_EQUAL( 2, pat.meta_info.objects[0].bb.ymin);
+        BOOST_CHECK_EQUAL( 3, pat.meta_info.objects[0].bb.ymax);
         
         // second object
         BOOST_CHECK_EQUAL( 1, pat.meta_info.objects[1].klass);
-        BOOST_CHECK_EQUAL( 10, pat.meta_info.objects[1].xmin);
-        BOOST_CHECK_EQUAL( 11, pat.meta_info.objects[1].xmax);
-        BOOST_CHECK_EQUAL( 12, pat.meta_info.objects[1].ymin);
-        BOOST_CHECK_EQUAL( 13, pat.meta_info.objects[1].ymax);
+        BOOST_CHECK_EQUAL( 10, pat.meta_info.objects[1].bb.xmin);
+        BOOST_CHECK_EQUAL( 11, pat.meta_info.objects[1].bb.xmax);
+        BOOST_CHECK_EQUAL( 12, pat.meta_info.objects[1].bb.ymin);
+        BOOST_CHECK_EQUAL( 13, pat.meta_info.objects[1].bb.ymax);
 
     }
 }
 
 BOOST_AUTO_TEST_CASE(realdata){
-    return;
+    //return;
 
     const char* realtest = "/home/local/datasets/VOC2011/voc_detection_val.txt";
     voc_detection_dataset ds(realtest, realtest);
+    ds.switch_dataset(voc_detection_dataset::SS_TEST);
 
     while(ds.size_available() < 2);
 
