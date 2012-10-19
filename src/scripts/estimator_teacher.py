@@ -37,22 +37,22 @@ def plot_estimator_teacher(path, title):
 
 
 #path = '../build/est_teachert3s0.dat'
-#plot_estimator_teacher(path)
-#path = '../build/est_teachertest.dat'
+#plot_estimator_teacher(path, 'translation')
+##path = '../build/est_teachertest.dat'
 
 
 
 
 
-path = '../build/est_teacherpos_all.dat'
-plot_estimator_teacher(path, 'all positions scaling')
+#path = '../build/est_teacherpos_all.dat'
+#plot_estimator_teacher(path, 'all positions scaling')
 path = '../build/est_teacher_pos_50_t1.dat'
 plot_estimator_teacher(path, 'translation 1 positions 50')
-path = '../build/est_teacher_pos_75_all.dat'
-plot_estimator_teacher(path, '75 positions scaling')
-path = '../build/est_teacher_pos_20_t_1.dat'
-plot_estimator_teacher(path, 'translation 1, 20 positions')
-path = '../build/est_teachert1_s0.05.dat'
-plot_estimator_teacher(path, 'translation 1, scaling 0.05')
+#path = '../build/est_teacher_pos_75_all.dat'
+#plot_estimator_teacher(path, '75 positions scaling')
+#path = '../build/est_teacher_pos_20_t_1.dat'
+#plot_estimator_teacher(path, 'translation 1, 20 positions')
+#path = '../build/est_teachert1_s0.05.dat'
+#plot_estimator_teacher(path, 'translation 1, scaling 0.05')
 
 plt.show()

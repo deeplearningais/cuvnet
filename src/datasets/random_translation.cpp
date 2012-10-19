@@ -116,6 +116,65 @@ namespace cuvnet
             return new_pos + new_factor;
         }
         
+        void morse_code::local_translation_speeds(vector<float> &subsampled_pos, float pos_start, float pos_end,  vector<float> &subsampled_speeds, float tran, float scale, int input_size){
+            unsigned int size = ceil(pos_end) - floor(pos_start);
+            vector<float> orig_coor;
+            vector<float> speeds(size);
+            subsampled_pos = vector<float>();
+            subsampled_speeds = vector<float>();
+
+            // fill posiitons
+            for (int i = floor(pos_start); i < ceil(pos_end); ++i)
+            {
+                orig_coor.push_back(i);
+            }
+            vector<float> transf_coor(orig_coor);
+
+            // translate coordinates                   
+            if (tran != 0.f){
+                for (unsigned int c = 0; c < size; c++){
+                    transf_coor[c] += tran;
+                }
+            }
+
+            // scale 
+            if (scale !=1.f){
+                // mean is the average over the last and first coordinate
+                float mean = (transf_coor[size - 1] + transf_coor[0]) / 2;
+                //std::cout << " last = " << m_coordinates[dim][ex][size - 1] << " first = " << m_coordinates[dim][ex][0] << " mean " << mean << std::endl;
+                for (unsigned int c = 0; c < size; c++){
+                    transf_coor[c] -= mean;
+                    transf_coor[c] *= scale;
+                    transf_coor[c] += mean;
+                }
+            }
+
+            // estimate local translation speeds
+            for (unsigned int c = 0; c < size; c++){
+               speeds[c]  = transf_coor[c] - orig_coor[c];
+
+            }
+
+            // wrap around original positions
+            for (unsigned int c = 0; c < size; c++){
+                orig_coor[c] = get_wrap_index(input_size, orig_coor[c]);
+            }
+            
+            // subsample speeds and positions
+            int start_index;
+            if((int)orig_coor[0] % 2 == 0){
+                start_index = 0;
+            }else{
+                start_index = 1;
+            }
+            for (unsigned int c = start_index; c < size; c+=2){
+                subsampled_pos.push_back(orig_coor[c] / 2.);
+                subsampled_speeds.push_back(speeds[c] / 2.);
+            }
+            
+
+        }
+
         void morse_code::translate_coordinates(int dim, int ex, float trans){
             if(trans != 0.f){
                 unsigned int size = m_coordinates[dim][ex].size();
@@ -505,6 +564,7 @@ namespace cuvnet
                         float rand_grow = (drand48() * 2 * max_grow - max_grow);
                         float grow = 1 + rand_grow;
                         new_dim =  drand48() * m_dim;
+
                         // generate 1st input
                         morse.write_char(ch, 0, example, new_dim);
 
