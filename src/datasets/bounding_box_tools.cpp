@@ -226,7 +226,7 @@ namespace cuvnet { namespace bbtools {
         if(!pcut)
             throw std::runtime_error("cut first, then call scale_height!");
 
-        float fact = size / (float)std::max(pcut->width(), pcut->height());
+        //float fact = size / (float)std::max(pcut->width(), pcut->height());
         //pcut->resize(fact * pcut->width(), fact * pcut->height(), -100, -100, 3, 2, 0.5f, 0.5f);
         pcut->resize(size, size, -100, -100, 3, 2, 0.5f, 0.5f);
         return *this;
