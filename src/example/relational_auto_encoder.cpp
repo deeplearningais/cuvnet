@@ -957,6 +957,181 @@ void regression(random_translation& ds, int bs, std::string param_name){
 
 
 
+struct local_translations_gen{
+    private:
+    input_ptr m_input_x, m_input_y;
+    
+    int m_min_trans, m_max_trans;
+    int m_min_pos, m_max_pos;
+    int m_min_ex_type, m_max_ex_type;
+    int m_factor, m_input_size;
+    int m_max_num_examples;
+    float m_max_scale;
+    int m_current_example;
+    int m_current_pos;
+    float m_current_trans;
+    float m_current_scale;
+    int m_current_ex_type;
+    int m_gauss_dist;
+    float m_sigma;
+    int m_current_local_pos;
+    int m_num_local_pos;
+    std::vector<float> m_trans_speeds;
+    std::vector<float> m_orig_poses;
+    float m_center_pos;
+    public:
+
+    local_translations_gen(input_ptr input_x, input_ptr input_y, int min_trans, int max_trans, int min_pos, int max_pos, int min_ex_type, int max_ex_type, int factor, int input_size, int max_num_examples, float max_scale, int gauss_dist, float sigma):
+        m_input_x(input_x),
+        m_input_y(input_y),
+        m_min_trans(min_trans),
+        m_max_trans(max_trans),
+        m_min_pos(min_pos),
+        m_max_pos(max_pos),
+        m_min_ex_type(min_ex_type),
+        m_max_ex_type(max_ex_type),
+        m_factor(factor),
+        m_input_size(input_size),
+        m_max_num_examples(max_num_examples),
+        m_max_scale(max_scale),
+        m_current_example(0),
+        m_current_pos(min_pos),
+        m_current_trans(0),
+        m_current_scale(0),
+        m_current_ex_type(0),
+        m_gauss_dist(gauss_dist),
+        m_sigma(sigma),
+        m_current_local_pos(0),
+        m_num_local_pos(0),
+        m_center_pos(0)
+    {
+        srand ( time(NULL) );
+    }
+    map<string,float> operator()(){
+        if(m_current_example == m_max_num_examples){
+            throw max_example_reached_exception();
+        }
+        if(m_current_pos == m_max_pos){
+            m_current_pos = m_min_pos;
+        }
+
+        // samples translation and input type only once, and iterates over all positions
+        float trans;
+        float scale;
+        int ex_type;
+        trans = m_current_trans;
+        ex_type = m_current_ex_type;
+        scale = m_current_scale;
+        float pos = m_current_pos;
+        m_current_example++;
+
+        if(m_current_pos == m_min_pos){
+            if(m_max_scale == 0.f){
+               scale = 1.f;
+            }else{
+               scale =  1 + (drand48() * 2 * m_max_scale - m_max_scale);
+            }
+            if(m_max_trans == 0.f){
+               trans = 0.f;
+            }else{
+               trans = drand48() * 2 * m_max_trans - m_max_trans;
+            }
+
+            ex_type = (rand() % (m_max_ex_type - m_min_ex_type )) + m_min_ex_type;
+            m_current_trans = trans;
+            m_current_scale = scale;
+            m_current_ex_type = ex_type;
+        }
+        else{
+            trans = m_current_trans;
+            ex_type = m_current_ex_type;
+            scale = m_current_scale;
+        }
+
+        
+        // if all local poses are written to the file, generate new for new example 
+        if(m_num_local_pos == 0 || m_num_local_pos == m_current_local_pos){
+            // sample parameters 
+            if(m_max_scale == 0.f){
+               scale = 1.f;
+            }else{
+               scale =  1 + (drand48() * 2 * m_max_scale - m_max_scale);
+            }
+            if(m_max_trans == 0.f){
+               trans = 0.f;
+            }else{
+               trans = drand48() * 2 * m_max_trans - m_max_trans;
+            }
+
+            ex_type = (rand() % (m_max_ex_type - m_min_ex_type )) + m_min_ex_type;
+            //ex_type = 2;
+            m_current_pos = rand() % (2 * m_input_size);
+            //m_current_pos = 30;
+            pos = m_current_pos;
+            m_current_trans = trans;
+            m_current_scale = scale;
+            m_current_ex_type = ex_type;
+
+
+            // ******    generating example   ****************************************************
+            tensor_type example(cuv::extents[3][1][2*m_input_size]);
+            example = 0.f;        
+            morse_code morse(example, m_factor);
+            float end_pos = morse.write_char(ex_type, 0, 0, pos);
+            morse.write_char(ex_type, 1, 0, pos);
+            morse.write_char(ex_type, 2, 0, pos);
+
+            m_center_pos = get_wrap_index(m_input_size, (end_pos + pos) / 2.f);
+
+            morse.translate_coordinates(1, 0, trans);
+            morse.scale_coordinates(1, 0, scale);
+
+            morse.translate_coordinates(2, 0, trans);
+            morse.scale_coordinates(2, 0, scale);
+            morse.translate_coordinates(2, 0, trans);
+            morse.scale_coordinates(2, 0, scale);
+
+
+            morse.write_from_coordinates();
+            example = morse.get_data();
+
+            //creates gaussian filter
+            cuv::tensor<float,cuv::host_memory_space> gauss;
+            fill_gauss(gauss, m_gauss_dist, m_sigma);
+
+            // convolves last dim of both train and test data with the gauss filter
+            convolve_last_dim(example, gauss);
+
+            // subsamples each "subsample" element
+            subsampling(example, 2);
+
+            normalize_data_set(example);
+
+            m_input_x->data() = example[cuv::indices[0][cuv::index_range()][cuv::index_range()]];
+            m_input_y->data() = example[cuv::indices[1][cuv::index_range()][cuv::index_range()]];
+            // ********** end of generating example ************************************************
+
+            // find local translation speeds 
+            morse.local_translation_speeds(m_orig_poses, pos, end_pos, m_trans_speeds, trans, scale, 2* m_input_size);
+            m_num_local_pos = m_orig_poses.size(); 
+            m_current_local_pos = 0;
+        }
+
+        map<string,float> param_map;
+        param_map["translation"] = trans;
+        param_map["scaling"] = scale;
+        param_map["position"] = m_center_pos;
+        param_map["input_type"] = ex_type;
+        param_map["local_pos"] = m_orig_poses[m_current_local_pos];
+        param_map["local_trans"] = m_trans_speeds[m_current_local_pos];
+        m_current_local_pos++;
+        return param_map;
+    }
+};
+
+
+
+
 struct morse_pat_gen{
     private:
     input_ptr m_input_x, m_input_y;
@@ -1012,18 +1187,16 @@ struct morse_pat_gen{
         float scale;
         int ex_type;
         if(m_current_pos == m_min_pos){
-            //if(m_max_scale == 0.f){
-            //    scale = 1.f;
-            //}else{
-            //    scale =  1 + (drand48() * 2 * m_max_scale - m_max_scale);
-            //}
-            scale = 1.f;
+            if(m_max_scale == 0.f){
+               scale = 1.f;
+            }else{
+               scale =  1 + (drand48() * 2 * m_max_scale - m_max_scale);
+            }
             if(m_max_trans == 0.f){
                trans = 0.f;
             }else{
                trans = drand48() * 2 * m_max_trans - m_max_trans;
             }
-
 
             ex_type = (rand() % (m_max_ex_type - m_min_ex_type )) + m_min_ex_type;
             m_current_trans = trans;
@@ -1043,9 +1216,11 @@ struct morse_pat_gen{
         tensor_type example(cuv::extents[3][1][2*m_input_size]);
         example = 0.f;        
         morse_code morse(example, m_factor);
-        morse.write_char(ex_type, 0, 0, pos);
+        float end_pos = morse.write_char(ex_type, 0, 0, pos);
         morse.write_char(ex_type, 1, 0, pos);
         morse.write_char(ex_type, 2, 0, pos);
+
+        float center_pos = get_wrap_index(m_input_size, (end_pos + pos) / 2.f);
 
         morse.translate_coordinates(1, 0, trans);
         morse.scale_coordinates(1, 0, scale);
@@ -1076,26 +1251,26 @@ struct morse_pat_gen{
         m_input_y->data() = example[cuv::indices[1][cuv::index_range()][cuv::index_range()]];
 
 
-        if (m_current_example % 1233 == 0){
-           tensor_type in_x = m_input_x->data();
-           tensor_type in_y = m_input_y->data();
-           tensor_type teacher_ = example[cuv::indices[2][cuv::index_range()][cuv::index_range()]];
-           tensor_type prediction(cuv::extents[in_x.shape(0)][in_x.shape(1)]);
-           prediction = 0.f;
-           int fa = 1;
-           int fb =  1;
-           std::string base;
-           base = (boost::format("example-test-%1%")% m_current_example).str();
-           auto wvis      = arrange_inputs_and_prediction(in_x, in_y, teacher_, prediction, fa, fb, (int)in_x.shape(1),true);
-           cuv::libs::cimg::save(wvis, base+"sb.png");
+        //if (m_current_example % 1233 == 0){
+        //   tensor_type in_x = m_input_x->data();
+        //   tensor_type in_y = m_input_y->data();
+        //   tensor_type teacher_ = example[cuv::indices[2][cuv::index_range()][cuv::index_range()]];
+        //   tensor_type prediction(cuv::extents[in_x.shape(0)][in_x.shape(1)]);
+        //   prediction = 0.f;
+        //   int fa = 1;
+        //   int fb =  1;
+        //   std::string base;
+        //   base = (boost::format("example-test-%1%")% m_current_example).str();
+        //   auto wvis      = arrange_inputs_and_prediction(in_x, in_y, teacher_, prediction, fa, fb, (int)in_x.shape(1),true);
+        //   cuv::libs::cimg::save(wvis, base+"sb.png");
 
-        }
+        //}
 
 
         map<string,float> param_map;
         param_map["translation"] = trans;
         param_map["scaling"] = scale;
-        param_map["position"] = pos;
+        param_map["position"] = center_pos;
         param_map["input_type"] = ex_type;
         return param_map;
     }
@@ -1118,11 +1293,11 @@ int main(int argc, char **argv)
     // initialize cuv library
     cuv::initCUDA(device);
     cuv::initialize_mersenne_twister_seeds();
-    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 0, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
+    unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 1, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
 
     float max_growing = 0.05f;
 
-    unsigned max_num_epochs = 4000;
+    unsigned max_num_epochs = 5000;
 
     unsigned int num_hidden = 10;
 
@@ -1130,7 +1305,7 @@ int main(int argc, char **argv)
     float sigma = gauss_dist / 3; 
     //float learning_rate = 0.001f;
     // generate random translation datas
-    unsigned int data_set_size = 5000;
+    unsigned int data_set_size = 10000;
     std::cout << "generating dataset: "<<std::endl;
     random_translation ds(input_size * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width, flag, morse_factor);
     ds.binary   = false;
@@ -1186,19 +1361,22 @@ int main(int argc, char **argv)
     //prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
     
     // does regression on hidden layer activations, classifies transformation
-    regression(ds, bs, param_name);
+    //regression(ds, bs, param_name);
 
     // log to the file the generated examples for invariance analysis
 
-    //input_x->data().resize(cuv::extents[1][input_size]); 
-    //input_y->data().resize(cuv::extents[1][input_size]); 
+    input_x->data().resize(cuv::extents[1][input_size]); 
+    input_y->data().resize(cuv::extents[1][input_size]); 
     
-    //dumper a;
+    dumper a;
     
-    //int num_examples = 500000;
-
+    int num_examples = 100000;
+    
+    max_growing = 0.05f;
+    max_trans = 1.f;
     //morse_pat_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, num_examples, max_growing, gauss_dist, sigma);
-    //a.generate_log_patterns(ae.get_encoded(), m, "invariance_test-" + param_name + ".txt"); 
+    local_translations_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, num_examples, max_growing, gauss_dist, sigma);
+    a.generate_log_patterns(ae.get_encoded(), m, "invariance_test-" + param_name + ".txt"); 
 
     
 

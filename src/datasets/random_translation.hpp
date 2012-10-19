@@ -200,6 +200,7 @@ namespace cuvnet
             void write_bar(int dim, int ex, float coor_1, float coor_2);
             void translate_coordinates(int dim, int ex, float trans);       
             void scale_coordinates(int dim, int ex, float scale);
+            void local_translation_speeds(std::vector<float> &orig_coor, float pos_start, float pos_end,  std::vector<float> &speeds, float tran, float scale, int input_size);
     };
 
 }
