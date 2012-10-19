@@ -8,7 +8,7 @@ def cfg(ax):
     ax.yaxis.set_visible(False)
 
 
-def generic_filters(x, trans=True, maxx=16, maxy=12, sepnorm=False):
+def generic_filters(x, trans=True, maxx=16, maxy=12, sepnorm=False, vmin=None, vmax=None):
     """ visualize an generic filter matrix """
     print x.shape
     if len(x.shape) == 4:
@@ -21,7 +21,6 @@ def generic_filters(x, trans=True, maxx=16, maxy=12, sepnorm=False):
     fig, axes = plt.subplots(n_filters_x, n_filters_y)
     fig.subplots_adjust(hspace=0.00, wspace=0.00,
             left=0, top=1, bottom=0.10, right=1)
-    norm = mpl.colors.Normalize(vmin=x.min(), vmax=x.max())
     for ax, i in zip(axes.T.flatten(), xrange(np.prod(axes.shape))):
         idx_x = i % n_filters_x
         idx_y = i / n_filters_x
@@ -29,9 +28,13 @@ def generic_filters(x, trans=True, maxx=16, maxy=12, sepnorm=False):
         if sepnorm:
             flt -= flt.min()
             flt /= flt.max()
-        t = np.abs(flt).max()
-        res = ax.matshow(flt.reshape(n_pix_x, n_pix_x), cmap="PuOr", vmin=-t, vmax=t)
-        #res.set_norm(norm)
+        res = ax.matshow(flt.reshape(n_pix_x, n_pix_x), cmap="PuOr")
+        if vmin and vmax:
+            norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+        else:
+            t = np.abs(flt).max()
+            norm = mpl.colors.Normalize(vmin=-t, vmax=t)
+        res.set_norm(norm)
         cfg(ax)
     if not sepnorm:
         cbaxes = fig.add_axes([0.1, 0.10, 0.8, 0.05])
@@ -43,8 +46,14 @@ def rgb_filters(x, trans=True, sepnorm=False):
     """ visualize an RGB filter matrix """
     print x.min(), x.mean(), x.max()
     print x.shape
-    n_filters = x.shape[0]
-    n_pix_x = int(np.sqrt(x.shape[2]))
+    n_filters = min(6, x.shape[0])
+    if len(x.shape) == 3:
+        # this is a weight matrix
+        n_pix_x = int(np.sqrt(x.shape[2]))
+    elif len(x.shape) == 4:
+        # this is an input image array
+        n_pix_x = x.shape[2] # == x.shape[3]
+
     fig, axes = plt.subplots(4, n_filters)
     fig.subplots_adjust(hspace=0.00, wspace=0.00,
             left=0, top=1, bottom=0.2, right=1)
@@ -59,7 +68,7 @@ def rgb_filters(x, trans=True, sepnorm=False):
             res = ax.matshow(flt.reshape(n_pix_x, n_pix_x), cmap="binary")
             res.set_norm(norm)
         else:
-            flt = x[i / 4, :, :].T
+            flt = np.fliplr(np.rot90(x[i / 4, :, :].T, 3))
             flt -= flt.min()
             flt /= flt.max()
             ax.imshow(
@@ -94,28 +103,42 @@ import xdot
 import gtk
 import gtk.gdk
 
+class MNISTVisor:
+    def __init__(self, s=28):
+        self.input_size = s
 
-class MyDotWindow(xdot.DotWindow):
-    def __init__(self, op):
-        self.op = op
-        xdot.DotWindow.__init__(self)
-        self.widget.connect('clicked', self.on_url_clicked)
-
-    def on_url_clicked(self, widget, url, event):
-        typ, ptr = url.split()
-        node = self.op.get_parameter(long(ptr, 0))
+    def show(self, typ, node):
         if typ == "input":
-            node = self.op.get_parameter(long(ptr, 0))
-            print "node = loss.get_parameter(long(%s, 0))" % ptr
+            data = node.data.np
+        else:
+            data = node.evaluate().np
+        print "got shape: ", data.shape
+        print "    stats: ", data.min(), data.mean(), data.max()
+
+        if len(data.shape) == 2 and self.input_size ** 2 == data.shape[1]:
+            mnist_filters(data)
+            plt.ion()
+            plt.show()
+        else:
+            plt.hist(data.flatten(),20)
+            plt.ion()
+            plt.show()
+
+    def click(self, op, widget, url, event):
+        typ, ptr = url.split()
+        node = op.get_parameter(long(ptr, 0))
+        self.show(typ,node)
+
+class MapsVisor:
+    def __init__(self):
+        pass
+
+    def show(self, typ, node):
+        if typ == "input":
             data = node.data.np
             print "got shape: ", data.shape
             print "    stats: ", data.min(), data.mean(), data.max()
-            #import pdb; pdb.set_trace()
-            if len(data.shape) == 2:
-                mnist_filters(data)
-                plt.ion()
-                plt.show()
-            elif "weight" in node.name:
+            if "weight" in node.name:
                 is_rgb = data.shape[0] == 3
                 data = np.rollaxis(data, 2)
                 if is_rgb:
@@ -131,8 +154,7 @@ class MyDotWindow(xdot.DotWindow):
             plt.ion()
             plt.show()
         elif typ == "sink":
-            node = self.op.get_sink(long(ptr, 0))
-            data = node.cdata.np
+            data = node.evaluate().np
             if len(data.shape) == 4:
                 is_rgb = data.shape[1] == 3
                 data = np.rollaxis(data, 3)
@@ -147,8 +169,6 @@ class MyDotWindow(xdot.DotWindow):
                 plt.ion()
                 plt.show()
         elif typ == "generic":
-            node = self.op.get_node(long(ptr, 0))
-            print "node = loss.get_node(long(%s, 0))" % ptr
             data = node.evaluate().np
             #data = 1 / (1 + np.exp(-data))
             #data = np.clip(data,-1,1)
@@ -163,13 +183,43 @@ class MyDotWindow(xdot.DotWindow):
                 plt.show()
         return True
 
+    def click(self, op, widget, url, event):
+        typ, ptr = url.split()
+        if typ == "input":
+            node = op.get_parameter(long(ptr, 0))
+        elif typ == "sink":
+            node = op.get_sink(long(ptr, 0))
+        else:
+            node = op.get_node(long(ptr, 0))
+        self.show(typ, node)
 
-def show_op(op):
+
+class MyDotWindow(xdot.DotWindow):
+    def __init__(self, op, visor):
+        self.visor = visor
+        self.op = op
+        xdot.DotWindow.__init__(self)
+        self.widget.connect('clicked', self.on_url_clicked)
+
+    def on_url_clicked(self, widget, url, event):
+        self.visor.click(self.op, widget, url, event)
+        return
+
+
+def show_op(op, visor=MapsVisor()):
     dot = op.dot()
-    window = MyDotWindow(op)
+    window = MyDotWindow(op, visor)
     window.set_dotcode(dot)
     window.connect('destroy', gtk.main_quit)
     gtk.main()
+
+def show_objdet(op):
+    op.evaluate()
+    o = op.get_sink("output")
+    o.evaluate()
+    MapsVisor().show("sink", o)
+    MapsVisor().show("input", op.get_parameter("input"))
+    MapsVisor().show("input", op.get_parameter("target"))
 
 
 def evaluate_bioid(loss, load_batch, n_batches):
