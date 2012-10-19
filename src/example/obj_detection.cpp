@@ -150,6 +150,7 @@ int main(int argc, char **argv)
 {
     bool load_old_model_and_drop_to_python = argc > 1;
     if(load_old_model_and_drop_to_python){
+        cuv::initCUDA(boost::lexical_cast<int>(argv[2]));
         // initialize cuv library   
         cuvnet::Logger log("load-session.xml");
         voc_detection_dataset ds("/home/local/datasets/VOC2011/voc_detection_train.txt", "/home/local/datasets/VOC2011/voc_detection_val.txt", true);
