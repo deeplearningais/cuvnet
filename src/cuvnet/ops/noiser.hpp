@@ -34,7 +34,7 @@ namespace cuvnet
             public:
                 Noiser(){} /// for serialization
                 Noiser(result_t& p0, float param, NoiseType noise_type=NT_NORMAL)
-                    :Op(1,1), m_param(param), m_noisetype(noise_type)
+                    :Op(1,1), m_param(param), m_noisetype(noise_type), m_active(true)
                      {
                          add_param(0,p0);
                      }

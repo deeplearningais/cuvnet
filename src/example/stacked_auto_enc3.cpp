@@ -1,25 +1,5 @@
-#include <boost/program_options.hpp>
-#include <boost/bind.hpp>
-#include <boost/thread.hpp>                                                                  
-#include <sys/syscall.h> /* for pid_t, syscall, SYS_gettid */
-
-#include <mongo/client/dbclient.h>
-#include <mdbq/client.hpp>
-
-#include <tools/serialization_helper.hpp>
-#include <cuvnet/ops.hpp>
-#include <cuvnet/op_utils.hpp>
-#include <cuvnet/models/auto_encoder_stack.hpp>
-#include <cuvnet/models/logistic_regression.hpp>
-#include <cuvnet/models/contractive_auto_encoder.hpp>
-#include <tools/gradient_descent.hpp>
-#include <tools/crossvalid.hpp>
-#include <tools/learner.hpp>
-#include <tools/monitor.hpp>
-#include <tools/network_communication.hpp>
-#include <tools/logging.hpp>
-#include <tools/python_helper.hpp>
-
+#include "stacked_auto_enc3.hpp"
+#include <tools/serialization_helper.hpp> /* headers which do smart things cannot go in .pch */
 
 bool g_refit_for_test;
 

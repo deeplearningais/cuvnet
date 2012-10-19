@@ -4,6 +4,7 @@
 #include<cuv.hpp>
 #include<string>
 #include<vector>
+#include"bounding_box_tools.hpp"
 
 namespace cuvnet
 {
@@ -16,57 +17,15 @@ namespace cuvnet
     class voc_detection_pipe;
     class voc_detection_dataset{
         public:
-            struct object {
-                unsigned int klass;  ///< the index of the class this object belongs to
-                bool truncated;      ///< true if the truncated property was set in the XML file
 
-                /// a 4-tuple of box coordinates
-                /// @{
-                int xmin;
-                int xmax;
-                int ymin;
-                int ymax;
-                /// @}
-            };
-            struct image_meta_info{
-                std::string filename;   ///< image file name
-                std::vector<object> objects; ///< descriptions of depicted objects
-
-                /// a 4-tuple: coordinates of original image in squared image
-                /// @{
-                int xmin;
-                int xmax;
-                int ymin;
-                int ymax;
-                /// @}
-
-                /// a 4-tuple: coordinate of \c xmin, \c xmax, etc in original image
-                /// (relevant when a large image is split up for processing).
-                /// @{
-                int orig_xmin;
-                int orig_xmax;
-                int orig_ymin;
-                int orig_ymax;
-                /// @}
-
-                /// the total number of scales at which original image is processed
-                unsigned int n_scales;
-                /// the total number of (sub-) images at current scale
-                unsigned int n_subimages;
-                /// a running number indicating at which scale of the original image we're processing
-                unsigned int scale_id;
-                /// a running number of images at this scale (relevant when large image is split up for processing)
-                unsigned int subimage_id;
-            };
-
-            /// a fully loaded pattern 
+            /// a fully loaded pattern.
             struct pattern{
-                voc_detection_dataset::image_meta_info meta_info;
-                cuv::tensor<float,cuv::host_memory_space> img;
-                cuv::tensor<float,cuv::host_memory_space> tch;
-                cuv::tensor<float,cuv::host_memory_space> ign;
+                bbtools::image_meta_info meta_info;
+                cuv::tensor<float,cuv::host_memory_space> img; ///< image
+                cuv::tensor<float,cuv::host_memory_space> tch; ///< teacher
+                cuv::tensor<float,cuv::host_memory_space> ign; ///< ignore mask
 
-                cuv::tensor<float,cuv::host_memory_space> result;
+                cuv::tensor<float,cuv::host_memory_space> result; ///< result
             };
 
             /** 
@@ -137,11 +96,11 @@ namespace cuvnet
              * of the original VOC XML files for easier C++ parsing.
              *
              */
-            void read_meta_info(std::vector<image_meta_info>& dest, const std::string& filename, bool verbose=false);
+            void read_meta_info(std::vector<bbtools::image_meta_info>& dest, const std::string& filename, bool verbose=false);
 
-            std::vector<image_meta_info> m_training_set;  ///< meta-infos of the training set
-            std::vector<image_meta_info> m_val_set;       ///< meta-infos of the validation set
-            std::vector<image_meta_info> m_test_set;      ///< meta-infos of the test set
+            std::vector<bbtools::image_meta_info> m_training_set;  ///< meta-infos of the training set
+            std::vector<bbtools::image_meta_info> m_val_set;       ///< meta-infos of the validation set
+            std::vector<bbtools::image_meta_info> m_test_set;      ///< meta-infos of the test set
             boost::shared_ptr<voc_detection_pipe> m_pipe; ///< a pipe providing access to loaded, pre-processed images
     };
 }

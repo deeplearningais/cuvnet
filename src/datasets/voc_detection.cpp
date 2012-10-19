@@ -14,6 +14,7 @@
 #define cimg_use_jpeg
 #include <CImg.h>
 
+
 #include "voc_detection.hpp"
 
 namespace{
@@ -24,189 +25,16 @@ namespace{
 namespace cuvnet
 {
 
-    void square(cimg_library::CImg<unsigned char>& orig, int sq_size, voc_detection_dataset::image_meta_info& meta){
-        if(std::max(orig.width(), orig.height()) < sq_size ){
-            float fact = sq_size / (float)std::max(orig.width(), orig.height());
-            orig.resize(fact * orig.width(), fact * orig.height(), -100, -100, 3, 2, 0.5f, 0.5f);
-        }
-
-        int orig_rows = orig.height();
-        int orig_cols = orig.width();
-
-        int new_rows = orig.height() >= orig.width()  ? sq_size : orig.height()/(float)orig.width() * sq_size;
-        int new_cols = orig.width() >= orig.height() ? sq_size : orig.width()/(float)orig.height() * sq_size;
-
-        //orig.blur(0.5f*orig_cols/(float)new_cols, 0.5f*orig_rows/(float)new_rows, 0, 1);
-        //orig.blur(orig_cols/(float)new_cols, orig_rows/(float)new_rows, 0, 1);
-
-
-        // downsample if the supplied image is not already square
-        if(new_cols != sq_size || new_rows != sq_size)
-            orig.resize(new_cols, new_rows, -100/* z */, -100 /* c */, 3 /* 3: linear interpolation */);
-
-        // square
-        orig.resize(sq_size, sq_size, -100, -100, 0 /* no interpolation */, 1 /* 0: zero border, 1: nearest neighbor, 2: relect? */, 0.5f, 0.5f);
-
-        // new_pos = stretch 
-        float stretchx = new_cols / (float)orig_cols;
-        float stretchy = new_rows / (float)orig_rows;
-        float offx     = 0.5f * stretchx * std::max(0, (int)orig_rows - (int)orig_cols);
-        float offy     = 0.5f * stretchy * std::max(0, (int)orig_cols - (int)orig_rows);
-
-        meta.xmin = stretchx * 0         + offx;
-        meta.xmax = stretchx * orig_cols + offx;
-        meta.ymin = stretchy * 0         + offy;
-        meta.ymax = stretchy * orig_rows + offy;
-        meta.xmax = std::min(sq_size-1, meta.xmax);
-        meta.ymax = std::min(sq_size-1, meta.ymax);
-
-        BOOST_FOREACH(voc_detection_dataset::object& o, meta.objects){
-            o.xmin = stretchx * o.xmin + offx;
-            o.ymin = stretchy * o.ymin + offy;
-            o.xmax = stretchx * o.xmax + offx;
-            o.ymax = stretchy * o.ymax + offy;
-
-            assert(o.xmin <= o.xmax);
-            assert(o.ymin <= o.ymax);
-            //assert(o.xmin >= 0);
-            //assert(o.ymin >= 0);
-            //assert(o.xmax < sq_size);
-            //assert(o.ymin < sq_size);
-        }
-    }
-
-    int bb_teacher(
-            cimg_library::CImg<unsigned char>& dst,
-            cimg_library::CImg<unsigned char>& img,
-            int sq_size,
-            voc_detection_dataset::image_meta_info& meta,
-            const voc_detection_dataset::output_properties* output_properties,
-            unsigned int n_classes, float bbsize, int ttype /* 1: teacher, 0: ignore*/
-            )
-    {
-        int final_size = (sq_size - output_properties->crop_h) / output_properties->scale_h;
-        int final_start = output_properties->crop_h / 2;
-        int final_scale = output_properties->scale_h;
-
-        dst.resize(final_size, final_size, n_classes, 1, -1 /* -1: no interpolation, raw memory resize!*/);
-        dst = (unsigned char) 0; // initialize w/ "ignore everywhere" resp. "no object"
-        int found_obj = 0;
-
-        BOOST_FOREACH(voc_detection_dataset::object& mo, meta.objects){
-            
-
-            // mo is in the reference frame of the sq_size input image. 
-            // we first determine its position in the frame of the teacher.
-            voc_detection_dataset::object o = mo;
-            o.xmin -= final_start;
-            o.xmax -= final_start;
-            o.ymin -= final_start;
-            o.ymax -= final_start;
-
-            o.xmin /= final_scale;
-            o.xmax /= final_scale;
-            o.ymin /= final_scale;
-            o.ymax /= final_scale;
-
-            // make sure that the object lies completely within the region
-            // represented by the teacher (which might be less than sq_size if
-            // `valid' convolutions are used).
-            if(o.xmin  < 0 || o.xmax > final_size)
-                continue;
-            if(o.ymin  < 0 || o.ymax > final_size)
-                continue;
-
-
-            float cx = 0.5 * (o.xmax + o.xmin);
-            float cy = 0.5 * (o.ymax + o.ymin);
-
-            unsigned int w = o.xmax - o.xmin;
-            unsigned int h = o.ymax - o.ymin;
-            //float ignore_amount = 1.f - std::max(0.f, std::min(1.f, 4.f*std::pow(std::max(h,w)/(float)sq_size - 0.5f, 2.f)));
-            float ignore_amount = 1.f;
-
-            if(w < final_size/4. || h < final_size/4.)
-              continue;
-            if(w > final_size/1.2 || h > final_size/1.2)
-              continue;
-
-            /*
-             *if(ttype == 0){
-             *    static int cnt = 0;
-             *    cimg_library::CImg<unsigned char> simg(img, false);
-             *    const unsigned char white[] = {255,255,255};
-             *    simg.draw_rectangle(mo.xmin, mo.ymin, mo.xmax, mo.ymax, white, 1.f, ~0U);
-             *    simg.save(boost::str(boost::format("obj-%d-%05d.jpg") % (pid_t) syscall(SYS_gettid)% cnt++ ).c_str());
-             *}
-             */
-
-            //if(cx < 0 || cx >= final_size)
-            //   continue;
-            //if(cy < 0 || cy >= final_size)
-            //   continue;
-
-            //    TODO Do not overwrite 1s of previous objects with 0s of a non-correct-size object!
-            //       --> use maximum?
-
-            found_obj ++;
-
-            if(ttype == 0) {
-                // set ignore amount (should be larger than
-                // teacher)
-                unsigned char strength = 255u * ignore_amount;
-                //dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, 20, 20, 0.f, &strength);
-                //dst.get_shared_plane(0).draw_ellipse(cx, cy, 20, 20, 0.f, &strength);
-
-                dst.get_shared_plane(0).draw_rectangle(
-                        cx-w/2+0.5, cy-h/2+0.5,0,0,
-                        cx+w/2+0.5, cy+h/2+0.5,0,0,
-                        strength);
-
-            }
-            else if(ttype == 1) {
-                // set teacher region (smaller than `ignore')
-                //dst.get_shared_plane(o.klass).draw_ellipse(cx, cy, 10, 10, 0.f, &color);
-                //dst.get_shared_plane(0).draw_ellipse(cx, cy, 10, 10, 0.f, &color);
-                dst.get_shared_plane(0).draw_rectangle(
-                        cx-w*M_SQRT1_2/2 + 0.5, cy-h*M_SQRT1_2/2 + 0.5,0,0,
-                        cx+w*M_SQRT1_2/2 - 0.5, cy+h*M_SQRT1_2/2 - 0.5,0,0,
-                        255);
-            }
-        }
-        return found_obj;
-    }
-
-    void ignore_margin(
-            cimg_library::CImg<unsigned char>& dst,
-            const voc_detection_dataset::image_meta_info& meta,
-            const voc_detection_dataset::output_properties& op)
-    {
-        int xmin = ((int)meta.xmin - (int)op.crop_w) / (int)op.scale_w;
-        int ymin = ((int)meta.ymin - (int)op.crop_h) / (int)op.scale_h;
-        int xmax = ((int)meta.xmax - (int)op.crop_w) / (int)op.scale_w;
-        int ymax = ((int)meta.ymax - (int)op.crop_h) / (int)op.scale_h;
-        unsigned char color = 0;
-        if(xmin > 0)
-            dst.draw_rectangle(0,0,0,0,  xmin, dst.height()-1, dst.depth()-1, dst.spectrum()-1, color);
-        if((int)xmax < dst.width()-1)
-            dst.draw_rectangle(xmax+1,0,0,0,  dst.width()-1, dst.height()-1, dst.depth()-1, dst.spectrum()-1, color);
-        if(ymin > 0)
-            dst.draw_rectangle(0,0,0,0,  dst.width()-1, ymin-1, dst.depth()-1, dst.spectrum()-1, color);
-        if((int)ymax < dst.height()-1)
-            dst.draw_rectangle(0,ymax+1,0,0,  dst.width()-1, dst.height()-1, dst.depth()-1, dst.spectrum()-1, color);
-    }
-
-
     /**
      * loads an image from file using metadata, processes it and places it in queue
      */
     struct voc_detection_file_loader{
         boost::mutex* mutex;
         std::queue<voc_detection_dataset::pattern>* loaded_data;
-        const voc_detection_dataset::image_meta_info* meta;
+        const bbtools::image_meta_info* meta;
         const voc_detection_dataset::output_properties* output_properties;
         voc_detection_file_loader(boost::mutex* m, std::queue<voc_detection_dataset::pattern>* dest, 
-                const voc_detection_dataset::image_meta_info* _meta,
+                const bbtools::image_meta_info* _meta,
                 const voc_detection_dataset::output_properties* op)
             : mutex(m)
               , loaded_data(dest)
@@ -214,18 +42,22 @@ namespace cuvnet
               , output_properties(op)
         {
         }
+#if 0
         void split_up_bbs(cimg_library::CImg<unsigned char>& img, unsigned int crop_square_size){
             std::list<voc_detection_dataset::pattern> storage;
-            BOOST_FOREACH(const voc_detection_dataset::object& bbox, meta->objects){
+            BOOST_FOREACH(const bbtools::object& bbox, meta->objects){
                 
                 float w = bbox.xmax - bbox.xmin;
                 float h = bbox.ymax - bbox.ymin;
                 float cx = (bbox.xmax + bbox.xmin)/2.f;
                 float cy = (bbox.ymax + bbox.ymin)/2.f;
 
-                float context_fact = 2.f + drand48() * 0.5f;
-                float x_off = drand48() * w/4.f;
-                float y_off = drand48() * w/4.f;
+                float context_fact = 2.f;
+                float x_off = 0.f;
+                float y_off = 0.f;
+                //float context_fact = 2.f + drand48() * 0.5f;
+                //float x_off = drand48() * w/4.f;
+                //float y_off = drand48() * w/4.f;
                 float xmin = cx - context_fact * w/2.f + x_off;
                 float xmax = cx + context_fact * w/2.f + x_off;
                 float ymin = cy - context_fact * h/2.f + y_off;
@@ -307,7 +139,7 @@ namespace cuvnet
                 pat.meta_info.orig_ymax = ymax;
 
                 // adjust object positions according to crop
-                BOOST_FOREACH(voc_detection_dataset::object& o, pat.meta_info.objects){
+                BOOST_FOREACH(bbtools::object& o, pat.meta_info.objects){
                     o.xmin = o.xmin-xmin;
                     o.xmax = o.xmax-xmin;
 
@@ -347,6 +179,9 @@ namespace cuvnet
             //exit(1);
 
         }
+#endif
+        
+#if 0
         void split_up_scales(cimg_library::CImg<unsigned char>& img, unsigned int crop_square_size){
             static const unsigned int n_scales = 3;
             cimg_library::CImg<unsigned char> pyramid[n_scales];
@@ -457,7 +292,7 @@ namespace cuvnet
                         pat.meta_info.subimage_id = sy * n_subimages_x + sx;
 
                         // adjust object positions according to crop
-                        BOOST_FOREACH(voc_detection_dataset::object& o, pat.meta_info.objects){
+                        BOOST_FOREACH(bbtools::object& o, pat.meta_info.objects){
                             o.xmin = o.xmin/scale_x - xmin;
                             o.xmax = o.xmax/scale_x - xmin;
 
@@ -507,29 +342,36 @@ namespace cuvnet
             //exit(1);
 
         }
+#endif
+
         template<class T>
-        void ensure_square_and_enqueue(T output, cimg_library::CImg<unsigned char>& img, unsigned int sq_size, voc_detection_dataset::pattern& pat, bool lock){
-            cimg_library::CImg<unsigned char> tch;
-            cimg_library::CImg<unsigned char> ign;
+        void ensure_square_and_enqueue(T output, bbtools::sub_image& si, unsigned int sq_size, bool lock){
+
             unsigned int n_classes = 1;
-            square(img, sq_size, pat.meta_info);    // ensure image size is sq_size x sq_size
-            bool found_obj =
-            bb_teacher(tch, img, sq_size, pat.meta_info, output_properties, n_classes, .6, 1); // generate teacher for image (ellipse)
+            si.constrain_to_orig(true).extend_to_square();
+            bool found_obj = si.has_objects();
             if(!found_obj)
                 return;
-            bb_teacher(ign, img, sq_size, pat.meta_info, output_properties, n_classes, 1., 0); // generate teacher for image (rect)
+            si.crop_with_padding().scale_larger_dim(sq_size);
 
-            ignore_margin(ign, pat.meta_info, *output_properties);
-            //tch = 255 - (ign - tch).cut(0,255);
-            tch = tch.cut(0,255);
-            //ign = (ign - tch).cut(0,255);
+            cimg_library::CImg<unsigned char> tch(sq_size, sq_size);
+            cimg_library::CImg<unsigned char> ign(sq_size, sq_size);
+            cimg_library::CImg<unsigned char>& img = *si.pcut;
+            cuvAssert(img.width() == sq_size);
+            cuvAssert(img.height() == sq_size);
 
-            //ign.blur(5.f,5.f,0.f);
-            //tch.blur(5.f);
-
+            tch.fill(0);
+            ign.fill(0);
+            si.mark_objects(2, 255, 3,  &tch);
+            si.mark_objects(2, 255, 1, &ign);
+            si.mark_objects(0, 255, 1, &img);
+            si.fill_padding(0, &ign);
+            
+            // TODO: Blur now?
 
             // convert to cuv
             //img.RGBtoYCbCr();
+            voc_detection_dataset::pattern pat;
             pat.img.resize(cuv::extents[3][sq_size][sq_size]);
             pat.tch.resize(cuv::extents[tch.depth()][tch.height()][tch.width()]);
             pat.ign.resize(cuv::extents[ign.depth()][ign.height()][ign.width()]);
@@ -547,11 +389,6 @@ namespace cuvnet
             //cuv::tensor<unsigned char, cuv::host_memory_space> idx(pat.tch.shape());
             //cuv::apply_scalar_functor(idx, pat.tch, cuv::SF_LT, 176);
             //cuv::apply_scalar_functor(pat.ign, cuv::SF_MIN, 0.001f, &idx);
-
-            // set teacher to "0" where ignore=1 (for visualization)
-            cuv::tensor<unsigned char, cuv::host_memory_space> idx(pat.tch.shape());
-            cuv::apply_scalar_functor(idx, pat.ign, cuv::SF_LT, 0.05f);
-            cuv::apply_scalar_functor(pat.tch, cuv::SF_MULT, 0.0f, &idx);
 
 #if 1
             pat.tch /= 127.f;
@@ -571,37 +408,24 @@ namespace cuvnet
 
 
         void operator()(){
-            cimg_library::CImg<unsigned char> img;
-            img.load_jpeg(meta->filename.c_str()); // load image from file
+            bbtools::image img(meta->filename);
+            img.meta = *meta;
 
-            if(0){
-                // we do not want to use sliding window, and only the scale of
-                // the image itself.
-                voc_detection_dataset::pattern pat;
-                pat.meta_info = *meta;
-
-                // a single crop!
-                pat.meta_info.orig_xmin = 0;
-                pat.meta_info.orig_ymin = 0;
-                pat.meta_info.orig_xmax = img.width()-1;
-                pat.meta_info.orig_ymax = img.height()-1;
-                pat.meta_info.n_scales    = 1;
-                pat.meta_info.n_subimages = 1;
-                pat.meta_info.scale_id    = 0;
-                pat.meta_info.subimage_id = 0;
-
+            if(1){
                 typedef std::queue<voc_detection_dataset::pattern> queue_type;
                 typedef voc_detection_dataset::pattern arg_type;
+
+                bbtools::sub_image si(img);
                 
                 ensure_square_and_enqueue(
                         boost::bind( static_cast<void (queue_type::*)(const arg_type&)>(&queue_type::push)
                             , loaded_data, _1),
-                        img, 176, pat, true);
+                        si, 176, true);
             }else{
                 // split up the image into multiple scales, extract images with
                 // size 128x128 on all scales, and enqueue them.
                 //split_up_scales(img, 176);
-                split_up_bbs(img, 176);
+                //split_up_bbs(img, 176);
             }
         }
     };
@@ -613,7 +437,7 @@ namespace cuvnet
         private:
             mutable boost::mutex m_loaded_data_mutex; /// workers use this to ensure thread-safe access to m_loaded_data.
 
-            const std::vector<voc_detection_dataset::image_meta_info>& dataset;
+            const std::vector<bbtools::image_meta_info>& dataset;
             const voc_detection_dataset::output_properties& m_output_properties;
 
             std::queue<voc_detection_dataset::pattern> m_loaded_data;
@@ -637,7 +461,7 @@ namespace cuvnet
              * @param max_pipe_len when to stop filling pipe
              */
             voc_detection_pipe(
-                    const std::vector<voc_detection_dataset::image_meta_info>& ds,
+                    const std::vector<bbtools::image_meta_info>& ds,
                     const voc_detection_dataset::output_properties& op,
                     unsigned int n_threads=0, unsigned int min_pipe_len=32, unsigned int max_pipe_len=0)
                 : dataset(ds)
@@ -782,22 +606,22 @@ namespace cuvnet
         return m_pipe->size();
     }
 
-    void voc_detection_dataset::read_meta_info(std::vector<image_meta_info>& dest, const std::string& filename, bool verbose){
+    void voc_detection_dataset::read_meta_info(std::vector<bbtools::image_meta_info>& dest, const std::string& filename, bool verbose){
         std::ifstream ifs(filename.c_str());
         unsigned int n_objs;
         unsigned int cnt_imgs=0, cnt_objs=0;
         while(ifs){
-            image_meta_info imi;
+            bbtools::image_meta_info imi;
             ifs >> imi.filename;
             if(imi.filename.size() == 0)
                 break;
             ifs >> n_objs;
             for (unsigned int i = 0; i < n_objs; ++i)
             {
-                object o;
+                bbtools::object o;
                 ifs >> o.klass;
                 ifs >> o.truncated;
-                ifs >> o.xmin >> o.xmax >> o.ymin >> o.ymax;
+                ifs >> o.bb.xmin >> o.bb.xmax >> o.bb.ymin >> o.bb.ymax;
                 imi.objects.push_back(o);
                 cnt_objs ++;
             }
