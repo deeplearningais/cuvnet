@@ -42,112 +42,26 @@ namespace cuvnet
               , output_properties(op)
         {
         }
-#if 0
-        void split_up_bbs(cimg_library::CImg<unsigned char>& img, unsigned int crop_square_size){
+#if 1
+        void split_up_bbs(bbtools::image& img, unsigned int crop_square_size){
             std::list<voc_detection_dataset::pattern> storage;
-            BOOST_FOREACH(const bbtools::object& bbox, meta->objects){
+            BOOST_FOREACH(const bbtools::object& obj, meta->objects){
+                if(obj.klass != 14) // 14: Person
+                    continue;
                 
-                float w = bbox.xmax - bbox.xmin;
-                float h = bbox.ymax - bbox.ymin;
-                float cx = (bbox.xmax + bbox.xmin)/2.f;
-                float cy = (bbox.ymax + bbox.ymin)/2.f;
+                float w = obj.bb.xmax - obj.bb.xmin+1;
+                float h = obj.bb.ymax - obj.bb.ymin+1;
+                float cx = (obj.bb.xmax + obj.bb.xmin)/2.f;
+                float cy = (obj.bb.ymax + obj.bb.ymin)/2.f;
 
-                float context_fact = 2.f;
-                float x_off = 0.f;
-                float y_off = 0.f;
-                //float context_fact = 2.f + drand48() * 0.5f;
-                //float x_off = drand48() * w/4.f;
-                //float y_off = drand48() * w/4.f;
-                float xmin = cx - context_fact * w/2.f + x_off;
-                float xmax = cx + context_fact * w/2.f + x_off;
-                float ymin = cy - context_fact * h/2.f + y_off;
-                float ymax = cy + context_fact * h/2.f + y_off;
+                float bbscale = 2.f;
+                bbtools::sub_image si(img, obj.bb);
+                si.pos.xmin = cx - bbscale * w/2.f;
+                si.pos.xmax = cx + bbscale * w/2.f;
+                si.pos.ymin = cy - bbscale * h/2.f;
+                si.pos.ymax = cy + bbscale * h/2.f;
 
-
-                // the xminmax, yminmax now a `larger' version of the original bbox. 
-                // we now try to extend the smaller dimension so the new image
-                // is more square, but does not go over the original image boundaries
-                
-                float new_w = xmax-xmin;
-                float new_h = ymax-ymin;
-                float max_new_wh = std::max(new_w, new_h);
-
-                if(new_w > new_h){
-                    // grow y-direction
-                    ymin = ymin - (max_new_wh - new_h)/2.f;
-                    ymax = ymin + max_new_wh; // now it is square
-                }
-                // if we moved against an image boundary, move the box so
-                // that it coincides with the boundary
-                if(ymax >= img.height())
-                {
-                    float d = ymax - (img.height() - 1);
-                    ymax -= d;
-                    ymin -= d;
-                }
-                if(ymin < 0){
-                    float d = 0 - ymin;
-                    ymax += d;
-                    ymin += d;
-                }
-                // we might still be outside the valid range, but that will
-                // be fixed later.
-                new_h = ymax - ymin;
-
-                if(new_h > new_w + 0.5){
-                    // grow x-direction
-                    xmin = xmin - (max_new_wh - new_w)/2.f;
-                    xmax = xmin + max_new_wh; // now it is square
-                }
-                // if we moved against an image boundary, move the box so
-                // that it coincides with the boundary
-                if(xmax >= img.width())
-                {
-                    float d = xmax - (img.width() - 1);
-                    xmax -= d;
-                    xmin -= d;
-                }
-                if(xmin < 0){
-                    float d = 0 - xmin;
-                    xmax += d;
-                    xmin += d;
-                }
-                // we might still be outside the valid range, but that will
-                // be fixed later.
-
-                xmin = std::max(xmin, 0.f);
-                xmax = std::min(xmax, img.width()-1.f);
-                ymin = std::max(ymin, 0.f);
-                ymax = std::min(ymax, img.height()-1.f);
-
-                cimg_library::CImg<unsigned char> simg = img.get_crop(xmin, ymin, xmax, ymax, false);
-                /*
-                 *{
-                 *   static int cnt = 0;
-                 *   img.save(boost::str(boost::format("img-%d-%05da.jpg") % (pid_t) syscall(SYS_gettid)% cnt++ ).c_str());
-                 *   simg.save(boost::str(boost::format("img-%d-%05db.jpg") % (pid_t) syscall(SYS_gettid)% cnt++ ).c_str());
-                 *}
-                 */
-
-                voc_detection_dataset::pattern pat;
-                pat.meta_info = *meta;
-
-                // remember where current crop came from
-                pat.meta_info.orig_xmin = xmin;
-                pat.meta_info.orig_ymin = ymin;
-                pat.meta_info.orig_xmax = xmax;
-                pat.meta_info.orig_ymax = ymax;
-
-                // adjust object positions according to crop
-                BOOST_FOREACH(bbtools::object& o, pat.meta_info.objects){
-                    o.xmin = o.xmin-xmin;
-                    o.xmax = o.xmax-xmin;
-
-                    o.ymin = o.ymin-ymin;
-                    o.ymax = o.ymax-ymin;
-                }
-
-#define STORE_IMAGES_SEQUENTIALLY 1
+#define STORE_IMAGES_SEQUENTIALLY 0
 #if STORE_IMAGES_SEQUENTIALLY
                 // store images into a local storage and put them in
                 // the queue as one block after the loops
@@ -155,7 +69,7 @@ namespace cuvnet
                 typedef voc_detection_dataset::pattern arg_type;
                 ensure_square_and_enqueue(
                         boost::bind(static_cast<void (list_type::*)(const arg_type&)>(&list_type::push_back), &storage, _1), 
-                        simg, crop_square_size, pat, false /* no locking */);
+                        si, crop_square_size, false /* no locking */);
 #else
                 // store images into the queue as soon as they are ready
                 // TODO: for some reason, this does not seem to work --
@@ -166,7 +80,7 @@ namespace cuvnet
                 ensure_square_and_enqueue(
                         boost::bind( static_cast<void (queue_type::*)(const arg_type&)>(&queue_type::push)
                             , loaded_data, _1),
-                        img, crop_square_size, pat, true /* locking */);
+                        si, crop_square_size, true /* locking */);
 #endif
             }
 #if STORE_IMAGES_SEQUENTIALLY
@@ -347,31 +261,39 @@ namespace cuvnet
         template<class T>
         void ensure_square_and_enqueue(T output, bbtools::sub_image& si, unsigned int sq_size, bool lock){
 
-            unsigned int n_classes = 1;
+            //unsigned int n_classes = 1;
             si.constrain_to_orig(true).extend_to_square();
             bool found_obj = si.has_objects();
             if(!found_obj)
                 return;
             si.crop_with_padding().scale_larger_dim(sq_size);
+            cimg_library::CImg<unsigned char>& img = *si.pcut;
+            cuvAssert(img.width() == (int)sq_size);
+            cuvAssert(img.height() == (int)sq_size);
 
+            int final_size = (sq_size - output_properties->crop_h) / output_properties->scale_h;
+            int final_start = output_properties->crop_h / 2;
             cimg_library::CImg<unsigned char> tch(sq_size, sq_size);
             cimg_library::CImg<unsigned char> ign(sq_size, sq_size);
-            cimg_library::CImg<unsigned char>& img = *si.pcut;
-            cuvAssert(img.width() == sq_size);
-            cuvAssert(img.height() == sq_size);
-
+            
             tch.fill(0);
             ign.fill(0);
-            si.mark_objects(2, 255, 3,  &tch);
-            si.mark_objects(2, 255, 1, &ign);
-            si.mark_objects(0, 255, 1, &img);
+            si.mark_objects(2, 255, 0.25f, &tch);
+            si.mark_objects(2, 255, 1.f, &ign);
+            //si.mark_objects(0, 255, 1, &img);
             si.fill_padding(0, &ign);
+
+            tch.crop(final_start, final_start, tch.width()-final_start-1, tch.height()-final_start-1, false);
+            ign.crop(final_start, final_start, ign.width()-final_start-1, ign.height()-final_start-1, false);
+            tch.resize(final_size, final_size, -100, -100, 3, 2, 0.5f, 0.5f);
+            ign.resize(final_size, final_size, -100, -100, 3, 2, 0.5f, 0.5f);
             
             // TODO: Blur now?
 
             // convert to cuv
             //img.RGBtoYCbCr();
             voc_detection_dataset::pattern pat;
+            //pat.meta_info = *meta;
             pat.img.resize(cuv::extents[3][sq_size][sq_size]);
             pat.tch.resize(cuv::extents[tch.depth()][tch.height()][tch.width()]);
             pat.ign.resize(cuv::extents[ign.depth()][ign.height()][ign.width()]);
@@ -391,8 +313,9 @@ namespace cuvnet
             //cuv::apply_scalar_functor(pat.ign, cuv::SF_MIN, 0.001f, &idx);
 
 #if 1
-            pat.tch /= 127.f;
-            pat.tch -=   1.f;
+            pat.tch /= 255.f;
+            //pat.tch /= 127.f;
+            //pat.tch -=   1.f;
 #else
             pat.tch /= 255.f;
 #endif
@@ -411,7 +334,7 @@ namespace cuvnet
             bbtools::image img(meta->filename);
             img.meta = *meta;
 
-            if(1){
+            if(0){
                 typedef std::queue<voc_detection_dataset::pattern> queue_type;
                 typedef voc_detection_dataset::pattern arg_type;
 
@@ -425,7 +348,7 @@ namespace cuvnet
                 // split up the image into multiple scales, extract images with
                 // size 128x128 on all scales, and enqueue them.
                 //split_up_scales(img, 176);
-                //split_up_bbs(img, 176);
+                split_up_bbs(img, 176);
             }
         }
     };
