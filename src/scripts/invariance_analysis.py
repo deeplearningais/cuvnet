@@ -68,21 +68,49 @@ def analyse_scale_translation(file_name, num_bins, fa, fb, x_axis, y_axis, xi_1,
 
     groups = o.groupby(['y_new', 'x_new'])
     mean = groups.mean()
-    mean =  mean[mean.columns[4:].tolist()]
+    mean =  mean[mean.columns[6:].tolist()]
 
+
+    
+
+    #print var.min()
+    #print var.max()
+
+
+
+
+    if (xi_1 == 0) and (xi_2==0):
+        #yi_1 = scale_bins.min() + 0.8
+        #yi_2 = scale_bins.max() - 0.8
+        yi_1 = -1
+        yi_2 = 1
+        y_lim_1 = yi_1
+        y_lim_2 = yi_2
+        print yi_1
+        print yi_2
+
+        xi_1 = tran_bins.min() + 1
+        xi_2 = tran_bins.max() - 1
+        x_lim_1 = xi_1
+        x_lim_2 = xi_2
+        print xi_1
+        print xi_2
 
     x = np.array(mean['x_bins'])
     y = np.array(mean['y_bins'])
 
-    xi = np.linspace(xi_1, xi_2, 20)
-    yi = np.linspace(yi_1,yi_2, 20)
+    #mean = groups.std()
+    #mean =  mean[mean.columns[6:].tolist()]
+
+    xi = np.linspace(xi_1, xi_2, 10)
+    yi = np.linspace(yi_1,yi_2, 10)
     
     mean = mean[mean.columns[:-2].tolist()]
 
     min_elem =  mean.min().min()
     max_elem = mean.max().max()
 
-    plt.figure(figsize=(fa,fb));
+    plt.figure(figsize=(20,10), dpi=80);
     plt.suptitle("Mean activations for %s " % x_name + ' and ' + y_name)
 
     for idx, hid in enumerate(mean.columns.tolist()):
@@ -120,6 +148,7 @@ def analyse_scale_translation(file_name, num_bins, fa, fb, x_axis, y_axis, xi_1,
 
 
 
+
 def analyse_transformation(file_name, cut_col, transformation, fa, fb):
     o = pa.read_csv(file_name, index_col=[0])
     r = pa.cut(o.ix[:,cut_col],10)
@@ -141,6 +170,7 @@ fb = 3
 
 #if the flag is set to 1, the transformation is translation, if set to 2 then it is scaling, and if 0 it is both 
 transf_flag = 3 
+
 if transf_flag == 1:
     cut_col = 3
     path = '../build/translation.txt'
@@ -156,90 +186,192 @@ else:
     trans = 'both'
 
 
+
+#############  local translation speed    #######################
 x_axis = 1
 y_axis = 2
-xi_1 = -5
-xi_2 = 110
-yi_1 = 0.9
-yi_2 = 1.12
-y_name = 'scaling'
-x_name = 'position'
+xi_1 = 0
+xi_2 = 0
+yi_1 = 0
+yi_2 = 0
+y_name = 'local translation'
+x_name = 'local position'
 x_lim_1 = 0
 x_lim_2 = 100
-y_lim_1 = 0.9
-y_lim_2 = 1.1
+y_lim_1 = -1.
+y_lim_2 = 1.
 
-path = '../build/tran_0_scale_1.txt'
+path = '../build/invariance_test-tran_0_scale_0.5_all_local.txt'
 analyse_scale_translation(path, 100, 3,4, x_axis, y_axis, xi_1, xi_2, yi_1, yi_2, x_name, y_name, x_lim_1, x_lim_2, y_lim_1, y_lim_2)
-
-
-x_axis = 1
-y_axis = 3
-xi_1 = -5
-xi_2 = 110
-yi_1 = -1.2
-yi_2 = 1.2
-y_name = 'translation'
-x_name = 'position'
-x_lim_1 = 0
-x_lim_2 = 100
-y_lim_1 = -1
-y_lim_2 = 1
-
-path = '../build/tran_1_scale_0.txt'
-analyse_scale_translation(path, 100, 3,4, x_axis, y_axis, xi_1, xi_2, yi_1, yi_2, x_name, y_name, x_lim_1, x_lim_2, y_lim_1, y_lim_2)
-
-x_axis = 3
-y_axis = 2
-xi_1 = -1.2
-xi_2 = 1.2
-yi_1 = 0.88
-yi_2 = 1.12
-y_name = 'scaling'
-x_name = 'translation'
-x_lim_1 = -1.
-x_lim_2 = 1.
-y_lim_1 = 0.9
-y_lim_2 = 1.1
-path = '../build/tran_scale.txt'
-analyse_scale_translation(path, 100, 3,4, x_axis, y_axis, xi_1, xi_2, yi_1, yi_2, x_name, y_name, x_lim_1, x_lim_2, y_lim_1, y_lim_2)
-
-
-
-
-x_axis = 1
-y_axis = 3
-xi_1 = -5
-xi_2 = 110
-yi_1 = -1.2
-yi_2 = 1.2
-y_name = 'translation'
-x_name = 'position'
-x_lim_1 = 0
-x_lim_2 = 100
-y_lim_1 = -1
-y_lim_2 = 1
-
-path = '../build/translation.txt'
-analyse_scale_translation(path, 100, 3,4, x_axis, y_axis, xi_1, xi_2, yi_1, yi_2, x_name, y_name, x_lim_1, x_lim_2, y_lim_1, y_lim_2)
-
+p = '../build/plots/2d_plots/'
+plt.savefig(p + 'scaling_all.pdf')
 
 
 x_axis = 1
 y_axis = 2
-xi_1 = -5
-xi_2 = 110
-yi_1 = 0.9
-yi_2 = 1.12
-y_name = 'scaling'
-x_name = 'position'
+xi_1 = 0
+xi_2 = 0
+yi_1 = 0
+yi_2 = 0
+y_name = 'local translation'
+x_name = 'local position'
 x_lim_1 = 0
 x_lim_2 = 100
-y_lim_1 = 0.9
-y_lim_2 = 1.1
+y_lim_1 = -1.
+y_lim_2 = 1.
 
-path = '../build/scaling.txt'
+path = '../build/invariance_test-tran_1_scale_0.5_all_pos_local.txt'
 analyse_scale_translation(path, 100, 3,4, x_axis, y_axis, xi_1, xi_2, yi_1, yi_2, x_name, y_name, x_lim_1, x_lim_2, y_lim_1, y_lim_2)
+
+plt.savefig(p + 'scal_tran_all.pdf')
+##########    end of local translation speed        #######################
+
+
+
+
+
+#x_axis = 1
+#y_axis = 2
+#xi_1 = -5
+#xi_2 = 110
+#yi_1 = 0.9
+#yi_2 = 1.12
+#y_name = 'scaling'
+#x_name = 'position'
+#x_lim_1 = 0
+#x_lim_2 = 100
+#y_lim_1 = 0.9
+#y_lim_2 = 1.1
+
+#path = '../build/tran_0_scale_1.txt'
+#analyse_scale_translation(path, 100, 3,4, x_axis, y_axis, xi_1, xi_2, yi_1, yi_2, x_name, y_name, x_lim_1, x_lim_2, y_lim_1, y_lim_2)
+##p = '../build/plots/2d_plots/'
+##plt.savefig(p + 'input_type_invariance.pdf')
+
+
+#x_axis = 1
+#y_axis = 2
+#xi_1 = -5
+#xi_2 = 110
+#yi_1 = 0.9
+#yi_2 = 1.12
+#y_name = 'scaling'
+#x_name = 'position'
+#x_lim_1 = 0
+#x_lim_2 = 100
+#y_lim_1 = 0.9
+#y_lim_2 = 1.1
+
+#path = '../build/invariance_test-tran_0_scale_1_center.txt'
+#analyse_scale_translation(path, 100, 3,4, x_axis, y_axis, xi_1, xi_2, yi_1, yi_2, x_name, y_name, x_lim_1, x_lim_2, y_lim_1, y_lim_2)
+##p = '../build/plots/2d_plots/'
+##plt.savefig(p + 'input_type_invariance.pdf')
+
+
+
+
+
+#x_axis = 1
+#y_axis = 3
+#xi_1 = -5
+#xi_2 = 110
+#yi_1 = -1.2
+#yi_2 = 1.2
+#y_name = 'translation'
+#x_name = 'position'
+#x_lim_1 = 0
+#x_lim_2 = 100
+#y_lim_1 = -1
+#y_lim_2 = 1
+
+#path = '../build/tran_1_scale_0.txt'
+#analyse_scale_translation(path, 100, 3,4, x_axis, y_axis, xi_1, xi_2, yi_1, yi_2, x_name, y_name, x_lim_1, x_lim_2, y_lim_1, y_lim_2)
+
+
+#x_axis = 1
+#y_axis = 3
+#xi_1 = -5
+#xi_2 = 110
+#yi_1 = -1.2
+#yi_2 = 1.2
+#y_name = 'translation'
+#x_name = 'position'
+#x_lim_1 = 0
+#x_lim_2 = 100
+#y_lim_1 = -1
+#y_lim_2 = 1
+
+#path = '../build/invariance_test-tran_1_scale_0_center.txt'
+#analyse_scale_translation(path, 100, 3,4, x_axis, y_axis, xi_1, xi_2, yi_1, yi_2, x_name, y_name, x_lim_1, x_lim_2, y_lim_1, y_lim_2)
+
+
+
+
+#x_axis = 3
+#y_axis = 2
+#xi_1 = -1.2
+#xi_2 = 1.2
+#yi_1 = 0.88
+#yi_2 = 1.12
+#y_name = 'scaling'
+#x_name = 'translation'
+#x_lim_1 = -1.
+#x_lim_2 = 1.
+#y_lim_1 = 0.9
+#y_lim_2 = 1.1
+#path = '../build/tran_scale.txt'
+#analyse_scale_translation(path, 100, 3,4, x_axis, y_axis, xi_1, xi_2, yi_1, yi_2, x_name, y_name, x_lim_1, x_lim_2, y_lim_1, y_lim_2)
+
+
+#x_axis = 3
+#y_axis = 2
+#xi_1 = -1.2
+#xi_2 = 1.2
+#yi_1 = 0.88
+#yi_2 = 1.12
+#y_name = 'scaling'
+#x_name = 'translation'
+#x_lim_1 = -1.
+#x_lim_2 = 1.
+#y_lim_1 = 0.9
+#y_lim_2 = 1.1
+#path = '../build/invariance_test-tran_1_scale_1_center.txt'
+#analyse_scale_translation(path, 100, 3,4, x_axis, y_axis, xi_1, xi_2, yi_1, yi_2, x_name, y_name, x_lim_1, x_lim_2, y_lim_1, y_lim_2)
+
+
+#x_axis = 1
+#y_axis = 3
+#xi_1 = -5
+#xi_2 = 110
+#yi_1 = -1.2
+#yi_2 = 1.2
+#y_name = 'translation'
+#x_name = 'position'
+#x_lim_1 = 0
+#x_lim_2 = 100
+#y_lim_1 = -1
+#y_lim_2 = 1
+
+#path = '../build/translation.txt'
+#analyse_scale_translation(path, 100, 3,4, x_axis, y_axis, xi_1, xi_2, yi_1, yi_2, x_name, y_name, x_lim_1, x_lim_2, y_lim_1, y_lim_2)
+
+
+
+#x_axis = 1
+#y_axis = 2
+#xi_1 = -5
+#xi_2 = 110
+#yi_1 = 0.9
+#yi_2 = 1.12
+#y_name = 'scaling'
+#x_name = 'position'
+#x_lim_1 = 0
+#x_lim_2 = 100
+#y_lim_1 = 0.9
+#y_lim_2 = 1.1
+
+#path = '../build/scaling.txt'
+#analyse_scale_translation(path, 100, 3,4, x_axis, y_axis, xi_1, xi_2, yi_1, yi_2, x_name, y_name, x_lim_1, x_lim_2, y_lim_1, y_lim_2)
 
 #analyse_transformation(path, cut_col , 'translation', fa, fb)
 #plt.savefig(p + 'average.pdf')
