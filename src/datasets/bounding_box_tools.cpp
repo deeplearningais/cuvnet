@@ -32,12 +32,16 @@ namespace cuvnet { namespace bbtools {
         :original_img(img)
         ,pcut(NULL)
         ,pos(r)
+        ,objfilt(NULL)
+        ,scale_fact(1.f)
     {
     }
 
     sub_image::sub_image(const image& img)
         :original_img(img)
         ,pcut(NULL)
+        ,objfilt(NULL)
+        ,scale_fact(1.f)
     {
         pos.xmin = 0;
         pos.ymin = 0;
@@ -45,16 +49,10 @@ namespace cuvnet { namespace bbtools {
         pos.ymax = original_img.porig->height();
     }
     bool sub_image::has_objects(){
-        std::vector<object> objs = objects();
         bool found = false;
-        BOOST_FOREACH(const object& o, objs){
-            if(o.bb.xmin > pos.xmax)
-                continue;
-            if(o.bb.ymin > pos.ymax)
-                continue;
-            if(o.bb.xmax < 0)
-                continue;
-            if(o.bb.ymax < 0)
+        // use the objects from the original image, no scaling required
+        BOOST_FOREACH(const object& o, original_img.meta.objects){
+            if(objfilt && !objfilt->filter(*this, o)) 
                 continue;
             found = true;
             break;
@@ -63,7 +61,7 @@ namespace cuvnet { namespace bbtools {
     }
 
     sub_image& sub_image::constrain_to_orig(bool clip){
-        int w = pos.xmax - pos.xmin;
+        int w = pos.xmax - pos.xmin +1;
         int ow = original_img.porig->width();
         if(w > ow){
             if(!clip)
@@ -71,7 +69,7 @@ namespace cuvnet { namespace bbtools {
             w = ow;
             pos.xmax = pos.xmin + w -1;
         }
-        int h = pos.ymax - pos.ymin;
+        int h = pos.ymax - pos.ymin+1;
         int oh = original_img.porig->height();
         if(h > oh){
             if(!clip)
@@ -118,8 +116,8 @@ namespace cuvnet { namespace bbtools {
         return *this;
     }
     sub_image& sub_image::extend_to_square(){
-        int h = pos.ymax - pos.ymin;
-        int w = pos.xmax - pos.xmin;
+        int h = pos.ymax - pos.ymin+1;
+        int w = pos.xmax - pos.xmin+1;
         if(h>w){
             float dy2 = (h-w)/2.f;
             pos.xmin = (int)( pos.xmin - dy2);
@@ -169,13 +167,10 @@ namespace cuvnet { namespace bbtools {
                 throw std::runtime_error("fill_padding: image argument NULL and no cropped subimage available!");
             img = pcut;
         }
-        float scale_w = (pos.xmax-pos.xmin+1) / (float)(img->width());
-        float scale_h = (pos.ymax-pos.ymin+1) / (float)(img->height());
-
-        int dbot   = -std::min(0, pos.ymin) / scale_h;
-        int dleft  = -std::min(0, pos.xmin) / scale_w;
-        int dright = -std::min(0, -pos.xmax + original_img.porig->width() - 1) / scale_w;
-        int dtop   = -std::min(0, -pos.ymax + original_img.porig->height() - 1) / scale_h;
+        int dbot   = -std::min(0, pos.ymin) * scale_fact;
+        int dleft  = -std::min(0, pos.xmin) * scale_fact;
+        int dright = -std::min(0, -pos.xmax + original_img.porig->width() - 1) * scale_fact;
+        int dtop   = -std::min(0, -pos.ymax + original_img.porig->height() - 1) * scale_fact;
 
         cimg_library::CImg<unsigned char>& dst = *img;
 
@@ -226,74 +221,89 @@ namespace cuvnet { namespace bbtools {
         if(!pcut)
             throw std::runtime_error("cut first, then call scale_height!");
 
-        //float fact = size / (float)std::max(pcut->width(), pcut->height());
-        //pcut->resize(fact * pcut->width(), fact * pcut->height(), -100, -100, 3, 2, 0.5f, 0.5f);
+        scale_fact = size / (float)std::max(pcut->width(), pcut->height());
         pcut->resize(size, size, -100, -100, 3, 2, 0.5f, 0.5f);
         return *this;
     }
 
     
     sub_image& 
-    sub_image::mark_objects(int type, unsigned char color, float scale, cimg_library::CImg<unsigned char>* img1){
-        if(!img1){
+    sub_image::mark_objects(int type, unsigned char color, float scale, cimg_library::CImg<unsigned char>* img){
+        if(!img){
             if(!pcut)
                 throw std::runtime_error("mark_objects: supply image or crop first!");
-            img1 = pcut;
+            img = pcut;
         }
-        std::vector<object> objs = objects();
+        const std::vector<object>& objs = original_img.meta.objects;
         const unsigned char clr[] = {color,color,color};
         if(type==2)
-            img1->fill(0);
-        BOOST_FOREACH(const object& o, objs){
+            img->fill(0);
+        BOOST_FOREACH(const object& orig_o, objs){
+            if(objfilt && !objfilt->filter(*this, orig_o)) 
+                continue;
+            object o = object_relative_to_subimg(orig_o);
             if(type==0){
-                img1->draw_rectangle(o.bb.xmin, o.bb.ymin, o.bb.xmax, o.bb.ymax, clr, 1.f, ~0U);
+                img->draw_rectangle(o.bb.xmin, o.bb.ymin, o.bb.xmax, o.bb.ymax, clr, 1.f, ~0U);
             }else if(type == 1){
-                img1->draw_rectangle(o.bb.xmin, o.bb.ymin,0,0, o.bb.xmax, o.bb.ymax, img1->depth()-1, img1->spectrum()-1, color);
+                img->draw_rectangle(o.bb.xmin, o.bb.ymin,0,0, o.bb.xmax, o.bb.ymax, img->depth()-1, img->spectrum()-1, color);
             }else if(type == 2){
                 const float cx = (o.bb.xmax+o.bb.xmin)/2.f;
                 const float cy = (o.bb.ymax+o.bb.ymin)/2.f;
                 float w  = o.bb.xmax - o.bb.xmin + 1;
                 float h  = o.bb.ymax - o.bb.ymin + 1;
-                float w1 = w * scale;
-                float h1 = h * scale;
-                cimg_forXY(*img1,dx,dy) {
+                w *= scale;
+                h *= scale;
+                w *= w; // square std-dev
+                h *= h; // square std-dev
+                cimg_forXY(*img,dx,dy) {
                     float mahalanobis_dist = sqrt(
-                            (dx-cx)*(dx-cx)/w1 +
-                            (dy-cy)*(dy-cy)/h1);
-                    (*img1)(dx,dy) = std::max((*img1)(dx,dy), (unsigned char) (255*exp(-0.5*mahalanobis_dist)));
+                            (dx-cx)*(dx-cx)/w +
+                            (dy-cy)*(dy-cy)/h);
+                    (*img)(dx,dy) = std::max((*img)(dx,dy), (unsigned char) (255*exp(-0.5*mahalanobis_dist)));
                 }
             }
         }
         return *this;
     }
 
-    std::vector<object> 
-    sub_image::objects(int size){
-        std::vector<object> res;
-        int orig_w = original_img.porig->width();
-        int orig_h = original_img.porig->height();
-        float scale_w = (pos.xmax-pos.xmin);
-        float scale_h = (pos.ymax-pos.ymin);
-        if(size < 0){
-            if(pcut){
-                scale_w /= pcut->width();
-                scale_h /= pcut->height();
-            }
-        }else if(size>0){
-                scale_w /= size;
-                scale_h /= size;
-        }
-        BOOST_FOREACH(object o, original_img.meta.objects){
-            o.bb.xmin = (o.bb.xmin-pos.xmin) / scale_w;
-            o.bb.xmax = (o.bb.xmax-pos.xmin) / scale_w;
-            o.bb.ymin = (o.bb.ymin-pos.ymin) / scale_h;
-            o.bb.ymax = (o.bb.ymax-pos.ymin) / scale_h;
-            res.push_back(o);
-        }
-        return res;
+    object sub_image::object_relative_to_subimg(const object& o){
+        object r = o;
+        r.bb.xmin = (o.bb.xmin-pos.xmin) * scale_fact;
+        r.bb.xmax = (o.bb.xmax-pos.xmin) * scale_fact;
+        r.bb.ymin = (o.bb.ymin-pos.ymin) * scale_fact;
+        r.bb.ymax = (o.bb.ymax-pos.ymin) * scale_fact;
+        return r;
     }
 
     sub_image::~sub_image(){
         delete pcut;
+    }
+
+    bool
+    object_filter::filter(const sub_image& si, const object& o){
+        if(o.bb.xmax < si.pos.xmin) return false;
+        if(o.bb.ymax < si.pos.ymin) return false;
+
+        if(o.bb.xmin > si.pos.xmax) return false;
+        if(o.bb.ymin > si.pos.ymax) return false;
+        return true;
+    }
+    bool
+    single_class_object_filter::filter(const sub_image& si, const object& o){
+        if(o.klass != klass) // 14: person
+            return false;;
+        return object_filter::filter(si,o);
+    }
+    bool similar_scale_object_filter::filter(const sub_image& si, const object& o){
+        int w = si.pos.xmax - si.pos.xmin + 1;
+        int ow = o.bb.xmax - o.bb.xmin + 1;
+        if(ow < min_frac*w) return false;
+        if(ow > max_frac*w) return false;
+
+        int h = si.pos.ymax - si.pos.ymin + 1;
+        int oh = o.bb.ymax - o.bb.ymin + 1;
+        if(oh < min_frac*h) return false;
+        if(oh > max_frac*h) return false;
+        return object_filter::filter(si,o);
     }
 } }

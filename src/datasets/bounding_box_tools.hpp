@@ -73,10 +73,14 @@ namespace cuvnet
             image& operator=(const image&);
         };
 
+        struct object_filter;
+
         struct sub_image{
             const image& original_img;
             cimg_library::CImg<unsigned char>* pcut;
             rectangle pos; ///< the position in the original image (might be larger than original image!)
+            object_filter* objfilt; ///< can be used to select only some objects (eg based on class)
+            float scale_fact; ///< size in `pos' is multiplied by this
             
             /**
              * ctor. 
@@ -122,10 +126,10 @@ namespace cuvnet
             sub_image& crop_with_padding(int border=1);
 
             /**
-             * determine the positions of objects in the original image in a sub_image.
-             * @param size if given, assume the new image is square and scaled sizeXsize
+             * determine the position of an object in the original image in a sub_image.
+             * @param o the object to be processed
              */
-            std::vector<object> objects(int size=-1);
+            object object_relative_to_subimg(const object& o);
 
             /**
              * draw rectangles around the positions where objects are in the original image.
@@ -165,6 +169,61 @@ namespace cuvnet
             bool has_objects();
 
             ~sub_image();
+        };
+
+        /**
+         * determine whether we care about a specific object in
+         * an image or not.
+         *
+         * This filter returns true if the object bounding box
+         * overlaps with the sub_image.
+         *
+         * Write your own filter by specializing this.
+         *
+         * @param si the sub-image the object [might] be in
+         * @param o  the object we're considering
+         */
+        struct object_filter{
+            virtual bool filter(const sub_image& si, const object& o);
+        };
+
+        /**
+         * only allow objects of a single class, in addition to
+         * the requirements by object_filter.
+         */
+        struct single_class_object_filter
+            : public object_filter
+        {
+            unsigned int klass;
+            single_class_object_filter(unsigned int k):klass(k){}
+            virtual bool filter(const sub_image& si, const object& o);
+        };
+
+        /**
+         * filter objects which have roughly the same scale, in addition to
+         * the requirements by object_filter.
+         */
+        struct similar_scale_object_filter
+            : public object_filter
+        {
+            float min_frac, max_frac;
+            similar_scale_object_filter(float minf, float maxf):min_frac(minf), max_frac(maxf){}
+            virtual bool filter(const sub_image& si, const object& o);
+        };
+
+        /**
+         * join two filters by conjunction
+         */
+        template<class A, class B>
+        struct and_object_filter
+        : public object_filter
+        {
+            object_filter& a;
+            object_filter& b;
+            and_object_filter(object_filter& _a, object_filter& _b):a(_a), b(_b){}
+            virtual bool filter(const sub_image& si, const object& o){
+                return a.filter(si,o) && b.filter(si,o);
+            }
         };
         
 
