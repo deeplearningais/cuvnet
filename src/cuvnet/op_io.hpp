@@ -72,6 +72,7 @@ namespace cuvnet
             ar.template register_type<ReorderFromConv>();
             ar.template register_type<LocalPooling>();
             ar.template register_type<ResponseNormalization>();
+            ar.template register_type<ResponseNormalizationCrossMaps>();
             ar.template register_type<ContrastNormalization>();
             ar.template register_type<SeparableFilter>();
             ar.template register_type<ResizeBilinear>();

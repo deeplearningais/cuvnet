@@ -525,6 +525,34 @@ BOOST_AUTO_TEST_CASE(derivative_test_sep_conv){
  *}
  */
 
+BOOST_AUTO_TEST_CASE(derivative_test_response_normalization_cross_maps){
+	typedef boost::shared_ptr<Op> ptr_t;
+
+    using namespace cuv::alex_conv;
+    unsigned int nImgChan = 16;      // must be divisible by 16, it seems
+    unsigned int nImgPixY  = 16;
+    unsigned int nImgPixX  = 16;
+    unsigned int nImg     = 1;
+
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg]);
+    for(unsigned int i=0; i<nImgChan; i++){
+        for (unsigned int j = 0; j < nImg; ++j)
+        {
+            for (unsigned int y = 0; y < nImgPixY; ++y)
+            {
+                for (unsigned int x = 0; x < nImgPixX; ++x)
+                {
+                    //inp0->data()(i,y,x,j) = ((x%2)==0) && ((y%2)==1);
+                    inp0->data()(i,y,x,j) = 0.1f + 0.9 * drand48();
+                }
+            }
+        }
+    }
+    {
+	    ptr_t func		               = boost::make_shared<ResponseNormalizationCrossMaps>(inp0->result(), 3, 0.0000125f, 0.75f, false);
+	    derivative_tester(*func,0,true);
+    }
+}
 BOOST_AUTO_TEST_CASE(derivative_test_response_normalization){
 	typedef boost::shared_ptr<Op> ptr_t;
 
