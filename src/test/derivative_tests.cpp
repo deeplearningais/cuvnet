@@ -576,7 +576,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_response_normalization){
         }
     }
     {
-	    ptr_t func		               = boost::make_shared<ResponseNormalization>(inp0->result(), 3, 1.f, 1.f);
+	    ptr_t func		               = boost::make_shared<ResponseNormalization>(inp0->result(), 3, 0.0000125f, 0.5f);
 	    derivative_tester(*func,0,true);
     }
 }
@@ -599,13 +599,14 @@ BOOST_AUTO_TEST_CASE(derivative_test_contrast_normalization){
             {
                 for (unsigned int x = 0; x < nImgPixX; ++x)
                 {
-                    inp0->data()(i,y,x,j) = ((x%2)==0) && ((y%2)==1);
+                    //inp0->data()(i,y,x,j) = ((x%2)==0) && ((y%2)==1);
+                    inp0->data()(i,y,x,j) = 0.1f + 0.9f * drand48();
                 }
             }
         }
     }
     {
-	    ptr_t func		               = boost::make_shared<ContrastNormalization>(inp0->result(), 4, 1.f, 1.f);
+	    ptr_t func		               = boost::make_shared<ContrastNormalization>(inp0->result(), 4, 0.0000125f, 0.5f);
 	    derivative_tester(*func, 0, false, 0.03, 0,0);
     }
 }
