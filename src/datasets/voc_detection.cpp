@@ -317,12 +317,11 @@ namespace cuvnet
             //cuv::apply_scalar_functor(idx, pat.tch, cuv::SF_LT, 176);
             //cuv::apply_scalar_functor(pat.ign, cuv::SF_MIN, 0.001f, &idx);
 
-#if 1
-            pat.tch /= 255.f;
-            //pat.tch /= 127.f;
-            //pat.tch -=   1.f;
+#if 0
+            pat.tch /= cuv::maximum(pat.tch)/2.f + 0.0001f; // HACK: maximum of teacher is one -- always!
+            pat.tch -=   1.f;
 #else
-            pat.tch /= 255.f;
+            pat.tch /= cuv::maximum(pat.tch) + 0.0001f; // HACK: maximum of teacher is one -- always!
 #endif
 
             // put in pipe
