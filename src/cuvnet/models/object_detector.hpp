@@ -24,8 +24,8 @@ class obj_detector
         friend class boost::serialization::access;
         template<class Archive>
             void serialize(Archive& ar, const unsigned int version){
-                ar & m_conv1_weights & m_conv2_weights & m_conv3_weights;
-                ar & m_bias1 & m_bias2 & m_bias3;
+                ar & m_conv1_weights & m_conv2_weights & m_conv3_weights & m_conv4_weights;
+                ar & m_bias1 & m_bias2 & m_bias3 & m_bias4;
                 ar & m_loss;
                 ar & m_n_channels;
                 ar & m_filter_size1 & m_filter_size2 & m_filter_size3;
@@ -36,19 +36,18 @@ class obj_detector
         input_ptr m_conv1_weights;
         input_ptr m_conv2_weights;
         input_ptr m_conv3_weights;
-        input_ptr m_bias1, m_bias2, m_bias3;
+        input_ptr m_conv4_weights;
+        input_ptr m_bias1, m_bias2, m_bias3 , m_bias4;
         sink_ptr m_output;
         op_ptr m_loss;
 
         unsigned int m_n_channels;
-        unsigned int m_filter_size1, m_filter_size2, m_filter_size3; 
-        unsigned int m_n_filters1, m_n_filters2, m_n_filters3;
+        unsigned int m_filter_size1, m_filter_size2, m_filter_size3, m_filter_size4; 
+        unsigned int m_n_filters1, m_n_filters2, m_n_filters3, m_n_filters4;
 
         op_ptr actfunc(op_ptr f){
             //return tanh(f);
             return rectified_linear(f);
-            //return response_normalization(rectified_linear(f), 7, 1.f, 1.f);
-            //return contrast_normalization(tanh(f), 7, 1.f, 1.f);
         }
 
         op_ptr conv_bias(op_ptr images, op_ptr weights, op_ptr bias = op_ptr()){
@@ -71,6 +70,7 @@ class obj_detector
         }
 
         op_ptr pool(op_ptr images){
+            //return response_normalization_cross_maps(local_pool(images, cuv::alex_conv::PT_MAX), -1);
             return local_pool(images, cuv::alex_conv::PT_MAX);
             //return sqrt(local_pool(pow(images, 2.f), cuv::alex_conv::PT_AVG));
         }
@@ -90,20 +90,25 @@ class obj_detector
             unsigned int bs= inp->result()->shape[0];
             m_n_channels   = inp->result()->shape[1];
 
-            m_n_filters3   = n_omaps;
+            m_n_filters3   = 128;
+            m_filter_size4 = m_filter_size3;
+            m_n_filters4   = n_omaps;
 
             m_conv1_weights.reset(new ParameterInput(cuv::extents[m_n_channels][m_filter_size1*m_filter_size1][m_n_filters1], "conv_weights1"));
             m_conv2_weights.reset(new ParameterInput(cuv::extents[m_n_filters1][m_filter_size2*m_filter_size2][m_n_filters2], "conv_weights2"));
             m_conv3_weights.reset(new ParameterInput(cuv::extents[m_n_filters2][m_filter_size3*m_filter_size3][m_n_filters3], "conv_weights3"));
+            m_conv4_weights.reset(new ParameterInput(cuv::extents[m_n_filters3][m_filter_size4*m_filter_size4][m_n_filters4], "conv_weights4"));
 
             m_bias1.reset(new ParameterInput(cuv::extents[m_n_filters1], "bias1"));
             m_bias2.reset(new ParameterInput(cuv::extents[m_n_filters2], "bias2"));
             m_bias3.reset(new ParameterInput(cuv::extents[m_n_filters3], "bias3"));
+            m_bias4.reset(new ParameterInput(cuv::extents[m_n_filters4], "bias4"));
 
             op_ptr input_pool0 = reorder_for_conv(inp);
             hl1 = actfunc(conv_bias(input_pool0,   m_conv1_weights, m_bias1));
             hl2 = actfunc(conv_bias(pool(hl1), m_conv2_weights, m_bias2));
-            hl3 =         conv_bias(pool(hl2), m_conv3_weights, m_bias3);
+            hl3 = actfunc(conv_bias(pool(hl2), m_conv3_weights, m_bias3));
+            hl3 =         conv_bias(     hl3 , m_conv4_weights, m_bias4);
 
             m_output = sink("output", hl3);
 
@@ -122,17 +127,19 @@ class obj_detector
                     ;
 
             // batch is in the dimension with index 2
+            m_loss = mean(subsampled_ignore * abs(logistic(hl3) - subsampled_target));
+            //m_loss = mean(subsampled_ignore * abs(hl3 - subsampled_target));
             //m_loss = mean(subsampled_ignore * square(hl3 - subsampled_target));
             //m_loss = mean(subsampled_ignore * neg_log_cross_entropy_of_logistic(subsampled_target, hl3));
             //m_loss = mean(subsampled_ignore * epsilon_insensitive_loss(0.05f, subsampled_target, logistic(hl3)));
             //m_loss = mean(subsampled_ignore * epsilon_insensitive_loss(0.05f, subsampled_target, hl3));
-            m_loss = mean(subsampled_ignore * squared_hinge_loss(subsampled_target, hl3));
+            //m_loss = mean(subsampled_ignore * squared_hinge_loss(subsampled_target, hl3));
 
             m_f2.reset(new F2Measure(
                         sink("sst", subsampled_target)->result(),
                         sink("hl3", hl3)->result(),
                         sink("ign", subsampled_ignore)->result(),
-                        0.f));
+                        0.5f, 0.5f));
 
             reset_weights();
         }
@@ -147,9 +154,11 @@ class obj_detector
             params += m_conv1_weights.get();
             params += m_conv2_weights.get();
             params += m_conv3_weights.get();
+            params += m_conv4_weights.get();
             params += m_bias1.get();
             params += m_bias2.get();
             params += m_bias3.get();
+            params += m_bias4.get();
             return params;
         };
 
@@ -191,6 +200,7 @@ class obj_detector
             project_to_unit_ball(m_conv1_weights->data(), 2, 5.f);
             project_to_unit_ball(m_conv2_weights->data(), 2, 5.f);
             project_to_unit_ball(m_conv3_weights->data(), 2, 5.f);
+            project_to_unit_ball(m_conv4_weights->data(), 2, 5.f);
         }
 
         /**
@@ -232,6 +242,18 @@ class obj_detector
                 m_conv3_weights->data() -=   diff;
                 //m_conv3_weights->data() = 0.f;
             } 
+            {
+                float fan_in = m_n_filters3 * m_filter_size4 * m_filter_size4;
+                float fan_out = 1 * 1 * 1;
+                float diff = std::sqrt(6.f/(fan_in + fan_out));
+                //float diff = std::sqrt(3.f/(fan_in));
+                //diff *= .1f;
+    
+                cuv::fill_rnd_uniform(m_conv4_weights->data());
+                m_conv4_weights->data() *= 2*diff;
+                m_conv4_weights->data() -=   diff;
+                //m_conv4_weights->data() = 0.f;
+            } 
 
             //m_conv1_weights->set_learnrate_factor ( 1.f / 3.f );
             //m_conv1_weights->m_learnrate_factor = 1.f / (m_filter_size1 * m_filter_size1);
@@ -241,6 +263,7 @@ class obj_detector
             m_bias1->data() =  0.f;
             m_bias2->data() =  0.f;
             m_bias3->data() =  0.f;
+            m_bias4->data() =  0.f;
             //m_bias1->m_learnrate_factor = 1.f / (m_filter_size1 * m_filter_size1);
             //m_bias2->m_learnrate_factor = 1.f / (m_filter_size2 * m_filter_size2);
             //m_bias3->m_learnrate_factor = 1.f / (m_filter_size3 * m_filter_size3);
