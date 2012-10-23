@@ -306,7 +306,7 @@ namespace cuvnet
             cuv::convert(pat.tch, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[tch.depth()][tch.height()][tch.width()], tch.data()));
             cuv::convert(pat.ign, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[ign.depth()][ign.height()][ign.width()], ign.data()));
 
-            pat.img /= 255.f;
+            pat.img /= 255.f; 
             pat.img -= 0.5f;
             pat.ign /= 255.f;
 
