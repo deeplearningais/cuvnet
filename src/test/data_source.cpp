@@ -53,11 +53,11 @@ BOOST_AUTO_TEST_CASE( loadsave ){
         si.crop().show("deer");
     }
 
-    rectangle too_large; // original image is 640x480
+    rectangle too_large; // original image is 640x480 transposed
     too_large.xmin = -10; // 10 px to either side
-    too_large.xmax = 649; // 10 px to either side
-    too_large.ymin = 0;
-    too_large.ymax =  479;
+    too_large.xmax =  479; 
+    too_large.ymin = -10;
+    too_large.ymax =  649;
 
 
     img.transpose();
@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE( loadsave ){
         sub_image si(img, too_large);
         BOOST_CHECK_THROW(si.constrain_to_orig(false), std::runtime_error);
         BOOST_CHECK_NO_THROW(si.constrain_to_orig(true));
-        si.crop().show("whole image"); // whole image!?
+        si.crop().show("whole image, no objects marked"); // whole image!?
     }
 
     {
@@ -78,7 +78,7 @@ BOOST_AUTO_TEST_CASE( loadsave ){
     {   // mark type
         sub_image si(img, too_large);
         si.constrain_to_orig(true).crop_with_padding();
-        si.mark_objects(2,255,15);
+        si.mark_objects(2,255,0.1);
         si.show("objects marked w/ blobs"); 
     }
 
