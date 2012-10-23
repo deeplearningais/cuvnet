@@ -261,6 +261,11 @@ namespace cuvnet
         template<class T>
         void ensure_square_and_enqueue(T output, bbtools::sub_image& si, unsigned int sq_size, bool lock){
 
+            bbtools::single_class_object_filter ofk(14);
+            bbtools::similar_scale_object_filter ofs(0.25f, 0.8f);
+            bbtools::and_object_filter<bbtools::single_class_object_filter, bbtools::similar_scale_object_filter> of(ofk,ofs);
+            si.objfilt = &of;
+
             //unsigned int n_classes = 1;
             si.constrain_to_orig(true).extend_to_square();
             bool found_obj = si.has_objects();
