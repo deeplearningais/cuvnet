@@ -46,13 +46,14 @@ def rgb_filters(x, trans=True, sepnorm=False):
     """ visualize an RGB filter matrix """
     print x.min(), x.mean(), x.max()
     print x.shape
-    n_filters = min(6, x.shape[0])
     if len(x.shape) == 3:
         # this is a weight matrix
         n_pix_x = int(np.sqrt(x.shape[2]))
     elif len(x.shape) == 4:
         # this is an input image array
         n_pix_x = x.shape[2] # == x.shape[3]
+
+    n_filters = min(x.shape[0], max(6, int(176*6 / n_pix_x**2)))
 
     fig, axes = plt.subplots(4, n_filters)
     fig.subplots_adjust(hspace=0.00, wspace=0.00,
