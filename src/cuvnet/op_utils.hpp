@@ -413,7 +413,14 @@ namespace cuvnet
      * This function traverses the path from the teacher to the input and can be
      * used to retrieve the combined scaling/cropping operations.
      *
-     * @note for convinience, this is currently implemented using depth-first
+     * After running, the object has a scale and a crop variable set for each
+     * dimension. The original image is related to the output as follows:
+     *
+     * output_size = (size - crop)/scale
+     *
+     * where cropping should take away crop/2 from both sides of the input.
+     *
+     * @note for convenience, this is currently implemented using depth-first
      * search. Thus, we cannot guarantee /shortest/ path or efficiency,
      * however, this should not be a problem since most graphs will be small
      * and the function will only be called once.
