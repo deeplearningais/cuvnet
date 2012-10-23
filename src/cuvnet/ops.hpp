@@ -157,9 +157,12 @@ namespace cuvnet
     /// construct a ContrastNormalization object
     inline
         Op::op_ptr contrast_normalization(Op::op_ptr img, int patchSize, float addScale, float powScale) { return boost::make_shared<ContrastNormalization>(img->result(), patchSize, addScale, powScale); }
+    /// construct a ResponseNormalizationCrossMaps object
+    inline
+        Op::op_ptr response_normalization_cross_maps(Op::op_ptr img, int groups, float addScale=0.0000125f, float powScale=0.75f, bool blocked=false) { return boost::make_shared<ResponseNormalizationCrossMaps>(img->result(), groups, addScale, powScale, blocked); }
     /// construct a ResponseNormalization object
     inline
-        Op::op_ptr response_normalization(Op::op_ptr img, int patchSize, float addScale, float powScale) { return boost::make_shared<ResponseNormalization>(img->result(), patchSize, addScale, powScale); }
+        Op::op_ptr response_normalization(Op::op_ptr img, int patchSize, float addScale, float powScale) { return boost::make_shared<ResponseNormalization>(img->result(), patchSize, addScale=0.0000125f, powScale=0.5f); }
     /// construct a BedOfNails object
     inline
         Op::op_ptr bed_of_nails(Op::op_ptr img, int stridex=2, int startx=0) { return boost::make_shared<BedOfNails>(img->result(), stridex, startx); }
