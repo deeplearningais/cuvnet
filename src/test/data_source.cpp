@@ -21,7 +21,7 @@ BOOST_AUTO_TEST_SUITE( t_bbtools )
 
 BOOST_AUTO_TEST_CASE( loadsave ){
     using namespace cuvnet::bbtools;
-    image img("../../src/datasets/util/bbtools.jpg");
+    image img("bbtools.jpg");
 
     object o;
 

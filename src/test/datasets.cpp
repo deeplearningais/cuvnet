@@ -154,7 +154,7 @@ BOOST_AUTO_TEST_SUITE( VOC_Detection )
 BOOST_AUTO_TEST_CASE(init){
     // NOTE: must be of same size as the squared-size the dataset produces
     //       since bndbox coordinates will be translated to new size!
-    std::string fn = "../src/datasets/util/lena.jpg"; 
+    std::string fn = "lena.jpg"; 
     {
         std::ofstream os("test.txt");
         os << fn;

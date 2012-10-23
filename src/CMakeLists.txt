@@ -25,6 +25,8 @@ LINK_DIRECTORIES(~/lib)
 LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -fno-strict-aliasing")
 
+CONFIGURE_FILE( ${CMAKE_CURRENT_SOURCE_DIR}/datasets/util/bbtools.jpg ${CMAKE_BINARY_DIR} COPYONLY)
+CONFIGURE_FILE( ${CMAKE_CURRENT_SOURCE_DIR}/datasets/util/lena.jpg ${CMAKE_BINARY_DIR} COPYONLY)
 
 # this is for using tcmalloc, see http://code.google.com/p/gperftools/wiki/GooglePerformanceTools
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free")
