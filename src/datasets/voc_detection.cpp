@@ -283,8 +283,8 @@ namespace cuvnet
             
             tch.fill(0);
             ign.fill(0);
-            si.mark_objects(2, 255, 0.25f, &tch);
-            si.mark_objects(2, 255, 1.f, &ign);
+            si.mark_objects(2, 255, 0.1f, &tch);
+            si.mark_objects(2, 255, 0.1f, &ign);
             //si.mark_objects(0, 255, 1, &img);
             si.fill_padding(0, &ign);
 
