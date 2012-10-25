@@ -13,6 +13,7 @@
 #include <cuvnet/models/simple_auto_encoder.hpp>
 #include <cuvnet/models/logistic_regression.hpp>
 #include <cuvnet/models/linear_regression.hpp>
+#include <cuvnet/models/linear_regression_mod.hpp>
 #include <vector>
 #include <map>
 #include <exception>
@@ -345,7 +346,7 @@ arrange_single_filter(const tensor_type& fx_ ,  unsigned int dstMapCount, unsign
  * @return rearranged view
  *
  */
-void visualize_filters_regression(linear_regression* lr){
+void visualize_filters_regression(linear_regression_mod* lr){
     std::string base = "weights_regression";
 
     tensor_type w = trans(lr->get_weights()->data());
@@ -417,7 +418,7 @@ void visualize_filters(relational_auto_encoder* ae, monitor* mon,  input_ptr inp
 
      fa = 10;
      //fb = in_x.shape(0) / 10;
-     fb =  30;
+     fb =  10;
      cuvAssert(!cuv::has_nan(in_x));
      cuvAssert(!cuv::has_inf(in_x));
      auto wvis      = arrange_inputs_and_prediction(in_x, in_y, teacher_, prediction, fa, fb, (int)in_x.shape(1),true);
@@ -430,8 +431,8 @@ void visualize_filters(relational_auto_encoder* ae, monitor* mon,  input_ptr inp
      tensor_type fx = (*mon)["factorx"].copy();
      tensor_type fy = (*mon)["factory"].copy();
      tensor_type elem_mult = fx * fy;
-     fa = 2;
-     fb = fx.shape(0) / fa;
+     fa = 1;
+     fb = 10;
 
      auto wvis = arrange_input_filters(fx, fy, elem_mult, fa, fb, (int)fx.shape(1), true);
      cuv::libs::cimg::save(wvis, base+"sb.png");
@@ -743,7 +744,7 @@ void test_phase(random_translation& ds, monitor& mon, relational_auto_encoder& a
     rprop_gradient_descent gd(ae.loss(), 0, params, 0);
     //gradient_descent gd(ae.loss(),0,params,0.f);
     mon.register_gd(gd);
-    //gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon, input_x, input_y, teacher, param_name, false,_1));
+    gd.after_epoch.connect(boost::bind(visualize_filters,&ae,&mon, input_x, input_y, teacher, param_name, false,_1));
     gd.before_batch.connect(boost::bind(load_batch,input_x, input_y, teacher, &data, bs,_2));
     gd.after_batch.connect(boost::bind(log_activations, &mon, &dum, &ds,bs, false, _2));
     gd.current_batch_num = data.shape(1)/ll::constant(bs);
@@ -807,16 +808,18 @@ void prediction_phase(random_translation& ds, monitor& mon, relational_auto_enco
  * load a batch from the dataset for the logistic regression
  */
 void load_batch_logistic(
-        linear_regression* lr,
         boost::shared_ptr<ParameterInput> input,
         boost::shared_ptr<ParameterInput> target,
+        boost::shared_ptr<ParameterInput> pattern_ident,
         cuv::tensor<float,cuv::dev_memory_space>* data,
         cuv::tensor<float,cuv::dev_memory_space>* labels,
-        unsigned int bs, unsigned int batch){
+        cuv::tensor<float,cuv::host_memory_space>* all_patterns,
+        unsigned int batch){
     //std::cout <<"."<<std::flush;
+    int bs = target->data().shape(0);
     input->data() = (*data)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
     target->data() = (*labels)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
-    tensor_type w = lr->get_weights()->data();
+    pattern_ident->data() = (*all_patterns)[cuv::indices[cuv::index_range(batch*bs,(batch+1)*bs)][cuv::index_range()]];
     //std::cout << " w min " << cuv::minimum(w) << " w max " << cuv::maximum(w) << std::endl; 
 }
 
@@ -840,10 +843,25 @@ void accumulate_batches(monitor * mon, tensor_type all_est,  tensor_type& all_te
 void dump_est_teacher_regression(std::string file_name, tensor_type &all_est, tensor_type &all_teacher){
       std::ofstream m_logfile;
       m_logfile.open(file_name.c_str(), std::ios::out);
-      m_logfile << "est_tran,teacher_tran,est_scale,teacher_scale" << std::endl;
+
+      // write header
+      m_logfile << "e0,t0";
+      for (int i = 1; i < all_est.shape(1); ++i)
+      {
+          m_logfile << ",e" << i << ",t" << i;
+      }
+      m_logfile << std::endl;
+      //m_logfile << "est_tran,teacher_tran,est_scale,teacher_scale" << std::endl;
+
+      // dump values
       for (unsigned int i = 0; i < all_est.shape(0); ++i)
       {
-          m_logfile << all_est(i,0) << "," << all_teacher(i, 0) << "," << all_est(i,1) << "," << all_teacher(i, 1) << std::endl;
+          m_logfile << all_est(i, 0) << "," << all_teacher(i,0);
+          for (int j = 1; j < all_est.shape(1); ++j)
+          {
+              m_logfile << "," << all_est(i, j) << "," << all_teacher(i,j);
+          }
+          m_logfile << std::endl;
       }
       m_logfile.close();
 }
@@ -861,6 +879,7 @@ void regression(random_translation& ds, int bs, std::string param_name){
     tensor_type labels_test = dum.test_labels;
 
 
+
    // an \c Input is a function with 0 parameters and 1 output.
    // here we only need to specify the shape of the input and target correctly
    // \c load_batch will put values in it.
@@ -869,28 +888,31 @@ void regression(random_translation& ds, int bs, std::string param_name){
    boost::shared_ptr<ParameterInput> target(
            new ParameterInput(cuv::extents[bs][ds.train_labels.shape(1)],"target"));
 
+   boost::shared_ptr<ParameterInput> pattern_ident(
+           new ParameterInput(cuv::extents[bs][labels_train.shape(1)],"pattern_ident"));
+
 
 
     
-    //creates stacked autoencoder with one simple autoencoder. has fa*fb number of hidden units
-    //auto_encoder_stack ae_s(false);
-    //typedef l2reg_simple_auto_encoder ae_type;
-    //ae_s.add<ae_type>(30, false, 0.01f);
-    //ae_s.init(input);
 
    // creates the linear regression 
-   linear_regression lr( input, target);
-   //linear_regression lr(ae_s.get_encoded(), target);
+   //linear_regression_mod lr( input, target, pattern_ident);
    //linear_lasso_regression lr(0.1, input, target);
    //linear_ridge_regression lr(0.1, input, target);
 
    // puts the supervised parameters of the stacked autoencoder and logistic regression parameters in one vector
-   std::vector<Op*> params = lr.params();
+   //std::vector<Op*> params = lr.params();
 
 
-   //std::vector<Op*> params = ae_s.supervised_params();
-   //std::vector<Op*> params_log = lr.params();
-   //std::copy(params_log.begin(), params_log.end(), std::back_inserter(params));
+   //creates stacked autoencoder with one simple autoencoder. has fa*fb number of hidden units
+   auto_encoder_stack ae_s(false);
+   typedef l2reg_simple_auto_encoder ae_type;
+   ae_s.add<ae_type>(30, false, 0.01f);
+   ae_s.init(input);
+   linear_regression_mod lr(ae_s.get_encoded(), target, pattern_ident);
+   std::vector<Op*> params = ae_s.supervised_params();
+   std::vector<Op*> params_log = lr.params();
+   std::copy(params_log.begin(), params_log.end(), std::back_inserter(params));
 
    // create a verbose monitor, so we can see progress 
    // and register the decoded activations, so they can be displayed
@@ -916,7 +938,7 @@ void regression(random_translation& ds, int bs, std::string param_name){
        mon.register_gd(gd);
         
        // before each batch, load data into \c input
-       gd.before_batch.connect(boost::bind(load_batch_logistic, &lr, input, target,&train_data, &train_labels, bs,_2));
+       gd.before_batch.connect(boost::bind(load_batch_logistic, input, target, pattern_ident, &train_data, &train_labels, &ds.pattern_ident_train, _2));
         
        // the number of batches is constant in our case (but has to be supplied as a function)
        gd.current_batch_num = encoder_train.shape(0) / ll::constant(bs);
@@ -937,7 +959,7 @@ void regression(random_translation& ds, int bs, std::string param_name){
       matrix test_labels(labels_test);
       rprop_gradient_descent gd(lr.get_loss(), 0, params,   0.00001);
       mon.register_gd(gd);
-      gd.before_batch.connect(boost::bind(load_batch_logistic, &lr, input, target,&test_data, &test_labels, bs,_2));
+      gd.before_batch.connect(boost::bind(load_batch_logistic,  input, target, pattern_ident, &test_data, &test_labels, &ds.pattern_ident_test, _2));
       gd.after_batch.connect(boost::bind(accumulate_batches, &mon, all_est, all_teacher, bs,_2));
       gd.current_batch_num = encoder_test.shape(0)/ll::constant(bs);
       gd.after_epoch.connect(boost::bind(visualize_filters_regression,&lr));
@@ -1149,9 +1171,10 @@ struct morse_pat_gen{
     int m_current_ex_type;
     int m_gauss_dist;
     float m_sigma;
+    int m_subsample;
     public:
 
-    morse_pat_gen(input_ptr input_x, input_ptr input_y, int min_trans, int max_trans, int min_pos, int max_pos, int min_ex_type, int max_ex_type, int factor, int input_size, int max_num_examples, float max_scale, int gauss_dist, float sigma):
+    morse_pat_gen(input_ptr input_x, input_ptr input_y, int min_trans, int max_trans, int min_pos, int max_pos, int min_ex_type, int max_ex_type, int factor, int input_size, int max_num_examples, float max_scale, int gauss_dist, float sigma, int subsample):
         m_input_x(input_x),
         m_input_y(input_y),
         m_min_trans(min_trans),
@@ -1170,7 +1193,8 @@ struct morse_pat_gen{
         m_current_scale(0),
         m_current_ex_type(0),
         m_gauss_dist(gauss_dist),
-        m_sigma(sigma)
+        m_sigma(sigma),
+        m_subsample(subsample)
     {
         srand ( time(NULL) );
     }
@@ -1178,49 +1202,39 @@ struct morse_pat_gen{
         if(m_current_example == m_max_num_examples){
             throw max_example_reached_exception();
         }
-        if(m_current_pos == m_max_pos){
-            m_current_pos = m_min_pos;
-        }
 
         // samples translation and input type only once, and iterates over all positions
         float trans;
         float scale;
         int ex_type;
-        if(m_current_pos == m_min_pos){
-            if(m_max_scale == 0.f){
-               scale = 1.f;
-            }else{
-               scale =  1 + (drand48() * 2 * m_max_scale - m_max_scale);
-            }
-            if(m_max_trans == 0.f){
-               trans = 0.f;
-            }else{
-               trans = drand48() * 2 * m_max_trans - m_max_trans;
-            }
+        float pos;
 
-            ex_type = (rand() % (m_max_ex_type - m_min_ex_type )) + m_min_ex_type;
-            m_current_trans = trans;
-            m_current_scale = scale;
-            m_current_ex_type = ex_type;
+        // sample parameters randomly
+        if(m_max_scale == 0.f){
+            scale = 1.f;
+        }else{
+            scale =  1 + (drand48() * 2 * m_max_scale - m_max_scale);
         }
-        else{
-            trans = m_current_trans;
-            ex_type = m_current_ex_type;
-            scale = m_current_scale;
+        if(m_max_trans == 0.f){
+            trans = 0.f;
+        }else{
+            trans = drand48() * 2 * m_max_trans - m_max_trans;
         }
+
+
+        ex_type = (rand() % (m_max_ex_type - m_min_ex_type )) + m_min_ex_type;
+        pos = rand() % (m_subsample * m_input_size);
+
         m_current_example++;
-        //float pos = m_current_pos + drand48();
-        float pos = m_current_pos;
-        m_current_pos++;
 
-        tensor_type example(cuv::extents[3][1][2*m_input_size]);
+        tensor_type example(cuv::extents[3][1][m_subsample * m_input_size]);
         example = 0.f;        
         morse_code morse(example, m_factor);
         float end_pos = morse.write_char(ex_type, 0, 0, pos);
         morse.write_char(ex_type, 1, 0, pos);
         morse.write_char(ex_type, 2, 0, pos);
 
-        float center_pos = get_wrap_index(m_input_size, (end_pos + pos) / 2.f);
+        float center_pos = get_wrap_index(m_subsample * m_input_size, (end_pos + pos) / 2.f) / m_subsample;
 
         morse.translate_coordinates(1, 0, trans);
         morse.scale_coordinates(1, 0, scale);
@@ -1243,7 +1257,7 @@ struct morse_pat_gen{
         convolve_last_dim(example, gauss);
 
         // subsamples each "subsample" element
-        subsampling(example, 2);
+        subsampling(example, m_subsample);
 
         normalize_data_set(example);
 
@@ -1295,17 +1309,17 @@ int main(int argc, char **argv)
     cuv::initialize_mersenne_twister_seeds();
     unsigned int input_size=100,bs=  1000 , subsampling = 2, max_trans = 1, gauss_dist = 6, min_width = 10, max_width = 30, flag = 2, morse_factor = 6;
 
-    float max_growing = 0.05f;
+    float max_growing = 0.07f;
 
     unsigned max_num_epochs = 5000;
 
-    unsigned int num_hidden = 10;
+    unsigned int num_hidden = 20;
 
     unsigned int num_factors = 400;
     float sigma = gauss_dist / 3; 
     //float learning_rate = 0.001f;
     // generate random translation datas
-    unsigned int data_set_size = 10000;
+    unsigned int data_set_size = 6000;
     std::cout << "generating dataset: "<<std::endl;
     random_translation ds(input_size * subsampling,  data_set_size, data_set_size, 0.05f, gauss_dist, sigma, subsampling, max_trans, max_growing, min_width, max_width, flag, morse_factor);
     ds.binary   = false;
@@ -1361,22 +1375,24 @@ int main(int argc, char **argv)
     //prediction_phase( ds,  mon,  ae,  input_x, input_y,  teacher,  bs, input_size,  num_hidden, num_factors);
     
     // does regression on hidden layer activations, classifies transformation
-    //regression(ds, bs, param_name);
+    regression(ds, bs, param_name);
 
     // log to the file the generated examples for invariance analysis
 
-    input_x->data().resize(cuv::extents[1][input_size]); 
-    input_y->data().resize(cuv::extents[1][input_size]); 
+    //input_x->data().resize(cuv::extents[1][input_size]); 
+    //input_y->data().resize(cuv::extents[1][input_size]); 
     
-    dumper a;
+    //dumper a;
+    //dumper local;
     
-    int num_examples = 100000;
+    //int num_examples = 5000;
     
-    max_growing = 0.05f;
-    max_trans = 1.f;
-    //morse_pat_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, num_examples, max_growing, gauss_dist, sigma);
-    local_translations_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, num_examples, max_growing, gauss_dist, sigma);
-    a.generate_log_patterns(ae.get_encoded(), m, "invariance_test-" + param_name + ".txt"); 
+    //max_growing = 0.f;
+    //max_trans = 1.f;
+    //morse_pat_gen m(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, num_examples, max_growing, gauss_dist, sigma, subsampling);
+    //local_translations_gen l(input_x, input_y, -max_trans, max_trans,  0,  input_size, 0, 38, morse_factor, input_size, num_examples, max_growing, gauss_dist, sigma);
+    //a.generate_log_patterns(ae.get_encoded(), m, "invariance_test-" + param_name + ".txt"); 
+    //local.generate_log_patterns(ae.get_encoded(), l, "invariance_test-local" + param_name + ".txt"); 
 
     
 

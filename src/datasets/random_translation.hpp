@@ -22,7 +22,7 @@ namespace cuvnet
      * @param morse_factor the width of the morse input
      * @param max_grow the input can grow from -max_grow to +max_grow
      */
-    void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans, int morse_factor, float max_grow);
+    void initialize_morse_code(cuv::tensor<float,cuv::host_memory_space>& pattern_ident, cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, int m_dim, int max_trans, int morse_factor, float max_grow);
 
 
 
@@ -50,7 +50,7 @@ namespace cuvnet
      * @param train_set train data which is initialized
      * @param test_set test data which is initialized
      */
-    void split_data_set(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set,  cuv::tensor<float,cuv::host_memory_space>& val_set,
+    void split_data_set(cuv::tensor<float,cuv::host_memory_space>& pattern_ident, cuv::tensor<float,cuv::host_memory_space>& pattern_ident_train, cuv::tensor<float,cuv::host_memory_space>& pattern_ident_test,cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels, cuv::tensor<float,cuv::host_memory_space>& train_set, cuv::tensor<float,cuv::host_memory_space>& test_set,  cuv::tensor<float,cuv::host_memory_space>& val_set,
  cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels, int num_examples, int dim);
 
 
@@ -70,7 +70,7 @@ namespace cuvnet
      * shuffles the examples in the dataset
      * @param data data which examples are shuffled
      */
-    void shuffle(cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels);
+    void shuffle(cuv::tensor<float,cuv::host_memory_space>& pattern_ident, cuv::tensor<float,cuv::host_memory_space>& data, cuv::tensor<float,cuv::host_memory_space>& labels);
 
 
     /**
@@ -89,7 +89,7 @@ namespace cuvnet
      * @param morse_factor the width of the morse input
      *
      */
-    void initialize_data_sets(cuv::tensor<float,cuv::host_memory_space>& train_data, cuv::tensor<float,cuv::host_memory_space>& test_data, cuv::tensor<float,cuv::host_memory_space>& val_data,
+    void initialize_data_sets(cuv::tensor<float,cuv::host_memory_space>& pattern_ident_train, cuv::tensor<float,cuv::host_memory_space>& pattern_ident_test , cuv::tensor<float,cuv::host_memory_space>& train_data, cuv::tensor<float,cuv::host_memory_space>& test_data, cuv::tensor<float,cuv::host_memory_space>& val_data,
             cuv::tensor<float,cuv::host_memory_space>& train_labels, cuv::tensor<float,cuv::host_memory_space>& test_labels,
             int m_num_train_example, int m_num_test_example, int m_dim, float m_thres, int max_size, int min_size, 
             int max_translation, float max_growing, int flag, int morse_factor);
@@ -165,6 +165,8 @@ namespace cuvnet
          */
         random_translation(int dim, int num_train_examples, int num_test_examples, float thres, int distance, float sigma, int subsample, int translate_size, float max_growing, int min_size, int max_size, int flag, int morse_factor);
         random_translation(){}
+        cuv::tensor<float, cuv::host_memory_space> pattern_ident_train;
+        cuv::tensor<float, cuv::host_memory_space> pattern_ident_test;
     };
 
 /**
@@ -201,6 +203,7 @@ namespace cuvnet
             void translate_coordinates(int dim, int ex, float trans);       
             void scale_coordinates(int dim, int ex, float scale);
             void local_translation_speeds(std::vector<float> &orig_coor, float pos_start, float pos_end,  std::vector<float> &speeds, float tran, float scale, int input_size);
+            void local_translation_speeds_all_pos(std::vector<float> &subsampled_pos,  std::vector<float> &subsampled_speeds, float tran, float scale, int input_size);
     };
 
 }
