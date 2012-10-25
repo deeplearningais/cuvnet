@@ -232,7 +232,8 @@ class obj_detector
             } 
             {
                 float fan_in = m_n_filters2 * m_filter_size3 * m_filter_size3;
-                float fan_out = 1 * 1 * 1;
+                //float fan_out = 1 * 1 * 1;
+                float fan_out = m_n_filters3 * m_filter_size4 * m_filter_size4;
                 float diff = std::sqrt(6.f/(fan_in + fan_out));
                 //float diff = std::sqrt(3.f/(fan_in));
                 //diff *= .1f;
