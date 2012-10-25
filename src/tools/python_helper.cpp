@@ -72,13 +72,20 @@ namespace cuvnet
         return (T*) get_node<T>(f, (Op*)pointer);
     }
 
+    valid_shape_info get_vsi_1(const boost::shared_ptr<ParameterInput> a, const boost::shared_ptr<ParameterInput> b){
+        return valid_shape_info(a,b);
+    }
+    valid_shape_info get_vsi_2(const boost::shared_ptr<ParameterInput> a, const boost::shared_ptr<Op> b){
+        return valid_shape_info(a,b);
+    }
+
     int export_ops(){
         using namespace boost::python;
         try{
             object main_module = import("__main__");
             scope main(main_module);
 
-            {   scope cn = class_<Dummy>("cuvnet")
+            {   //scope cn = class_<Dummy>("cuvnet")
                 ;
 
                 class_<Op, boost::shared_ptr<OpWrap>, boost::noncopyable >("Op", no_init)
@@ -147,12 +154,27 @@ namespace cuvnet
                 register_ptr_to_python< boost::shared_ptr<Op> >();
                 register_ptr_to_python< boost::shared_ptr<ParameterInput> >();
 
+                def("get_valid_shape_info", get_vsi_1);
+                def("get_valid_shape_info", get_vsi_2);
+
                 class_<swiper>("swiper", no_init)
                     .def("fprop", &swiper::fprop)
                     .def("bprop", &swiper::bprop)
                     ;
 
+                class_<valid_shape_info>("valid_shape_info", init<boost::shared_ptr<Op>,boost::shared_ptr<Op> >())
+                    .def_readonly("crop_h",&valid_shape_info::crop_h)
+                    .def_readonly("crop_w",&valid_shape_info::crop_w)
+                    .def_readonly("scale_h",&valid_shape_info::scale_h)
+                    .def_readonly("scale_w",&valid_shape_info::scale_w)
+                    ;
+
             }
+            object main_namespace = main_module.attr("__dict__");
+            object ignored = exec(
+                    "visualization.valid_shape_info = valid_shape_info\n"
+                    "visualization.get_valid_shape_info = get_valid_shape_info\n",
+                    main_namespace);
         }catch(const boost::python::error_already_set&){
             PyErr_PrintEx(0);
             throw std::runtime_error("python failure in export_ops");

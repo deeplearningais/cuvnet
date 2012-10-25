@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-
+from matplotlib.widgets import Slider
+from scipy.ndimage import zoom
 
 def cfg(ax):
     ax.xaxis.set_visible(False)
@@ -221,6 +222,181 @@ def show_objdet(op):
     MapsVisor().show("sink", o)
     MapsVisor().show("input", op.get_parameter("input"))
     MapsVisor().show("input", op.get_parameter("target"))
+
+class obj_detection_gui_spawn:
+    def __init__(self, op):
+        self.children = []
+        self.input_op = op.get_parameter("input")
+
+        # initially, just add the input to the children
+        og = obj_detection_gui(self, "input", self.input_op, None, "input")
+        self.children.append(og)
+        self.set_batch_idx(0)
+        self.input = og
+        plt.ion()
+        plt.show()
+
+
+    def remove_child(self, c):
+        self.children.remove(c)
+
+    def set_batch_idx(self, val):
+        self.batch_idx = int(val)
+        for c in self.children:
+            print "updating", c
+            c.update()
+
+    def click(self, op, widget, url, event):
+        typ, ptr = url.split()
+        if typ == "input":
+            node = op.get_parameter(long(ptr, 0))
+        elif typ == "sink":
+            node = op.get_sink(long(ptr, 0))
+        else:
+            node = op.get_node(long(ptr, 0))
+        vsi = get_valid_shape_info(self.input_op, node)
+        og = obj_detection_gui(self, typ, node, vsi)
+        self.children.append(og)
+        og.update()
+        plt.ion()
+        plt.show()
+
+class obj_detection_gui:
+    def __init__(self, parent, type, op, vsi, name="unknown"):
+        self.op = op
+        self.vsi = vsi
+        self.type = type
+        self.name = name
+        self.parent = parent
+        self.transp = 0.
+        self.map_idx = 0
+        self.cache = {}
+
+    def update(self):
+        if hasattr(self, "s_map"):
+            self.map_idx = int(self.s_map.val)
+        if hasattr(self, "s_transp"):
+            self.transp = self.s_transp.val
+
+        if self.type == "sink":
+            self.data = self.op.evaluate().np
+        elif self.type == "generic":
+            self.data = self.op.evaluate().np
+        elif self.type == "input":
+            self.data = self.op.data.np
+        self.draw()
+        self.fig.canvas.draw()
+
+    def set_sink(self, sink):
+        self.typ = "sink"
+        self.op = sink
+        self.draw("sink",sink.evaluate().np)
+
+    def set_input(self, input):
+        self.draw("data",input.data.np)
+
+    def draw(self):
+        print "draw:", self, self.parent.batch_idx
+        data = self.data
+        if data.ndim == 3:
+            # weights
+            n_src, n_fltpix, n_dst = data.shape
+            n_dst = min(12, n_dst)  # limit number of shown subplots
+            n_fltpix = int(np.sqrt(n_fltpix))
+            n_plots_y = n_src
+            if n_src == 3:
+                n_plots_y += 1
+            if not hasattr(self, "fig"):
+                self.fig, self.axes = plt.subplots(n_plots_y, n_dst)
+                self.fig.subplots_adjust(hspace=0.00, wspace=0.00,
+                        left=0, top=1, bottom=0.10, right=1)
+                self.fig.canvas.mpl_connect('close_event', lambda e: self.parent.remove_child(self))
+            for ax, i in zip(self.axes.flatten(), xrange(np.prod(self.axes.shape))):
+                idx_dst = i % n_dst
+                idx_src = i / n_dst
+                if n_src != 3 or idx_src != 3:
+                    flt = data[idx_src, :, idx_dst]
+                    res = ax.matshow(flt.reshape(n_fltpix, n_fltpix), cmap="PuOr")
+                    t = np.abs(flt).max()
+                    norm = mpl.colors.Normalize(vmin=-t, vmax=t)
+                    res.set_norm(norm)
+                else:
+                    flt = data[:, :, idx_dst].reshape(3, n_fltpix, n_fltpix)
+                    flt = np.rollaxis(flt, 0, 3)  # move dst axis to end
+                    flt -= flt.min()
+                    flt /= flt.max()
+                    ax.imshow(flt, interpolation='nearest')
+                cfg(ax)
+
+        elif data.ndim == 4:
+            # images
+            n_bs, n_maps, n_pixy, n_pixx = data.shape
+            if n_pixy != n_pixx:
+                # this is the "weird" format preferred by Alex' convolutions.
+                n_maps, n_pixy, n_pixx, n_bs = data.shape
+                data = data.reshape(n_maps*n_pixy*n_pixx,n_bs).T.reshape(n_bs,n_maps,n_pixy,n_pixx)
+            n_plots_y = min(4, n_bs)
+            n_plots_x = min(6, n_maps)
+            if n_maps == 3:
+                n_plots_x += 1
+            if not hasattr(self, "fig"):
+                self.fig, self.axes = plt.subplots(n_plots_y, n_plots_x)
+                self.fig.subplots_adjust(hspace=0.00, wspace=0.00,
+                        left=0, top=1, bottom=0.15, right=1)
+                self.fig.canvas.mpl_connect('close_event', lambda e: self.parent.remove_child(self))
+
+                ax_batch = plt.axes([.25, .10, .65, .05])
+                self.s_batch = Slider(ax_batch, 'idx in batch',0,n_bs-4,valinit=0)
+                self.s_batch.on_changed(lambda val: self.parent.set_batch_idx(val))
+
+                ax_map = plt.axes([.25, .05, .65, .05])
+                self.s_map = Slider(ax_map, 'idx of map',0,n_maps-6,valinit=0)
+                self.s_map.on_changed(lambda val: self.update())
+
+                ax_transp = plt.axes([.25, .00, .65, .05])
+                self.s_transp = Slider(ax_transp, 'transparency',0.,1.,valinit=0.)
+                self.s_transp.on_changed(lambda val: self.update())
+
+            for ax, i in zip(self.axes.flatten(), xrange(np.prod(self.axes.shape))):
+                idx_x = i % n_plots_x # map
+                idx_y = i / n_plots_x # batch
+                print "transp: ", self.transp
+                if n_maps == 1 and self.name != "input" and self.transp != 0.:
+                    # most likely an output map, which we can now compare to the input map
+                    input = self.parent.input.cache[idx_y].copy()
+                    flt = data[self.parent.batch_idx + idx_y, self.map_idx + idx_x, :, :]
+                    final_start = self.vsi.crop_h / 2
+                    final_size = (input.shape[0] - self.vsi.crop_h) / self.vsi.scale_h
+                    input = input[final_start:-final_start, final_start:-final_start]
+                    input = zoom(input, float(final_size)/input.shape[0])
+                    input -= input.min()
+                    input *= flt.ptp() / input.max()
+                    input += flt.min()
+                    flt = self.transp*input + (1-self.transp)*flt
+                    res = ax.matshow(flt.reshape(n_pixy, n_pixx), cmap="PuOr")
+                    t = np.abs(flt).max()
+                    norm = mpl.colors.Normalize(vmin=-t, vmax=t)
+                    res.set_norm(norm)
+                elif n_maps != 3 or idx_x != 3:
+                    flt = data[self.parent.batch_idx + idx_y, self.map_idx + idx_x, :, :]
+                    res = ax.matshow(flt.reshape(n_pixy, n_pixx), cmap="PuOr")
+                    t = np.abs(flt).max()
+                    norm = mpl.colors.Normalize(vmin=-t, vmax=t)
+                    res.set_norm(norm)
+                else:
+                    flt = data[self.parent.batch_idx + idx_y, :, :, :].reshape(3, n_pixy, n_pixx)
+                    flt = np.rollaxis(flt, 0, 3)  # move dst axis to end
+                    flt -= flt.min()
+                    flt /= flt.max()
+                    ax.imshow(flt, interpolation='nearest')
+                    if self.name == "input":
+                        self.cache[idx_y] = flt.sum(axis=2)  # grayscale
+                cfg(ax)
+        else:
+            # biases, loss, etc
+            plt.hist(data, 20)
+            pass
+
 
 
 def evaluate_bioid(loss, load_batch, n_batches):
