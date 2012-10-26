@@ -8,6 +8,13 @@ def cfg(ax):
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
 
+def center_0(x):
+    t = np.abs(x).max()
+    v = x.copy()
+    v += t
+    v /= 2*t
+    return v
+
 
 def generic_filters(x, trans=True, maxx=16, maxy=12, sepnorm=False, vmin=None, vmax=None):
     """ visualize an generic filter matrix """
@@ -296,7 +303,7 @@ class obj_detection_gui:
         self.draw("data",input.data.np)
 
     def draw(self):
-        print "draw:", self, self.parent.batch_idx
+        print "draw:", self.parent.batch_idx
         data = self.data
         if data.ndim == 3:
             # weights
@@ -316,15 +323,17 @@ class obj_detection_gui:
                 idx_src = i / n_dst
                 if n_src != 3 or idx_src != 3:
                     flt = data[idx_src, :, idx_dst]
-                    res = ax.matshow(flt.reshape(n_fltpix, n_fltpix), cmap="PuOr")
-                    t = np.abs(flt).max()
-                    norm = mpl.colors.Normalize(vmin=-t, vmax=t)
-                    res.set_norm(norm)
+                    flt = center_0(flt)
+                    ax.cla()
+                    ax.imshow(flt.reshape(n_fltpix, n_fltpix),
+                            cmap="PuOr", vmin=0, vmax=1,
+                            origin="upper", interpolation="nearest")
                 else:
                     flt = data[:, :, idx_dst].reshape(3, n_fltpix, n_fltpix)
                     flt = np.rollaxis(flt, 0, 3)  # move dst axis to end
                     flt -= flt.min()
                     flt /= flt.max()
+                    ax.cla()
                     ax.imshow(flt, interpolation='nearest')
                 cfg(ax)
 
@@ -360,11 +369,11 @@ class obj_detection_gui:
             for ax, i in zip(self.axes.flatten(), xrange(np.prod(self.axes.shape))):
                 idx_x = i % n_plots_x # map
                 idx_y = i / n_plots_x # batch
-                print "transp: ", self.transp
                 if n_maps == 1 and self.name != "input" and self.transp != 0.:
                     # most likely an output map, which we can now compare to the input map
                     input = self.parent.input.cache[idx_y].copy()
                     flt = data[self.parent.batch_idx + idx_y, self.map_idx + idx_x, :, :]
+                    flt = center_0(flt)
                     final_start = self.vsi.crop_h / 2
                     final_size = (input.shape[0] - self.vsi.crop_h) / self.vsi.scale_h
                     input = input[final_start:-final_start, final_start:-final_start]
@@ -373,16 +382,15 @@ class obj_detection_gui:
                     input *= flt.ptp() / input.max()
                     input += flt.min()
                     flt = self.transp*input + (1-self.transp)*flt
-                    res = ax.matshow(flt.reshape(n_pixy, n_pixx), cmap="PuOr")
+                    ax.cla()
                     t = np.abs(flt).max()
-                    norm = mpl.colors.Normalize(vmin=-t, vmax=t)
-                    res.set_norm(norm)
+                    ax.matshow(flt.reshape(n_pixy, n_pixx), cmap="PuOr", vmin=0, vmax=1)
                 elif n_maps != 3 or idx_x != 3:
                     flt = data[self.parent.batch_idx + idx_y, self.map_idx + idx_x, :, :]
-                    res = ax.matshow(flt.reshape(n_pixy, n_pixx), cmap="PuOr")
+                    flt = center_0(flt)
+                    ax.cla()
                     t = np.abs(flt).max()
-                    norm = mpl.colors.Normalize(vmin=-t, vmax=t)
-                    res.set_norm(norm)
+                    ax.matshow(flt.reshape(n_pixy, n_pixx), cmap="PuOr", vmin=0, vmax=1)
                 else:
                     flt = data[self.parent.batch_idx + idx_y, :, :, :].reshape(3, n_pixy, n_pixx)
                     flt = np.rollaxis(flt, 0, 3)  # move dst axis to end
