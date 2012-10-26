@@ -383,13 +383,11 @@ class obj_detection_gui:
                     input += flt.min()
                     flt = self.transp*input + (1-self.transp)*flt
                     ax.cla()
-                    t = np.abs(flt).max()
                     ax.matshow(flt.reshape(n_pixy, n_pixx), cmap="PuOr", vmin=0, vmax=1)
                 elif n_maps != 3 or idx_x != 3:
                     flt = data[self.parent.batch_idx + idx_y, self.map_idx + idx_x, :, :]
                     flt = center_0(flt)
                     ax.cla()
-                    t = np.abs(flt).max()
                     ax.matshow(flt.reshape(n_pixy, n_pixx), cmap="PuOr", vmin=0, vmax=1)
                 else:
                     flt = data[self.parent.batch_idx + idx_y, :, :, :].reshape(3, n_pixy, n_pixx)
