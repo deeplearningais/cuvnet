@@ -407,6 +407,8 @@ namespace cuvnet
             int m_winsize;
             /// how many weight updates have been performed so far
             int m_count;
+            /// L1 penalty
+            float m_l1penalty;
         public:
             /**
              * constructor
@@ -418,8 +420,9 @@ namespace cuvnet
              * @param weightdecay weight decay for weight updates
              * @param delta numerical stabilization constant: \f$H=\delta I+\|g\|_2\f$
              * @param winsize after how many weight updates to reset squared gradient sums
+             * @param l1penalty L1 penalty on parameters
              */
-        adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float delta=0.01f, int winsize=INT_MAX);
+        adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float delta=0.01f, int winsize=INT_MAX, float l1_penalty=0.f);
 
         protected:
         /**

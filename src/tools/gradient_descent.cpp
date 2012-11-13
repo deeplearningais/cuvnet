@@ -5,6 +5,7 @@
 #include <log4cxx/logger.h>
 #include <log4cxx/mdc.h>
 #include <cuv/tools/device_tools.hpp>
+#include <cuv/libs/opt/opt.hpp>
 #include <tools/logging.hpp>
 
 namespace cuvnet
@@ -223,12 +224,13 @@ namespace cuvnet
     }
     
     // ------------ adagrad gradient descent  ---------  \\-
-    adagrad_gradient_descent::adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float delta, int winsize)
+    adagrad_gradient_descent::adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float delta, int winsize, float l1penalty)
         :gradient_descent(op, result, params, learnrate, weightdecay),
         m_sq_grad_sum(params.size()),
         m_delta(delta),
         m_winsize(winsize),
-        m_count(0)
+        m_count(0),
+        m_l1penalty(l1penalty)
     { 
         unsigned int i=0;
         for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
@@ -249,18 +251,9 @@ namespace cuvnet
             // cow_ptr!
             matrix delta = ((const ParameterInput*) inp)->delta();
 
-            matrix s = delta*delta;
-            m_sq_grad_sum[i] += s;
-
-            matrix lr(delta.shape());
-            cuv::apply_scalar_functor(lr, m_sq_grad_sum[i], cuv::SF_MAX, 0.f);
-            cuv::apply_scalar_functor(lr, cuv::SF_SQRT);
-            lr += m_delta;
-            cuv::apply_binary_functor(lr, delta, lr, cuv::BF_DIV);
-
             // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
-            cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), lr, -m_learnrate, m_weightdecay);
+            cuv::libs::opt::adagrad(*inp->data_ptr().ptr(),delta,m_sq_grad_sum[i],m_learnrate,m_delta,m_weightdecay,m_l1penalty);
 
             if(++m_count % m_winsize == 0)
             {
