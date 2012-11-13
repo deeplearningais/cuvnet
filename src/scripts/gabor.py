@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pa  
@@ -10,43 +11,6 @@ import scipy, pylab
 from scipy.optimize import fmin 
 
 
-def tukeywin(window_length, alpha=0.5):
-    '''The Tukey window, also known as the tapered cosine window, can be regarded as a cosine lobe of width \alpha * N / 2
-    that is convolved with a rectangle window of width (1 - \alpha / 2). At \alpha = 1 it becomes rectangular, and
-    at \alpha = 0 it becomes a Hann window.
-
-    We use the same reference as MATLAB to provide the same results in case users compare a MATLAB output to this function
-    output
-
-    Reference
-    ---------
-    http://www.mathworks.com/access/helpdesk/help/toolbox/signal/tukeywin.html
-
-    '''
-    # Special cases
-    if alpha <= 0:
-        return np.ones(window_length) #rectangular window
-    elif alpha >= 1:
-        return np.hanning(window_length)
-
-    # Normal case
-    x = np.linspace(0, 1, window_length)
-    w = np.ones(x.shape)
-
-    # first condition 0 <= x < alpha/2
-    first_condition = x<alpha/2
-    w[first_condition] = 0.5 * (1 + np.cos(2*np.pi/alpha * (x[first_condition] - alpha/2) ))
-
-    # second condition already taken care of
-
-    # third condition 1 - alpha / 2 <= x <= 1
-    third_condition = x>=(1 - alpha/2)
-    w[third_condition] = 0.5 * (1 + np.cos(2*np.pi/alpha * (x[third_condition] - 1 + alpha/2))) 
-
-    return w
-    
-
-
 
 
 # short time fourier transform
@@ -54,72 +18,65 @@ def stft(x, fs, framesz, hop):
    framesamp = int(framesz*fs)
    hopsamp = int(hop*fs)
    
-   #w = scipy.hamming(framesamp)
-   w = tukeywin(framesamp, 0.5)
-   #plt.plot(w)
-   #plt.show()
+   w = scipy.hamming(framesamp)
    X = scipy.array([scipy.fft(w * x[i:i+framesamp]) 
                     for i in range(0, len(x)-framesamp, hopsamp)])
    return X
 
 
+# returns gabor for given parameters
 def gabor(t, A, f, P, t0, a):
     g = A * np.exp(-0.5 / a**2 *  (t- t0)**2) *  np.cos(-2* f * np.pi * t - P)
-    #plt.plot(t,g)
-    #plt.ylim(-1,1)
-    #plt.show()
     return g
 
-
+# returns MSE loss between original filter and gabor
 def loss(params, y, p):
     A, f, P, to, a  = params
     return ((y - gabor(p, A,f, P, to, a))**2).sum()
 
 
-
+# plots polar for angles and frequences
 def polar_scatter(f, p):
-    print f
-    print p
     ax     = plt.subplot(111, polar=True)
     c      = plt.scatter(p, f)
     c.set_alpha(0.75)
-    #p = '../build/plots/'
-    #plt.savefig(p + 'gabors.pdf')
+    p = '../build/plots/'
+    plt.savefig(p + 'gabors.pdf')
     plt.show()
 
+# finds a mod b for float numbers
+def modf(a,b):
+    if(a < b):
+        return a
+    return a - np.floor(a / b) * b
 
+# flips the angle grater than Pi
+def flip_angle(P):
+    if(P < 0.0):
+        return -1 * modf(np.abs(P), np.pi) + np.pi
+    return modf(P, np.pi)
 
-
+# fit a given filter x to gabor 
 def fitfilter(x, a):
-    f0 = 440         # Compute the STFT of a 440 Hz sinusoid
     fs = 10        # sampled at 8 kHz
-
     framesz = 1  # with a frame size of 50 milliseconds
     hop = 0.1      # and hop size of 20 milliseconds.
 
 
-    # Create test signal and STFT.
+    # Create signal and STFT.
     X = stft(x, fs, framesz, hop)
     X = X.T 
     ab = scipy.absolute(X)  
-    print ab[:,0]
     ab = ab[0:5, :]
     ind = np.argmax(ab)
     l1 = len(ab[:,0])
     l2 = len(ab[0,:])
     id2 = int(ind / l2)
     id1 =  ind - id2 * l2 
+    #finds amplitude A, phase P, and frequence f
     A = ab[id2, id1]
-    print A
-
-    print 'l1 ', l1
-    print 'l2 ', l2
-    print 'ind ', ind
-    print 'id1 ', id1
-    print 'id2 ', id2
     P = np.angle(X[id2, id1])
     f = id2 
-    #f = id2 / float(10)
 
     # Plot the magnitude spectrogram.
     #pylab.figure()
@@ -134,21 +91,21 @@ def fitfilter(x, a):
 
     pos = id1 +  framesz * fs / 2
     pos = pos / float(10)
+    # these are initialization parameters for gabor found by stft
     param = [A, f, P, pos, a]
     print param
     t = np.arange(0,10 , 0.1)
 
-
+    
     w_t = [0] * 100
-    #w = tukeywin(fs*framesz, 0.5)
     w = np.hamming(fs*framesz)
     pos_ = int(pos*10  - fs*framesz/2)
     w_t[pos_: pos_ + fs*framesz] = w
-    x = w_t * x
+    #x = w_t * x
 
     args = [x, t]
-
-    #all_ret = fmin(loss, param, args, ftol=0.5, full_output=1, maxiter = 3000, maxfun = 3000)
+    
+    # optimizes the loss of the gabor 
     all_ret = fmin(loss, param, args, full_output=1, maxiter = 30000, maxfun = 30000 )
     xopt = all_ret[0]
     print xopt
@@ -157,6 +114,19 @@ def fitfilter(x, a):
     return all_ret
 
 
+#t = np.arange(0, 10, 0.01)
+#f = 1
+#t0 = 5
+#a =  0.2
+#A = 0.5
+
+#P =   5 * np.pi / 3 
+#c = A * np.exp( -0.5 / a**2 *  (t - t0) **2) *  np.cos(-2* f * np.pi * t - P)
+#plt.plot(t, c)
+#P =   2 *  np.pi / 3 
+#c = A * np.exp( -0.5 / a**2 *  (t - t0) **2) *  np.cos(-2* f * np.pi * t - P)
+#plt.plot(t, c)
+#plt.show()
 
 path = '../build/weights_x_tran_1_scale_0.05.dat'
 o = pa.read_csv(path)
@@ -172,24 +142,28 @@ best_ind = 0
 
 freq =[]
 ph = []
-thres = 0.02
+thres = 0.15
+
+# loops over all filters, fits the gabor and plots the phase and frequence
 
 #for i in np.arange(0,num_fit, 1):
-#  x = np.array(o.ix[:, i])
-#  all_ret = fitfilter(x,a)
-#  new_err = all_ret[1]
-#  if (new_err < thres):
-#      xopt = all_ret[0]
-#      f = xopt[1]
-#      P = xopt[2]
-#      #if(f < 0.5):  
-#      freq.append([f])
-#      ph.append([P])
+#    x = np.array(o.ix[:, i])
+#    all_ret = fitfilter(x,a)
+#    new_err = all_ret[1]
+#    if (new_err < thres):
+#        xopt = all_ret[0]
+#        f = xopt[1]
+#        P = xopt[2]
+#        P = flip_angle(P)
+#        f = f/ float(10)
+#        if(f < 0.5):
+#           freq.append([f])
+#           ph.append([P])
 
-#print 'visualizing'
+#print 'number of gabors: ', len(freq)
 #polar_scatter(freq,ph)
 
-best_ind = 1
+best_ind = 156
 x = np.array(o.ix[:, best_ind])
 all_ret = fitfilter(x, a)
 err = all_ret[1]
@@ -207,7 +181,7 @@ plt.figure(figsize=(20,10), dpi=80);
 t = np.arange(100)
 x = np.array(o.ix[:, best_ind])
 
-
+#plots original filter
 plt.subplot(n, 1, 1)
 plt.plot( x, label="feature")
 plt.title('feature')
@@ -215,8 +189,9 @@ plt.ylabel('a')
 plt.xlabel('t')
 plt.ylim(-1, 1)
 
+
+#plots filter multiplied with hamming window
 w_t = [0] * 100
-#w = tukeywin(10, 0.5)
 w = np.hamming(10) 
 pos_ = param_b[3] * 10
 pos_ = int(pos_ - 5)
@@ -230,16 +205,21 @@ plt.ylim(-1,1)
 
 
 
+# plots fitted and optimized gabor filter
 t = np.arange(0,10 , 0.01)
 c = A * np.exp( -0.5 / a**2 *  (t - t0) **2) *  np.cos(-2* f * np.pi * t - P)
-
-
 
 plt.subplot(n, 1, 3)
 plt.plot(t, c, label="gabor")
 plt.title('gabor optimized')
 plt.ylim(-1, 1)
 
+t = np.arange(0,10 , 0.1)
+c_e = A * np.exp( -0.5 / a**2 *  (t - t0) **2) *  np.cos(-2* f * np.pi * t - P)
+
+
+
+# plots gabor with init parameters found by stft
 A = param_b[0]
 f = param_b[1]
 P = param_b[2]
@@ -253,24 +233,29 @@ plt.title('gabor non-optimized')
 plt.ylim(-1, 1)
 
 
-#err2 = np.abs(x-c2)
-#err1 = np.abs(x-c)
-##err2 = (x-c2)**2
-##err1 = (x-c)**2
-#print 'err1 ',np.sum((x-c)**2)
-#print 'err2 ', np.sum((x-c2)**2)
-
-#plt.subplot(n, 1, 5)
-#plt.plot(t, err1)
-#plt.title('Error between filter and optimized gabor')
-#plt.ylim(-1, 1)
-#plt.subplot(n, 1, 6)
-#plt.plot(t, err2)
-#plt.title('Error between filter and non-optimized gabor')
-#plt.ylim(-1, 1)
+t = np.arange(0,10 , 0.1)
+c2_e = A * np.exp( -0.5 / a**2 *  (t - t0) **2) *  np.cos(-2* f * np.pi * t - P)
 
 
 
-#p = '../build/plots/gabors/'
+# plots the errors 
+x = np.array(o.ix[:, best_ind])
+err2 = np.abs(x-c2_e)
+err1 = np.abs(x-c_e)
+print 'err1 ',np.sum((x-c_e)**2)
+print 'err2 ', np.sum((x-c2_e)**2)
+
+plt.subplot(n, 1, 5)
+plt.plot(t, err1)
+plt.title('Error between filter and optimized gabor')
+plt.ylim(-1, 1)
+plt.subplot(n, 1, 6)
+plt.plot(t, err2)
+plt.title('Error between filter and non-optimized gabor')
+plt.ylim(-1, 1)
+
+
+
+p = '../build/plots/gabors/'
 #plt.savefig(p + 'ex6.pdf')
 plt.show()
