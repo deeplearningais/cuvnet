@@ -87,7 +87,7 @@ namespace cuvnet
             gradient_descent(const Op::op_ptr& op, unsigned int result, const paramvec_t& params, float learnrate=0.1f, float weightdecay=0.0f);
 
             /**
-             * (virtual) destructor
+             * (virtual) destructor.
              */
             virtual ~gradient_descent();
 
@@ -126,7 +126,7 @@ namespace cuvnet
             }
 
             /**
-             * decay learnrate by factor
+             * decay learnrate by factor.
              */
             inline void decay_learnrate(float fact=0.98){
                 m_learnrate *= fact;
@@ -135,12 +135,12 @@ namespace cuvnet
 
             /**
              * save the current parameters (on host) for retrieval
-             * e.g. if the performance becomes worse
+             * eg if the performance becomes worse.
              */
             void save_current_params();
 
             /**
-             * runs an early-stopping epoch
+             * runs an early-stopping epoch.
              *
              * @return number of early-stopping batches
              */
@@ -148,12 +148,12 @@ namespace cuvnet
             
         protected:
             /**
-             * this function should update all weights using backpropagated deltas
+             * this function should update all weights using backpropagated deltas.
              */
             virtual void update_weights();
 
             /**
-             * load the saved parameters back into the function
+             * load the saved parameters back into the function.
              */
             void load_best_params();
 
@@ -300,7 +300,7 @@ namespace cuvnet
             void operator()(unsigned int current_epoch, unsigned int wups);
 
             /**
-             * return the best value we got during early_stopping
+             * return the best value we got during early_stopping.
              */
             inline float best_perf(){
                 return m_best_perf;
@@ -348,7 +348,7 @@ namespace cuvnet
         protected:
         /**
          * @overload
-         * updates the weights RPROP-style
+         * updates the weights RPROP-style.
          */
         virtual void update_weights();
     };
@@ -383,7 +383,7 @@ namespace cuvnet
         protected:
         /**
          * @overload
-         * updates the weights with momentum
+         * updates the weights with momentum.
          */
         virtual void update_weights();
 
@@ -424,7 +424,7 @@ namespace cuvnet
         protected:
         /**
          * @overload
-         * updates the weights with momentum
+         * updates the weights with momentum.
          */
         virtual void update_weights();
 
