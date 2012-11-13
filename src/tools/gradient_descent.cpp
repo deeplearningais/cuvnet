@@ -112,7 +112,7 @@ namespace cuvnet
             float wd = m_weightdecay * inp->get_weight_decay_factor();
             // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
-            cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->delta(), -lr, wd);
+            cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->delta(), lr, wd);
             inp->reset_delta();
             //m_learnrate *= m_learnrate_decay;
         }
@@ -178,7 +178,7 @@ namespace cuvnet
         //cuvAssert(m_n_batches > 0);
         for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
             ParameterInput* param = dynamic_cast<ParameterInput*>(*it);
-            Op::value_type dW = ::operator-(param->delta()); // TODO: change sign in cuv::rprop
+            Op::value_type dW = param->delta(); 
             if(m_n_batches > 1)
                 dW /= (float) m_n_batches;
             float wd = m_weightdecay * param->get_weight_decay_factor();
@@ -216,7 +216,7 @@ namespace cuvnet
 
             // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
-            cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), m_last_delta[i], -lr, wd);
+            cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), m_last_delta[i], lr, wd);
             //m_learnrate *= m_learnrate_decay;
             inp->reset_delta();
         }
