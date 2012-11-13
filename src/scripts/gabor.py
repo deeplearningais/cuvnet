@@ -163,7 +163,7 @@ thres = 0.15
 #print 'number of gabors: ', len(freq)
 #polar_scatter(freq,ph)
 
-best_ind = 156
+best_ind = 290
 x = np.array(o.ix[:, best_ind])
 all_ret = fitfilter(x, a)
 err = all_ret[1]
