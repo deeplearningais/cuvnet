@@ -255,13 +255,15 @@ namespace cuvnet
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
             cuv::libs::opt::adagrad(*inp->data_ptr().ptr(),delta,m_sq_grad_sum[i],m_learnrate,m_delta,m_weightdecay,m_l1penalty);
 
-            if(++m_count % m_winsize == 0)
+            if(m_count % m_winsize == 0)
             {
                m_sq_grad_sum[i] = 0.f;
             }
 
             inp->reset_delta();
         }
+        ++m_count;
+    }
     }
 
 
