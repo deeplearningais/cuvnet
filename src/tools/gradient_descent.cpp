@@ -296,7 +296,7 @@ namespace cuvnet
 
             //float gamma_i = m_learnrate * inp->get_learnrate_factor() * (m_count+1)/2.f;
             float gamma_i = m_learnrate * inp->get_learnrate_factor();
-            float beta_i  = (i+1.f)/2.f;
+            float beta_i_inv  = 1.f / (sqrtf((m_count+1.f)/2.f));
 
             // in the paper, the loss is evaluated on w^{md}, which is a mix of w and w^{ag}.
             // We cannot do this here, since the loss has already been calculated... we have 
@@ -307,10 +307,10 @@ namespace cuvnet
             cuv::learn_step_weight_decay(m_w[i],delta,gamma_i,m_weightdecay);
 
             // calculate new w^{ag}
-            cuv::apply_binary_functor(m_w_ag[i],m_w[i],m_w_ag[i],cuv::BF_AXPBY,1.f/beta_i, 1.f-1.f/beta_i);
+            cuv::apply_binary_functor(m_w_ag[i],m_w[i],m_w_ag[i],cuv::BF_AXPBY,beta_i_inv, 1.f-beta_i_inv);
 
             // calculate new w
-            cuv::apply_binary_functor(wmd,m_w[i],m_w_ag[i],cuv::BF_AXPBY,1.f/beta_i, 1.f-1.f/beta_i);
+            cuv::apply_binary_functor(wmd,m_w[i],m_w_ag[i],cuv::BF_AXPBY,beta_i_inv, 1.f-beta_i_inv);
 
             inp->reset_delta();
         }
