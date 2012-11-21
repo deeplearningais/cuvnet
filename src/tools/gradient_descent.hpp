@@ -87,7 +87,7 @@ namespace cuvnet
             gradient_descent(const Op::op_ptr& op, unsigned int result, const paramvec_t& params, float learnrate=0.1f, float weightdecay=0.0f);
 
             /**
-             * (virtual) destructor
+             * (virtual) destructor.
              */
             virtual ~gradient_descent();
 
@@ -126,7 +126,7 @@ namespace cuvnet
             }
 
             /**
-             * decay learnrate by factor
+             * decay learnrate by factor.
              */
             inline void decay_learnrate(float fact=0.98){
                 m_learnrate *= fact;
@@ -135,12 +135,12 @@ namespace cuvnet
 
             /**
              * save the current parameters (on host) for retrieval
-             * e.g. if the performance becomes worse
+             * eg if the performance becomes worse.
              */
             void save_current_params();
 
             /**
-             * runs an early-stopping epoch
+             * runs an early-stopping epoch.
              *
              * @return number of early-stopping batches
              */
@@ -148,12 +148,12 @@ namespace cuvnet
             
         protected:
             /**
-             * this function should update all weights using backpropagated deltas
+             * this function should update all weights using backpropagated deltas.
              */
             virtual void update_weights();
 
             /**
-             * load the saved parameters back into the function
+             * load the saved parameters back into the function.
              */
             void load_best_params();
 
@@ -300,7 +300,7 @@ namespace cuvnet
             void operator()(unsigned int current_epoch, unsigned int wups);
 
             /**
-             * return the best value we got during early_stopping
+             * return the best value we got during early_stopping.
              */
             inline float best_perf(){
                 return m_best_perf;
@@ -348,7 +348,7 @@ namespace cuvnet
         protected:
         /**
          * @overload
-         * updates the weights RPROP-style
+         * updates the weights RPROP-style.
          */
         virtual void update_weights();
     };
@@ -383,7 +383,7 @@ namespace cuvnet
         protected:
         /**
          * @overload
-         * updates the weights with momentum
+         * updates the weights with momentum.
          */
         virtual void update_weights();
 
@@ -407,6 +407,8 @@ namespace cuvnet
             int m_winsize;
             /// how many weight updates have been performed so far
             int m_count;
+            /// L1 penalty
+            float m_l1penalty;
         public:
             /**
              * constructor
@@ -418,13 +420,58 @@ namespace cuvnet
              * @param weightdecay weight decay for weight updates
              * @param delta numerical stabilization constant: \f$H=\delta I+\|g\|_2\f$
              * @param winsize after how many weight updates to reset squared gradient sums
+             * @param l1penalty L1 penalty on parameters
              */
-        adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float delta=0.01f, int winsize=INT_MAX);
+        adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float delta=0.01f, int winsize=INT_MAX, float l1_penalty=0.f);
 
         protected:
         /**
          * @overload
-         * updates the weights with momentum
+         * updates the weights with momentum.
+         */
+        virtual void update_weights();
+
+    };
+
+    /**
+     * Does Accelerated gradient descent.
+     * This method supposedly works better for mini-batches. 
+     * Introduced by Cotter et al., "Better Mini-Batch Algorithms via
+     * Accelerated Gradient Methods" on NIPS.
+     *
+     * @ingroup learning
+     */
+    struct accelerated_gradient_descent
+    : public gradient_descent
+    {
+        public:
+            typedef std::vector<Op*> paramvec_t;
+        private:
+            /// this is the \f$w^{\mathrm{ag}}\f$ from the paper
+            std::vector<Op::value_type> m_w_ag; 
+            /// this is the \f$w\f$ from the paper, while the parameters used in the loss are \f$w^{md}\f$.
+            std::vector<Op::value_type> m_w; 
+            float m_beta;
+            /// how many weight updates have been performed so far
+            int m_count;
+            /// L1 penalty
+            float m_l1penalty;
+        public:
+            /**
+             * constructor
+             *
+             * @param op the function we want to minimize
+             * @param result which result of op to minimize
+             * @param params the parameters w.r.t. which we want to optimize op
+             * @param learnrate the initial learningrate
+             * @param weightdecay weight decay for weight updates
+             */
+        accelerated_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f);
+
+        protected:
+        /**
+         * @overload
+         * updates the weights with momentum.
          */
         virtual void update_weights();
 

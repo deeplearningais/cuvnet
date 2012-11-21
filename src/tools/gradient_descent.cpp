@@ -5,6 +5,7 @@
 #include <log4cxx/logger.h>
 #include <log4cxx/mdc.h>
 #include <cuv/tools/device_tools.hpp>
+#include <cuv/libs/opt/opt.hpp>
 #include <tools/logging.hpp>
 
 namespace cuvnet
@@ -112,7 +113,7 @@ namespace cuvnet
             float wd = m_weightdecay * inp->get_weight_decay_factor();
             // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
-            cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->delta(), -lr, wd);
+            cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), inp->delta(), lr, wd);
             inp->reset_delta();
             //m_learnrate *= m_learnrate_decay;
         }
@@ -178,7 +179,7 @@ namespace cuvnet
         //cuvAssert(m_n_batches > 0);
         for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
             ParameterInput* param = dynamic_cast<ParameterInput*>(*it);
-            Op::value_type dW = ::operator-(param->delta()); // TODO: change sign in cuv::rprop
+            Op::value_type dW = param->delta(); 
             if(m_n_batches > 1)
                 dW /= (float) m_n_batches;
             float wd = m_weightdecay * param->get_weight_decay_factor();
@@ -216,19 +217,20 @@ namespace cuvnet
 
             // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
-            cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), m_last_delta[i], -lr, wd);
+            cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), m_last_delta[i], lr, wd);
             //m_learnrate *= m_learnrate_decay;
             inp->reset_delta();
         }
     }
     
     // ------------ adagrad gradient descent  ---------  \\-
-    adagrad_gradient_descent::adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float delta, int winsize)
+    adagrad_gradient_descent::adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float delta, int winsize, float l1penalty)
         :gradient_descent(op, result, params, learnrate, weightdecay),
         m_sq_grad_sum(params.size()),
         m_delta(delta),
         m_winsize(winsize),
-        m_count(0)
+        m_count(0),
+        m_l1penalty(l1penalty)
     { 
         unsigned int i=0;
         for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
@@ -249,26 +251,70 @@ namespace cuvnet
             // cow_ptr!
             matrix delta = ((const ParameterInput*) inp)->delta();
 
-            matrix s = delta*delta;
-            m_sq_grad_sum[i] += s;
-
-            matrix lr(delta.shape());
-            cuv::apply_scalar_functor(lr, m_sq_grad_sum[i], cuv::SF_MAX, 0.f);
-            cuv::apply_scalar_functor(lr, cuv::SF_SQRT);
-            lr += m_delta;
-            cuv::apply_binary_functor(lr, delta, lr, cuv::BF_DIV);
-
             // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
-            cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), lr, -m_learnrate, m_weightdecay);
+            cuv::libs::opt::adagrad(*inp->data_ptr().ptr(),delta,m_sq_grad_sum[i],m_learnrate,m_delta,m_weightdecay,m_l1penalty);
 
-            if(++m_count % m_winsize == 0)
+            if(m_count % m_winsize == 0)
             {
                m_sq_grad_sum[i] = 0.f;
             }
 
             inp->reset_delta();
         }
+        ++m_count;
+    }
+    // ------------ accelerated gradient descent  ---------  \\-
+    accelerated_gradient_descent::accelerated_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay)
+        :gradient_descent(op, result, params, learnrate, weightdecay),
+        m_w_ag(params.size()),
+        m_w(params.size()),
+        m_beta(1),
+        m_count(0)
+    { 
+        unsigned int i=0;
+        for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
+            m_w_ag[i] = ((ParameterInput*)*it)->data().copy(); 
+            m_w[i]    = ((ParameterInput*)*it)->data().copy(); // inp holds w^{md}!
+        }
+    }
+
+    void accelerated_gradient_descent::update_weights(){
+        using namespace cuv;
+        unsigned int i=0;
+        for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
+            ParameterInput* inp = (ParameterInput*) *it;
+
+            // we exploit CUVs problems with const-correctness to get an
+            // overwritable version of inp->delta.
+            // the delta() of const ParameterInput* uses cdata() of the
+            // cow_ptr!
+            matrix delta = ((const ParameterInput*) inp)->delta();
+
+            // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
+            //       we're changing the underlying object all cow_ptrs pointing to it!!!
+
+            //float gamma_i = m_learnrate * inp->get_learnrate_factor() * (m_count+1)/2.f;
+            float gamma_i = m_learnrate * inp->get_learnrate_factor();
+            float beta_i_inv  = 1.f / (sqrtf((m_count+1.f)/2.f));
+
+            // in the paper, the loss is evaluated on w^{md}, which is a mix of w and w^{ag}.
+            // We cannot do this here, since the loss has already been calculated... we have 
+            // change the order. Our inp holds the w^md, and (this is what's
+            // wrong here) we return w^md, not w^ag. As gradients vanish and beta increases, 
+            // the difference between both should go towards zero.
+            matrix& wmd    = *inp->data_ptr().ptr();
+            cuv::learn_step_weight_decay(m_w[i],delta,gamma_i,m_weightdecay);
+
+            // calculate new w^{ag}
+            cuv::apply_binary_functor(m_w_ag[i],m_w[i],m_w_ag[i],cuv::BF_AXPBY,beta_i_inv, 1.f-beta_i_inv);
+
+            // calculate new w
+            cuv::apply_binary_functor(wmd,m_w[i],m_w_ag[i],cuv::BF_AXPBY,beta_i_inv, 1.f-beta_i_inv);
+
+            inp->reset_delta();
+        }
+        ++m_count;
     }
 
 

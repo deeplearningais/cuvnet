@@ -14,6 +14,7 @@
 #include <cuvnet/ops/input.hpp>
 #include <tools/gradient_descent.hpp> /* for network_stop exception */
 #include <cuv/tools/timing.hpp>
+#include <cuv/libs/opt/opt.hpp>
 #include <tools/logging.hpp>
 
 #include "network_communication.hpp"
@@ -77,16 +78,8 @@ namespace cuvnet { namespace network_communication {
         htensor_t s = delta*delta;
         sqsums += s;
 
-        htensor_t lr(delta.shape());
-
-        // sqsums should be >0 anyway, since it is the sum of squares
-        cuv::apply_scalar_functor(lr, sqsums, cuv::SF_MAX, 0.f); 
-        cuv::apply_scalar_functor(lr, cuv::SF_SQRT);
-        lr += m_delta;
-        cuv::apply_binary_functor(lr, delta, lr, cuv::BF_DIV);
-
         // assume that the learning rate was already applied to lr in the worker!
-        m_merged[name] += lr;
+        cuv::libs::opt::adagrad(m_merged[name], delta, sqsums, 1.f, m_delta, 0.f, 0.f);
 
         if(++m_count[name] % m_winsize == 0)
         {

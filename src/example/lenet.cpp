@@ -19,7 +19,7 @@ using namespace cuvnet;
 namespace ll = boost::lambda;
 
 /**
- * load a batch from the dataset
+ * load a batch from the dataset.
  */
 void load_batch(
         boost::shared_ptr<ParameterInput> input,
