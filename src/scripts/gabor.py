@@ -9,9 +9,20 @@ from scipy.optimize import fmin
 
 
 
-
 # short time fourier transform
 def stft(x, fs, framesz, hop):
+   framesamp = int(framesz*fs)
+   hopsamp = int(hop*fs)
+   
+   w = scipy.hamming(framesamp)
+   middle = len(x)/2
+   x = np.roll(x,middle)
+   X = scipy.array([scipy.fft(w * np.roll(x, -i)[middle - fs/2 : middle+fs/2]) 
+                    for i in range(0, len(x), hopsamp)])
+   return X
+
+# short time fourier transform
+def stft_2(x, fs, framesz, hop):
    framesamp = int(framesz*fs)
    hopsamp = int(hop*fs)
    
@@ -22,14 +33,19 @@ def stft(x, fs, framesz, hop):
 
 
 # returns gabor for given parameters
-def gabor(t, A, f, P, t0, a):
+def gabor(t, A, f, P, t0, a, fs):
+    # find wrap index 
+    shift = int(len(t) / 2  - t0 * 10)
+    t0 = len(t) / 20
+
     g = A * np.exp(-0.5 / a**2 *  (t- t0)**2) *  np.cos(-2* f * np.pi * t - P)
+    g = np.roll(g, -shift)
     return g
 
 # returns MSE loss between original filter and gabor
-def loss(params, y, p):
+def loss(params, y, p, fs):
     A, f, P, to, a  = params
-    return ((y - gabor(p, A,f, P, to, a))**2).sum()
+    return ((y - gabor(p, A,f, P, to, a, fs))**2).sum()
 
 
 # plots polar for angles and frequences
@@ -81,18 +97,12 @@ def fitfilter(x, a, fs, show_spec):
     l2 = len(ab[0,:])
     id2 = int(ind / l2)
     id1 =  ind - id2 * l2 
-    su = np.sum(ab[:,id1]) / (fs / 2)
-    print 'sum ', su 
-
-
 
 
     #finds amplitude A, phase P, and frequence f
-    A = ab[id2, id1]
-    print 'A', A 
-    print np.max(x)
-    #A = A/2
-    A = su
+    print 'max x', np.max(x)
+    A = np.sum(ab[:,id1]) / (fs / 2)
+    print 'A', A
     P = np.angle(X[id2, id1])
     f = id2 / freq_factor 
 
@@ -108,10 +118,9 @@ def fitfilter(x, a, fs, show_spec):
 
 
 
-    pos = hop_factor * id1 +  framesz * fs / 2
+    pos = id1
     pos = pos / float(10)
     print 'pos', pos
-    print 'id1', id1
     # these are initialization parameters for gabor found by stft
     param = [A, f, P, pos, a]
     print param
@@ -120,11 +129,11 @@ def fitfilter(x, a, fs, show_spec):
     
     w_t = [0] * 100
     w = np.hamming(fs*framesz)
-    pos_ = int(pos*10  - fs*framesz/2)
+    pos_ = int(pos*10)
     w_t[pos_: pos_ + fs*framesz] = w
     #x = w_t * x
 
-    args = [x, t]
+    args = [x, t, fs]
     
     # optimizes the loss of the gabor 
     all_ret = fmin(loss, param, args, full_output=1, maxiter = 300, maxfun = 300 )
@@ -258,8 +267,9 @@ x = np.array(o.ix[:, best_ind])
 y = np.array(o_y.ix[:, best_ind])
 
 t = np.arange(0,10 , 0.1)
-temp_x = 0.6 * np.exp( -0.5 / 0.2**2 *  (t - 6) **2) *  np.cos(-2* 2 * np.pi * t )
-temp_x = np.roll(temp_x, 40)
+a = 1
+temp_x = 0.6 * np.exp( -0.7 / a**2 *  (t - 6) **2) *  np.cos(-2* 3 * np.pi * t )
+temp_x = np.roll(temp_x, 38)
 x = temp_x
 
 
@@ -299,7 +309,7 @@ lim_2 = 1.5
 
 #plots original filter x
 plt.subplot(n, 1, 1)
-plt.plot( x, label="feature x")
+plt.plot(t, x, label="feature x")
 plt.title('feature x')
 plt.ylabel('a')
 plt.xlabel('t')
@@ -318,14 +328,22 @@ else:
   #plots filter multiplied with hamming window
   w_t = [0] * 100
   w = np.hamming(fs) 
-  print 'max ham ', np.max(w)
   pos_ = param_b[3] * 10
-  pos_ = int(pos_ - fs/2)
+   
+  # find wrap index 
+  wrap = int(len(x) / 2 - pos_)
 
-  w_t[pos_: pos_ + fs] = w
+  # init hamming window
+  w_t[len(x) / 2 - fs/2: len(x) / 2 + fs/2] = w
+
+  # shift the filter by wrap 
+  x = np.roll(x, wrap)
+
+  # multiply filter with window
   x = w_t * x
-  print 'max wind ', np.max(x)
-  pos_ = param_b[3] * 10
+
+  # shift back the filter
+  x = np.roll(x, -wrap)
 
   plt.subplot(n, 1, 2)
   plt.plot( x, label="feature")
@@ -341,17 +359,27 @@ else:
 
 
 # plots fitted and optimized gabor filter x
+
 t = np.arange(0,10 , 0.01)
+# find wrap index 
+wrap = len(x) / 2 - t0 * 10
+t0 = len(x)/20
+print 'wrap_', wrap
+wrap = int(wrap) * 10
+
 c = A * np.exp( -0.5 / a**2 *  (t - t0) **2) *  np.cos(-2* f * np.pi * t - P)
+c = np.roll(c, -wrap)
 
 plt.subplot(n, 1, 3)
 plt.plot(t, c, label="gabor")
 plt.title('gabor optimized x')
 plt.ylim(lim_1, lim_2)
 
+# for calculating error between the filter and opt. gabor
 t = np.arange(0,10 , 0.1)
 c_e = A * np.exp( -0.5 / a**2 *  (t - t0) **2) *  np.cos(-2* f * np.pi * t - P)
-print 'max opt', np.max(c_e)
+c_e = np.roll(c_e, -wrap / 10)
+
 c2_e = 0
 
 if show_filter_y:
@@ -371,13 +399,22 @@ else:
   a = param_b[4]
   t0 = param_b[3]
   t = np.arange(0,10 , 0.01)
+
+  
+  # find wrap index 
+  wrap = len(x) / 2 - t0 * 10
+  t0 = len(x) / 20
+  wrap = int(wrap) * 10
+
   c2 = A * np.exp( -0.5 / a**2 *  (t - t0) **2) *  np.cos(-2* f * np.pi * t - P)
+  c2 = np.roll(c2, -wrap)
   plt.subplot(n, 1, 4)
   plt.plot(t, c2, label="cos gabor before")
   plt.title('gabor non-optimized')
   plt.ylim(lim_1, lim_2)
   t = np.arange(0,10 , 0.1)
   c2_e = A * np.exp( -0.5 / a**2 *  (t - t0) **2) *  np.cos(-2* f * np.pi * t - P)
+  c2_e = np.roll(c2_e, -wrap/10)
   print 'max non opt', np.max(c2_e)
 
 
