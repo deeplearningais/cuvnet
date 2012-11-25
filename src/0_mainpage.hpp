@@ -1,7 +1,7 @@
 /**
  *
  * @defgroup OpGroup Symbolic operations
- * @defgroup models Models, which demonstrate how \c Ops can be combined.
+ * @defgroup models Models, which demonstrate how Ops can be combined.
  * @defgroup tools Everything not connected to the symbolic operations themselves
  *
  * @addtogroup OpGroup
