@@ -123,3 +123,10 @@
 
 namespace cuvnet{
 }
+
+/**
+ * @example linear_regression.cpp very simple demonstration of how to use cuvnet
+ * @example logistic_regression.cpp slightly more advanced concepts: sinks
+ * @example minibatch_learning.cpp slightly more advanced concepts: callbacks for online-learning
+ * @example hyperopt.cpp how to use James Bergstra's hyperopt for hyper parameter optimization
+ */
