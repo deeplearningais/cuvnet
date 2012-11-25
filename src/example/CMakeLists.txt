@@ -1,8 +1,3 @@
 add_executable(hyperopt hyperopt.cpp )
 link_directories(/usr/local/cuda/lib)
 FIND_PACKAGE( PythonLibs )
-if ( PYTHONLIBS_FOUND )
-    include_directories( ${PYTHON_INCLUDE_DIRS} )
-    add_executable(obj_detection obj_detection.cpp)
-    target_link_libraries(hyperopt  ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} cuv cuvnet_ops npy cuvnet_tools cuvnet_datasets pthread mdbq)
-endif( PYTHONLIBS_FOUND )
