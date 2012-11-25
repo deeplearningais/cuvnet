@@ -88,6 +88,11 @@ namespace cuvnet
     /// construct a Prod object
     inline
         Op::op_ptr prod(Op::op_ptr x, Op::op_ptr y, char tx='n', char ty='n') { return boost::make_shared<Prod>(x->result(), y->result(), tx, ty); }
+    /// construct an input object
+    /// @param e an extents object, describing the dimensions of the input
+    template<class E>
+    inline
+        boost::shared_ptr<ParameterInput> input(E t){ return boost::make_shared<ParameterInput>(e); }
     /// construct a Sink object
     inline
         boost::shared_ptr<Sink> sink(Op::op_ptr x, unsigned int res=0){ return boost::make_shared<Sink>(x->result(res)); }
