@@ -23,7 +23,11 @@ namespace cuvnet
                 typedef Op::value_ptr     value_ptr;
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
-                enum NoiseType{ NT_NORMAL, NT_ZERO_OUT };
+                /// the two noise types supported by Noiser
+                enum NoiseType{ 
+                    NT_NORMAL,  ///< add Gaussian noise
+                    NT_ZERO_OUT  ///< set a certain percentage to zero
+                };
             private:
                 float m_param;
                 NoiseType m_noisetype;
