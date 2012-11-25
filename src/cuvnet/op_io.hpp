@@ -16,9 +16,42 @@
 #include "op.hpp"
 namespace cuvnet
 {
-    std::string op2str(Op::op_ptr&);
-    Op::op_ptr str2op(const std::string&);
 
+    /**
+     * @ingroup serialization
+     * serialize an Op to a string, which can later be used to recover it.
+     *
+     * @see str2op
+     *
+     * @param o the Op to be serialized
+     * @return a string containing the serialized version of the Op
+     */
+    std::string op2str(Op::op_ptr& o);
+
+    /**
+     * @ingroup serialization
+     * deserialize an Op from a string.
+     *
+     * @see op2str
+     *
+     * @param s a string containing the serialized version of an Op
+     * @return the deserialized Op
+     */
+    Op::op_ptr str2op(const std::string& s);
+
+    /**
+     * @ingroup serialization
+     * register all known Op types to a boost archive.
+     *
+     * This is necessary, since we use polymorphic pointers for Ops.
+     * Note that you don't have to call this function when using 
+     * \c op2str and \c str2op.
+     *
+     * @see op2str
+     * @see str2op
+     *
+     * @param ar the boost archive.
+     */
     template < typename Archive > 
         void register_objects(Archive & ar) 
         { 

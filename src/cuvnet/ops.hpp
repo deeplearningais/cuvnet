@@ -92,7 +92,7 @@ namespace cuvnet
     /// @param e an extents object, describing the dimensions of the input
     template<class E>
     inline
-        boost::shared_ptr<ParameterInput> input(E t){ return boost::make_shared<ParameterInput>(e); }
+        boost::shared_ptr<ParameterInput> input(E e){ return boost::make_shared<ParameterInput>(e); }
     /// construct a Sink object
     inline
         boost::shared_ptr<Sink> sink(Op::op_ptr x, unsigned int res=0){ return boost::make_shared<Sink>(x->result(res)); }

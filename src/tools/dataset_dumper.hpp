@@ -16,6 +16,11 @@
 
 namespace cuvnet
 {
+    /**
+     * dump a dataset to a file, to be used later by dataset_reader.
+     *
+     * @ingroup datasets
+     */
     class dataset_dumper{
         typedef cuv::tensor<float,cuv::host_memory_space> tensor_type;
         
@@ -36,8 +41,13 @@ namespace cuvnet
         public:
 
         /**
-         * constructor
+         * constructor.
          * 
+         * @param file_name where to save the file
+         * @param num_batches the total number of batches to save
+         * @param bs the batch size
+         * @param data_dim_2 the number of dimensions the dataset
+         * @param label_dim_2 the number of dimension of labels in the dataset
          */
         dataset_dumper(std::string file_name, int num_batches, int bs, int data_dim_2, int label_dim_2):
             m_logfile(file_name.c_str()),
@@ -54,6 +64,12 @@ namespace cuvnet
         }
 
         
+        /**
+         * Accumulates the batches in memory and dumps them to a file when complete.
+         *
+         * @param data the inputs
+         * @param labels the corresponding labels
+         */
         void write_to_file(const tensor_type& data, const tensor_type& labels){
            m_whole_data[cuv::indices[cuv::index_range(m_current_batch_num * m_bs, (m_current_batch_num+1) * m_bs)][cuv::index_range()]]= data;
            m_whole_labels[cuv::indices[cuv::index_range(m_current_batch_num * m_bs,(m_current_batch_num+1) * m_bs)][cuv::index_range()]]= labels;
@@ -65,7 +81,9 @@ namespace cuvnet
            }
         }
 
-
+        /**
+         * close the file we've dumped the data into.
+         */
         void close(){
             m_logfile.close();
         }

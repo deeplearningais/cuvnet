@@ -19,8 +19,9 @@ namespace cuvnet
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
             public:
-                Atan2(){} /// for serialization
+                Atan2(){} ///< for serialization
                 /**
+                 * ctor.
                  * @param p0 y
                  * @param p1 x
                  */

@@ -9,14 +9,27 @@
  *   @defgroup Ops Implementations of specific symbolic operations
  *   @defgroup convenience_funcs Convenience functions for creating complex symbolic operations
  *   @defgroup op_visitors Operations on symbolic functions
+ *   @defgroup serialization Helpers for serialization of symbolic functions and models
  * @}
  * @addtogroup tools
  * @{
  *   @defgroup preproc Pre-processing of datasets
  *   @defgroup learning Parameter learning
+ *   @addtogroup learning
+ *   @{
+ *     @defgroup gd Gradient Descent
+ *     @defgroup gd_util Gradient Descent Utilities
+ *     @defgroup learning_exceptions Learning Exceptions
+ *   @}
+ *   @defgroup python_helpers Helper functions for accessing cuvnet functionality from Python
+ *   @defgroup netcom Helpers for performing asynchronous stochastic gradient descent
  * @}
  *
  * @defgroup datasets Dataset accessors
+ * @addtogroup datasets
+ * @{
+ *   @defgroup bbtools Tools for dealing with bounding boxes
+ * @}
  *
  * @mainpage
  *

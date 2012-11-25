@@ -20,7 +20,11 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
 
             public:
-                Log(){} /// for serialization
+                Log(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 the input to take the log of
+                 */
                 Log(result_t& p0):Op(1,1){
                     add_param(0,p0);
                 }

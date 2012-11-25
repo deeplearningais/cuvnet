@@ -38,6 +38,7 @@ namespace cuvnet
      * @param srcMapCount number of rows in the arrangement
      * @param fs          width and height of an image
      * @param channels    number of channels of an image (should have shape channels X fs X fs)
+     * @param normalize_separately if true, every filter is normalized separately to cover the whole brightness range.
      *
      * @return rearranged view
      *

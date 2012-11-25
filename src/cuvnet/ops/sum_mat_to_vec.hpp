@@ -27,7 +27,12 @@ namespace cuvnet
                 unsigned int m_axis;
                 bool m_identity;
             public:
-                SumMatToVec() :   Op(1,1){} // for serialization
+                SumMatToVec() :   Op(1,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param mat the n-dimensional array
+                 * @param axis currently, either 0 or n-1 is allowed
+                 */
                 SumMatToVec(result_t& mat, unsigned int axis)
                     :   Op(1,1)
                       , m_axis(axis)

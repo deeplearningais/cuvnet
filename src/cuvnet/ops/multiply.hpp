@@ -19,7 +19,12 @@ namespace cuvnet
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
             public:
-                Multiply(){} /// for serialization
+                Multiply(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 first factor
+                 * @param p1 second factor
+                 */
                 Multiply(result_t& p0, result_t& p1)
                     :Op(2,1){
                          add_param(0,p0);

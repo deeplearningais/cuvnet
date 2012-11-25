@@ -4,6 +4,11 @@
 #include <cuv.hpp>
 namespace cuvnet
 {
+    /**
+     *  This is the tensor type used to communicate between \c Op s.
+     *  You can choose it to be either on device or host, thereby
+     *  determining whether the GPU is used -- or not.
+     */
 	typedef cuv::tensor<float,cuv::dev_memory_space> matrix;
 }
 

@@ -28,19 +28,49 @@ namespace cuvnet
                 bool m_copy; ///< if true, does not use view on inputs (might save some memory at cost of speed if input matrix is huge and not needed by other ops)
 
             public:
-                RowSelector(){} /// for serialization
+                RowSelector(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 first input
+                 * @param row if -1, select row randomly in every fprop.
+                 * @param copy if true, copy result before passing it to the next functor.
+                 */
                 RowSelector(result_t& p0, int row=-1, bool copy=false):Op(1,1),m_row(row),m_random(m_row<0),m_copy(copy){ 
                     add_param(0,p0);
                 }
+                /**
+                 * ctor.
+                 * @param p0 first input
+                 * @param p1 second input
+                 * @param row if -1, select row randomly in every fprop.
+                 * @param copy if true, copy result before passing it to the next functor.
+                 */
                 RowSelector(result_t& p0, result_t& p1, int row=-1, bool copy=false):Op(2,2),m_row(row),m_random(m_row<0),m_copy(copy){ 
                     add_param(0,p0);
                     add_param(1,p1);
                 }
+                /**
+                 * ctor.
+                 * @param p0 first input
+                 * @param p1 second input
+                 * @param p2 third input
+                 * @param row if -1, select row randomly in every fprop.
+                 * @param copy if true, copy result before passing it to the next functor.
+                 */
                 RowSelector(result_t& p0, result_t& p1, result_t& p2, int row=-1, bool copy=false):Op(3,3),m_row(row),m_random(m_row<0),m_copy(copy){ 
                     add_param(0,p0);
                     add_param(1,p1);
                     add_param(2,p2);
                 }
+                /**
+                 * ctor.
+                 * @param p0 first input
+                 * @param p1 second input
+                 * @param p2 third input
+                 * @param p3 fourth input
+                 * @param row if -1, select row randomly in every fprop.
+                 * @param copy if true, copy result before passing it to the next functor.
+                 */
                 RowSelector(result_t& p0, result_t& p1, result_t& p2, result_t& p3, int row=-1, bool copy=false):Op(3,3),m_row(row),m_random(m_row<0),m_copy(copy){ 
                     add_param(0,p0);
                     add_param(1,p1);
@@ -48,6 +78,9 @@ namespace cuvnet
                     add_param(3,p3);
                 }
 
+                /**
+                 * can be used to turn randomization off, eg for gradient testing.
+                 */
                 void set_random(bool b);
 
                 void fprop();

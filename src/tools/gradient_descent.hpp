@@ -10,19 +10,33 @@
 namespace cuvnet
 {
 
+    /**
+     * @addtogroup learning_exceptions
+     * @{
+     */
+    /// exception thrown when learning stopped.
     class gradient_descent_stop : public std::exception {};
+    /// exception thrown when learning stopped due to NaNs.
     class arithmetic_error_stop : public gradient_descent_stop {};
+    /// exception thrown when learning stopped in early_stopping.
     class no_improvement_stop : public gradient_descent_stop {};
+    /// exception thrown when learning stopped due to convergence.
     class convergence_stop : public gradient_descent_stop {};
+    /// exception thrown when learning stopped due to maximum iterations reached.
     class max_iter_stop : public gradient_descent_stop {};
+    /// exception thrown when learning stopped due to time limit reached.
     class timeout_stop  : public gradient_descent_stop {};
+    /// exception thrown when learning stopped due to a signal by a network peer.
     class network_stop  : public gradient_descent_stop {};
+    /**
+     * @}
+     */
 
 
     /**
      * Does vanilla gradient descent: a loop over epochs and a weight update with a
      * learning rate/weight decay afterwards.
-     * @ingroup learning
+     * @ingroup gd
      */
     struct gradient_descent{
         public:
@@ -159,6 +173,11 @@ namespace cuvnet
 
     };
 
+    /**
+     * determine whether learning converged and throw an exception if it did.
+     *
+     * @ingroup gd_util
+     */
     struct convergence_checker{
         private:
             /// gradient descent object for calls to save_current_params
@@ -228,6 +247,9 @@ namespace cuvnet
              */
             void operator()(unsigned int current_epoch, unsigned int wups);
             
+            /**
+             * disconnect from gradient descent object we registered with.
+             */
             void disconnect();
     };
 
@@ -239,6 +261,7 @@ namespace cuvnet
      * long as your gradient descent lives. It automatically registers itself
      * with the supplied gradient descent object.
      *
+     * @ingroup gd_util
      */
     struct early_stopper{
         private:
@@ -308,7 +331,7 @@ namespace cuvnet
 
 
             /**
-             * disconnects early stopping. 
+             * disconnects early stopping from gradient_descent object we registered with. 
              */
             void disconnect();
     };
@@ -319,7 +342,7 @@ namespace cuvnet
      * also allocates and manages variables for learning rates
      * and old gradients for each parameter.
      *
-     * @ingroup learning
+     * @ingroup gd
      */
     struct rprop_gradient_descent
     : public gradient_descent
@@ -358,7 +381,7 @@ namespace cuvnet
      *
      * also allocates and manages variables for momentum
      *
-     * @ingroup learning
+     * @ingroup gd
      */
     struct momentum_gradient_descent
     : public gradient_descent
@@ -391,7 +414,7 @@ namespace cuvnet
     /**
      * does AdaGrad gradient descent.
      *
-     * @ingroup learning
+     * @ingroup gd
      */
     struct adagrad_gradient_descent
     : public gradient_descent
@@ -439,7 +462,7 @@ namespace cuvnet
      * Introduced by Cotter et al., "Better Mini-Batch Algorithms via
      * Accelerated Gradient Methods" on NIPS.
      *
-     * @ingroup learning
+     * @ingroup gd
      */
     struct accelerated_gradient_descent
     : public gradient_descent
@@ -486,7 +509,7 @@ namespace cuvnet
      * gd.minibatch_learning(...);
      * @endcode
      *
-     * @ingroup learning
+     * @ingroup gd
      */
     template<class BaseGradientDescent>
     struct diff_recording_gradient_descent

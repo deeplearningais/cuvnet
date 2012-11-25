@@ -15,12 +15,21 @@
 namespace cuvnet
 {
     /**
-     * push a group name onto the stack (thereby placing all consecutive nodes in that group until obj is destroyed).
+     * push a group name onto the stack (thereby placing all consecutive nodes
+     * in that group until obj is destroyed).
      * @ingroup Ops
      */
     struct op_group
     {
+        /**
+         * ctor.
+         * @param name a name for this op group
+         * @param uniq if true, enforce that this group is defined only once.
+         *       If false, this group is "open", similar to C++ namespaces, and
+         *       you can continue to add new members by opening it again.
+         */
         op_group(const std::string& name, bool uniq=true);
+        /// dtor.
         ~op_group();
     };
 

@@ -19,9 +19,14 @@ namespace cuvnet
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
 
-                float m_exponent;
+                float m_exponent; ///< the exponent to which input is raised
             public:
-                Pow(){} /// for serialization
+                Pow(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param exponent the exponent to which p0 is raised
+                 * @param p0 the input
+                 */
                 Pow(float exponent, result_t& p0):Op(1,1), m_exponent(exponent){
                     add_param(0,p0);
                 }

@@ -20,7 +20,11 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
 
             public:
-                Tanh(){} /// for serialization
+                Tanh(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 the value to take tanh of
+                 */
                 Tanh(result_t& p0):Op(1,1){
                     add_param(0,p0);
                 }
@@ -50,7 +54,11 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
 
             public:
-                Sin(){} /// for serialization
+                Sin(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 the input to take sin of
+                 */
                 Sin(result_t& p0):Op(1,1){
                     add_param(0,p0);
                 }
@@ -79,7 +87,11 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
 
             public:
-                Cos(){} /// for serialization
+                Cos(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 the input to take cos of
+                 */
                 Cos(result_t& p0):Op(1,1){
                     add_param(0,p0);
                 }
@@ -113,7 +125,12 @@ namespace cuvnet
                 bool m_bprop_identity;
 
             public:
-                Logistic():m_bprop_identity(false){} /// for serialization
+                Logistic():m_bprop_identity(false){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 the input to calculate logistic function of
+                 * @param bprop_identity should be set to true if result was softmaxed
+                 */
                 Logistic(result_t& p0, bool bprop_identity=false):Op(1,1),m_bprop_identity(bprop_identity){
                     add_param(0,p0);
                 }

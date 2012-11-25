@@ -25,7 +25,16 @@ namespace cuvnet
                 int m_scalar_param;
 
             public:
-                Axpby():Op(2,1){} /// for serialization
+                Axpby():Op(2,1){} ///< for serialization
+
+                /**
+                 * ctor.
+                 * \f$ \alpha * X + \beta * Y\f$
+                 * @param p0 X
+                 * @param p1 Y
+                 * @param fact_a alpha
+                 * @param fact_b beta
+                 */
                 Axpby(result_t& p0, result_t& p1, float fact_a=1.f, float fact_b=1.f)
                     :Op(2,1)
                      , m_fact_a(fact_a)

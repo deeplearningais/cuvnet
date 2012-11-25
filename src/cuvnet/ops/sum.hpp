@@ -7,6 +7,10 @@
 
 namespace cuvnet
 {
+    /**
+     * the Kahan stable sum algorithm (slow!).
+     * @param m the values to be summed
+     */
     template <class T>
         double kahan_summation(const T& m) {
             double result = 0.f;
@@ -36,7 +40,11 @@ namespace cuvnet
                 bool m_identity;
 
             public:
-                Sum(){} /// for serialization
+                Sum(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 the input to be summed
+                 */
                 Sum(result_t& p0):Op(1,1){
                     add_param(0,p0);
                     m_results[0]->delta           = value_ptr(new value_type(cuv::extents[1]));
@@ -73,7 +81,11 @@ namespace cuvnet
                 bool  m_identity;
 
             public:
-                Mean(){} /// for serialization
+                Mean(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 the values to be averaged
+                 */
                 Mean(result_t& p0):Op(1,1){
                     add_param(0,p0);
                     m_results[0]->delta           = value_ptr(new value_type(cuv::extents[1]));

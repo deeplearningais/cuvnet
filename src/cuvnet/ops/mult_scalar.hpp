@@ -31,12 +31,22 @@ namespace cuvnet
                         , m_scalar(0)
             {
             }
+                /**
+                 * ctor.
+                 * @param mat the input to be multiplied by scalar
+                 * @param f scalar
+                 */
                 MultScalar(result_t& mat, float f)
                     :   Op(1,1)
                         , m_scalar(f)
             {
                 add_param(0,mat);
             }
+                /**
+                 * ctor.
+                 * @param f scalar
+                 * @param mat the input to be multiplied by scalar
+                 */
                 MultScalar(float f, result_t& mat)
                     :   Op(1,1)
                         , m_scalar(f)

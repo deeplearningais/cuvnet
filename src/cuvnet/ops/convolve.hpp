@@ -38,13 +38,14 @@ namespace cuvnet
                 unsigned int m_partial_sum;
                 int m_padding_start;
             public:
-                Convolve() :Op(2,1){} // for serialization
+                Convolve() :Op(2,1){} ///< for serialization
 
                 /**
                  * constructor.
                  *
                  * @param images nChannels x nPixels x nImages
                  * @param filters nFiltChannels x nFiltPix x nFilt
+                 * @param padding if true, pad image s.t. input and output shapes are equal.
                  * @param partial_sum optimization parameter of alex' convolution routines. Good values are probably 4 or 8.
                  */
                 Convolve(result_t& images, result_t& filters, bool padding, unsigned int partial_sum=4)
@@ -61,6 +62,7 @@ namespace cuvnet
 
                 void _determine_shapes();
 
+                /// @return true iff we use padding
                 inline bool is_padded()const{
                     return m_padding_start != 0;
                 }
@@ -92,7 +94,13 @@ namespace cuvnet
             private:
                 unsigned int m_startx, m_stridex;
             public:
-                BedOfNails() :Op(1,1){} // for serialization
+                BedOfNails() :Op(1,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param images the input images
+                 * @param stridex interval for stepping
+                 * @param startx start position for stepping
+                 */
                 BedOfNails(result_t& images, int stridex=2, int startx=0)
                     :Op(1,1),
                     m_startx(startx),
@@ -130,7 +138,12 @@ namespace cuvnet
             private:
                 float m_scale;
             public:
-                ResizeBilinear() :Op(1,1){} // for serialization
+                ResizeBilinear() :Op(1,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param images the input images
+                 * @param scale factor for bilinear scaling.
+                 */
                 ResizeBilinear(result_t& images, float scale)
                     :Op(1,1),
                     m_scale(scale)
@@ -167,7 +180,12 @@ namespace cuvnet
             private:
                 matrix m_kernel;
             public:
-                SeparableFilter() :Op(1,1){} // for serialization
+                SeparableFilter() :Op(1,1){} ///< for serialization.
+                /**
+                 * ctor.
+                 * @param images the input images
+                 * @param kernel a kernel used for row and column convolutions.
+                 */
                 SeparableFilter(result_t& images, const matrix& kernel)
                     :Op(1,1),
                     m_kernel(kernel)
@@ -208,7 +226,7 @@ namespace cuvnet
                 value_ptr m_orig_out;
                 matrix m_denom;
             public:
-                ResponseNormalizationCrossMaps() :Op(1,1){} // for serialization
+                ResponseNormalizationCrossMaps() :Op(1,1){} ///< for serialization
 
                 /**
                  * ctor.
@@ -260,7 +278,14 @@ namespace cuvnet
                 value_ptr m_orig_out;
                 matrix m_denom;
             public:
-                ResponseNormalization() :Op(1,1){} // for serialization
+                ResponseNormalization() :Op(1,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param images the input images
+                 * @param patch_size region size to normalize over
+                 * @param add_scale this is added to stabilize denominator
+                 * @param pow_scale the power to which input is raised
+                 */
                 ResponseNormalization(result_t& images, int patch_size, float add_scale, float pow_scale)
                     :Op(1,1),
                     m_patch_size(patch_size),
@@ -304,7 +329,14 @@ namespace cuvnet
                 matrix m_denom;
                 matrix m_meandiffs;
             public:
-                ContrastNormalization() :Op(1,1){} // for serialization
+                ContrastNormalization() :Op(1,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param images the input images
+                 * @param patch_size region size to normalize over
+                 * @param add_scale this is added to stabilize denominator
+                 * @param pow_scale the power to which input is raised
+                 */
                 ContrastNormalization(result_t& images, int patch_size, float add_scale, float pow_scale)
                     :Op(1,1),
                     m_patch_size(patch_size),
@@ -346,7 +378,12 @@ namespace cuvnet
                 unsigned int m_subsx, m_stridex;
                 value_ptr m_result;
             public:
-                LocalPooling() :Op(1,1){} // for serialization
+                LocalPooling() :Op(1,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param images the input images
+                 * @param pt pooling type
+                 */
                 LocalPooling(result_t& images, cuv::alex_conv::pool_type pt)
                     :Op(1,1),
                     m_pooltype(pt),
@@ -393,7 +430,11 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
             private:
             public:
-                ReorderForConv() :Op(1,1){} // for serialization
+                ReorderForConv() :Op(1,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param images the input images
+                 */
                 ReorderForConv(result_t& images)
                     :Op(1,1)
                 {
@@ -427,7 +468,11 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
             private:
             public:
-                ReorderFromConv() :Op(1,1){} // for serialization
+                ReorderFromConv() :Op(1,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param images the input images
+                 */
                 ReorderFromConv(result_t& images)
                     :Op(1,1)
                 {
