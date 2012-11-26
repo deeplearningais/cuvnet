@@ -94,6 +94,15 @@
 
 @endcode
  *
+ * @section deps Dependencies
+ *
+ * You have to install the following to get cuvnet to work:
+ * - cuv https://github.com/deeplearningais/CUV
+ * - mdbq https://github.com/temporaer/MDBQ
+ * - libjpeg-dev
+ * - liblog4cxx10-dev
+ *
+ *
  * @section compiling Compiling
  *
  * download cuvnet,
