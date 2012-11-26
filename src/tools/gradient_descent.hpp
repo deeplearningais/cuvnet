@@ -343,6 +343,13 @@ namespace cuvnet
                 return m_best_perf;
             }
 
+            /**
+             * set the (initial?) patience (in weight updates).
+             */
+            inline void set_patience(unsigned int patience){
+                m_patience = patience;
+            }
+
 
             /**
              * disconnects early stopping from gradient_descent object we registered with. 

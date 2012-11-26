@@ -87,20 +87,24 @@ namespace cuvnet
     }
 
     void gradient_descent::batch_learning(const unsigned int n_epochs, unsigned long int n_max_secs){
-                unsigned long int t_start = time(NULL);
-                for (unsigned int epoch = 0; epoch < n_epochs; ++epoch) {
-                    if(time(NULL) - t_start > n_max_secs)
-                        break;
-                    before_epoch(epoch, epoch); // wups==epoch
-                    m_swipe.fprop();
-                    m_swipe.bprop();
-                    after_batch(epoch, 0); // should accumulate errors etc
-                    update_weights();
-                    after_weight_update(epoch);
-                    after_epoch(epoch, epoch); // wups==epoch
-                    //m_learnrate *= m_learnrate_decay;
-                }
-                done_learning();
+        try{
+            unsigned long int t_start = time(NULL);
+            for (unsigned int epoch = 0; epoch < n_epochs; ++epoch) {
+                if(time(NULL) - t_start > n_max_secs)
+                    throw timeout_stop();
+                before_epoch(epoch, epoch); // wups==epoch
+                m_swipe.fprop();
+                m_swipe.bprop();
+                after_batch(epoch, 0); // should accumulate errors etc
+                update_weights();
+                after_weight_update(epoch);
+                after_epoch(epoch, epoch); // wups==epoch
+                //m_learnrate *= m_learnrate_decay;
+            }
+        }catch(gradient_descent_stop){
+        }
+        load_best_params();
+        done_learning();
     }
 
     void gradient_descent::update_weights(){
