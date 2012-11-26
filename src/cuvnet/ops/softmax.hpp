@@ -25,8 +25,8 @@ namespace cuvnet
                 NegCrossEntropyOfLogistic(){} ///< for serialization
                 /**
                  * ctor.
-                 * @param p0 x
-                 * @param p1 y
+                 * @param p0 target
+                 * @param p1 estimator
                  */
                 NegCrossEntropyOfLogistic(result_t& p0, result_t& p1)
                     :Op(2,1){
@@ -268,8 +268,8 @@ namespace cuvnet
                 MultinomialLogisticLoss(){} ///< for serialization
                 /**
                  * ctor.
-                 * @param p0 y_hat
-                 * @param p1 y
+                 * @param p0 y_hat (estimator)
+                 * @param p1 y (target)
                  * @param axis axis to softmax over (allowed: first or last)
                  */
                 MultinomialLogisticLoss(result_t& p0, result_t& p1, unsigned int axis)
