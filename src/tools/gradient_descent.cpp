@@ -149,11 +149,18 @@ namespace cuvnet
     }
 
     void gradient_descent::eval_epoch(unsigned int current_epoch){
-        unsigned int n_batches = current_batch_num();
-        for (unsigned int  batch = 0; batch < n_batches; ++batch) {
-            before_batch(current_epoch, batch);
+        if(current_batch_num) {
+            unsigned int n_batches = current_batch_num();
+            for (unsigned int  batch = 0; batch < n_batches; ++batch) {
+                before_batch(current_epoch, batch);
+                m_swipe.fprop(); // fprop /only/
+                after_batch(current_epoch, batch);
+            }
+        }else{
+            // batch learning
+            before_batch(current_epoch, 0);
             m_swipe.fprop(); // fprop /only/
-            after_batch(current_epoch, batch);
+            after_batch(current_epoch, 0);
         }
     }
 
