@@ -101,6 +101,7 @@
  * - mdbq https://github.com/temporaer/MDBQ
  * - libjpeg-dev
  * - liblog4cxx10-dev
+ * - python-dev
  *
  *
  * @section compiling Compiling
