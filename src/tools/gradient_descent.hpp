@@ -146,6 +146,20 @@ namespace cuvnet
                 m_learnrate *= fact;
             }
 
+            /**
+             * decrease learnrate by value.
+             */
+            inline void decrease_learnrate(float val){
+                m_learnrate -= val;
+            }
+
+            /**
+             * @return the current learnrate.
+             */
+            inline float learnrate()const{
+                return m_learnrate;
+            }
+
 
             /**
              * save the current parameters (on host) for retrieval
