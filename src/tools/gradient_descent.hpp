@@ -130,7 +130,7 @@ namespace cuvnet
              * @param n_epochs            how many epochs to run
              * @param n_max_secs          maximum duration (seconds)
              */
-            void batch_learning(const unsigned int n_epochs, unsigned long int n_max_secs);
+            void batch_learning(const unsigned int n_epochs, unsigned long int n_max_secs=INT_MAX);
 
             /**
              * return the epoch where \c best_perf was attained.
