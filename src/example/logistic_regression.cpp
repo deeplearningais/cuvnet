@@ -40,7 +40,7 @@ int main(int argc, char **argv){
         op_ptr estimator = prod(X,W);
         loss = mean(
                 multinomial_logistic_loss(
-                    estimator, Y, 0));
+                    estimator, Y, 1));
 
         // when the forward pass for the loss is calculated, 
         // only the /required/ ops for `loss' are calculated.
@@ -62,10 +62,10 @@ int main(int argc, char **argv){
         prod(Y->data(), X->data(), W->data());
 
         // Y is a one-out-of-n coding for n_out_dim classes
-        cuv::tensor<unsigned int> idx(cuv::extents[n_examples]);
+        cuv::tensor<unsigned int, cuvnet::matrix::memory_space_type> idx(cuv::extents[n_examples]);
         cuv::reduce_to_col(idx, Y->data(), cuv::RF_ARGMAX);
         Y->data() = 0.f;
-        for(unsigned int i=0;i < n_examples; i++)
+        for(int i=0;i < n_examples; i++)
             Y->data()(i,idx(i)) = 1.f;
         
         // forget about W again
@@ -84,11 +84,11 @@ int main(int argc, char **argv){
     // 4. recover W with logistic regression
     {
         std::vector<cuvnet::Op*> params(1,W.get());
-        cuvnet::gradient_descent gd(loss,0,params,0.1f);
+        cuvnet::gradient_descent gd(loss,0,params,1.5f);
         mon.register_gd(gd);
-        gd.batch_learning(100);
+        gd.batch_learning(1000);
     }
 
-    std::cout << "\nFinal mean squared error: "<<mon.mean("loss")<<std::endl;
+    std::cout << "\nFinal multinomial logistic loss: "<<mon.mean("loss")<<std::endl;
     std::cout << "\nFinal classification error: "<<mon.mean("class loss")<<std::endl;
 }

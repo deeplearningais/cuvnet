@@ -21,12 +21,12 @@ typedef boost::shared_ptr<cuvnet::Op> op_ptr;
 typedef boost::shared_ptr<cuvnet::ParameterInput> input_ptr;
 
 struct data{
-    cuv::tensor<float, cuv::host_memory_space> W;
+    cuv::tensor<float, cuvnet::matrix::memory_space_type> W;
     data(int n_in_dim, int n_out_dim)
         : W(cuv::extents[n_in_dim][n_out_dim]) {
         // create a weight matrix which is unknown to the learner
         // and must be recovered by it.
-        fill_rnd_uniform(W->data());
+        fill_rnd_uniform(W);
     }
 
     void load_batch(input_ptr X, input_ptr Y){
