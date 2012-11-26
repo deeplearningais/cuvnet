@@ -66,6 +66,7 @@ namespace cuvnet
                         m_swipe.bprop(); // backward pass
 
                         if(iter % update_every == 0) {
+                            before_weight_update(wups);
                             update_weights(); 
                             wups ++;
                             after_weight_update(wups);
@@ -96,6 +97,7 @@ namespace cuvnet
                 m_swipe.fprop();
                 m_swipe.bprop();
                 after_batch(epoch, 0); // should accumulate errors etc
+                before_weight_update(epoch);
                 update_weights();
                 after_weight_update(epoch);
                 after_epoch(epoch, epoch); // wups==epoch
