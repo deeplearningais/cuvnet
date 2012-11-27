@@ -3,12 +3,11 @@
 #include <functional>
 #include <iterator>
 
-/**
- * comparator object for argsort
- * @ingroup tools
- */
 namespace detail
 {
+    /**
+     * comparator object for argsort
+     */
     template<class T, class Cmp>
         struct argsort_cmp
         {

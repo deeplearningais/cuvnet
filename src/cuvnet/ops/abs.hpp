@@ -23,9 +23,9 @@ namespace cuvnet
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
 
-                float m_scalar;
+                float m_scalar; ///< a small value which is added before taking the square root
             public:
-                Abs(){} /// for serialization
+                Abs(){} ///< for serialization
 
                 /**
                  * ctor.

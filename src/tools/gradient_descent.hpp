@@ -10,19 +10,33 @@
 namespace cuvnet
 {
 
+    /**
+     * @addtogroup learning_exceptions
+     * @{
+     */
+    /// exception thrown when learning stopped.
     class gradient_descent_stop : public std::exception {};
+    /// exception thrown when learning stopped due to NaNs.
     class arithmetic_error_stop : public gradient_descent_stop {};
+    /// exception thrown when learning stopped in early_stopping.
     class no_improvement_stop : public gradient_descent_stop {};
+    /// exception thrown when learning stopped due to convergence.
     class convergence_stop : public gradient_descent_stop {};
+    /// exception thrown when learning stopped due to maximum iterations reached.
     class max_iter_stop : public gradient_descent_stop {};
+    /// exception thrown when learning stopped due to time limit reached.
     class timeout_stop  : public gradient_descent_stop {};
+    /// exception thrown when learning stopped due to a signal by a network peer.
     class network_stop  : public gradient_descent_stop {};
+    /**
+     * @}
+     */
 
 
     /**
      * Does vanilla gradient descent: a loop over epochs and a weight update with a
      * learning rate/weight decay afterwards.
-     * @ingroup learning
+     * @ingroup gd
      */
     struct gradient_descent{
         public:
@@ -47,6 +61,8 @@ namespace cuvnet
             boost::signal<void(unsigned int,unsigned int)> before_batch;
             /// triggered after executing a batch
             boost::signal<void(unsigned int,unsigned int)> after_batch;
+            /// triggered before updating weights
+            boost::signal<void(unsigned int)> before_weight_update;
             /// triggered after updating weights
             boost::signal<void(unsigned int)> after_weight_update;
 
@@ -116,7 +132,7 @@ namespace cuvnet
              * @param n_epochs            how many epochs to run
              * @param n_max_secs          maximum duration (seconds)
              */
-            void batch_learning(const unsigned int n_epochs, unsigned long int n_max_secs);
+            void batch_learning(const unsigned int n_epochs, unsigned long int n_max_secs=INT_MAX);
 
             /**
              * return the epoch where \c best_perf was attained.
@@ -130,6 +146,20 @@ namespace cuvnet
              */
             inline void decay_learnrate(float fact=0.98){
                 m_learnrate *= fact;
+            }
+
+            /**
+             * decrease learnrate by value.
+             */
+            inline void decrease_learnrate(float val){
+                m_learnrate -= val;
+            }
+
+            /**
+             * @return the current learnrate.
+             */
+            inline float learnrate()const{
+                return m_learnrate;
             }
 
 
@@ -159,6 +189,11 @@ namespace cuvnet
 
     };
 
+    /**
+     * determine whether learning converged and throw an exception if it did.
+     *
+     * @ingroup gd_util
+     */
     struct convergence_checker{
         private:
             /// gradient descent object for calls to save_current_params
@@ -228,6 +263,9 @@ namespace cuvnet
              */
             void operator()(unsigned int current_epoch, unsigned int wups);
             
+            /**
+             * disconnect from gradient descent object we registered with.
+             */
             void disconnect();
     };
 
@@ -239,6 +277,7 @@ namespace cuvnet
      * long as your gradient descent lives. It automatically registers itself
      * with the supplied gradient descent object.
      *
+     * @ingroup gd_util
      */
     struct early_stopper{
         private:
@@ -306,9 +345,16 @@ namespace cuvnet
                 return m_best_perf;
             }
 
+            /**
+             * set the (initial?) patience (in weight updates).
+             */
+            inline void set_patience(unsigned int patience){
+                m_patience = patience;
+            }
+
 
             /**
-             * disconnects early stopping. 
+             * disconnects early stopping from gradient_descent object we registered with. 
              */
             void disconnect();
     };
@@ -319,7 +365,7 @@ namespace cuvnet
      * also allocates and manages variables for learning rates
      * and old gradients for each parameter.
      *
-     * @ingroup learning
+     * @ingroup gd
      */
     struct rprop_gradient_descent
     : public gradient_descent
@@ -358,7 +404,7 @@ namespace cuvnet
      *
      * also allocates and manages variables for momentum
      *
-     * @ingroup learning
+     * @ingroup gd
      */
     struct momentum_gradient_descent
     : public gradient_descent
@@ -389,9 +435,51 @@ namespace cuvnet
 
     };
     /**
+     * does RMSPROP gradient descent.
+     *
+     * @ingroup gd
+     */
+    struct rmsprop_gradient_descent
+    : public gradient_descent
+    {
+        public:
+            typedef std::vector<Op*> paramvec_t;
+        private:
+            /// per-weight squared gradient sum
+            std::vector<Op::value_type> m_sq_grad_sum; 
+            /// numerical stabilization constant: \f$H=\delta I+\|g\|_2\f$
+            float m_delta;
+            /// gradient magnitude averaging constant (0.9 means mostly keep current average)
+            float m_grad_avg_const;
+            /// L1 penalty
+            float m_l1penalty;
+        public:
+            /**
+             * constructor
+             *
+             * @param op the function we want to minimize
+             * @param result which result of op to minimize
+             * @param params the parameters w.r.t. which we want to optimize op
+             * @param learnrate the initial learningrate
+             * @param weightdecay weight decay for weight updates
+             * @param delta numerical stabilization constant: \f$H=\delta I+\|g\|_2\f$
+             * @param grad_avg how much to stick to the old gradient magnitudes
+             * @param l1penalty L1 penalty on parameters
+             */
+        rmsprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float delta=0.01f, float grad_avg=.9f, float l1_penalty=0.f);
+
+        protected:
+        /**
+         * @overload
+         * updates the weights with momentum.
+         */
+        virtual void update_weights();
+
+    };
+    /**
      * does AdaGrad gradient descent.
      *
-     * @ingroup learning
+     * @ingroup gd
      */
     struct adagrad_gradient_descent
     : public gradient_descent
@@ -439,7 +527,7 @@ namespace cuvnet
      * Introduced by Cotter et al., "Better Mini-Batch Algorithms via
      * Accelerated Gradient Methods" on NIPS.
      *
-     * @ingroup learning
+     * @ingroup gd
      */
     struct accelerated_gradient_descent
     : public gradient_descent
@@ -486,7 +574,7 @@ namespace cuvnet
      * gd.minibatch_learning(...);
      * @endcode
      *
-     * @ingroup learning
+     * @ingroup gd
      */
     template<class BaseGradientDescent>
     struct diff_recording_gradient_descent

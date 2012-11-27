@@ -36,7 +36,12 @@ namespace cuvnet
             private:
                 unsigned int m_outdim;
             public:
-                Flatten() :Op(1,1){} // for serialization
+                Flatten() :Op(1,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param in input
+                 * @param number of dimensions to keep
+                 */
                 Flatten(result_t& in, unsigned int outdim=1)
                     :Op(1,1),
                     m_outdim(outdim)
@@ -76,7 +81,12 @@ namespace cuvnet
             private:
                 std::vector<int> m_shape;
             public:
-                Reshape() :Op(1,1){} // for serialization
+                Reshape() :Op(1,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param in the input
+                 * @param eg the extents after reshaping.
+                 */
                 template<std::size_t D>
                 Reshape(result_t& in, const cuv::extent_gen<D>& eg)
                     :Op(1,1),

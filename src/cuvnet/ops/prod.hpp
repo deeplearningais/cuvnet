@@ -21,7 +21,14 @@ namespace cuvnet
             private:
                 char m_p0t, m_p1t;
             public:
-                Prod(){} /// for serialization
+                Prod(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 first matrix
+                 * @param p1 second matrix
+                 * @param p0t if 't', consider p0 transposed
+                 * @param p1t if 't', consider p1 transposed
+                 */
                 Prod(result_t& p0, result_t& p1, char p0t='n', char p1t='n')
                     :Op(2,1)
                     ,m_p0t(p0t)

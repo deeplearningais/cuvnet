@@ -23,7 +23,11 @@ namespace cuvnet
                 typedef Op::value_ptr     value_ptr;
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
-                enum NoiseType{ NT_NORMAL, NT_ZERO_OUT };
+                /// the two noise types supported by Noiser
+                enum NoiseType{ 
+                    NT_NORMAL,  ///< add Gaussian noise
+                    NT_ZERO_OUT  ///< set a certain percentage to zero
+                };
             private:
                 float m_param;
                 NoiseType m_noisetype;
@@ -32,7 +36,13 @@ namespace cuvnet
                 cuv::tensor<unsigned char,value_type::memory_space_type> m_zero_mask;
 
             public:
-                Noiser(){} /// for serialization
+                Noiser(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 the data to apply noise to
+                 * @param param controls amount of noise
+                 * @param noise_type type of noise to apply
+                 */
                 Noiser(result_t& p0, float param, NoiseType noise_type=NT_NORMAL)
                     :Op(1,1), m_param(param), m_noisetype(noise_type), m_active(true)
                      {
@@ -53,6 +63,9 @@ namespace cuvnet
                  * set some values to zero.
                  */
                 void fprop_zero_out();
+                /**
+                 * adds gaussian noise.
+                 */
                 void fprop_normal();
 
             public:

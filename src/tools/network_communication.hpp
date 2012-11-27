@@ -8,10 +8,19 @@ namespace cuvnet
 
     /**
      * Communicate between processes working on the same problem via MongoDB.
+     * @namespace network_communication
      */
     namespace network_communication
     {
+
         typedef cuv::tensor<float, cuv::host_memory_space> htensor_t;
+
+        /**
+         * @addtogroup netcom
+         * @{
+         */
+        
+        /// exception thrown when referring to a named parameter for which no value is stored.
         struct value_not_found_exception{};
 
         struct connection;
@@ -25,14 +34,21 @@ namespace cuvnet
         struct merger{
             std::map<std::string, htensor_t> m_merged; ///< contains merged weight vectors
             /**
-             * add a previously unknown parameter to the list
+             * add a previously unknown parameter to the list.
+             *
+             * @param name the name of the parameter
+             * @param t the value of the parameter
              */
             virtual void add_param(const std::string& name, const htensor_t& t);
             /**
              * merge a parameter update into its parameter object.
+             *
+             * @param name the name of the parameter
+             * @param delta the update for this parameter
              */
             virtual void merge(const std::string& name, const htensor_t& delta);
             /**
+             * @param name the name of the parameter
              * @return whether the named parameter is known
              */
             bool has(const std::string& name);
@@ -59,10 +75,14 @@ namespace cuvnet
             momentum_merger(float momentum);
             /**
              * merge a parameter update into its parameter object.
+             * @param name the name of the parameter
+             * @param delta the update for this parameter
              */
             virtual void merge(const std::string& name, const htensor_t& delta);
             /**
-             * add a previously unknown parameter to the list
+             * add a previously unknown parameter to the list.
+             * @param name the name of the parameter
+             * @param t the value of the parameter
              */
             virtual void add_param(const std::string& name, const htensor_t& t);
         };
@@ -86,10 +106,14 @@ namespace cuvnet
             adagrad_merger(float delta=0.01f, int winsize=INT_MAX);
             /**
              * merge a parameter update into its parameter object.
+             * @param name the name of the parameter
+             * @param delta the update for this parameter
              */
             virtual void merge(const std::string& name, const htensor_t& delta);
             /**
-             * add a previously unknown parameter to the list
+             * add a previously unknown parameter to the list.
+             * @param name the name of the parameter
+             * @param t the value of the parameter
              */
             virtual void add_param(const std::string& name, const htensor_t& t);
         };
@@ -101,9 +125,7 @@ namespace cuvnet
         // - disable in validation epochs
 
         /**
-         * Does tasks which cannot be done by clients.
-         * The main use currently is to apply weight updates to centrally
-         * managed weights.
+         * Apply weight updates sent by clients to centrally managed weights.
          */
         class server{
             private:
@@ -124,6 +146,10 @@ namespace cuvnet
                  */
                 server( const std::string& url, const std::string& prefix, const std::string key="", merger* m=NULL);
 
+                /**
+                 * set a method for merging the updates into the centrally managed parameters.
+                 * @param m the merging method
+                 */
                 inline void set_merger(merger* m){m_merger = m;}
 
                 /**
@@ -147,7 +173,7 @@ namespace cuvnet
                 void cleanup();
 
                 /**
-                 * request to stop run() from another thread
+                 * request to stop run() from another thread.
                  */
                 inline void request_stop(){ m_stop = true; }
 
@@ -162,8 +188,7 @@ namespace cuvnet
         /**
          * Provides a special-purpose interface for communication between learners.
          *
-         * For now this is mainly means storing and retreiving weight updates.
-         * It should however also coordinate when to stop learning.
+         * For now this is mainly means storing and retreiving weight updates and coordinates when learning stops.
          */
         class client{
             private:
@@ -214,6 +239,10 @@ namespace cuvnet
                 bool got_stop_signal(const std::string& stage);
         };
 
+        /**
+         * Used by client to keep weights in sync with the server at regular
+         * intervals.
+         */
         class param_synchronizer{
             private:
                 int m_push_steps;
@@ -227,6 +256,17 @@ namespace cuvnet
                 std::string m_stage;
             public:
                 typedef void result_type;
+
+                /**
+                 * ctor.
+                 * @param stage a unique identifier for the learning stage (e.g. pre-training, fine-tuning)
+                 * @param clt the client to communicate over
+                 * @param push_steps maximum interval between pushs
+                 * @param pull_steps maximum interval between pulls
+                 * @param push_off unused
+                 * @param pull_off unused
+                 * @param ops the parameters which are pushed/pulled
+                 */
                 param_synchronizer(const std::string& stage, client& clt, 
                         int push_steps, int pull_steps, 
                         int push_off, int pull_off, 
@@ -244,15 +284,27 @@ namespace cuvnet
                 {
                 }
 
+                /** tell coworkers to stop */
                 void stop_coworkers();
+
+                /** check whether coworker requested stop and throw network_stop if true */
                 void test_stop();
 
+                /**
+                 * this callback should be registered as the sync_function of
+                 * diff_recording_gradient_descent.
+                 *
+                 * @param updates a map from parameter names to their recorded changes.
+                 */
                 void operator()(
                         std::map<Op*, cuv::tensor<float, cuv::host_memory_space> >* updates
                         ,unsigned int, unsigned int
                         );
         };
 
+        /**
+         * @}
+         */
 
     }
 }

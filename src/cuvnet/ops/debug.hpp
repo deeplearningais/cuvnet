@@ -22,7 +22,14 @@ namespace cuvnet
                 bool m_fprop, m_bprop;
 
             public:
-                Printer(){} /// for serialization
+                Printer(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param name an identifier which will be printed first
+                 * @param p0 the input to print stats about
+                 * @param fprop if true, print during fprop
+                 * @param bprop if true, print during bprop
+                 */
                 Printer(const std::string& name, result_t& p0, bool fprop=true, bool bprop=true)
                     : Op(1,1), m_dbg(name), m_fprop(fprop), m_bprop(bprop){
                     add_param(0,p0);

@@ -32,31 +32,42 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
 
             public:
-                Sink(){} /// for serialization
+                Sink(){} ///< for serialization
+                /**
+                 * ctor with name.
+                 * @param name the name of this sink for visualization
+                 * @param p0 the input
+                 */
                 Sink(const std::string& name, result_t& p0):Op(1,1),m_name(name){ 
+                    add_param(0,p0);
+                }
+                /**
+                 * ctor without name.
+                 * @param p0 the input
+                 */
+                Sink(result_t& p0):Op(1,1){ 
                     add_param(0,p0);
                 }
                 ///  A sink always pretends it wants the result
                 /// @overload
                 virtual bool need_result()const{return true;}
-                Sink(result_t& p0):Op(1,1){ 
-                    add_param(0,p0);
-                }
                 void fprop();
                 void bprop();
                 //void _determine_shapes(){ }
                 //value_type&       data()      { return m_data; }
+                /// @return a (constant) reference to the stored data
                 const value_type& cdata() const{ return m_params[0]->value.cdata(); }
 
                 /**
                  * manually forget the stored value.
                  *
-                 * this may help during bprop, as it can be overwritten if only
+                 * This save space during bprop, as it can be overwritten if only
                  * a single copy remains now.
                  */
                 void forget();
 
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
+                /// @return the name of this input
                 inline const std::string& name()const{ return m_name; }
             private:
                 std::string    m_name;
@@ -84,7 +95,11 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
 
             public:
-                DeltaSink(){} /// for serialization
+                DeltaSink(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param name the name of this delta sink.
+                 */
                 DeltaSink(const std::string& name):Op(0,1),m_name(name){ 
                 }
                 ///  A sink always pretends it wants the derivative
@@ -92,10 +107,11 @@ namespace cuvnet
                 virtual bool need_derivative()const{return true;}
                 void fprop();
                 void bprop();
+                /// @return a (constant) reference to the stored data
                 inline const value_type& cdata() const{ return m_results[0]->delta.cdata(); }
 
                 /**
-                 * forget the stored value
+                 * forget the stored value.
                  */
                 void forget();
 
@@ -111,7 +127,7 @@ namespace cuvnet
         };
 
     /**
-     * Convenience op Has the \f$n\f$-th result of its input as its output.
+     * Convenience op, has the \f$n\f$-th result of its input as its (only) output.
      *
      * This makes it more convenient to pass the e.g. second output of an op on
      * to another function, since most functions assume that the input has only
@@ -127,10 +143,15 @@ namespace cuvnet
                 typedef Op::value_ptr     value_ptr;
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
-                unsigned int m_idx; /// for visualization only!
+                unsigned int m_idx; ///< needed for visualization only
 
             public:
-                Pipe(){} /// for serialization
+                Pipe(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 the input op with possibly many results
+                 * @param idx the index of the result to pass through as the first result of this pipe
+                 */
                 Pipe(result_t& p0, unsigned int idx):Op(1,1), m_idx(idx){ 
                     add_param(0,p0);
                 }

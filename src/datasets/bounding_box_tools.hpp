@@ -14,13 +14,18 @@ namespace cuvnet
 {
     /** 
      * Tools for dealing with (sub-) images and bounding boxes.
-     * @ingroup datasets
+     * @ingroup bbtools
      */
     namespace bbtools
     {
 
+        /** 
+         * represents a rectangle using two 2D coordinates.
+         * 
+         * @ingroup bbtools
+         */
         struct rectangle{
-            /// a 4-tuple of box coordinates
+            /// @name a 4-tuple of box coordinates
             /// @{
             int xmin;
             int xmax;
@@ -30,12 +35,22 @@ namespace cuvnet
         };
 
 
+        /** 
+         * represents an object in an image with its meta-information and a bounding box.
+         * 
+         * @ingroup bbtools
+         */
         struct object {
             unsigned int klass;  ///< the index of the class this object belongs to
             bool truncated;      ///< true if the truncated property was set in the XML file
-            rectangle bb;
+            rectangle bb;        ///< object coordinates
         };
 
+        /**
+         * contains information about objects in an image and tracks where the image comes from.
+         * 
+         * @ingroup bbtools
+         */
         struct image_meta_info{
             std::string filename;   ///< image file name
             std::vector<object> objects; ///< descriptions of depicted objects
@@ -58,26 +73,50 @@ namespace cuvnet
             /// @}
         };
 
+        /**
+         * represents an image we loaded from disk.
+         *
+         * Objects of this class cannot be copied.
+         * 
+         * @ingroup bbtools
+         */
         struct image{
+            /// meta information on this image.
             image_meta_info meta;
+            /// if set, contains image values.
             cimg_library::CImg<unsigned char>* porig;
 
+            /// default ctor (only for storing images in std::vector)
             image(){}
+            /**
+             * ctor.
+             * @param fn the filename to load the image from.
+             */
             image(const std::string& fn);
+            /// dtor.
             ~image();
 
+            /// rotate the image by 90 degrees (for testing)
+            /// @deprecated
             void transpose();
 
             private:
+            /// images are not to be copied
             image(const image&);
+            /// images are not to be copied
             image& operator=(const image&);
         };
 
         struct object_filter;
 
+        /** 
+         * Represents a region inside an image.
+         * 
+         * @ingroup bbtools
+         */
         struct sub_image{
-            const image& original_img;
-            cimg_library::CImg<unsigned char>* pcut;
+            const image& original_img; ///< the image we're in.
+            cimg_library::CImg<unsigned char>* pcut; ///< if set, this caches the result of cutting the region we're representing from the original_image.
             rectangle pos; ///< the position in the original image (might be larger than original image!)
             object_filter* objfilt; ///< can be used to select only some objects (eg based on class)
             float scale_fact; ///< size in `pos' is multiplied by this
@@ -164,10 +203,11 @@ namespace cuvnet
             sub_image& remove_padding(cimg_library::CImg<unsigned char>* img = NULL);
 
             /**
-             * inquire whether there are objects inside this subimage
+             * inquire whether there are objects inside this subimage.
              */
             bool has_objects();
 
+            /// dtor.
             ~sub_image();
         };
 
@@ -180,53 +220,96 @@ namespace cuvnet
          *
          * Write your own filter by specializing this.
          *
-         * @param si the sub-image the object [might] be in
-         * @param o  the object we're considering
+         * 
+         * @ingroup bbtools
          */
         struct object_filter{
+            /**
+             * @param si the sub-image the object [might] be in
+             * @param o  the object we're considering
+             * @return true iff the image/object passed the filter
+             */
             virtual bool filter(const sub_image& si, const object& o);
         };
 
         /**
          * only allow objects of a single class, in addition to
          * the requirements by object_filter.
+         * 
+         * @ingroup bbtools
          */
         struct single_class_object_filter
             : public object_filter
         {
-            unsigned int klass;
+            unsigned int klass; ///< the class which is allowed
+            /**
+             * ctor.
+             * @param k the class which is allowed.
+             */
             single_class_object_filter(unsigned int k):klass(k){}
+            /**
+             * @param si the sub-image the object [might] be in
+             * @param o  the object we're considering
+             * @return true iff the image/object passed the filter
+             */
             virtual bool filter(const sub_image& si, const object& o);
         };
 
         /**
          * filter objects which have roughly the same scale, in addition to
          * the requirements by object_filter.
+         * 
+         * @ingroup bbtools
          */
         struct similar_scale_object_filter
             : public object_filter
         {
-            float min_frac, max_frac;
+            /// the minimal fraction of the image that is allowed
+            float min_frac; 
+            /// the maximal fraction of the image that is allowed
+            float max_frac;
+            /**
+             * ctor.
+             * @param minf the minimum fraction of the image that is allowed
+             * @param maxf the maximum fraction of the image that is allowed
+             */
             similar_scale_object_filter(float minf, float maxf):min_frac(minf), max_frac(maxf){}
+            /**
+             * @param si the sub-image the object [might] be in
+             * @param o  the object we're considering
+             * @return true iff the image/object passed the filter
+             */
             virtual bool filter(const sub_image& si, const object& o);
         };
 
         /**
-         * join two filters by conjunction
+         * join two filters by conjunction.
+         * 
+         * @ingroup bbtools
          */
         template<class A, class B>
         struct and_object_filter
         : public object_filter
         {
-            object_filter& a;
-            object_filter& b;
+            object_filter& a; ///< the first filter
+            object_filter& b; ///< the second filter
+            /**
+             * ctor.
+             * @param _a the first filter
+             * @param _b the second filter
+             */
             and_object_filter(object_filter& _a, object_filter& _b):a(_a), b(_b){}
+
+            /**
+             * filter a sub_image through both filters.
+             * @param si the image to be filtered
+             * @param o the object (possibly in si)
+             */
             virtual bool filter(const sub_image& si, const object& o){
                 return a.filter(si,o) && b.filter(si,o);
             }
         };
         
-
     }
 
 }

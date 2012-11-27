@@ -25,20 +25,33 @@ namespace cuvnet
                     : Op(1,1), m_scalar(0)
             {
             }
+                /**
+                 * ctor.
+                 * @param mat the input
+                 * @param f the value to be subtracted
+                 */
                 AddScalar(result_t& mat, float f)
                     :   Op(1,1), m_scalar(f)
             {
                 add_param(0,mat);
             }
+                /**
+                 * ctor.
+                 * @param f the value to be subtracted
+                 * @param mat the input
+                 */
                 AddScalar(float f, result_t& mat)
                     :   Op(1,1), m_scalar(f)
             {
                 add_param(0,mat);
             }
 
+                /// @overload
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
 
+                /// @overload
                 void fprop();
+                /// @overload
                 void bprop();
             private:
                 friend class boost::serialization::access;
@@ -66,13 +79,24 @@ namespace cuvnet
             private:
                 float m_scalar;
             public:
+                /// default ctor for serialization.
                 SubtractFromScalar() :   Op(1,1){}
+                /**
+                 * ctor.
+                 * @param mat the input
+                 * @param f the value from which mat is to be subtracted
+                 */
                 SubtractFromScalar(result_t& mat, float f)
                     :   Op(1,1)
                         , m_scalar(f)
             {
                 add_param(0,mat);
             }
+                /**
+                 * ctor.
+                 * @param f the value from which mat is to be subtracted
+                 * @param mat the input
+                 */
                 SubtractFromScalar(float f, result_t& mat)
                     :   Op(1,1)
                         , m_scalar(f)
@@ -80,9 +104,13 @@ namespace cuvnet
                 add_param(0,mat);
             }
 
+                /// @overload
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
 
+                /// @overload
                 void fprop();
+
+                /// @overload
                 void bprop();
             private:
                 friend class boost::serialization::access;

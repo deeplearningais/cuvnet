@@ -24,9 +24,11 @@ namespace cuvnet
             private:
                 unsigned int m_axis;
             public:
-                MatPlusVec():Op(2,1){} // for serialization
+                MatPlusVec():Op(2,1){} ///< for serialization
                 
                 /**
+                 * ctor.
+                 *
                  * @param mat the matrix 
                  * @param vec the vector
                  * @param axis the axis-th dimension of matrix must agree with the vector dimension.
@@ -74,7 +76,14 @@ namespace cuvnet
             private:
                 unsigned int m_axis;
             public:
-                MatTimesVec():Op(2,1){} // for serialization
+                MatTimesVec():Op(2,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param mat the n-dimensional matrix
+                 * @param vec the vector
+                 * @param axis the axis-th dimension of matrix must agree with the vector dimension.
+                 * @note axis can currently only be 0 or n-1.
+                 */
                 MatTimesVec(result_t& mat, result_t& vec, unsigned int axis)
                     :   Op(2,1)
                       , m_axis(axis)

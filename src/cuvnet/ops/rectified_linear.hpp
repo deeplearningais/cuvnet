@@ -23,7 +23,11 @@ namespace cuvnet
 
                 cuv::tensor<unsigned char, matrix::memory_space_type> m_result;
             public:
-                RectifiedLinear(){} /// for serialization
+                RectifiedLinear(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 input to apply rectification to
+                 */
                 RectifiedLinear(result_t& p0):Op(1,1){
                     add_param(0,p0);
                 }

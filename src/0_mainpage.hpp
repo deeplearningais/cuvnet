@@ -1,7 +1,7 @@
 /**
  *
  * @defgroup OpGroup Symbolic operations
- * @defgroup models Models, which demonstrate how \c Ops can be combined.
+ * @defgroup models Models, which demonstrate how Ops can be combined.
  * @defgroup tools Everything not connected to the symbolic operations themselves
  *
  * @addtogroup OpGroup
@@ -9,14 +9,27 @@
  *   @defgroup Ops Implementations of specific symbolic operations
  *   @defgroup convenience_funcs Convenience functions for creating complex symbolic operations
  *   @defgroup op_visitors Operations on symbolic functions
+ *   @defgroup serialization Helpers for serialization of symbolic functions and models
  * @}
  * @addtogroup tools
  * @{
  *   @defgroup preproc Pre-processing of datasets
  *   @defgroup learning Parameter learning
+ *   @addtogroup learning
+ *   @{
+ *     @defgroup gd Gradient Descent
+ *     @defgroup gd_util Gradient Descent Utilities
+ *     @defgroup learning_exceptions Learning Exceptions
+ *   @}
+ *   @defgroup python_helpers Helper functions for accessing cuvnet functionality from Python
+ *   @defgroup netcom Helpers for performing asynchronous stochastic gradient descent
  * @}
  *
  * @defgroup datasets Dataset accessors
+ * @addtogroup datasets
+ * @{
+ *   @defgroup bbtools Tools for dealing with bounding boxes
+ * @}
  *
  * @mainpage
  *
@@ -81,6 +94,16 @@
 
 @endcode
  *
+ * @section deps Dependencies
+ *
+ * You have to install the following to get cuvnet to work:
+ * - cuv https://github.com/deeplearningais/CUV
+ * - mdbq https://github.com/temporaer/MDBQ
+ * - libjpeg-dev
+ * - liblog4cxx10-dev
+ * - python-dev
+ *
+ *
  * @section compiling Compiling
  *
  * download cuvnet,
@@ -110,3 +133,10 @@
 
 namespace cuvnet{
 }
+
+/**
+ * @example linear_regression.cpp very simple demonstration of how to use cuvnet
+ * @example logistic_regression.cpp slightly more advanced concepts: sinks
+ * @example minibatch_learning.cpp slightly more advanced concepts: callbacks for online-learning
+ * @example hyperopt.cpp how to use James Bergstra's hyperopt for hyper parameter optimization
+ */

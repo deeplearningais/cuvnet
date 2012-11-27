@@ -21,8 +21,21 @@ namespace cuvnet
      * @ingroup op_visitors
      */
     struct op_visitor_adaptor{
+        /**
+         * called when a new node is discovered.
+         * @param o the discovered node
+         * @return true iff the node should be processed.
+         */
         inline bool discover(Op* o)const{ return true; }
+        /**
+         * process a node before its children.
+         * @param o the node
+         */
         inline void preorder(Op* o)const{ ; }
+        /**
+         * process a node after its children.
+         * @param o the node
+         */
         inline void postorder(Op* o)const{ ; }
     };
 
@@ -35,13 +48,18 @@ namespace cuvnet
      * @ingroup op_visitors
      */
     struct op_visitor_once_adaptor{
-        std::map<Op*,bool> visited;
-        bool m_visit_sinks;
+        std::map<Op*,bool> visited; ///< keeps track of nodes we've seen
+        bool m_visit_sinks; ///< if true, walk past sinks
+        /**
+         * ctor.
+         * @param visit_sinks if false, do not walk past sinks.
+         */
         op_visitor_once_adaptor(bool visit_sinks=false)
             :m_visit_sinks(visit_sinks)
         {
         }
 
+        /// @overload
         inline bool discover(Op* o){
             // do not continue past Sinks---they are treated as Inputs!
             if(!m_visit_sinks && dynamic_cast<Sink*>(o)!=NULL)
@@ -51,36 +69,54 @@ namespace cuvnet
             visited[o]=true;
             return true;
         }
+        /**
+         * does nothing.
+         * @overload
+         */
         inline void preorder(Op* o)const{ ; }
+        /**
+         * does nothing.
+         * @overload
+         */
         inline void postorder(Op* o)const{ ; }
     };
 
     /**
-     * collect all ParameterInput ops in a list
+     * collect all ParameterInput ops in a list.
+     *
+     * This is mainly used in two cases:
+     * - in testing to figure out for which objects to call a derivative test, 
+     * - from python, to identify ops by name or memory address.
+     *
      * @ingroup op_visitors
      */
     struct param_collector_visitor 
         : public op_visitor_once_adaptor{
-        typedef std::vector<Op*> container_type;
-        container_type     plist;
-        std::string m_name_query;
-        const Op*          m_ptr_query;
+        typedef std::vector<Op*> container_type; ///< type of container which stores found objects
+        container_type     plist; ///< container which stores found objects
+        std::string m_name_query; ///< a string query (optional)
+        const Op*          m_ptr_query; ///< a pointer query (optional)
         /**
-         * collect everything that is a ParameterInput
+         * collect everything that is a ParameterInput.
          */
         param_collector_visitor(): op_visitor_once_adaptor(true), m_ptr_query(NULL){}
         /**
-         * filter by name (must match exactly)
+         * filter by name (must match exactly).
+         * @param name the name to filter for.
          */
         param_collector_visitor(const std::string& name)
         :op_visitor_once_adaptor(true), m_name_query(name), m_ptr_query(NULL){
         }
         /**
-         * filter by pointer 
+         * filter by pointer.
+         * @param op the memory address to filter for.
          */
         param_collector_visitor(const Op* op)
         :op_visitor_once_adaptor(true),m_ptr_query(op){
         }
+        /**
+         * @overload
+         */
         inline void preorder(Op* o){
             // do not check for derivability.
             // `derivable' was added for derivative_test(), which should
@@ -113,7 +149,12 @@ namespace cuvnet
     };
 
     /**
-     * find a parameter by name
+     * find a parameter by name.
+     *
+     * @param f the function object to search in
+     * @param name the name to look for (must be unique)
+     * @return the found object
+     * @throw runtime_error if not found
      *
      * @ingroup op_visitors
      */
@@ -127,9 +168,14 @@ namespace cuvnet
             throw std::runtime_error("Multiple matches for node named `"+name+"'");
         return dynamic_cast<T*>(pcv.plist.front());
     }
+
     /**
-     * find a parameter by address
+     * find a parameter by address>
      *
+     * @param f the function object to search in
+     * @param query the memory address to look for
+     * @return the found object
+     * @throw runtime_error if not found
      * @ingroup op_visitors
      */
     template<class T>
@@ -143,11 +189,13 @@ namespace cuvnet
 
 
     /** 
-     * cleanup unused data 
+     * cleanup unused data.
      * @ingroup op_visitors
      */
     struct cleanup_temp_vars_visitor 
         : public op_visitor_once_adaptor{
+
+        /// @overload
         inline void preorder(Op* o){
             o->release_data();
             BOOST_FOREACH(Op::result_t& r, o->m_results){
@@ -159,14 +207,19 @@ namespace cuvnet
     };
 
     /**
-     * collect all ops in a list in topological order
+     * collect all ops in a list in topological order.
      * @ingroup op_visitors
      */
     struct toposort_visitor : public op_visitor_adaptor{
+        /// the container type used to store the found objects
         typedef std::vector<Op*> container_type;
+        /// the container used to store the found objects
         container_type     plist;
+        /// keep track of what has been visited
         std::map<Op*,bool> visited;
+        /// default ctor.
         toposort_visitor(){}
+        /// @overload
         inline bool discover(Op* o){
             if(visited.find(o)!=visited.end()) 
                 return false;
@@ -180,9 +233,11 @@ namespace cuvnet
             }
             return true; // we can never return "false" here, since we might need this for the /forward/ pass.
         }
+        /// @overload
         inline void postorder(Op* o){
             plist.push_back(o);
         }
+        /// forget everything
         inline void clear(){
             plist.clear();
             visited.clear();
@@ -190,11 +245,13 @@ namespace cuvnet
     };
 
     /**
-     * determine shapes recursively
+     * determine shapes recursively.
      * @ingroup op_visitors
      */
     struct determine_shapes_visitor :public op_visitor_adaptor{
+        /// ctor.
         determine_shapes_visitor(){}
+        /// @overload
         inline void postorder(Op* o)const{
             if(dynamic_cast<DeltaSink*>(o)) // delta sinks do not fprop, just take what they get for bprop.
                 return;
@@ -209,10 +266,11 @@ namespace cuvnet
     };
 
     /**
-     * reset the `delta_set' flag before a bprop-pass
+     * reset the `delta_set' flag before a bprop-pass.
      * @ingroup op_visitors
      */
     struct reset_delta_set_flag : public op_visitor_adaptor{
+        /// @overload
         inline void preorder(Op*o)const{
             BOOST_FOREACH(Op::result_t& r, o->m_results){
                 r->delta_set = false;
@@ -231,6 +289,7 @@ namespace cuvnet
      * @ingroup op_visitors
      */
     struct reset_value_set_flag : public op_visitor_adaptor{
+        /// @overload
         inline void preorder(Op*o)const{
             BOOST_FOREACH(Op::param_t& r, o->m_params){
                 r->value_set = false;
@@ -249,7 +308,8 @@ namespace cuvnet
      * @ingroup op_visitors
      */
     struct reset_needed_flags : public op_visitor_adaptor{
-        std::map<Op*,bool> visited;
+        std::map<Op*,bool> visited; ///< keeps track of Ops that we have seen
+        /// @overload
         inline bool discover(Op* o){
             // do not continue past Sinks---they are treated as Inputs!
             if(dynamic_cast<Sink*>(o)!=NULL)
@@ -259,6 +319,7 @@ namespace cuvnet
             visited[o] = true;
             return true; 
         }
+        /// @overload
         inline void preorder(Op*o){
             o->need_derivative(false);
             o->need_result(false);
@@ -279,36 +340,56 @@ namespace cuvnet
      * @ingroup op_visitors
      */
     struct define_graphviz_node_visitor : public op_visitor_adaptor{
-        std::ostream& os;
-        std::vector<Op*> m_mark_order;
-        Op* m_current_op;
-        bool m_break_after_done;
-        std::map<const void*, std::string> m_seen;
+        std::ostream& os; ///< the stream to write to
+        std::vector<Op*> m_mark_order; ///< eg the topological ordering of the graph
+        Op* m_current_op; ///< for stepping through a function, set this to the current position
+        bool m_break_after_done; ///< for debugging: is set to true when NaN is found, so that learning can be stopped
+        std::map<const void*, std::string> m_seen; ///< records stuff we've seen already, so we do not define nodes twice
+        /**
+         * ctor.
+         * @param o stream to write to
+         * @param mo if given, contain the topological ordering in the graph. Indices will be appended to nodes in this list.
+         */
         define_graphviz_node_visitor(std::ostream& o, std::vector<Op*>* mo=NULL):os(o),m_current_op(NULL),m_break_after_done(false){
             if(mo)
                 m_mark_order = *mo;
         }
+        /**
+         * @overload
+         */
         inline bool discover(Op* o){
             if(m_seen.find(o)!=m_seen.end()) return false;
             return true;
         }
+        /// @overload
         void preorder(Op*o);
+        /// @overload
         void postorder(Op*o);
+
+        /// internal.
         std::string define_data_ptr(const Op::value_ptr& vp);
+        /// Useful for debugging by stepping: set the current op, which is marked in red.
         inline void current_op(Op*o){m_current_op = o;}
+        /// @return the current op to be marked.
         inline Op* current_op()const{return m_current_op;}
     };
 
     /**
      * Dump a symbolic function to a graphviz DOT file.
+     * @param op the Op to be visualized
+     * @param os the stream to write to
      * @ingroup op_visitors
      */
     void write_graphviz(Op& op, std::ostream& os);
     /**
      * Dump a symbolic function to a graphviz DOT file.
+     * @param op the Op to be dumped
+     * @param os the stream to write to
+     * @param mo the mark order (topological sorting) of op
+     * @param current the current node, to be marked (useful for stepping through function evaluation).
      * @ingroup op_visitors
      */
-    void write_graphviz(Op& op, std::ostream& os, std::vector<Op*>&, Op* current=NULL);
+    void write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& mo, Op* current=NULL);
 
     /**
      * @brief does a recursive forward/backward pass w.r.t. requested parameters.
@@ -321,7 +402,7 @@ namespace cuvnet
      * @ingroup op_visitors
      */
     struct swiper{
-        toposort_visitor m_topo;
+        toposort_visitor m_topo; ///< does the topological sorting for us
         /**
          * constructor
          *
@@ -337,11 +418,20 @@ namespace cuvnet
                 init();
         }
 
+        /**
+         * calls write_graphviz with the current topological order.
+         *
+         * @param filename where to store the dot file
+         */
         void dump(const std::string& filename){
             std::ofstream os(filename);
             write_graphviz(*m_op, os, m_topo.plist );
         }
 
+        /**
+         * is called by the constructor and needs to be called again if the Op
+         * from the constructor was modified.
+         */
         void init();
 
         /**
@@ -360,7 +450,7 @@ namespace cuvnet
             }
         }
         /**
-         * clean up temp vars
+         * clean up temp vars.
          */
         ~swiper(){
             cleanup_temp_vars_visitor ctvv;
@@ -370,22 +460,31 @@ namespace cuvnet
             m_op->visit(rnf); 
         }
         /**
-         * does recursive forward pass on op
+         * does recursive forward pass on op.
          */
         void fprop();
         /**
-         * does recursive backward pass on op
+         * does recursive backward pass on op.
+         * @param set_last_delta_to_one if true, backpropagates (tensor of)
+         * ones. Otherwise, assumes that the user has set a different value in
+         * delta.
          */
         void bprop(bool set_last_delta_to_one=true);
 
         /**
-         * ouputs some stats of op results for debugging
+         * used in stepping through functions; writes a DOT file containing infos about current evaluation state.
+         * @param cnt a running number, increasing with every node in the graph
+         * @param o the current node in the graph
+         * @param results internal
+         * @param params internal
+         * @param ident a string to be used in the filename
          */
         void debug(unsigned int cnt, Op* o, bool results, bool params, const char* ident);
 
 
         /**
-         * cheks if all the parameters are used in the function graph
+         * checks if all the parameters supplied in the constructor are part of the function graph.
+         * @throw runtime_error if some parameters are not part of the function graph.
          */
         void check_param_existence()const;
 
@@ -430,8 +529,14 @@ namespace cuvnet
     struct valid_shape_info
         : public op_visitor_once_adaptor{
         typedef std::vector<Op*> container_type;
-        Op *m_begin, *m_end;
+        Op *m_begin;  ///< start point of evaluation (input images)
+        Op *m_end;    ///< end point of evaluation (output images)
 
+        /**
+         * ctor.
+         * @param begin start point of search (input images)
+         * @param end   end point of search (output images)
+         */
         valid_shape_info(boost::shared_ptr<Op> begin, boost::shared_ptr<Op> end)
             :m_begin(begin.get()), m_end(end.get())
         {
@@ -448,8 +553,9 @@ namespace cuvnet
             }
         }
 
-        container_type     plist;
-        std::map<Op*,bool> visited;
+        container_type     plist; ///< stores the nodes on the path between begin and end
+        std::map<Op*,bool> visited; ///< keeps track of what has been visited
+        /// @overload
         inline bool discover(Op* o){
             if(visited.find(o)!=visited.end()) 
                 return false;
@@ -461,15 +567,19 @@ namespace cuvnet
             }
             return true;
         }
+        /// @overload
         inline void preorder(Op* o){
             plist.push_back(o);
         }
+        /// @overload
         inline void postorder(Op* o){
             plist.pop_back();
         }
 
         unsigned int crop_h, crop_w;
         unsigned int scale_h, scale_w;
+
+        /// traverse plist to determine what the cropping and scaling parameters should be.
         void determine_shapes(){
             // `it' points to the `output' object
             container_type::iterator it = plist.begin();
