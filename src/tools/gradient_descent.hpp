@@ -435,6 +435,48 @@ namespace cuvnet
 
     };
     /**
+     * does RMSPROP gradient descent.
+     *
+     * @ingroup gd
+     */
+    struct rmsprop_gradient_descent
+    : public gradient_descent
+    {
+        public:
+            typedef std::vector<Op*> paramvec_t;
+        private:
+            /// per-weight squared gradient sum
+            std::vector<Op::value_type> m_sq_grad_sum; 
+            /// numerical stabilization constant: \f$H=\delta I+\|g\|_2\f$
+            float m_delta;
+            /// gradient magnitude averaging constant (0.9 means mostly keep current average)
+            float m_grad_avg_const;
+            /// L1 penalty
+            float m_l1penalty;
+        public:
+            /**
+             * constructor
+             *
+             * @param op the function we want to minimize
+             * @param result which result of op to minimize
+             * @param params the parameters w.r.t. which we want to optimize op
+             * @param learnrate the initial learningrate
+             * @param weightdecay weight decay for weight updates
+             * @param delta numerical stabilization constant: \f$H=\delta I+\|g\|_2\f$
+             * @param grad_avg how much to stick to the old gradient magnitudes
+             * @param l1penalty L1 penalty on parameters
+             */
+        rmsprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float delta=0.01f, float grad_avg=.9f, float l1_penalty=0.f);
+
+        protected:
+        /**
+         * @overload
+         * updates the weights with momentum.
+         */
+        virtual void update_weights();
+
+    };
+    /**
      * does AdaGrad gradient descent.
      *
      * @ingroup gd

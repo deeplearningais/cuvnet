@@ -236,6 +236,40 @@ namespace cuvnet
         }
     }
     
+    // ------------ rmsprop gradient descent  ---------  \\-
+    rmsprop_gradient_descent::rmsprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float delta, float grad_avg, float l1penalty)
+        :gradient_descent(op, result, params, learnrate, weightdecay),
+        m_sq_grad_sum(params.size()),
+        m_delta(delta),
+        m_grad_avg_const(grad_avg),
+        m_l1penalty(l1penalty)
+    { 
+        unsigned int i=0;
+        for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
+            m_sq_grad_sum[i].resize(((ParameterInput*)*it)->data().shape());
+            m_sq_grad_sum[i] = 0.f;
+        }
+    }
+
+    void rmsprop_gradient_descent::update_weights(){
+        using namespace cuv;
+        unsigned int i=0;
+        for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
+            ParameterInput* inp = (ParameterInput*) *it;
+
+            // we exploit CUVs problems with const-correctness to get an
+            // overwritable version of inp->delta.
+            // the delta() of const ParameterInput* uses cdata() of the
+            // cow_ptr!
+            matrix delta = ((const ParameterInput*) inp)->delta();
+
+            // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
+            //       we're changing the underlying object all cow_ptrs pointing to it!!!
+            cuv::libs::opt::rmsprop(*inp->data_ptr().ptr(),delta,m_sq_grad_sum[i],m_learnrate,m_delta,m_weightdecay,m_l1penalty,m_grad_avg_const);
+
+            inp->reset_delta();
+        }
+    }
     // ------------ adagrad gradient descent  ---------  \\-
     adagrad_gradient_descent::adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float delta, int winsize, float l1penalty)
         :gradient_descent(op, result, params, learnrate, weightdecay),
