@@ -135,8 +135,13 @@ class MNISTVisor:
 
     def click(self, op, widget, url, event):
         typ, ptr = url.split()
-        node = op.get_parameter(long(ptr, 0))
-        self.show(typ,node)
+        if typ == "input":
+            node = op.get_parameter(long(ptr, 0))
+        elif typ == "sink":
+            node = op.get_sink(long(ptr, 0))
+        else:
+            node = op.get_node(long(ptr, 0))
+        self.show(typ, node)
 
 class MapsVisor:
     def __init__(self):
