@@ -88,15 +88,15 @@ namespace cuvnet
         if(m_results[0]->can_overwrite_directly()){
             m_results[0]->overwrite_or_add_value().data() = f2;
         }else{
-            value_ptr t_f2( new cuv::tensor<float, cuv::dev_memory_space> (cuv::extents[1]) );
+            value_ptr t_f2( new cuv::tensor<float, matrix::memory_space_type> (cuv::extents[1]) );
             (*t_f2)[0] = f2;
             m_results[0]->push(t_f2);
         }
         if(1 || m_results[1]->need_result){
-            value_ptr t_tp( new cuv::tensor<float, cuv::dev_memory_space> (cuv::extents[1]) );
-            value_ptr t_tn( new cuv::tensor<float, cuv::dev_memory_space> (cuv::extents[1]) );
-            value_ptr t_fp( new cuv::tensor<float, cuv::dev_memory_space> (cuv::extents[1]) );
-            value_ptr t_fn( new cuv::tensor<float, cuv::dev_memory_space> (cuv::extents[1]) );
+            value_ptr t_tp( new cuv::tensor<float, matrix::memory_space_type> (cuv::extents[1]) );
+            value_ptr t_tn( new cuv::tensor<float, matrix::memory_space_type> (cuv::extents[1]) );
+            value_ptr t_fp( new cuv::tensor<float, matrix::memory_space_type> (cuv::extents[1]) );
+            value_ptr t_fn( new cuv::tensor<float, matrix::memory_space_type> (cuv::extents[1]) );
             (*t_tp)[0] = tp;
             (*t_tn)[0] = tn;
             (*t_fp)[0] = fp;
