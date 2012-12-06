@@ -191,20 +191,21 @@ namespace cuvnet
                 template<class Visitor>
                     void visit(const Visitor& v, bool results_too=false){
                         if(!v.discover(this)) return;
+
                         v.preorder(this);
                         BOOST_FOREACH(Op::param_t& p, m_params){
                             BOOST_FOREACH(boost::shared_ptr<detail::op_result<value_type> > r, p->param_uses){
                                 r->get_op()->visit(v, results_too);
                             }
                         }
+                        v.postorder(this);
                         if(results_too){
                             BOOST_FOREACH(Op::result_t& p, m_results){
                                 BOOST_FOREACH(boost::weak_ptr<detail::op_param<value_type> > r, p->result_uses){
-                                    r.lock()->get_op()->visit(v, true);
+                                    r.lock()->get_op()->visit(v, results_too);
                                 }
                             }
                         }
-                        v.postorder(this);
                     }
                 /**
                  * Show all Ops to a  visitor recursively.
@@ -223,6 +224,7 @@ namespace cuvnet
                                 r->get_op()->visit(v,results_too);
                             }
                         }
+                        v.postorder(this);
                         if(results_too){
                             BOOST_FOREACH(Op::result_t& p, m_results){
                                 BOOST_FOREACH(boost::weak_ptr<detail::op_param<value_type> > r, p->result_uses){
@@ -230,7 +232,6 @@ namespace cuvnet
                                 }
                             }
                         }
-                        v.postorder(this);
                     }
 
 
