@@ -48,7 +48,7 @@ namespace cuvnet
      * @ingroup op_visitors
      */
     struct op_visitor_once_adaptor{
-        std::map<Op*,bool> visited; ///< keeps track of nodes we've seen
+        mutable std::map<Op*,bool> visited; ///< keeps track of nodes we've seen
         bool m_visit_sinks; ///< if true, walk past sinks
         /**
          * ctor.
@@ -59,8 +59,12 @@ namespace cuvnet
         {
         }
 
+        void forget_visited(){
+            visited.clear();
+        }
+
         /// @overload
-        inline bool discover(Op* o){
+        inline bool discover(Op* o)const{
             // do not continue past Sinks---they are treated as Inputs!
             if(!m_visit_sinks && dynamic_cast<Sink*>(o)!=NULL)
                 return false;
