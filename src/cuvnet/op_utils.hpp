@@ -288,6 +288,15 @@ namespace cuvnet
         }
     };
 
+    inline void determine_shapes(Op& op){
+        determine_shapes_visitor dsv;
+        while(!dsv.done){
+            dsv.done = true;
+            dsv.forget_visited();
+            op.visit(dsv, true);
+        }
+    }
+
     /**
      * reset the `delta_set' flag before a bprop-pass.
      * @ingroup op_visitors
@@ -606,7 +615,8 @@ namespace cuvnet
         void determine_shapes(){
             // `it' points to the `output' object
             container_type::iterator it = plist.begin();
-            (*it)->visit(determine_shapes_visitor());
+            determine_shapes_visitor dsv;
+            (*it)->visit(dsv);
             std::vector<unsigned int> outshape = (*it)->result(0)->shape;
             cuvAssert(outshape.size() == 4);
 
