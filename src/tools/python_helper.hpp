@@ -1,6 +1,7 @@
 #ifndef __PYTHON_HELPER_HPP__
 #     define __PYTHON_HELPER_HPP__
 #include <boost/shared_ptr.hpp>
+#include <boost/function.hpp>
 
 namespace cuvnet
 {
