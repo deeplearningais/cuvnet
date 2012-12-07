@@ -6,7 +6,7 @@
 #include <boost/format.hpp>
 #include <cuvnet/ops.hpp>
 #include <cuvnet/op_utils.hpp>
-#include <tools/function.hpp>
+#include <cuvnet/tools/function.hpp>
 #include <boost/python.hpp>
 #include <boost/python/register_ptr_to_python.hpp>
 #include "python_helper.hpp"

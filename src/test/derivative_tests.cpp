@@ -8,7 +8,7 @@
 #include <cuvnet/op.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/derivative_test.hpp>
-#include <tools/function.hpp>
+#include <cuvnet/tools/function.hpp>
 
 #include <cuvnet/ops.hpp>
 

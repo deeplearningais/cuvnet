@@ -6,7 +6,7 @@
 #include <datasets/dataset.hpp> // for cv_mode
 #include <cuvnet/ops/output.hpp>
 #include <cuvnet/ops.hpp>
-#include <tools/function.hpp>
+#include <cuvnet/tools/function.hpp>
 namespace cuvnet
 {
     /// implementation of monitor

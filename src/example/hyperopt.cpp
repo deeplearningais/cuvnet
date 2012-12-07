@@ -6,16 +6,16 @@
 
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/derivative_test.hpp>
-#include <tools/visualization.hpp>
-#include <tools/gradient_descent.hpp>
+#include <cuvnet/tools/visualization.hpp>
+#include <cuvnet/tools/gradient_descent.hpp>
 #include <datasets/mnist.hpp>
 #include <datasets/splitter.hpp>
 
-#include <tools/preprocess.hpp>
+#include <cuvnet/tools/preprocess.hpp>
 #include <cuvnet/models/logistic_regression.hpp>
 #include <cuvnet/models/linear_regression.hpp>
-#include <tools/monitor.hpp>
-#include <tools/logging.hpp>
+#include <cuvnet/tools/monitor.hpp>
+#include <cuvnet/tools/logging.hpp>
 
 #include <mdbq/client.hpp>
 

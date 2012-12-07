@@ -6,8 +6,8 @@
 
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/ops.hpp>
-#include <tools/gradient_descent.hpp>
-#include <tools/monitor.hpp>
+#include <cuvnet/tools/gradient_descent.hpp>
+#include <cuvnet/tools/monitor.hpp>
 #include <cuv/libs/cimg/cuv_cimg.hpp>
 
 #include <datasets/random_translation.hpp>
@@ -19,7 +19,7 @@
 #include <vector>
 #include <map>
 #include <exception>
-#include <tools/dumper.hpp>
+#include <cuvnet/tools/dumper.hpp>
 
 namespace cuvnet
 {

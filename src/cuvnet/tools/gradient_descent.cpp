@@ -6,7 +6,7 @@
 #include <log4cxx/mdc.h>
 #include <cuv/tools/device_tools.hpp>
 #include <cuv/libs/opt/opt.hpp>
-#include <tools/logging.hpp>
+#include <cuvnet/tools/logging.hpp>
 
 namespace cuvnet
 {

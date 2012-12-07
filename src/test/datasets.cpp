@@ -2,7 +2,7 @@
 #include <algorithm>
 
 #include <cuvnet/op_utils.hpp>
-#include <tools/dataset_dumper.hpp>
+#include <cuvnet/tools/dataset_dumper.hpp>
 #include <datasets/voc_detection.hpp>
 #include <datasets/dataset_reader.hpp>
 #include <cuv/libs/cimg/cuv_cimg.hpp>

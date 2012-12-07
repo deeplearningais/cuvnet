@@ -14,7 +14,7 @@
 #include<cuv.hpp>
 #include<cuv/tools/device_tools.hpp>
 #include<cuv/tools/cuv_general.hpp>
-#include<tools/logging.hpp>
+#include<cuvnet/tools/logging.hpp>
 #include<log4cxx/mdc.h>
 
 #include "crossvalid.hpp"
