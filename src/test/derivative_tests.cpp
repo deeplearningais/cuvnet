@@ -657,7 +657,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_flatten){
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3]);
         ptr_t func                       = boost::make_shared<Flatten>(inp0->result());
 
-        func->visit(determine_shapes_visitor());
+        determine_shapes(*func);
         BOOST_CHECK_EQUAL(func->result()->shape.size(), 1);
         BOOST_CHECK_EQUAL(func->result()->shape.at(0), 8*3*3);
 
@@ -667,7 +667,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_flatten){
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3]);
         ptr_t func                       = boost::make_shared<Flatten>(inp0->result(), 2);
 
-        func->visit(determine_shapes_visitor());
+        determine_shapes(*func);
         BOOST_CHECK_EQUAL(func->result()->shape.size(), 2);
         BOOST_CHECK_EQUAL(func->result()->shape.at(0), 8);
         BOOST_CHECK_EQUAL(func->result()->shape.at(1), 3*3);
@@ -679,7 +679,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_flatten){
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3][2]);
         ptr_t func                       = boost::make_shared<Flatten>(inp0->result(), 3);
 
-        func->visit(determine_shapes_visitor());
+        determine_shapes(*func);
         BOOST_CHECK_EQUAL(func->result()->shape.size(), 3);
         BOOST_CHECK_EQUAL(func->result()->shape.at(0), 8);
         BOOST_CHECK_EQUAL(func->result()->shape.at(1), 3);
@@ -694,7 +694,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_reshape){
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3]);
         ptr_t func                     = boost::make_shared<Reshape>(inp0->result(), cuv::extents[3][8][3]);
 
-        func->visit(determine_shapes_visitor());
+        determine_shapes(*func);
         BOOST_CHECK_EQUAL(func->result()->shape.size(), 3);
         BOOST_CHECK_EQUAL(func->result()->shape.at(0), 3);
         BOOST_CHECK_EQUAL(func->result()->shape.at(1), 8);
@@ -713,7 +713,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_reshape){
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3]);
         ptr_t func                       = boost::make_shared<Reshape>(inp0->result(), cuv::extents[8*3][-1]);
 
-        func->visit(determine_shapes_visitor());
+        determine_shapes(*func);
         BOOST_CHECK_EQUAL(func->result()->shape.size(), 2);
         BOOST_CHECK_EQUAL(func->result()->shape.at(0), 8*3);
         BOOST_CHECK_EQUAL(func->result()->shape.at(1), 3);
@@ -723,7 +723,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_reshape){
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3][2]);
         ptr_t func                       = boost::make_shared<Reshape>(inp0->result(), cuv::extents[8][-1][3]);
 
-        func->visit(determine_shapes_visitor());
+        determine_shapes(*func);
         BOOST_CHECK_EQUAL(func->result()->shape.size(), 3);
         BOOST_CHECK_EQUAL(func->result()->shape.at(0), 8);
         BOOST_CHECK_EQUAL(func->result()->shape.at(1), 3*2);

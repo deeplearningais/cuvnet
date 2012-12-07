@@ -38,7 +38,7 @@ BOOST_AUTO_TEST_CASE(wiring){
     BOOST_CHECK_EQUAL(id->param(0)->need_derivative, true);
 
     // shape propagation
-    id->visit(determine_shapes_visitor());
+    determine_shapes(*id);
     BOOST_CHECK_EQUAL(*pcv.plist.begin(),inp.get());
     BOOST_CHECK_EQUAL(id->result(0)->shape.at(0), 10);
     BOOST_CHECK_EQUAL(id->result(0)->shape.at(1), 20);
@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(fprop_and_bprop){
     BOOST_CHECK_EQUAL(pcv.plist.size(),1);
     pow->set_calculate_derivative(pcv.plist);
     BOOST_CHECK_EQUAL(pow->param(0)->need_derivative, true);
-    pow->visit(determine_shapes_visitor());
+    determine_shapes(*pow);
     BOOST_CHECK_EQUAL(pow->result()->shape[0],10);
     BOOST_CHECK_EQUAL(pow->result()->shape[1],20);
 
