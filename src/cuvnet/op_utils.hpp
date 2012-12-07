@@ -288,6 +288,14 @@ namespace cuvnet
         }
     };
 
+    /**
+     * determine shapes using the determine_shapes_visitor.
+     * The visitor cannot be applied directly, since the purely recursive
+     * approach (which includes looking at results of ops, not only parameters)
+     * does not result in a topographic ordering of the complete graph.
+     *
+     * @todo write a topological sort that includes /all/ connected sinks
+     */
     inline void determine_shapes(Op& op){
         determine_shapes_visitor dsv;
         while(!dsv.done){
