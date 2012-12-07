@@ -11,6 +11,7 @@
 #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/level.hpp>
 #include <boost/serialization/tracking.hpp>
+#include <datasets/dataset.hpp>
 
 
 namespace cuvnet

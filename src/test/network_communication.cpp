@@ -1,9 +1,9 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 #include <cuvnet/ops.hpp>
-#include <tools/network_communication.hpp>
-#include <tools/gradient_descent.hpp>
-#include <tools/function.hpp>
+#include <cuvnet/tools/network_communication.hpp>
+#include <cuvnet/tools/gradient_descent.hpp>
+#include <cuvnet/tools/function.hpp>
 
 #define V(X) #X<<":"<<(X)<<", "
 #define HOST "131.220.7.92"

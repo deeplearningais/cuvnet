@@ -6,7 +6,7 @@
 #define BOOST_TEST_MODULE t_cuvnet
 //#define BOOST_TEST_MAIN
 #include <boost/test/included/unit_test.hpp>
-#include <tools/logging.hpp>
+#include <cuvnet/tools/logging.hpp>
 
 
 std::ofstream os;

@@ -48,7 +48,7 @@ namespace cuvnet
      * @ingroup op_visitors
      */
     struct op_visitor_once_adaptor{
-        std::map<Op*,bool> visited; ///< keeps track of nodes we've seen
+        mutable std::map<Op*,bool> visited; ///< keeps track of nodes we've seen
         bool m_visit_sinks; ///< if true, walk past sinks
         /**
          * ctor.
@@ -59,8 +59,12 @@ namespace cuvnet
         {
         }
 
+        void forget_visited(){
+            visited.clear();
+        }
+
         /// @overload
-        inline bool discover(Op* o){
+        inline bool discover(Op* o)const{
             // do not continue past Sinks---they are treated as Inputs!
             if(!m_visit_sinks && dynamic_cast<Sink*>(o)!=NULL)
                 return false;
@@ -248,22 +252,50 @@ namespace cuvnet
      * determine shapes recursively.
      * @ingroup op_visitors
      */
-    struct determine_shapes_visitor :public op_visitor_adaptor{
+    struct determine_shapes_visitor :public op_visitor_once_adaptor{
+        /** 
+         * here we mark all parameters which have been updated.
+         * only if all parameters have been updated, we can update the result.
+         */
+        std::map<detail::op_param<Op::value_type>*, bool> m_marked_params;
+
+        /// as long as this is false after a run, some result shapes are unknown.
+        bool done;
+
         /// ctor.
-        determine_shapes_visitor(){}
+        determine_shapes_visitor() : op_visitor_once_adaptor(true), done(false){} // also visit sinks!
+
         /// @overload
-        inline void postorder(Op* o)const{
+        inline void postorder(Op* o){
             if(dynamic_cast<DeltaSink*>(o)) // delta sinks do not fprop, just take what they get for bprop.
                 return;
+            BOOST_FOREACH(Op::param_t& p, o->m_params){
+                if(m_marked_params.find(p.get()) == m_marked_params.end()){
+                    done = false;
+                    return; // cannot initialize this op (yet)!
+                }
+            }
+
             o->_determine_shapes();
             // push from result to result-users
             BOOST_FOREACH(Op::result_t& r, o->m_results){
                 for(unsigned int i=0;i<r->result_uses.size();i++){
-                    r->use(i)->shape = r->shape;
+                    auto u = r->use(i);
+                    u->shape = r->shape;
+                    m_marked_params[u.get()] = true;
                 }
             }
         }
     };
+
+    inline void determine_shapes(Op& op){
+        determine_shapes_visitor dsv;
+        while(!dsv.done){
+            dsv.done = true;
+            dsv.forget_visited();
+            op.visit(dsv, true);
+        }
+    }
 
     /**
      * reset the `delta_set' flag before a bprop-pass.
@@ -583,7 +615,8 @@ namespace cuvnet
         void determine_shapes(){
             // `it' points to the `output' object
             container_type::iterator it = plist.begin();
-            (*it)->visit(determine_shapes_visitor());
+            determine_shapes_visitor dsv;
+            (*it)->visit(dsv);
             std::vector<unsigned int> outshape = (*it)->result(0)->shape;
             cuvAssert(outshape.size() == 4);
 

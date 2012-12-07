@@ -7,7 +7,7 @@
 #include <datasets/randomizer.hpp>
 #include <datasets/amat_datasets.hpp>
 #include <datasets/msrc_descriptors.hpp>
-#include <tools/preprocess.hpp>
+#include <cuvnet/tools/preprocess.hpp>
 #include <cuvnet/op.hpp>
 #include "learner.hpp"
 namespace cuvnet

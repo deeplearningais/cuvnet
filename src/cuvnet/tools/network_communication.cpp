@@ -12,10 +12,10 @@
 
 #include <mongo/client/dbclient.h>
 #include <cuvnet/ops/input.hpp>
-#include <tools/gradient_descent.hpp> /* for network_stop exception */
+#include <cuvnet/tools/gradient_descent.hpp> /* for network_stop exception */
 #include <cuv/tools/timing.hpp>
 #include <cuv/libs/opt/opt.hpp>
-#include <tools/logging.hpp>
+#include <cuvnet/tools/logging.hpp>
 
 #include "network_communication.hpp"
 

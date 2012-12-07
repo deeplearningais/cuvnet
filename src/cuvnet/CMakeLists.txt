@@ -1,4 +1,5 @@
 FILE(GLOB CUVNET_OPS_CPP ops/*.cpp)
+add_subdirectory(tools)
 add_library(cuvnet_ops  STATIC 
     ${CUVNET_OPS_CPP}
 	op.cpp

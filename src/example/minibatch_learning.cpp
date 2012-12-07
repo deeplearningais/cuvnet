@@ -1,8 +1,8 @@
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/ops.hpp>
-#include <tools/monitor.hpp>
-#include <tools/logging.hpp>
-#include <tools/gradient_descent.hpp>
+#include <cuvnet/tools/monitor.hpp>
+#include <cuvnet/tools/logging.hpp>
+#include <cuvnet/tools/gradient_descent.hpp>
 
 /**
  * @file minibatch_learning.cpp

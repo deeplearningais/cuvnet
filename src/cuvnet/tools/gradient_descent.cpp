@@ -6,7 +6,7 @@
 #include <log4cxx/mdc.h>
 #include <cuv/tools/device_tools.hpp>
 #include <cuv/libs/opt/opt.hpp>
-#include <tools/logging.hpp>
+#include <cuvnet/tools/logging.hpp>
 
 namespace cuvnet
 {
@@ -64,6 +64,7 @@ namespace cuvnet
                         // this is not an evaluation pass, we're actually supposed to do work ;)
 
                         m_swipe.bprop(); // backward pass
+                        after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
 
                         if(iter % update_every == 0) {
                             before_weight_update(wups);
@@ -72,7 +73,9 @@ namespace cuvnet
                             after_weight_update(wups);
                         }
                     }
-                    after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
+                    else{
+                        after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
+                    }
                 }
                 after_epoch(m_epoch, wups); // should log error etc
             }

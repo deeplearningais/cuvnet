@@ -13,7 +13,7 @@
 #include <boost/numeric/bindings/traits/ublas_matrix.hpp>
 #include <boost/numeric/bindings/traits/ublas_vector.hpp> 
 
-#include <tools/preprocess.hpp>
+#include <cuvnet/tools/preprocess.hpp>
 
 
 namespace cuvnet

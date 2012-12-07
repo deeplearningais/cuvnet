@@ -8,8 +8,8 @@
 #include <cuv/libs/cimg/cuv_cimg.hpp>
 #include <datasets/bounding_box_tools.hpp>
 
-#include <tools/preprocess.hpp>
-#include <tools/data_source.hpp>
+#include <cuvnet/tools/preprocess.hpp>
+#include <cuvnet/tools/data_source.hpp>
 
 #include <boost/test/unit_test.hpp>
 

@@ -2,8 +2,8 @@
 #include <ext/functional>
 
 #include <cuvnet/op_utils.hpp>
-#include <tools/matwrite.hpp>
-#include <tools/function.hpp>
+#include <cuvnet/tools/matwrite.hpp>
+#include <cuvnet/tools/function.hpp>
 
 #include <boost/test/unit_test.hpp>
 

@@ -256,7 +256,7 @@ void swiper::init()
     cleanup_temp_vars_visitor ctvv;
     op.visit(ctvv); 
 
-    op.visit(determine_shapes_visitor());
+    determine_shapes(op);
 
     dump("swiper-initial.dot");
 }

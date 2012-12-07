@@ -2,10 +2,10 @@
 #include <algorithm>
 
 #include <boost/lexical_cast.hpp>
-#include <tools/argsort.hpp>
-#include <tools/preprocess.hpp>
-#include <tools/orthonormalization.hpp>
-#include <tools/normalization.hpp>
+#include <cuvnet/tools/argsort.hpp>
+#include <cuvnet/tools/preprocess.hpp>
+#include <cuvnet/tools/orthonormalization.hpp>
+#include <cuvnet/tools/normalization.hpp>
 
 #include <boost/test/unit_test.hpp>
 

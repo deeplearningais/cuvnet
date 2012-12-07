@@ -33,6 +33,5 @@ CONFIGURE_FILE( ${CMAKE_CURRENT_SOURCE_DIR}/datasets/util/lena.jpg ${CMAKE_BINAR
 
 add_subdirectory(cuvnet)
 add_subdirectory(third_party)
-add_subdirectory(tools)
 add_subdirectory(example EXCLUDE_FROM_ALL)
 add_subdirectory(test EXCLUDE_FROM_ALL)
