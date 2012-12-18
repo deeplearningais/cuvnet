@@ -24,18 +24,19 @@ namespace cuvnet
             p0.value.reset();
             return;
         }
+        float fact_new = m_mean ? 1.f/m_n_summed : 1.f;
         if(r0.can_overwrite_directly()){
-            if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata());
-            else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata());
+            if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(), RF_ADD, fact_new, 0.f);
+            else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(), RF_ADD, fact_new, 0.f);
         }
         else if(r0.can_add_directly()){
-            if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD,1.f,1.f);
-            else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD,1.f,1.f);
+            if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD,fact_new,1.f);
+            else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD,fact_new,1.f);
         }else{
             // reallocate *sigh*
             value_ptr v(new value_type(r0.shape));
-            if(m_axis!=0) cuv::reduce_to_row(*v, p0.value.cdata());
-            else          cuv::reduce_to_col(*v, p0.value.cdata());
+            if(m_axis!=0) cuv::reduce_to_row(*v, p0.value.cdata(), RF_ADD, fact_new, 0.f);
+            else          cuv::reduce_to_col(*v, p0.value.cdata(), RF_ADD, fact_new, 0.f);
             r0.push(v);
         }
         p0.value.reset();
@@ -52,20 +53,24 @@ namespace cuvnet
             return;
         }
 
+        float fact_new = m_mean ? 1.f/m_n_summed : 1.f;
         assert(p0.need_derivative);
+        int broadcast_axis = p0.shape.size()-1-m_axis;
         if(p0.can_overwrite_directly()){
-            // TODO: cuv: add factOld, factNew to matrix_plus_col, matrix_times_col!!
-            p0.overwrite_or_add_value().data() = 0.f;
-            if(m_axis!=0) matrix_plus_row(*p0.overwrite_or_add_value(), r0.delta.cdata());
-            else          matrix_plus_col(*p0.overwrite_or_add_value(), r0.delta.cdata());
+            matrix_op_vec(
+                    *p0.overwrite_or_add_value(), 
+                    *p0.overwrite_or_add_value(), 
+                    r0.delta.cdata(), broadcast_axis, BF_ADD, fact_new, 0.f);
         }else if(p0.can_add_directly()){
-            if(m_axis!=0) matrix_plus_row(*p0.overwrite_or_add_value(), r0.delta.cdata());
-            else          matrix_plus_col(*p0.overwrite_or_add_value(), r0.delta.cdata());
+            matrix_op_vec(
+                    *p0.overwrite_or_add_value(), 
+                    *p0.overwrite_or_add_value(), 
+                    r0.delta.cdata(), broadcast_axis, BF_ADD, fact_new, 1.f);
         }else{
             value_ptr v(new value_type(p0.shape));
-            *v = 0.f;
-            if(m_axis!=0) matrix_plus_row(*v, r0.delta.cdata());
-            else          matrix_plus_col(*v, r0.delta.cdata());
+            matrix_op_vec(
+                    *v, *v, 
+                    r0.delta.cdata(), broadcast_axis, BF_2ND, fact_new, 0.f);
             p0.push(v);
         }
     }
@@ -79,7 +84,9 @@ namespace cuvnet
                     m_params[0]->shape.end(),
                     1,std::multiplies<unsigned int>());
         m_results[0]->shape = std::vector<unsigned int>(1,m_params[0]->shape[m_axis]);
-        if(all / m_params[0]->shape[m_axis] == 1)
+
+        m_n_summed = all / m_params[0]->shape[m_axis];
+        if( m_n_summed == 1)
             m_identity = true;
     }
 }

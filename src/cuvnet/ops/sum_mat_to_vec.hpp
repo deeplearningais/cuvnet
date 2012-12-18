@@ -26,6 +26,8 @@ namespace cuvnet
             private:
                 unsigned int m_axis;
                 bool m_identity;
+                float m_n_summed;
+                bool m_mean;
             public:
                 SumMatToVec() :   Op(1,1){} ///< for serialization
                 /**
@@ -33,10 +35,11 @@ namespace cuvnet
                  * @param mat the n-dimensional array
                  * @param axis currently, either 0 or n-1 is allowed
                  */
-                SumMatToVec(result_t& mat, unsigned int axis)
+                SumMatToVec(result_t& mat, unsigned int axis, bool mean=false)
                     :   Op(1,1)
                       , m_axis(axis)
                       , m_identity(false)
+                      , m_mean(mean)
             {
                 add_param(0,mat);
             }
@@ -52,6 +55,7 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_axis;
+                        ar & m_mean;
                         ar & m_identity;
                     }
     };
