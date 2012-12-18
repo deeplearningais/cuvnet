@@ -215,7 +215,7 @@ BOOST_AUTO_TEST_CASE(normal){
     for(unsigned int i=0;i<rot.shape(0);i++){
         res(i,i)-=1.f;
     }
-    BOOST_CHECK_CLOSE(0.f, cuv::norm2(res), 0.01f);
+    BOOST_CHECK_CLOSE(1.f, 1.f+cuv::norm2(res), 0.01f);
 
     // check for reverse_transform
     pp.reverse_transform(data);
@@ -259,7 +259,7 @@ BOOST_AUTO_TEST_CASE(reduced_pca){
     for(unsigned int i=0;i<data.shape(0);i++)
         for(unsigned int j=0;j<data.shape(1);j++){
             //std::cout << "i, j = "<<i<<", "<<j<<std::endl;
-            BOOST_CHECK_CLOSE((float)data(i,j), (float)data2(i,j),0.01f);
+            BOOST_CHECK_CLOSE(1.f,  1.f + (float)data(i,j) - (float)data2(i,j),0.01f);
         }
 }
 
@@ -296,7 +296,7 @@ BOOST_AUTO_TEST_CASE(reduced_whiten){
     for(unsigned int i=0;i<data.shape(0);i++)
         for(unsigned int j=0;j<data.shape(1);j++){
             //std::cout << "i, j = "<<i<<", "<<j<<std::endl;
-            BOOST_CHECK_CLOSE((float)data(i,j), (float)data2(i,j),0.01f);
+            BOOST_CHECK_CLOSE( 1.f,  1 + (float)data(i,j) - (float)data2(i,j),0.01f);
         }
 }
 
@@ -333,7 +333,7 @@ BOOST_AUTO_TEST_CASE(normal_zca){
     for(unsigned int i=0;i<rot.shape(0);i++){
         res(i,i)-=1.f;
     }
-    BOOST_CHECK_CLOSE(0.f, cuv::norm2(res), 0.01f);
+    BOOST_CHECK_CLOSE(1.f, 1.f + cuv::norm2(res), 0.01f);
 
     // check for reverse_transform
     pp.reverse_transform(data);
@@ -341,7 +341,7 @@ BOOST_AUTO_TEST_CASE(normal_zca){
     for(unsigned int i=0;i<data.shape(0);i++)
         for(unsigned int j=0;j<data.shape(1);j++){
             //std::cout << "i, j = "<<i<<", "<<j<<std::endl;
-            BOOST_CHECK_CLOSE((float)data(i,j), (float)data2(i,j),0.01f);
+            BOOST_CHECK_CLOSE( 1.f, 1.f + (float)data(i,j) - (float)data2(i,j),0.01f);
         }
 }
 BOOST_AUTO_TEST_CASE(reduced_zca){
@@ -377,7 +377,7 @@ BOOST_AUTO_TEST_CASE(reduced_zca){
     for(unsigned int i=0;i<data.shape(0);i++)
         for(unsigned int j=0;j<data.shape(1);j++){
             //std::cout << "i, j = "<<i<<", "<<j<<std::endl;
-            BOOST_CHECK_CLOSE((float)data(i,j), (float)data2(i,j),0.01f);
+            BOOST_CHECK_CLOSE(1.f, 1.f + (float)data(i,j) - (float)data2(i,j),0.01f);
         }
 }
 BOOST_AUTO_TEST_SUITE_END()
