@@ -13,6 +13,9 @@ namespace cuvnet
             desc.label = "reduce->row";
         else 
             desc.label = "reduce->" + boost::lexical_cast<std::string>(m_axis);
+        if(m_mean){
+            desc.label += " (mean)";
+        }
     }
 
     void SumMatToVec::fprop(){
