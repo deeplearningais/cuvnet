@@ -8,10 +8,7 @@
 #include<cuv.hpp>
 #include<cuv/basics/io.hpp>
 
-#include <boost/serialization/serialization.hpp>
-#include <boost/serialization/level.hpp>
-#include <boost/serialization/tracking.hpp>
-#include <datasets/dataset.hpp>
+#include "dataset.hpp"
 
 
 namespace cuvnet
@@ -28,6 +25,7 @@ namespace cuvnet
         private:
         std::string m_file_train; 
         std::string m_file_test; 
+        std::string m_file_val; 
 
         public:
 
@@ -36,20 +34,14 @@ namespace cuvnet
          * 
          * @param file_name_train the file containing training data
          * @param file_name_test the file containing test data
+         * @param file_name_val the file containing test data
          */
-        dataset_reader(std::string file_name_train, std::string file_name_test):
-            m_file_train(file_name_train),
-            m_file_test(file_name_test)
-        {
-        }
+        dataset_reader(std::string file_name_train, std::string file_name_test, std::string file_name_val = "");
 
         /**
          * read the files into memory.
          */
-        void read_from_file(){
-            read(train_data, train_labels, m_file_train);
-            read(test_data, test_labels, m_file_test);
-        }
+        void read_from_file();
         
         /** 
          * read one file into memory.
@@ -57,17 +49,7 @@ namespace cuvnet
          * @param labels the tensor to write labels to
          * @param file_name the name of the file to read from
          */
-        void read(tensor_type& data, tensor_type& labels,const std::string file_name){
-            using namespace cuv;
-            
-            std::ifstream readfile(file_name.c_str());
-            boost::archive::binary_iarchive oa_read(readfile);
-
-            oa_read >> data;
-            oa_read >> labels;
-
-            readfile.close();
-        }
+        void read(tensor_type& data, tensor_type& labels,const std::string file_name);
     };
 
 }
