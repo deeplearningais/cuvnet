@@ -8,11 +8,6 @@
 #include<cuv.hpp>
 #include<cuv/basics/io.hpp>
 
-#include <boost/serialization/serialization.hpp>
-#include <boost/serialization/level.hpp>
-#include <boost/serialization/tracking.hpp>
-
-
 
 namespace cuvnet
 {
@@ -27,16 +22,13 @@ namespace cuvnet
 
         private:
         /// file where we write the hidden activations and parameters
-        std::ofstream m_logfile;
-        boost::archive::binary_oarchive m_oa_log;
         std::string m_file; 
         int m_num_batches;
         int m_bs;
-        int m_data_dim_2;
-        int m_label_dim_2;
         int m_current_batch_num;
         tensor_type m_whole_data;
         tensor_type m_whole_labels;
+        std::string m_log_param;
 
         public:
 
@@ -46,23 +38,16 @@ namespace cuvnet
          * @param file_name where to save the file
          * @param num_batches the total number of batches to save
          * @param bs the batch size
-         * @param data_dim_2 the number of dimensions the dataset
-         * @param label_dim_2 the number of dimension of labels in the dataset
+         * @param data_dim_2 size of second dimension of the data
+         * @param label_dim_2 size of second dimension of the labels         
          */
-        dataset_dumper(std::string file_name, int num_batches, int bs, int data_dim_2, int label_dim_2):
-            m_logfile(file_name.c_str()),
-            m_oa_log(m_logfile),
-            m_file(file_name),
-            m_num_batches(num_batches),
-            m_bs(bs),
-            m_data_dim_2(data_dim_2),
-            m_label_dim_2(label_dim_2),
-            m_current_batch_num(0)
-        {
-            m_whole_data.resize(cuv::extents[num_batches * bs][data_dim_2]);
-            m_whole_labels.resize(cuv::extents[num_batches * bs][label_dim_2]);
-        }
+        dataset_dumper(std::string file_name, int num_batches, int bs, int data_dim_2, int label_dim_2, std::string log_param = "");
 
+        /**
+         * destructor, closes the files
+         *
+         */
+        ~dataset_dumper();
         
         /**
          * Accumulates the batches in memory and dumps them to a file when complete.
@@ -70,23 +55,8 @@ namespace cuvnet
          * @param data the inputs
          * @param labels the corresponding labels
          */
-        void write_to_file(const tensor_type& data, const tensor_type& labels){
-           m_whole_data[cuv::indices[cuv::index_range(m_current_batch_num * m_bs, (m_current_batch_num+1) * m_bs)][cuv::index_range()]]= data;
-           m_whole_labels[cuv::indices[cuv::index_range(m_current_batch_num * m_bs,(m_current_batch_num+1) * m_bs)][cuv::index_range()]]= labels;
-           m_current_batch_num++;
-           //writes to the file the whole data ones it is accumulated 
-           if(m_current_batch_num == m_num_batches){
-              m_oa_log << m_whole_data; 
-              m_oa_log << m_whole_labels;
-           }
-        }
+        void write_to_file(const tensor_type& data, const tensor_type& labels);
 
-        /**
-         * close the file we've dumped the data into.
-         */
-        void close(){
-            m_logfile.close();
-        }
     };
 
 }
