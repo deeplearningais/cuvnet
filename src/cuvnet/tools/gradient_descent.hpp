@@ -152,7 +152,7 @@ namespace cuvnet
              * decrease learnrate by value.
              */
             inline void decrease_learnrate(float val){
-                m_learnrate -= val;
+                m_learnrate = std::max(1e-8f, m_learnrate-val);
             }
 
             /**
