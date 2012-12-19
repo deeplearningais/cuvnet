@@ -15,6 +15,8 @@ SET (CUVNET_TOOLS_SRC
     gradient_descent.cpp
     orthonormalization.cpp
     network_communication.cpp
+    dataset_dumper.cpp
+    dumper.cpp
     )
 
 INCLUDE_DIRECTORIES(/usr/local/src/magma_1.1.0/include)
