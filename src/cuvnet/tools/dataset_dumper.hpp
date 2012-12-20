@@ -3,10 +3,7 @@
 
 #include<iostream>
 #include<fstream>
-#include<boost/archive/binary_oarchive.hpp>
-#include<boost/archive/binary_iarchive.hpp>
 #include<cuv.hpp>
-#include<cuv/basics/io.hpp>
 
 
 namespace cuvnet

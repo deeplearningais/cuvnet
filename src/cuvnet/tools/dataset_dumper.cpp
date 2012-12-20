@@ -1,6 +1,9 @@
 #include "dataset_dumper.hpp"
 #include <log4cxx/logger.h>
 #include <log4cxx/mdc.h>
+#include<cuv/basics/io.hpp>
+#include<boost/archive/binary_oarchive.hpp>
+#include<boost/archive/binary_iarchive.hpp>
 namespace cuvnet
 {
      
@@ -19,8 +22,12 @@ namespace cuvnet
         dataset_dumper::~dataset_dumper()
         {
             if(m_current_batch_num < m_num_batches){
-                //log4cxx::LoggerPtr log(log4cxx::Logger::getLogger(m_log_param));
-                //LOG4CXX_WARN(log, "Data is not dumped to file because not all batches are accumulated. Current batch number: " << m_current_batch_num << " number of batches: " << m_num_batches);
+                log4cxx::LoggerPtr log(log4cxx::Logger::getLogger(m_log_param));
+                LOG4CXX_WARN(log, "Data is not dumped to file because not all batches"
+                                  << " are accumulated. Current batch number: " 
+                                   << m_current_batch_num << " number of batches: " << m_num_batches);
+
+
             }
         }
         void dataset_dumper::write_to_file(const tensor_type& data, const tensor_type& labels){
@@ -38,7 +45,9 @@ namespace cuvnet
                }
            }else{
                 log4cxx::LoggerPtr log(log4cxx::Logger::getLogger(m_log_param));
-                LOG4CXX_WARN(log, "It is tried to accumulate more batches than the maximum number of batches: " << m_current_batch_num << " number of batches: " << m_num_batches);
+                LOG4CXX_WARN(log, "It is tried to accumulate more batches than the"
+                                   << " maximum number of batches: " << m_current_batch_num
+                                   << " number of batches: " << m_num_batches);
            }
         }
 }
