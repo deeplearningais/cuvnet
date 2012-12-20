@@ -9,6 +9,7 @@
 #include <cuvnet/ops/output.hpp>
 #include <cuvnet/ops/pow.hpp>
 #include <cuvnet/ops/prod.hpp>
+#include <cuvnet/ops/transpose.hpp>
 #include <cuvnet/ops/tanh.hpp>
 #include <cuvnet/ops/noiser.hpp>
 #include <cuvnet/ops/sum.hpp>
@@ -85,6 +86,9 @@ namespace cuvnet
     /// construct a Exp object
     inline
         Op::op_ptr exp(float f, Op::op_ptr x)           { return boost::make_shared<Exp>(f, x->result()); }
+    /// construct a Transpose object
+    inline
+        Op::op_ptr transpose(Op::op_ptr x) { return boost::make_shared<Transpose>(x->result()); }
     /// construct a Prod object
     inline
         Op::op_ptr prod(Op::op_ptr x, Op::op_ptr y, char tx='n', char ty='n') { return boost::make_shared<Prod>(x->result(), y->result(), tx, ty); }

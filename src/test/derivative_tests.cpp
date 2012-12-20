@@ -272,6 +272,12 @@ BOOST_AUTO_TEST_CASE(derivative_test_sum){
     ptr_t func                     = boost::make_shared<Sum>(inp0->result());
     derivative_tester(*func);
 }
+BOOST_AUTO_TEST_CASE(derivative_test_transpose){
+	typedef boost::shared_ptr<Op> ptr_t;
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[2][3]);
+    ptr_t func                     = boost::make_shared<Transpose>(inp0->result());
+    derivative_tester(*func);
+}
 
 BOOST_AUTO_TEST_CASE(derivative_test_prod){
 	typedef boost::shared_ptr<Op> ptr_t;
