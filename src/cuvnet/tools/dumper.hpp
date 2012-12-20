@@ -56,14 +56,15 @@ typedef std::map<std::string,float>      map_type;
 
         /**
          * Generate random patterns and loggs them to the file. 
-         * For example, op is a encoder function, and data_gen is used to generate input data. 
-         * op function will return tensor which are hidden unit activations.  
+         * For example, op is an encoder function, and data_gen is used to generate input data. 
+         * op function will return tensor which are hidden unit activations. The function runs until the maximum number of examples
+         * is generated "num_data", or if the exception "max_example_reached_exception" is thrown by "data_gen" function.
          *
          *
          * @param op            operator, which is input to cuvnet function, which evaluates the operator and returns tensor. 
          * @param data_gen      function which generates the data  
          * @param file_name     the name of the file where the data is stored   
-         * @param num_data      the number of examples which will be generated
+         * @param num_data      the maximum number of examples which will be generated
          * 
          */
         void generate_log_patterns(op_ptr op, boost::function<map_type()> data_gen, std::string file_name, int num_data=INT_MAX);
