@@ -1,6 +1,5 @@
 #include "dataset_dumper.hpp"
 #include <log4cxx/logger.h>
-#include <log4cxx/mdc.h>
 #include<cuv/basics/io.hpp>
 #include<boost/archive/binary_oarchive.hpp>
 #include<boost/archive/binary_iarchive.hpp>
