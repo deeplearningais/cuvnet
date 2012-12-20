@@ -1,4 +1,5 @@
 #include "dumper.hpp"
+#include <cuvnet/tools/function.hpp>
 namespace cuvnet
 {
 

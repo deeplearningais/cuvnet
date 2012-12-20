@@ -6,14 +6,10 @@
 #include <boost/function.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/ops.hpp>
-#include <cuvnet/tools/function.hpp>
 
 #include <vector>
 #include <map>
 #include <exception>
-#include <cuvnet/tools/gradient_descent.hpp>
-#include <cuvnet/tools/monitor.hpp>
-#include <cuv/libs/cimg/cuv_cimg.hpp>
 
 
 
@@ -59,11 +55,13 @@ typedef std::map<std::string,float>      map_type;
 
 
         /**
-         * Generate random patterns and loggs them to the file. data_gen is a function used to generate data. op is operator which uses generated data to evaluate itself. 
+         * Generate random patterns and loggs them to the file. 
+         * For example, op is a encoder function, and data_gen is used to generate input data. 
+         * op function will return tensor which are hidden unit activations.  
          *
          *
-         * @param op            operator function  
-         * @param data_gen      function which generates the data
+         * @param op            operator, which is input to cuvnet function, which evaluates the operator and returns tensor. 
+         * @param data_gen      function which generates the data  
          * @param file_name     the name of the file where the data is stored   
          * @param num_data      the number of examples which will be generated
          * 
