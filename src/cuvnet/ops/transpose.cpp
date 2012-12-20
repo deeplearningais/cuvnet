@@ -16,6 +16,7 @@ namespace cuvnet
             cuv::transpose(*p, inp);
             r0.push(p);
         }
+        p0.value.reset();
         
     }
     void Transpose::bprop(){
@@ -32,6 +33,7 @@ namespace cuvnet
             cuv::transpose(*p, inp);
             p0.push(p);
         }
+        r0.delta.reset();
     }
     void Transpose::_determine_shapes(){
         cuvAssert(m_params[0]->shape.size() == 2);
