@@ -46,6 +46,16 @@ BOOST_AUTO_TEST_CASE(derivative_test_pipe){
    ptr_t func                    = boost::make_shared<Pipe>(inp->result(),0);
    derivative_tester(*func);
 }
+BOOST_AUTO_TEST_CASE(derivative_test_rowrange_select){
+   typedef boost::shared_ptr<Op> ptr_t;
+   boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5]);
+   boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[4][5]);
+
+   ptr_t func                    = row_range_select(inp0,inp1,2,0); // select 2 of the rows (fix to 0-2 for testing)
+
+   derivative_tester(*result(func,0));
+   derivative_tester(*result(func,1));
+}
 BOOST_AUTO_TEST_CASE(derivative_test_row_select){
    typedef boost::shared_ptr<Op> ptr_t;
    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);

@@ -223,6 +223,12 @@ namespace cuvnet
     /// construct a RowSelector object
     inline
         boost::shared_ptr<RowSelector> row_select(Op::op_ptr p0, Op::op_ptr p1, Op::op_ptr p2, Op::op_ptr p3, int row=-1){ return boost::make_shared<RowSelector>(p0->result(), p1->result(), p2->result(), p3->result(), row); }
+    /// construct a RowRangeSelector object
+    inline
+        boost::shared_ptr<RowRangeSelector> row_range_select(Op::op_ptr p0, int n_rows, int row=-1){ return boost::make_shared<RowRangeSelector>(p0->result(), n_rows, row); }
+    /// construct a RowRangeSelector object
+    inline
+        boost::shared_ptr<RowRangeSelector> row_range_select(Op::op_ptr p0, Op::op_ptr p1, int n_rows, int row=-1){ return boost::make_shared<RowRangeSelector>(p0->result(), p1->result(), n_rows, row); }
     /// construct a Pipe object
     inline 
         Op::op_ptr result(Op::op_ptr p0, unsigned int result=0){ return boost::make_shared<Pipe>(p0->result(result), result); }
