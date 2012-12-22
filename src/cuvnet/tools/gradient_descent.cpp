@@ -43,7 +43,7 @@ namespace cuvnet
                     throw timeout_stop();
                 }
                 // stop if epoch limit is exceeded
-                if(iter/n_batches >= n_max_epochs){
+                if(iter/n_batches > n_max_epochs){
                     LOG4CXX_WARN(log, "STOP minibatch learning: Max epochs");
                     throw max_iter_stop();
                 }
