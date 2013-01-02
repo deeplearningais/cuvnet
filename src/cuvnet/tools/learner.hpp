@@ -70,12 +70,12 @@ namespace cuvnet
         public:
 
             /**
-             * initialize 
+             * initialize.
              */
             void init(int bs, std::string ds, unsigned int nsplits, float es_frac=0.1f);
             
             /**
-             * switch to a split and a cross-validation mode
+             * switch to a split and a cross-validation mode.
              */
             void switch_dataset(unsigned int split, cv_mode mode);
 
