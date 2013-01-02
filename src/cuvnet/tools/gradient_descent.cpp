@@ -117,6 +117,7 @@ namespace cuvnet
             //cuvAssert(&((*it)->result()->delta.cdata()));
             //cuvAssert(NULL != dynamic_cast<ParameterInput*>(*it));
             ParameterInput* inp = (ParameterInput*) *it;
+            if(! inp->derivable()) continue;
 
             float lr = m_learnrate * inp->get_learnrate_factor();
             float wd = m_weightdecay * inp->get_weight_decay_factor();
@@ -195,6 +196,7 @@ namespace cuvnet
         //cuvAssert(m_n_batches > 0);
         for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
             ParameterInput* param = dynamic_cast<ParameterInput*>(*it);
+            if(! param->derivable()) continue;
             Op::value_type dW = param->delta(); 
             if(m_n_batches > 1)
                 dW /= (float) m_n_batches;
@@ -222,6 +224,7 @@ namespace cuvnet
         unsigned int i=0;
         for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
             ParameterInput* inp = (ParameterInput*) *it;
+            if(! inp->derivable()) continue;
 
             float lr = m_learnrate * inp->get_learnrate_factor();
             float wd = m_weightdecay * inp->get_weight_decay_factor();
@@ -259,6 +262,7 @@ namespace cuvnet
         unsigned int i=0;
         for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
             ParameterInput* inp = (ParameterInput*) *it;
+            if(! inp->derivable()) continue;
 
             // we exploit CUVs problems with const-correctness to get an
             // overwritable version of inp->delta.
@@ -294,6 +298,7 @@ namespace cuvnet
         unsigned int i=0;
         for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
             ParameterInput* inp = (ParameterInput*) *it;
+            if(! inp->derivable()) continue;
 
             // we exploit CUVs problems with const-correctness to get an
             // overwritable version of inp->delta.
@@ -334,6 +339,7 @@ namespace cuvnet
         unsigned int i=0;
         for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
             ParameterInput* inp = (ParameterInput*) *it;
+            if(! inp->derivable()) continue;
 
             // we exploit CUVs problems with const-correctness to get an
             // overwritable version of inp->delta.
