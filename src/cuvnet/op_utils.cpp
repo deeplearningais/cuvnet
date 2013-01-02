@@ -1,4 +1,5 @@
 #include <fstream>
+#include <ext/functional>
 #include <boost/lexical_cast.hpp>
 #include <boost/format.hpp>
 #include <boost/filesystem.hpp>
@@ -7,6 +8,12 @@
 
 
 using namespace cuvnet;
+template<class ArgumentType, class ResultType>
+struct ptr_caster
+: public std::unary_function<ArgumentType*, ResultType*>
+{
+    ResultType* operator()(ArgumentType*s)const{ return (ResultType*)s; }
+};
 
 std::string define_graphviz_node_visitor::define_data_ptr(const Op::value_ptr& p){
     if(!p)
@@ -239,6 +246,16 @@ void define_graphviz_node_visitor::postorder(Op* o){
 void swiper::init()
 {
     Op& op = *m_op;
+
+    // clean paramlist from non-derivable parameters
+    m_paramlist.erase(
+            std::remove_if(m_paramlist.begin(), m_paramlist.end(), 
+                std::not1( // not [  cast_to_input(op)->derivable()   ]
+                    __gnu_cxx::compose1(
+                        std::mem_fun( &ParameterInput::derivable ),
+                        ptr_caster<Op,ParameterInput>()))),
+            m_paramlist.end());
+
 
     reset_needed_flags rnf;
     op.visit(rnf);
