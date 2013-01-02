@@ -424,8 +424,8 @@ namespace cuvnet
             m_patience = std::max(m_patience, (unsigned int)(m_patience_inc_fact*wups));
         }
         else if( perf > 1.1f * m_last_perf ){
-            m_gd.decay_learnrate(m_lr_fact);
-            LOG4CXX_WARN(log, "unsteady: decreasing learnrate");
+            //m_gd.decay_learnrate(m_lr_fact);
+            //LOG4CXX_WARN(log, "unsteady: decreasing learnrate");
         }
     }
 
