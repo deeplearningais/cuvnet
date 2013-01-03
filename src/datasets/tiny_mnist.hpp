@@ -1,4 +1,5 @@
 #include "dataset.hpp"
+#include <cuv/tensor_ops/tensor_ops.hpp>
 struct tiny_mnist : public cuvnet::dataset{
     tiny_mnist(const std::string path){
         train_data.resize(cuv::extents[60000][30]);
