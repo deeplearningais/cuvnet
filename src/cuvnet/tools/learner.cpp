@@ -4,6 +4,7 @@
 #include <datasets/cifar.hpp>
 #include <datasets/ldpc.hpp>
 #include <datasets/natural.hpp>
+#include <datasets/tiny_mnist.hpp>
 #include <datasets/randomizer.hpp>
 #include <datasets/amat_datasets.hpp>
 #include <datasets/msrc_descriptors.hpp>
@@ -108,8 +109,13 @@ namespace cuvnet
         m_ds_name = ds;
         m_bs = bs;
         m_in_early_stopping = false;
-        if(0);
-        else if (ds == "mnist"){
+        if(0){
+            ;
+        }else if (ds == "tiny_mnist"){
+            dataset dsall = tiny_mnist("/home/local/datasets/tapani");
+            // the dataset is already shuffled and normalized for zero-mean and unit variance.
+            m_splits.init(dsall, nsplits);
+        }else if (ds == "mnist"){
             dataset dsall = mnist_dataset("/home/local/datasets/MNIST");
             randomizer().transform(dsall.train_data, dsall.train_labels);
             global_min_max_normalize<> normalizer(0,1);
