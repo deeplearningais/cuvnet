@@ -114,14 +114,14 @@ namespace cuvnet
         }else if (ds == "tiny_mnist"){
             dataset dsall = tiny_mnist("/home/local/datasets/tapani");
             // the dataset is already shuffled and normalized for zero-mean and unit variance.
-            m_splits.init(dsall, nsplits);
+            m_splits.init(dsall, nsplits, es_frac);
         }else if (ds == "mnist"){
             dataset dsall = mnist_dataset("/home/local/datasets/MNIST");
             randomizer().transform(dsall.train_data, dsall.train_labels);
             global_min_max_normalize<> normalizer(0,1);
             normalizer.fit_transform(dsall.train_data);
             normalizer.transform(dsall.test_data);
-            m_splits.init(dsall, nsplits);
+            m_splits.init(dsall, nsplits, es_frac);
         }else if (ds == "convex"){
             dataset dsall = amat_dataset("/home/local/datasets/bengio/convex.zip", "convex_train.amat","50k/convex_test.amat");
             dsall.binary = true; // Note: not all amat_datasets are binary!
@@ -129,7 +129,7 @@ namespace cuvnet
             global_min_max_normalize<> normalizer(0,1);
             normalizer.fit_transform(dsall.train_data);
             normalizer.transform(dsall.test_data);
-            m_splits.init(dsall, nsplits, 0.25); // trainval: 8000, train:6000, val: 2000
+            m_splits.init(dsall, nsplits, es_frac); // es_frac=0.25 --> trainval: 8000, train:6000, val: 2000
         }else if (ds == "mnist_rot"){
             dataset dsall = amat_dataset("/home/local/datasets/bengio/mnist_rotation_new.zip", "mnist_all_rotation_normalized_float_train_valid.amat","mnist_all_rotation_normalized_float_test.amat");
             dsall.binary = true; // Note: not all amat_datasets are binary!
@@ -137,7 +137,7 @@ namespace cuvnet
             global_min_max_normalize<> normalizer(0,1);
             normalizer.fit_transform(dsall.train_data);
             normalizer.transform(dsall.test_data);
-            m_splits.init(dsall, nsplits);
+            m_splits.init(dsall, nsplits, es_frac);
         }else if (ds == "ldpc"){
             dataset dsall = ldpc_dataset("/home/local/datasets/LDPC");
             randomizer().transform(dsall.train_data, dsall.train_labels);
@@ -184,14 +184,14 @@ namespace cuvnet
                 zmuv.fit_transform(dsall.train_data);
                 zmuv.transform(dsall.test_data);
             }
-            m_splits.init(dsall, nsplits);
+            m_splits.init(dsall, nsplits, es_frac);
         }else if(ds == "cifar"){
             dataset dsall = cifar_dataset("/home/local/datasets/CIFAR10");
             randomizer().transform(dsall.train_data, dsall.train_labels);
             zero_mean_unit_variance<> normalizer;
             normalizer.fit_transform(dsall.train_data);
             normalizer.transform(dsall.test_data);
-            m_splits.init(dsall, nsplits);
+            m_splits.init(dsall, nsplits, es_frac);
         }else {
             throw std::runtime_error("unknown dataset `"+ds+"'");
         }
