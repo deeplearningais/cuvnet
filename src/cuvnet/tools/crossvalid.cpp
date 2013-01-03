@@ -73,7 +73,7 @@ namespace cuvnet
 			}
 			m_perf /= m_ptr->n_splits();
 
-            if(m_ptr->refit_for_test()){
+            if(m_perf == m_perf && m_ptr->refit_for_test()){
                 if(m_perf < m_ptr->refit_thresh()){ // save time!
                     // retrain on TRAINALL (incl. VAL) and test on TEST
                     LOG4CXX_WARN(log, "Training on TRAINVAL");
