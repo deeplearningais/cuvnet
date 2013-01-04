@@ -73,17 +73,18 @@ namespace cuvnet
 			}
 			m_perf /= m_ptr->n_splits();
 
-            if(m_perf == m_perf && m_ptr->refit_for_test()){
-                if(m_perf < m_ptr->refit_thresh()){ // save time!
-                    // retrain on TRAINALL (incl. VAL) and test on TEST
-                    LOG4CXX_WARN(log, "Training on TRAINVAL");
-                    m_ptr->reset_params();
-                    m_ptr->switch_dataset(0,CM_TRAINALL);
-                    m_ptr->fit();
-                }else{
-                    LOG4CXX_WARN(log, "Skipping training on TRAINVAL: not good enough.");
-				}
+            float refit_thresh = m_ptr->refit_thresh();
+            if(m_perf == m_perf 
+                    && m_ptr->refit_for_test() 
+                    && m_perf < refit_thresh){
+
+                // retrain on TRAINALL (incl. VAL) and test on TEST
+                LOG4CXX_WARN(log, "Training on TRAINVAL, perf="<<m_perf<<" was better than thresh="<<refit_thresh);
+                m_ptr->reset_params();
+                m_ptr->switch_dataset(0,CM_TRAINALL);
+                m_ptr->fit();
                 m_ptr->switch_dataset(0,CM_TEST);
+
                 m_test_perf = m_ptr->predict();
                 log4cxx::MDC mdc("test_loss", boost::lexical_cast<std::string>(m_test_perf));
                 LOG4CXX_WARN(log, "Evaluated on CM_TEST with refitting, result: "<<m_test_perf);
