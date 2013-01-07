@@ -41,7 +41,7 @@ namespace cuvnet
             unsigned int m_batch_presentations;
 
             /// keeps all constants
-            std::vector<std::pair<std::string,std::string> > m_constants; 
+            std::map<std::string,std::string> m_constants; 
 
             /// counts the number of epochs we've seen
             unsigned int m_epochs;
@@ -86,8 +86,8 @@ namespace cuvnet
             monitor& add(watchpoint_type type, boost::shared_ptr<Op> op, const std::string& name, unsigned int result=0);
 
             template<class ValueType>
-            monitor& add(const std::string& name, const ValueType& value){
-                m_constants.push_back(std::make_pair(name, boost::lexical_cast<std::string>(value)));
+            monitor& set(const std::string& name, const ValueType& value){
+                m_constants[name] = boost::lexical_cast<std::string>(value);
                 return *this;
             }
 

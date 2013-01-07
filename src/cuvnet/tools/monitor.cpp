@@ -237,6 +237,11 @@ namespace cuvnet
                 v.push_back(mdc);
             }
         }
+        typedef std::pair<std::string, std::string> ss_t;
+        BOOST_FOREACH(const ss_t& p, m_constants){
+                log4cxx::MDC* mdc = new log4cxx::MDC(p.first, boost::lexical_cast<std::string>(p.second));
+                v.push_back(mdc);
+        }
         LOG4CXX_DEBUG(log, "monitor watchpoint");
         BOOST_FOREACH(log4cxx::MDC* mdc, v){
             delete mdc;
@@ -252,8 +257,9 @@ namespace cuvnet
         BOOST_FOREACH(const watchpoint* p, m_impl->m_watchpoints){
             if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
                 std::cout  << p->name<<"="
-                    << std::left << std::setprecision(4) << mean(p->name) <<" ("
-                    << std::left << std::setprecision(4) << stddev(p->name)<<"),  ";
+                    << std::left << std::setprecision(4) << mean(p->name) <<",\t"//<<" ("
+                    //<< std::left << std::setprecision(4) << stddev(p->name)<<"),  "
+                    ;
             }
         }
         std::cout << "           " << std::flush;
