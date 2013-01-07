@@ -160,7 +160,7 @@ namespace cuvnet
             void log_to_file();
 
             /**
-             * plain text logging of all epochstats 
+             * plain text logging of all epochstats.
              */
             void simple_logging()const;
 
