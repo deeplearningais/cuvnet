@@ -160,6 +160,9 @@ namespace cuvnet
     /// construct a Mean object
     inline
         Op::op_ptr mean(Op::op_ptr x)                   { return boost::make_shared<Mean>(x->result()); }
+    /// return a function object that has a scalar result for the variance
+    inline
+        Op::op_ptr var(Op::op_ptr x)                   { return mean(square(x)) - square(mean(x)); }
     /// construct a MatPlusVec object
     inline
         Op::op_ptr mat_plus_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax) { return boost::make_shared<MatPlusVec>(x->result(),v->result(), ax); }
