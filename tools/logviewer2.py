@@ -126,7 +126,7 @@ class LogParser:
                 trial.current_cv_event.current_gd.convergence.append((dt, float(res.group(1))))
 
 
-def show_single_trial(trial, properties0=None, properties1=None):
+def show_single_trial(trial, properties0=None, properties1=None, properties2=None):
     phases = []
     for cve_name, cve in trial.cv_events.iteritems():
         if not cve_name.startswith("TRAIN"):
@@ -179,6 +179,18 @@ def show_single_trial(trial, properties0=None, properties1=None):
                     ax.plot(X, Y, '-', label=k)
                 ax.legend()
                 ax.set_title("Monitor")
+
+            if properties2 is not None:
+                ax = fig.add_subplot(222)
+                for k, v in gd.mon.iteritems():
+                    if k not in properties2:
+                        continue
+                    X = [x[0] for x in v]
+                    Y = [x[1] for x in v]
+                    ax.plot(X, Y, '-', label=k)
+                ax.legend()
+                ax.set_title("Monitor")
+
         plt.savefig("%s.pdf" % phase)
 
 
@@ -203,6 +215,10 @@ if __name__ == "__main__":
     for e in doc.event:
         lp.process_event(e)
 
-    show_single_trial(lp.trials[0], ["W0_1", "W0_2", "W1_2"], ["cerr"])
+    p0 = "W0_1,W0_2,W1_2".split(",")
+    p1 = "d_alpha0,d_alpha2,d_beta0,d_beta2".split(",")
+    p2 = "regloss,loss".split(",")
+
+    show_single_trial(lp.trials[0], p0, p1, p2)
 
     embed()
