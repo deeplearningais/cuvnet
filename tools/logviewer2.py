@@ -165,7 +165,7 @@ def show_single_trial(trial, properties0=None, properties1=None):
                 for z, l in ((0,""), (1,"_es")):
                     X = [x[0] for x in v if x[2] == z]
                     Y = [x[1] for x in v if x[2] == z]
-                    ax.plot(X, Y, '+', label=k+l)
+                    ax.plot(X, Y, '-', label=k+l)
             ax.legend()
             ax.set_title("Monitor")
 
@@ -176,7 +176,7 @@ def show_single_trial(trial, properties0=None, properties1=None):
                         continue
                     X = [x[0] for x in v]
                     Y = [x[1] for x in v]
-                    ax.plot(X, Y, '+', label=k)
+                    ax.plot(X, Y, '-', label=k)
                 ax.legend()
                 ax.set_title("Monitor")
         plt.savefig("%s.pdf" % phase)
