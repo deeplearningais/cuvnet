@@ -61,10 +61,11 @@ class LogParser:
 
     def get_or_create_trial(self, e):
         ident = e.attrib['thread']
-        for p in e.properties.data:
-            if p.attrib['name'] == 'host':
-                ident = ident + "-" + p.attrib['value']
-                break
+        if hasattr(e, 'properties'):
+            for p in e.properties.data:
+                if p.attrib['name'] == 'host':
+                    ident = ident + "-" + p.attrib['value']
+                    break
         if ident in self.current_trials.keys():
             return self.current_trials[ident]
         trial = Trial(ident)
@@ -88,14 +89,15 @@ class LogParser:
                 trial.cv_events[cv_event] = cve
                 trial.current_cv_event = cve
 
-            v = [x for x in e.properties.data if 'test0_loss' == x.attrib['name']]
-            if len(v):
-                trial.test0_loss = float(x.attrib['value'])
-                print "Test0 Loss: ", trial.test0_loss
-            v = [x for x in e.properties.data if 'test_loss' == x.attrib['name']]
-            if len(v):
-                trial.test_loss = float(x.attrib['value'])
-                print "Test Loss: ", trial.test_loss
+            if hasattr(e, 'properties'):
+                v = [x for x in e.properties.data if 'test0_loss' == x.attrib['name']]
+                if len(v):
+                    trial.test0_loss = float(x.attrib['value'])
+                    print "Test0 Loss: ", trial.test0_loss
+                v = [x for x in e.properties.data if 'test_loss' == x.attrib['name']]
+                if len(v):
+                    trial.test_loss = float(x.attrib['value'])
+                    print "Test Loss: ", trial.test_loss
 
         if logger == 'learner':
             if str(e.message).startswith('ENTRY '):
@@ -110,6 +112,8 @@ class LogParser:
                 name = d.attrib['name']
                 value = d.attrib['value']
                 z = 0
+                if not hasattr(e, "NDC"):
+                    continue
                 if "early_stopper" in str(e.NDC):
                     z = 1
                 if re.match(r'^[\d.]*$', value):
