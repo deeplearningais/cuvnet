@@ -4,6 +4,7 @@
 #include "gradient_descent.hpp"
 #include <log4cxx/logger.h>
 #include <log4cxx/mdc.h>
+#include <log4cxx/ndc.h>
 #include <cuv/tools/device_tools.hpp>
 #include <cuv/libs/opt/opt.hpp>
 #include <cuvnet/tools/logging.hpp>
@@ -467,6 +468,7 @@ namespace cuvnet
 
     void early_stopper::operator()(unsigned int current_epoch, unsigned int wups){
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("early_stop"));
+        log4cxx::NDC ndc("early_stopper");
         if(current_epoch%m_every!=0)
             return;
 
