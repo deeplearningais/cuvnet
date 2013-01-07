@@ -165,6 +165,11 @@ namespace cuvnet
             void simple_logging()const;
 
             /**
+             * log via log4cxx.
+             */
+            void standard_logging()const;
+
+            /**
              * register the monitor with a gradient_descent object, which needs
              * to provide signals for after_epoch, after_batch and before_epoch.
              *

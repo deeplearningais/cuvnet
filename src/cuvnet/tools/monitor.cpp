@@ -11,6 +11,9 @@
 #include <iostream>
 #include <fstream>
 
+#include <log4cxx/logger.h>
+#include <log4cxx/mdc.h>
+#include <cuvnet/tools/logging.hpp>
 
 #include "monitor.hpp"
 namespace cuvnet
@@ -144,6 +147,7 @@ namespace cuvnet
             m_epochs ++;
         if(m_verbose)
             simple_logging();
+        standard_logging();
         if(m_logfile.is_open())
             log_to_file();
         m_batch_presentations = 0;
@@ -221,6 +225,23 @@ namespace cuvnet
             }
         }
         m_logfile << std::endl;
+    }
+    void monitor::standard_logging()const{
+        log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("mon"));
+
+
+        std::vector<log4cxx::MDC*> v;
+        BOOST_FOREACH(const watchpoint* p, m_impl->m_watchpoints){
+            if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
+                log4cxx::MDC* mdc = new log4cxx::MDC(p->name, boost::lexical_cast<std::string>(mean(p->name)));
+                v.push_back(mdc);
+            }
+        }
+        LOG4CXX_DEBUG(log, "monitor watchpoint");
+        BOOST_FOREACH(log4cxx::MDC* mdc, v){
+            delete mdc;
+        }
+
     }
     void monitor::simple_logging()const{
         std::cout << "\r epoch "<<m_epochs<<":"<<m_batch_presentations<<",  free_mb="<<cuv::getFreeDeviceMemory()/1024/1024<<",  ";
