@@ -62,9 +62,10 @@ namespace cuvnet
 			log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("ase"));
 			for (unsigned int s = 0; s < m_ptr->n_splits(); ++s)
 			{
-                LOG4CXX_WARN(log, "Processing split "<<s<<"/"<<m_ptr->n_splits());
+                LOG4CXX_WARN(log, "TRAIN split "<<s<<"/"<<m_ptr->n_splits());
 				m_ptr->switch_dataset(s,CM_TRAIN);
 				m_ptr->fit();
+                LOG4CXX_WARN(log, "VALID split "<<s<<"/"<<m_ptr->n_splits());
 				m_ptr->switch_dataset(s,CM_VALID);
 				m_perf += m_ptr->predict();
                 LOG4CXX_WARN(log, "X-val error:" << m_perf/(s+1));
@@ -79,10 +80,12 @@ namespace cuvnet
                     && m_perf < refit_thresh){
 
                 // retrain on TRAINALL (incl. VAL) and test on TEST
-                LOG4CXX_WARN(log, "Training on TRAINVAL, perf="<<m_perf<<" was better than thresh="<<refit_thresh);
+                LOG4CXX_WARN(log, "TRAINVAL; perf="<<m_perf<<" was better than thresh="<<refit_thresh);
                 m_ptr->reset_params();
                 m_ptr->switch_dataset(0,CM_TRAINALL);
                 m_ptr->fit();
+
+                LOG4CXX_WARN(log, "TEST; after refitting");
                 m_ptr->switch_dataset(0,CM_TEST);
 
                 m_test_perf = m_ptr->predict();
@@ -91,6 +94,7 @@ namespace cuvnet
                 LOG4CXX_WARN(log, "DONE");
             }else{
                 // test last model on TEST w/o retraining
+                LOG4CXX_WARN(log, "TEST; without refitting");
                 m_ptr->switch_dataset(0,CM_TEST);
                 m_test_perf0 = m_ptr->predict();
                 log4cxx::MDC mdc("test0_loss", boost::lexical_cast<std::string>(m_test_perf0));
