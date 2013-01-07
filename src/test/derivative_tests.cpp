@@ -225,6 +225,19 @@ BOOST_AUTO_TEST_CASE(derivative_test_axpby_broadcast){
     ptr_t func                  = boost::make_shared<Axpby>(inp0->result(), inp1->result(), 1.2, -2.6);
     derivative_tester(*func);
 }
+BOOST_AUTO_TEST_CASE(derivative_test_sum_mat_to_vec_squared){
+	typedef boost::shared_ptr<Op> ptr_t;
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+        ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),0,false,true);
+        derivative_tester(*func);
+    }
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+        ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1,false,true);
+        derivative_tester(*func);
+    }
+}
 BOOST_AUTO_TEST_CASE(derivative_test_sum_mat_to_vec){
 	typedef boost::shared_ptr<Op> ptr_t;
     {
@@ -235,6 +248,19 @@ BOOST_AUTO_TEST_CASE(derivative_test_sum_mat_to_vec){
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1);
+        derivative_tester(*func);
+    }
+}
+BOOST_AUTO_TEST_CASE(derivative_test_mean_mat_to_vec_squared){
+	typedef boost::shared_ptr<Op> ptr_t;
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+        ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),0,true,true);
+        derivative_tester(*func);
+    }
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+        ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1,true,true);
         derivative_tester(*func);
     }
 }

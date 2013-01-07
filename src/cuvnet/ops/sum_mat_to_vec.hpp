@@ -28,18 +28,22 @@ namespace cuvnet
                 bool m_identity;
                 float m_n_summed;
                 bool m_mean;
+                bool m_squared;
             public:
                 SumMatToVec() :   Op(1,1){} ///< for serialization
                 /**
                  * ctor.
                  * @param mat the n-dimensional array
                  * @param axis currently, either 0 or n-1 is allowed
+                 * @param mean if true, divide by the number of entries summed over
+                 * @param squared if true, sum squared elements
                  */
-                SumMatToVec(result_t& mat, unsigned int axis, bool mean=false)
+                SumMatToVec(result_t& mat, unsigned int axis, bool mean=false, bool squared=false)
                     :   Op(1,1)
                       , m_axis(axis)
                       , m_identity(false)
                       , m_mean(mean)
+                      , m_squared(squared)
             {
                 add_param(0,mat);
             }

@@ -16,6 +16,9 @@ namespace cuvnet
         if(m_mean){
             desc.label += " (mean)";
         }
+        if(m_squared){
+            desc.label += " (squared)";
+        }
     }
 
     void SumMatToVec::fprop(){
@@ -28,21 +31,43 @@ namespace cuvnet
             return;
         }
         float fact_new = m_mean ? 1.f/m_n_summed : 1.f;
-        if(r0.can_overwrite_directly()){
-            if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(), RF_ADD, fact_new, 0.f);
-            else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(), RF_ADD, fact_new, 0.f);
-        }
-        else if(r0.can_add_directly()){
-            if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD,fact_new,1.f);
-            else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD,fact_new,1.f);
+        if(m_squared){
+            // sum up all squared entries
+            if(r0.can_overwrite_directly()){
+                if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(), RF_ADD_SQUARED, fact_new, 0.f);
+                else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(), RF_ADD_SQUARED, fact_new, 0.f);
+            }
+            else if(r0.can_add_directly()){
+                if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD_SQUARED,fact_new,1.f);
+                else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD_SQUARED,fact_new,1.f);
+            }else{
+                // reallocate *sigh*
+                value_ptr v(new value_type(r0.shape));
+                if(m_axis!=0) cuv::reduce_to_row(*v, p0.value.cdata(), RF_ADD_SQUARED, fact_new, 0.f);
+                else          cuv::reduce_to_col(*v, p0.value.cdata(), RF_ADD_SQUARED, fact_new, 0.f);
+                r0.push(v);
+            }
+            if(!p0.need_derivative)
+                p0.value.reset(); // needed for bprop
         }else{
-            // reallocate *sigh*
-            value_ptr v(new value_type(r0.shape));
-            if(m_axis!=0) cuv::reduce_to_row(*v, p0.value.cdata(), RF_ADD, fact_new, 0.f);
-            else          cuv::reduce_to_col(*v, p0.value.cdata(), RF_ADD, fact_new, 0.f);
-            r0.push(v);
+            // sum up all entries
+            if(r0.can_overwrite_directly()){
+                if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(), RF_ADD, fact_new, 0.f);
+                else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(), RF_ADD, fact_new, 0.f);
+            }
+            else if(r0.can_add_directly()){
+                if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD,fact_new,1.f);
+                else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD,fact_new,1.f);
+            }else{
+                // reallocate *sigh*
+                value_ptr v(new value_type(r0.shape));
+                if(m_axis!=0) cuv::reduce_to_row(*v, p0.value.cdata(), RF_ADD, fact_new, 0.f);
+                else          cuv::reduce_to_col(*v, p0.value.cdata(), RF_ADD, fact_new, 0.f);
+                r0.push(v);
+            }
+            p0.value.reset();
         }
-        p0.value.reset();
+
     }
 
     void SumMatToVec::bprop(){
@@ -59,22 +84,36 @@ namespace cuvnet
         float fact_new = m_mean ? 1.f/m_n_summed : 1.f;
         assert(p0.need_derivative);
         int broadcast_axis = p0.shape.size()-1-m_axis;
-        if(p0.can_overwrite_directly()){
-            matrix_op_vec(
-                    *p0.overwrite_or_add_value(), 
-                    *p0.overwrite_or_add_value(), 
-                    r0.delta.cdata(), broadcast_axis, BF_ADD, fact_new, 0.f);
-        }else if(p0.can_add_directly()){
-            matrix_op_vec(
-                    *p0.overwrite_or_add_value(), 
-                    *p0.overwrite_or_add_value(), 
-                    r0.delta.cdata(), broadcast_axis, BF_ADD, fact_new, 1.f);
+        if(!m_squared){
+            if(p0.can_overwrite_directly()){
+                matrix_op_vec(
+                        *p0.overwrite_or_add_value(), 
+                        *p0.overwrite_or_add_value(), 
+                        r0.delta.cdata(), broadcast_axis, BF_2ND, fact_new, 0.f);
+            }else if(p0.can_add_directly()){
+                matrix_op_vec(
+                        *p0.overwrite_or_add_value(), 
+                        *p0.overwrite_or_add_value(), 
+                        r0.delta.cdata(), broadcast_axis, BF_ADD, fact_new, 1.f);
+            }else{
+                value_ptr v(new value_type(p0.shape));
+                matrix_op_vec(
+                        *v, *v, 
+                        r0.delta.cdata(), broadcast_axis, BF_2ND, fact_new, 0.f);
+                p0.push(v);
+            }
         }else{
-            value_ptr v(new value_type(p0.shape));
+            // try to overwrite p0
+            const value_type& p0value = p0.value.cdata();
+            value_type& dst = p0.value.data_onlyshape();
+
+            apply_scalar_functor(dst, p0value, SF_MULT, 2.f); // ideally in-place
             matrix_op_vec(
-                    *v, *v, 
-                    r0.delta.cdata(), broadcast_axis, BF_2ND, fact_new, 0.f);
-            p0.push(v);
+                    dst,
+                    dst,
+                    r0.delta.cdata(), broadcast_axis, BF_MULT, fact_new, 0.f);
+            p0.push(p0.value);
+            p0.value.reset();
         }
     }
 
