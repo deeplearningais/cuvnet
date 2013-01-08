@@ -155,7 +155,7 @@ namespace cuvnet
     inline
         Op::op_ptr var_to_vec(Op::op_ptr x, unsigned int ax)   { 
             return boost::make_shared<SumMatToVec>(x->result(), ax, true, true )  // mean(x^2)
-                - mean_to_vec(x, ax); // mean(x)^2
+                - square(mean_to_vec(x, ax)); // mean(x)^2
         }
     /// construct a SumMatToVec object
     inline
