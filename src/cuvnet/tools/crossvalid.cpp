@@ -101,6 +101,7 @@ namespace cuvnet
                 LOG4CXX_WARN(log, "Evaluated on CM_TEST WITHOUT refitting, result: "<<m_test_perf0);
                 LOG4CXX_WARN(log, "DONE");
             }
+            LOG4CXX_WARN(log, "DONE with perf="<<m_perf);
             return m_perf; /* return the X-val error for optimization! */
 		}
 
