@@ -116,16 +116,16 @@ class LogParser:
                     continue
                 if "early_stopper" in str(e.NDC):
                     z = 1
-                if re.match(r'^[\d.]*$', value):
+                if re.match(r'^[\-\d.eE]*$', value):
                     trial.current_cv_event.current_gd.mon[name].append((dt, float(value), z))
 
         if logger == 'early_stop':
-            res = re.match(r".*: ([\d.]*)\s*$", str(e.message))
+            res = re.match(r".*: (\-[\d.eE]*)\s*$", str(e.message))
             if res:
                 trial.current_cv_event.current_gd.early_stopping.append((dt, float(res.group(1))))
 
         if logger == 'conv_check':
-            res = re.match(r".*: ([\d.]*)\s*$", str(e.message))
+            res = re.match(r".*: (\-[\d.eE]*)\s*$", str(e.message))
             if res:
                 trial.current_cv_event.current_gd.convergence.append((dt, float(res.group(1))))
 
@@ -140,7 +140,7 @@ def show_single_trial(trial, properties0=None, properties1=None, properties2=Non
     phases = np.unique(phases)
 
     for phase in phases:
-        fig = plt.figure(figsize=(12,14))
+        fig = plt.figure(figsize=(12, 14))
         fig.suptitle(phase)
         fig.canvas.set_window_title(phase)
         for cve_name, cve in trial.cv_events.iteritems():
@@ -166,10 +166,10 @@ def show_single_trial(trial, properties0=None, properties1=None, properties2=Non
                 if properties0 is not None:
                     if k not in properties0:
                         continue
-                for z, l in ((0,""), (1,"_es")):
+                for z, l in ((0, ""), (1, "_es")):
                     X = [x[0] for x in v if x[2] == z]
                     Y = [x[1] for x in v if x[2] == z]
-                    ax.plot(X, Y, '-', label=k+l)
+                    ax.plot(X, Y, '-', label=k + l)
             ax.legend()
             ax.set_title("Monitor")
 
@@ -221,7 +221,9 @@ if __name__ == "__main__":
 
     p0 = "W0_1,W0_2,W1_2".split(",")
     p1 = "d_alpha0,d_alpha2,d_beta0,d_beta2".split(",")
-    p2 = "regloss,loss".split(",")
+    p2 = "cerr".split(",")
+    p2 = "hl1_mean,hl2_mean,hl3_mean,hl4_mean".split(",")
+    p2 = "hl1_var,hl2_var,hl3_var,hl4_var".split(",")
 
     show_single_trial(lp.trials[0], p0, p1, p2)
 
