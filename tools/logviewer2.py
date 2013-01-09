@@ -45,6 +45,7 @@ class Trial:
     def __init__(self, ident):
         self.ident = ident
         self.cv_events = {}
+        self.cval_perf = np.inf
 
 
 class LogParser:
@@ -56,7 +57,9 @@ class LogParser:
         self.current_trials = {}
 
     def is_end_trial(self, e):
-        # TODO
+        if str(e.message).startswith("DONE with"):
+            res = e.match(r'[-\d.eE]+', str(e.message)).group(1)
+            return True, res
         return False
 
     def get_or_create_trial(self, e):
@@ -78,7 +81,9 @@ class LogParser:
         trial = self.get_or_create_trial(e)
         dt = datetime.fromtimestamp(float(e.attrib['timestamp']) / 1000)
         if logger == 'ase':
-            if self.is_end_trial(e):
+            if str(e.message).startswith("DONE with"):
+                res = re.match(r'.*?=([\-\d.eE]+).*', str(e.message)).group(1)
+                trial.cval_perf = float(res)
                 self.trials.append(trial)
                 del self.current_trials[trial.ident]
                 return
@@ -222,9 +227,10 @@ if __name__ == "__main__":
     p0 = "W0_1,W0_2,W1_2".split(",")
     p1 = "d_alpha0,d_alpha2,d_beta0,d_beta2".split(",")
     p2 = "cerr".split(",")
-    p2 = "hl1_mean,hl2_mean,hl3_mean,hl4_mean".split(",")
     p2 = "hl1_var,hl2_var,hl3_var,hl4_var".split(",")
+    p2 = "hl1_mean,hl2_mean,hl3_mean,hl4_mean".split(",")
 
-    show_single_trial(lp.trials[0], p0, p1, p2)
+    idx = np.argmax([ t.cval_perf for t in lp.trials])
+    show_single_trial(lp.trials[idx], p0, p1, p2)
 
     embed()
