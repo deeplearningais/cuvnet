@@ -51,7 +51,7 @@ add_library(cuvnet_tools STATIC ${CUVNET_TOOLS_SRC} ${PYTHON_LIBRARIES})
 #set_property(TARGET magmablas PROPERTY
 #            IMPORTED_LOCATION /usr/local/src/magma_1.1.0/lib/libmagmablas.a)
 
-TARGET_LINK_LIBRARIES( cuvnet_tools ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} cuvnet_ops npy mdbq zzip log4cxx )
+TARGET_LINK_LIBRARIES( cuvnet_tools cuvnet_ops npy mdbq zzip log4cxx cuv ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} )
 
 if ( TBB_FOUND )
     TARGET_LINK_LIBRARIES( cuvnet_tools  ${TBB_LIBS} )
