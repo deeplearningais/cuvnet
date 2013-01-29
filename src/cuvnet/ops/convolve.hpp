@@ -491,5 +491,49 @@ namespace cuvnet
                     }
         };
 
+    /**
+     * Calculate the norm of consecutive pairs in the input.
+     *
+     * Expressed in numpy style, this calculates:
+     * 
+     * f(X) = sqrt(X[::2, ...] ** 2 + X[1::2, ...] ** 2)
+     *
+     * @ingroup Ops
+     */
+    class PairwiseNorm
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+            public:
+                PairwiseNorm() :Op(1,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param images the input images
+                 */
+                PairwiseNorm(result_t& images)
+                    :Op(1,1)
+                {
+                    add_param(0,images);
+                }
+                void fprop();
+                void bprop();
+
+                void release_data();
+
+                void _determine_shapes();
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                    }
+        };
+
 }
 #endif /* __OP_CONVOLVE_HPP__ */

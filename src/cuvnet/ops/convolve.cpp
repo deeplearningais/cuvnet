@@ -784,4 +784,45 @@ namespace cuvnet
         m_results[0]->shape = dst;
     }
 
+    void PairwiseNorm::_determine_shapes(){
+        assert(m_params[0]->shape.size() >= 1);
+        assert(m_params[0]->shape.size() % 2 == 0);
+        std::vector<unsigned int> dst = m_params[0]->shape;
+        dst[0] /= 2;
+        m_results[0]->shape = dst;
+    }
+
+    void PairwiseNorm::fprop(){
+        using namespace cuv;
+        using namespace cuv::alex_conv;
+        param_t::element_type&  p0 = *m_params[0];
+        result_t::element_type& r0 = *m_results[0];
+        if(p0.can_overwrite_directly()){
+            value_ptr& v = r0.overwrite_or_add_value();
+            pairwise_norm(*v, p0.value.cdata());
+        }else{
+            value_ptr v(new value_type(r0.shape));
+            pairwise_norm(*v, p0.value.cdata());
+            r0.push(v);
+        }
+    }
+
+    void PairwiseNorm::release_data(){
+        Op::release_data();
+    }
+
+    void PairwiseNorm::bprop(){
+        using namespace cuv;
+        using namespace cuv::alex_conv;
+        param_t::element_type&  p0 = *m_params[0];
+        result_t::element_type& r0 = *m_results[0];
+        if(p0.can_overwrite_directly()){
+            pairwise_norm_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata());
+        }else{
+            value_ptr v(new value_type(p0.shape));
+            pairwise_norm_grad(*v, p0.value.cdata(), r0.delta.cdata());
+            p0.push(v);
+        }
+    }
+
 }
