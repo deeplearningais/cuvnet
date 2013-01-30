@@ -28,6 +28,8 @@
 #include <cuvnet/ops/rectified_linear.hpp>
 #include <cuvnet/ops/classification_error.hpp>
 #include <cuvnet/ops/debug.hpp>
+#include <cuvnet/ops/subtensor.hpp>
+#include <cuvnet/ops/concatenate.hpp>
 
 namespace cuvnet
 {
@@ -213,6 +215,15 @@ namespace cuvnet
     template<std::size_t D>
     inline
         Op::op_ptr reshape(Op::op_ptr img, const cuv::extent_gen<D>& eg) { return boost::make_shared<Reshape>(img->result(),eg); }
+
+    /// construct a Subtensor object
+    template<std::size_t D, std::size_t E>
+    inline
+        Op::op_ptr subtensor(Op::op_ptr img, const cuv::index_gen<D,E>& idx, bool copy) { return boost::make_shared<Subtensor>(img->result(),idx, copy); }
+
+    /// construct a Concatenate object
+    inline
+        Op::op_ptr concatenate(Op::op_ptr img1, Op::op_ptr img2, unsigned int dim) { return boost::make_shared<Concatenate>(img1->result(), img2->result(), dim); }
 
     /// construct a Softmax object
     inline
