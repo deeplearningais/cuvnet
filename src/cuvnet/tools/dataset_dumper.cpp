@@ -30,7 +30,7 @@ namespace cuvnet
             }
         }
         void dataset_dumper::write_to_file(const tensor_type& data, const tensor_type& labels){
-           if (m_current_batch_num < m_current_batch_num){
+           if (m_current_batch_num <= m_num_batches){
                m_whole_data[cuv::indices[cuv::index_range(m_current_batch_num * m_bs, (m_current_batch_num+1) * m_bs)][cuv::index_range()]]= data;
                m_whole_labels[cuv::indices[cuv::index_range(m_current_batch_num * m_bs,(m_current_batch_num+1) * m_bs)][cuv::index_range()]]= labels;
                m_current_batch_num++;
