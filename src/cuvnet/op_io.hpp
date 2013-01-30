@@ -109,6 +109,7 @@ namespace cuvnet
             ar.template register_type<ContrastNormalization>();
             ar.template register_type<SeparableFilter>();
             ar.template register_type<ResizeBilinear>();
+            ar.template register_type<PairwiseNorm>();
 
             // misc
             ar.template register_type<Identity>();

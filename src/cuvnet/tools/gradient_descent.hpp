@@ -537,13 +537,11 @@ namespace cuvnet
         private:
             /// this is the \f$w^{\mathrm{ag}}\f$ from the paper
             std::vector<Op::value_type> m_w_ag; 
-            /// this is the \f$w\f$ from the paper, while the parameters used in the loss are \f$w^{md}\f$.
-            std::vector<Op::value_type> m_w; 
             float m_beta;
             /// how many weight updates have been performed so far
             int m_count;
-            /// L1 penalty
-            float m_l1penalty;
+            /// step width = learnrate * iteration ^ m_p
+            float m_p;
         public:
             /**
              * constructor
@@ -553,8 +551,10 @@ namespace cuvnet
              * @param params the parameters w.r.t. which we want to optimize op
              * @param learnrate the initial learningrate
              * @param weightdecay weight decay for weight updates
+             * @param p the power to which iteration is raised (<1)
              */
-        accelerated_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f);
+        accelerated_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float p=0.5f);
+        virtual void finish();
 
         protected:
         /**

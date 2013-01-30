@@ -91,6 +91,9 @@ def rgb_filters(x, trans=True, sepnorm=False):
     return fig
 
 def mnist_filters(data, n_filters_y=9, n_filters_x=16):
+    if n_filters_x * n_filters_y > data.shape[1]:
+        n_filters_x = int(np.sqrt(data.shape[1]))
+        n_filters_y = int(np.sqrt(data.shape[1]))
     fig, axes = plt.subplots(n_filters_x, n_filters_y)
     fig.subplots_adjust(hspace=0.00, wspace=0.00,
             left=0, top=1, bottom=0.2, right=1)
@@ -124,8 +127,13 @@ class MNISTVisor:
         print "got shape: ", data.shape
         print "    stats: ", data.min(), data.mean(), data.max()
 
+        print "input_size =", self.input_size, "data.shape[1] =", data.shape[1]
         if len(data.shape) == 2 and self.input_size ** 2 == data.shape[1]:
-            mnist_filters(data)
+            mnist_filters(data.T)
+            plt.ion()
+            plt.show()
+        elif len(data.shape) == 2 and self.input_size ** 2 == data.shape[0]:
+            mnist_filters(data) # do not transpose
             plt.ion()
             plt.show()
         else:

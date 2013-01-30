@@ -521,6 +521,25 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
     }
 }
 
+BOOST_AUTO_TEST_CASE(derivative_test_pairwise_norm){
+    typedef boost::shared_ptr<Op> ptr_t;
+
+    using namespace cuv::alex_conv;
+
+    {
+        unsigned int nImgChan = 8;      // must be divisible by nGroups
+        unsigned int nImgPixX = 16;
+        unsigned int nImgPixY = 16;
+        unsigned int nImg     = 4;
+
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg], "inputs");
+        ptr_t func   = boost::make_shared<PairwiseNorm>(inp0->result());
+
+        derivative_tester(*func);
+    }
+
+}
+
 BOOST_AUTO_TEST_CASE(derivative_test_bed_of_nails){
 	typedef boost::shared_ptr<Op> ptr_t;
 
