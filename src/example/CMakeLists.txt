@@ -31,4 +31,9 @@ if ( PYTHONLIBS_FOUND )
         TARGET pylinreg
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:pylinreg> ${CMAKE_BINARY_DIR})
+
+    Add_Custom_Command(
+        TARGET pylinreg
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/linear_regression_python.py ${CMAKE_BINARY_DIR})
 endif( PYTHONLIBS_FOUND )
