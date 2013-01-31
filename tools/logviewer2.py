@@ -4,6 +4,7 @@ from datetime import datetime
 #from matplotlib import dates
 import matplotlib.pyplot as plt
 from collections import defaultdict
+from random_palette import get_random_color
 import numpy as np
 import re
 
@@ -82,7 +83,7 @@ class LogParser:
         dt = datetime.fromtimestamp(float(e.attrib['timestamp']) / 1000)
         if logger == 'ase':
             if str(e.message).startswith("DONE with"):
-                res = re.match(r'.*?=([\-\d.eE]+).*', str(e.message)).group(1)
+                res = re.match(r'.*?=([\-+\d.eE]+).*', str(e.message)).group(1)
                 trial.cval_perf = float(res)
                 self.trials.append(trial)
                 del self.current_trials[trial.ident]
@@ -180,12 +181,31 @@ def show_single_trial(trial, properties0=None, properties1=None, properties2=Non
 
             if properties1 is not None:
                 ax = fig.add_subplot(224)
+                D = defaultdict(lambda: {})
                 for k, v in gd.mon.iteritems():
-                    if k not in properties1:
-                        continue
-                    X = [x[0] for x in v]
-                    Y = [x[1] for x in v]
-                    ax.plot(X, Y, '-', label=k)
+                    if k in properties1:
+                        X = [x[0] for x in v]
+                        Y = [x[1] for x in v]
+                        ax.plot(X, Y, '-', label=k)
+                    elif k.replace("_mean", "") in properties1:
+                        X = [x[0] for x in v]
+                        mean = [x[1] for x in v]
+                        D[k.replace("_mean", "")]["mean"] = mean
+                        D[k.replace("_mean", "")]["x"] = X
+                    elif k.replace("_var", "") in properties1:
+                        X = [x[0] for x in v]
+                        var = [x[1] for x in v]
+                        D[k.replace("_var", "")]["var"] = var
+                        D[k.replace("_var", "")]["x"] = X
+                    else:
+                        print "ignoring", k, "in p1"
+                for (k, v), c in zip(D.iteritems(), get_random_color()):
+                    mean = v["mean"]
+                    va  = v["var"]
+                    x = v["x"]
+                    ax.plot(x, mean, '-', label=k, color=c, linewidth=2)
+                    ax.fill_between(X, mean - np.sqrt(var), mean + np.sqrt(var), alpha=.2, color=c)
+
                 ax.legend()
                 ax.set_title("Monitor")
 
@@ -193,6 +213,7 @@ def show_single_trial(trial, properties0=None, properties1=None, properties2=Non
                 ax = fig.add_subplot(222)
                 for k, v in gd.mon.iteritems():
                     if k not in properties2:
+                        print "ignoring ", k, " in p2"
                         continue
                     X = [x[0] for x in v]
                     Y = [x[1] for x in v]
@@ -225,12 +246,12 @@ if __name__ == "__main__":
         lp.process_event(e)
 
     p0 = "W0_1,W0_2,W1_2".split(",")
-    p1 = "d_alpha0,d_alpha2,d_beta0,d_beta2".split(",")
-    p2 = "cerr".split(",")
-    p2 = "hl1_var,hl2_var,hl3_var,hl4_var".split(",")
-    p2 = "hl1_mean,hl2_mean,hl3_mean,hl4_mean".split(",")
+    p2 = "d_alpha0,d_alpha2,d_beta0,d_beta2".split(",")
+    p2 = "loss".split(",")
+    p1 = "cerr".split(",")
+    p1 = "hl1,hl2,hl3,hl4".split(",")
 
-    idx = np.argmax([ t.cval_perf for t in lp.trials])
+    idx = np.argmax([t.cval_perf for t in lp.trials])
     show_single_trial(lp.trials[idx], p0, p1, p2)
 
     embed()
