@@ -6,7 +6,7 @@ link_directories(/usr/local/cuda/lib)
 
 #add_executable(minibatch_learning minibatch_learning.cpp)
 
-SET(EXAMPLE_LIBS cuvnet_ops cuvnet_tools cuvnet_datasets cuv mdbq ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} npy pthread)
+SET(EXAMPLE_LIBS cuvnet cuv mdbq ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} pthread)
 
 #target_link_libraries(hyperopt  ${EXAMPLE_LIBS})
 #target_link_libraries(linear_regression  ${EXAMPLE_LIBS})

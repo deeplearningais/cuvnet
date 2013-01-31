@@ -28,10 +28,56 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -fno-strict-aliasing")
 CONFIGURE_FILE( ${CMAKE_CURRENT_SOURCE_DIR}/datasets/util/bbtools.jpg ${CMAKE_BINARY_DIR} COPYONLY)
 CONFIGURE_FILE( ${CMAKE_CURRENT_SOURCE_DIR}/datasets/util/lena.jpg ${CMAKE_BINARY_DIR} COPYONLY)
 
+INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libnpy-0.5/include )
+OPTION(USE_OPENCV "Use OpenCV if available" OFF)
+FIND_PACKAGE( tbb )
+
+FILE(GLOB CUVNET_OPS_SRC cuvnet/ops/*.cpp)
+
+SET(CUVNET_SRC 
+    datasets/voc_detection.cpp
+	datasets/amat_datasets.cpp
+	datasets/read_amat.cpp
+	datasets/bounding_box_tools.cpp
+    datasets/dataset_reader.cpp
+
+    cuvnet/tools/pca.cpp
+    cuvnet/tools/logging.cpp
+    cuvnet/tools/monitor.cpp
+    cuvnet/tools/learner.cpp
+    cuvnet/tools/crossvalid.cpp
+    cuvnet/tools/gradient_descent.cpp
+    cuvnet/tools/orthonormalization.cpp
+    cuvnet/tools/network_communication.cpp
+    cuvnet/tools/dataset_dumper.cpp
+    cuvnet/tools/dumper.cpp
+
+    cuvnet/op.cpp
+    cuvnet/op_utils.cpp
+    cuvnet/op_io.cpp
+    cuvnet/derivative_test.cpp
+
+    third_party/libnpy-0.5/src/npy.c
+
+    ${CUVNET_OPS_SRC}
+    )
+
+
+if ( PYTHONLIBS_FOUND )
+    include_directories( ${PYTHON_INCLUDE_DIRS} )
+    LIST(APPEND CUVNET_SRC cuvnet/tools/python_helper.cpp)
+elseif( PYTHONLIBS_FOUND )
+    SET(PYTHON_LIBRARIES "")
+endif( PYTHONLIBS_FOUND )
+
 # this is for using tcmalloc, see http://code.google.com/p/gperftools/wiki/GooglePerformanceTools
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free")
 
-add_subdirectory(cuvnet)
+add_library(cuvnet SHARED ${CUVNET_SRC})
+
+TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx cuv ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} )
+
+#add_subdirectory(cuvnet)
 add_subdirectory(third_party)
 add_subdirectory(example EXCLUDE_FROM_ALL)
 add_subdirectory(test EXCLUDE_FROM_ALL)
