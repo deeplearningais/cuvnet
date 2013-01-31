@@ -804,4 +804,233 @@ BOOST_AUTO_TEST_CASE(derivative_test_reshape){
         BOOST_CHECK_EQUAL(func->result()->shape.at(2), 3);
     }
 }
+
+
+BOOST_AUTO_TEST_CASE(derivative_test_subtensor){
+	typedef boost::shared_ptr<Op> ptr_t;
+    {
+       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3]);
+       ptr_t func                     = boost::make_shared<Subtensor>(inp0->result(), cuv::indices[cuv::index_range(0,2)][cuv::index_range()]);
+
+       determine_shapes(*func);
+       BOOST_CHECK_EQUAL(func->result()->shape.size(), 2);
+       BOOST_CHECK_EQUAL(func->result()->shape.at(0), 8);
+       BOOST_CHECK_EQUAL(func->result()->shape.at(1), 2);
+
+       derivative_tester(*func);
+    }
+    {
+      boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3]);
+      ptr_t func                     = boost::make_shared<Subtensor>(inp0->result(), cuv::indices[2][cuv::index_range(0,2)][cuv::index_range()]);
+
+      determine_shapes(*func);
+      BOOST_CHECK_EQUAL(func->result()->shape.size(), 2);
+      BOOST_CHECK_EQUAL(func->result()->shape.at(0), 2);
+      BOOST_CHECK_EQUAL(func->result()->shape.at(1), 3);
+
+      derivative_tester(*func);
+    }
+    {
+      boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3]);
+      ptr_t func                     = boost::make_shared<Subtensor>(inp0->result(), cuv::indices[2][cuv::index_range(1,-1)][cuv::index_range()]);
+
+      determine_shapes(*func);
+      BOOST_CHECK_EQUAL(func->result()->shape.size(), 2);
+      BOOST_CHECK_EQUAL(func->result()->shape.at(0), 2);
+      BOOST_CHECK_EQUAL(func->result()->shape.at(1), 3);
+
+      derivative_tester(*func);
+    }
+    {
+      boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3]);
+      ptr_t func                     = boost::make_shared<Subtensor>(inp0->result(), cuv::indices[cuv::index_range(-5,-2)][cuv::index_range(1,-1)][cuv::index_range()]);
+
+      determine_shapes(*func);
+      BOOST_CHECK_EQUAL(func->result()->shape.size(), 3);
+      BOOST_CHECK_EQUAL(func->result()->shape.at(0), 3);
+      BOOST_CHECK_EQUAL(func->result()->shape.at(1), 2);
+      BOOST_CHECK_EQUAL(func->result()->shape.at(1), 3);
+
+      derivative_tester(*func);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
+	typedef boost::shared_ptr<Op> ptr_t;
+    {
+       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3]);
+       boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8][3]);
+       ptr_t func                     = boost::make_shared<Concatenate>(inp0->result(), inp1->result(), 1);
+
+       determine_shapes(*func);
+       BOOST_CHECK_EQUAL(func->result()->shape.size(), 2);
+       BOOST_CHECK_EQUAL(func->result()->shape.at(0), 8);
+       BOOST_CHECK_EQUAL(func->result()->shape.at(1),6);
+
+        inp0->data() = 0.2f;
+        inp1->data() = 0.3f;
+        function f(func, 0);
+        matrix m = f.evaluate();
+
+        for (unsigned int i = 0; i < func->result()->shape.at(0); ++i)
+        {
+            for (unsigned int j = 0; j < func->result()->shape.at(1); ++j)
+            { 
+                if(j < 3){
+                    BOOST_CHECK_EQUAL(m(i,j), 0.2f);
+                }else{
+                    BOOST_CHECK_EQUAL(m(i,j), 0.3f);
+                }
+            }
+        }
+        derivative_tester(*func);
+    }
+
+    {
+      boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[15][4]);
+      boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[15][4]);
+      ptr_t func                     = boost::make_shared<Concatenate>(inp0->result(), inp1->result(), 0);
+
+      determine_shapes(*func);
+      BOOST_CHECK_EQUAL(func->result()->shape.size(), 2);
+      BOOST_CHECK_EQUAL(func->result()->shape.at(0), 30);
+      BOOST_CHECK_EQUAL(func->result()->shape.at(1),4);
+
+       inp0->data() = 1;
+       inp1->data() = 2;
+       function f(func, 0);
+       matrix m = f.evaluate();
+
+       for (unsigned int i = 0; i < 30; ++i)
+       {
+           for (unsigned int j = 0; j < 4; ++j)
+           {
+               if(i < 15){
+                   BOOST_CHECK_EQUAL(m(i,j), 1);
+               }else{
+                   BOOST_CHECK_EQUAL(m(i,j), 2);
+               }
+           }
+       }
+       derivative_tester(*func);
+    }
+
+    {
+       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][5]);
+       boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8][3]);
+       ptr_t func                     = boost::make_shared<Concatenate>(inp0->result(), inp1->result(), 1);
+
+       determine_shapes(*func);
+       BOOST_CHECK_EQUAL(func->result()->shape.size(), 2);
+       BOOST_CHECK_EQUAL(func->result()->shape.at(0), 8);
+       BOOST_CHECK_EQUAL(func->result()->shape.at(1),8);
+
+        inp0->data() = 0.2f;
+        inp1->data() = 0.3f;
+        function f(func, 0);
+        matrix m = f.evaluate();
+
+        for (unsigned int i = 0; i < func->result()->shape.at(0); ++i)
+        {
+            for (unsigned int j = 0; j < func->result()->shape.at(1); ++j)
+            {
+                if(j < 5){
+                    BOOST_CHECK_EQUAL(m(i,j), 0.2f);
+                }else{
+                    BOOST_CHECK_EQUAL(m(i,j), 0.3f);
+                }
+            }
+        }
+        derivative_tester(*func);
+    }
+    {
+       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5]);
+       boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[7][5]);
+       ptr_t func                     = boost::make_shared<Concatenate>(inp0->result(), inp1->result(), 0);
+
+       determine_shapes(*func);
+       BOOST_CHECK_EQUAL(func->result()->shape.size(), 2);
+       BOOST_CHECK_EQUAL(func->result()->shape.at(0), 11);
+       BOOST_CHECK_EQUAL(func->result()->shape.at(1),5);
+
+        inp0->data() = 0.2f;
+        inp1->data() = 0.3f;
+        function f(func, 0);
+        matrix m = f.evaluate();
+
+        for (unsigned int i = 0; i < func->result()->shape.at(0); ++i)
+        {
+            for (unsigned int j = 0; j < func->result()->shape.at(1); ++j)
+            {
+                if(i < 4){
+                    BOOST_CHECK_EQUAL(m(i,j), 0.2f);
+                }else{
+                    BOOST_CHECK_EQUAL(m(i,j), 0.3f);
+                }
+            }
+        }
+        derivative_tester(*func);
+    }
+    
+    // 3 dim case
+
+    {
+       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
+       boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
+       ptr_t func                     = boost::make_shared<Concatenate>(inp0->result(), inp1->result(), 0);
+
+       determine_shapes(*func);
+       BOOST_CHECK_EQUAL(func->result()->shape.size(), 3);
+       BOOST_CHECK_EQUAL(func->result()->shape.at(0), 8);
+       BOOST_CHECK_EQUAL(func->result()->shape.at(1),5);
+       BOOST_CHECK_EQUAL(func->result()->shape.at(2),8);
+
+        inp0->data() = 0.2f;
+        inp1->data() = 0.3f;
+        function f(func, 0);
+        matrix m = f.evaluate();
+
+        for (unsigned int i = 0; i < func->result()->shape.at(0); ++i)
+        {
+            for (unsigned int j = 0; j < func->result()->shape.at(1); ++j)
+            {
+                for (unsigned int k = 0; k < func->result()->shape.at(2); ++k)
+                {
+                    if(i < 4){
+                        BOOST_CHECK_EQUAL(m(i,j,k), 0.2f);
+                    }else{
+                        BOOST_CHECK_EQUAL(m(i,j,k), 0.3f);
+                    }
+                }
+            }
+        }
+        derivative_tester(*func);
+    }
+    {
+       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
+       boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
+       ptr_t func                     = boost::make_shared<Concatenate>(inp0->result(), inp1->result(), 2);
+
+       determine_shapes(*func);
+       BOOST_CHECK_EQUAL(func->result()->shape.size(), 3);
+       BOOST_CHECK_EQUAL(func->result()->shape.at(0), 4);
+       BOOST_CHECK_EQUAL(func->result()->shape.at(1),5);
+       BOOST_CHECK_EQUAL(func->result()->shape.at(2),16);
+
+       derivative_tester(*func);
+    }
+    {
+      boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[6][5][8]);
+      boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
+      ptr_t func                     = boost::make_shared<Concatenate>(inp0->result(), inp1->result(), 0);
+
+      determine_shapes(*func);
+      BOOST_CHECK_EQUAL(func->result()->shape.size(), 3);
+      BOOST_CHECK_EQUAL(func->result()->shape.at(0), 10);
+      BOOST_CHECK_EQUAL(func->result()->shape.at(1),5);
+      BOOST_CHECK_EQUAL(func->result()->shape.at(2),8);
+
+      derivative_tester(*func);
+    }
+}
 BOOST_AUTO_TEST_SUITE_END()
