@@ -20,7 +20,7 @@ typedef boost::shared_ptr<cuvnet::ParameterInput> input_ptr;
 
 struct linear_regression{
     op_ptr m_loss;
-    op_ptr m_X, m_Y, m_W;
+    input_ptr m_X, m_Y, m_W;
     op_ptr m_output;
     linear_regression(int n_examples, int n_in_dim, int n_out_dim){
         using namespace cuvnet;
