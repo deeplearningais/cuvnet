@@ -76,6 +76,10 @@ namespace cuvnet
 
         return os.str();
     }
+    void set_data(boost::shared_ptr<ParameterInput>& f, cuvnet::matrix& m){
+        f->data() = m;
+    }
+
     template<class T>
     inline T* get_node(const boost::shared_ptr<Op>& f, long pointer){
         return (T*) get_node<T>(f, (Op*)pointer);
@@ -146,7 +150,9 @@ namespace cuvnet
                     make_function(
                         (Op::value_type& (ParameterInput::*)())
                         &ParameterInput::data,
-                        return_internal_reference<>()))
+                        return_internal_reference<>()),
+                        set_data
+                    )
             .add_property("delta", 
                     make_function(
                         (Op::value_type& (ParameterInput::*)())
