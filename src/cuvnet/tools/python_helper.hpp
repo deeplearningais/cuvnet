@@ -20,7 +20,15 @@ namespace cuvnet
     int initialize_python();
 
     /**
+     * Exports the classes Op, Sink, and ParameterInput, and some helpers into the current scope.
+     * Use this to export cuvnet to python when you compile your own python modules.
+     */
+    void export_module();
+
+    /**
      * Exports the classes Op, Sink, and ParameterInput, and some helpers into the main scope.
+     * This can be used to export cuvnet to python when switching to python
+     * from inside the C++ program.
      *
      * @return zero iff OK
      */

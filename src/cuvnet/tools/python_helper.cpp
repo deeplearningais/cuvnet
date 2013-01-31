@@ -49,6 +49,15 @@ namespace cuvnet
         }
     };
 
+    boost::shared_ptr<ParameterInput>
+        create_param_input_with_list(boost::python::list l, std::string name){
+            std::vector<unsigned int> shape;
+            for (int i = 0; i < boost::python::len(l); ++i) {
+                shape.push_back(boost::python::extract<int>(l[i]));
+            } 
+            return boost::make_shared<ParameterInput>(shape, name);
+        }
+
     struct Dummy{};
     matrix evaluate_op(Op& o){
         cuvnet::function f(o.shared_from_this(), 0, "click");
@@ -79,97 +88,97 @@ namespace cuvnet
         return valid_shape_info(a,b);
     }
 
+    void export_module(){
+        using namespace boost::python;
+        class_<Op, boost::shared_ptr<OpWrap>, boost::noncopyable >("Op", no_init)
+            .add_property("n_params", &OpWrap::get_n_params, &OpWrap::set_n_params)
+            .add_property("n_results", &OpWrap::get_n_results, &OpWrap::set_n_results)
+            .add_property("need_derivative", 
+                    (bool (OpWrap::*)()const)& OpWrap::need_derivative,
+                    (void (OpWrap::*)(bool)) & OpWrap::need_derivative)
+            .add_property("need_result", 
+                    (bool (OpWrap::*)()const)& OpWrap::need_result,
+                    (void (OpWrap::*)(bool)) & OpWrap::need_result)
+            .def("fprop", pure_virtual(&OpWrap::fprop))
+            .def("bprop", pure_virtual(&OpWrap::bprop))
+            .def("dot", dot)
+            .def("get_parameter", 
+                    (ParameterInput* (*)(const boost::shared_ptr<Op>&, const std::string&)) get_node, 
+                    return_internal_reference<1>())
+            .def("get_parameter", 
+                    (ParameterInput* (*)(const boost::shared_ptr<Op>&, long)) get_node, 
+                    return_internal_reference<1>())
+            .def("get_node", 
+                    (Op* (*)(const boost::shared_ptr<Op>&, long)) get_node, 
+                    return_internal_reference<1>())
+            .def("get_sink", 
+                    (Sink* (*)(const boost::shared_ptr<Op>&, long)) get_node, 
+                    return_internal_reference<1>())
+            .def("get_sink", 
+                    (Sink* (*)(const boost::shared_ptr<Op>&, const std::string&)) get_node, 
+                    return_internal_reference<1>())
+            .def("evaluate", &evaluate_op)
+            ;
+
+        class_<Sink, boost::shared_ptr<Sink> >("Sink", no_init)
+            .add_property("cdata",
+                    make_function(
+                        &Sink::cdata,
+                        return_internal_reference<>()))
+            .add_property("name", 
+                    make_function(
+                        (const std::string& (Sink::*)()const)
+                        &Sink::name,
+                        return_value_policy<copy_const_reference>()))
+            .def("evaluate", &evaluate_sink)
+            ;
+        class_<ParameterInput, boost::shared_ptr<ParameterInput> >("ParameterInput", no_init)
+            .def("__init__", make_constructor(&create_param_input_with_list))
+            .add_property("name", 
+                    make_function(
+                        (const std::string& (ParameterInput::*)()const)
+                        &ParameterInput::name,
+                        return_value_policy<copy_const_reference>()))
+            .add_property("derivable", 
+                    &ParameterInput::derivable,
+                    &ParameterInput::set_derivable)
+            .add_property("data", 
+                    make_function(
+                        (Op::value_type& (ParameterInput::*)())
+                        &ParameterInput::data,
+                        return_internal_reference<>()))
+            .add_property("delta", 
+                    make_function(
+                        (Op::value_type& (ParameterInput::*)())
+                        &ParameterInput::delta,
+                        return_internal_reference<>()))
+            ;
+        ;
+        register_ptr_to_python< boost::shared_ptr<Op> >();
+        //register_ptr_to_python< boost::shared_ptr<ParameterInput> >(); // gives warning...
+
+        def("get_valid_shape_info", get_vsi_1);
+        def("get_valid_shape_info", get_vsi_2);
+
+        class_<swiper>("swiper", no_init)
+            .def("fprop", &swiper::fprop)
+            .def("bprop", &swiper::bprop)
+            ;
+
+        class_<valid_shape_info>("valid_shape_info", init<boost::shared_ptr<Op>,boost::shared_ptr<Op> >())
+            .def_readonly("crop_h",&valid_shape_info::crop_h)
+            .def_readonly("crop_w",&valid_shape_info::crop_w)
+            .def_readonly("scale_h",&valid_shape_info::scale_h)
+            .def_readonly("scale_w",&valid_shape_info::scale_w)
+            ;
+    }
     int export_ops(){
         using namespace boost::python;
         try{
             object main_module = import("__main__");
             scope main(main_module);
 
-            {   //scope cn = class_<Dummy>("cuvnet")
-                ;
-
-                class_<Op, boost::shared_ptr<OpWrap>, boost::noncopyable >("Op", no_init)
-                    .add_property("n_params", &OpWrap::get_n_params, &OpWrap::set_n_params)
-                    .add_property("n_results", &OpWrap::get_n_results, &OpWrap::set_n_results)
-                    .add_property("need_derivative", 
-                            (bool (OpWrap::*)()const)& OpWrap::need_derivative,
-                            (void (OpWrap::*)(bool)) & OpWrap::need_derivative)
-                    .add_property("need_result", 
-                            (bool (OpWrap::*)()const)& OpWrap::need_result,
-                            (void (OpWrap::*)(bool)) & OpWrap::need_result)
-                    .def("fprop", pure_virtual(&OpWrap::fprop))
-                    .def("bprop", pure_virtual(&OpWrap::bprop))
-                    .def("dot", dot)
-                    .def("get_parameter", 
-                            (ParameterInput* (*)(const boost::shared_ptr<Op>&, const std::string&)) get_node, 
-                            return_internal_reference<1>())
-                    .def("get_parameter", 
-                            (ParameterInput* (*)(const boost::shared_ptr<Op>&, long)) get_node, 
-                            return_internal_reference<1>())
-                    .def("get_node", 
-                            (Op* (*)(const boost::shared_ptr<Op>&, long)) get_node, 
-                            return_internal_reference<1>())
-                    .def("get_sink", 
-                            (Sink* (*)(const boost::shared_ptr<Op>&, long)) get_node, 
-                            return_internal_reference<1>())
-                    .def("get_sink", 
-                            (Sink* (*)(const boost::shared_ptr<Op>&, const std::string&)) get_node, 
-                            return_internal_reference<1>())
-                    .def("evaluate", &evaluate_op)
-                    ;
-
-                class_<Sink, boost::shared_ptr<Sink> >("Sink", no_init)
-                    .add_property("cdata",
-                            make_function(
-                                &Sink::cdata,
-                                return_internal_reference<>()))
-                    .add_property("name", 
-                            make_function(
-                                (const std::string& (Sink::*)()const)
-                                &Sink::name,
-                                return_value_policy<copy_const_reference>()))
-                    .def("evaluate", &evaluate_sink)
-                    ;
-                class_<ParameterInput, boost::shared_ptr<ParameterInput> >("ParameterInput", no_init)
-                    .add_property("name", 
-                            make_function(
-                                (const std::string& (ParameterInput::*)()const)
-                                &ParameterInput::name,
-                                return_value_policy<copy_const_reference>()))
-                    .add_property("derivable", 
-                            &ParameterInput::derivable,
-                            &ParameterInput::set_derivable)
-                    .add_property("data", 
-                            make_function(
-                                (Op::value_type& (ParameterInput::*)())
-                                &ParameterInput::data,
-                                return_internal_reference<>()))
-                    .add_property("delta", 
-                            make_function(
-                                (Op::value_type& (ParameterInput::*)())
-                                &ParameterInput::delta,
-                                return_internal_reference<>()))
-                    ;
-                ;
-                register_ptr_to_python< boost::shared_ptr<Op> >();
-                register_ptr_to_python< boost::shared_ptr<ParameterInput> >();
-
-                def("get_valid_shape_info", get_vsi_1);
-                def("get_valid_shape_info", get_vsi_2);
-
-                class_<swiper>("swiper", no_init)
-                    .def("fprop", &swiper::fprop)
-                    .def("bprop", &swiper::bprop)
-                    ;
-
-                class_<valid_shape_info>("valid_shape_info", init<boost::shared_ptr<Op>,boost::shared_ptr<Op> >())
-                    .def_readonly("crop_h",&valid_shape_info::crop_h)
-                    .def_readonly("crop_w",&valid_shape_info::crop_w)
-                    .def_readonly("scale_h",&valid_shape_info::scale_h)
-                    .def_readonly("scale_w",&valid_shape_info::scale_w)
-                    ;
-
-            }
+            export_module();
             object main_namespace = main_module.attr("__dict__");
             object ignored = exec(
                     "visualization.valid_shape_info = valid_shape_info\n"
