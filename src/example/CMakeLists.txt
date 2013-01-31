@@ -18,4 +18,17 @@ if ( PYTHONLIBS_FOUND )
     #add_executable(obj_detection obj_detection.cpp)
     #target_link_libraries(obj_detection  
         #${Boost_LIBRARIES} ${PYTHON_LIBRARIES} 
+
+    PYTHON_ADD_MODULE(pylinreg SHARED linear_regression_python.cpp)
+
+    SET_TARGET_PROPERTIES(pylinreg PROPERTIES OUTPUT_NAME "pylinreg")
+    SET_TARGET_PROPERTIES(pylinreg PROPERTIES PREFIX "")
+    TARGET_LINK_LIBRARIES(pylinreg 
+        cuvnet cuv pthread jpeg log4cxx
+        ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})
+
+    Add_Custom_Command(
+        TARGET pylinreg
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:pylinreg> ${CMAKE_BINARY_DIR})
 endif( PYTHONLIBS_FOUND )
