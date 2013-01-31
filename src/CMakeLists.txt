@@ -78,6 +78,6 @@ add_library(cuvnet SHARED ${CUVNET_SRC})
 TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx cuv ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} )
 
 #add_subdirectory(cuvnet)
-add_subdirectory(third_party)
+#add_subdirectory(third_party)
 add_subdirectory(example EXCLUDE_FROM_ALL)
 add_subdirectory(test EXCLUDE_FROM_ALL)
