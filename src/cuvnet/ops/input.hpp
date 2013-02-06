@@ -59,6 +59,14 @@ namespace cuvnet
                     for(unsigned int i=0; i<D; i++)
                         m_shape[i] = shape.ranges_[i].finish();
                 }
+                /**
+                 * ctor.
+                 * @param shape the shape of the input.
+                 * @param name the name of the input.
+                 */
+                Input(const std::vector<unsigned int>& shape, const std::string& name):Op(0,1), m_name(name),m_shape(shape),m_derivable(false),m_learnrate_factor(1.f),m_weight_decay_factor(1.f)
+                {  
+                }
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const{
                     if(m_name.size())
                         desc.label = m_name;

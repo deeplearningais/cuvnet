@@ -1,7 +1,10 @@
 #!/usr/bin/python
-#from IPython import embed
+from IPython import embed
 from datetime import datetime
-from matplotlib import dates
+#from matplotlib import dates
+import matplotlib.pyplot as plt
+from collections import defaultdict
+from random_palette import get_random_color
 import numpy as np
 import re
 
@@ -14,124 +17,216 @@ meta = """<?xml version="1.0" ?>
 </log4j:eventSet>
 """
 
-def value(event, prop):
-    elem = event.find("{%s}properties/{%s}data[@name='%s']" % \
-            (LOG4J_NAMESPACE,LOG4J_NAMESPACE,prop))
-    if elem is not None:
-        return elem.get("value")
-    return ""
+# Structure is as follows:
+# Trial
+#   CVEvent
+#     GradientDescent
 
-def message(event):
-    return event.findtext('{%s}message'%LOG4J_NAMESPACE)
 
-def show_convergence(doc):
-    convchecks = etree.ETXPath("//{%s}event[@logger='conv_check']" % LOG4J_NAMESPACE)
-    results = convchecks(doc)
-    def perf_filter(r):
-        m = r.findtext('{%s}message'%LOG4J_NAMESPACE)
-        if re.match(r".*: ([\d.]*)\s*$", m):
-            return True
+class State:
+    def __init__(self):
+        self.cv_state = "uninitialized"
+
+
+class GradientDescent:
+    def __init__(self, name="unnamed"):
+        self.name = name
+        self.mon = defaultdict(lambda: [])
+        self.early_stopping = []
+        self.convergence = []
+
+
+class CVEvent:
+    def __init__(self, name="unnamed"):
+        self.name = name
+        self.gds = {}   # GradientDescent events
+
+
+class Trial:
+    def __init__(self, ident):
+        self.ident = ident
+        self.cv_events = {}
+        self.cval_perf = np.inf
+
+
+class LogParser:
+    def __init__(self):
+        self.state = State()
+        self.trials = []
+        # there might be several trials running in parallel.
+        # this is a mapping from host/thread id to trial objects.
+        self.current_trials = {}
+
+    def is_end_trial(self, e):
+        if str(e.message).startswith("DONE with"):
+            res = e.match(r'[-\d.eE]+', str(e.message)).group(1)
+            return True, res
         return False
 
-    def conv_filter(r):
-        m = r.findtext('{%s}message'%LOG4J_NAMESPACE)
-        if re.match(r"(converged|unsteady)", m):
-            return True
-        return False
+    def get_or_create_trial(self, e):
+        ident = e.attrib['thread']
+        if hasattr(e, 'properties'):
+            for p in e.properties.data:
+                if p.attrib['name'] == 'host':
+                    ident = ident + "-" + p.attrib['value']
+                    break
+        if ident in self.current_trials.keys():
+            return self.current_trials[ident]
+        trial = Trial(ident)
+        self.current_trials[ident] = trial
+        self.trials.append(trial)
+        return trial
 
-    convmsg = filter(conv_filter, results)
-    results = filter(perf_filter, results)
-    tstart = datetime.fromtimestamp(float(results[0].get('timestamp'))/1000)
-    print "tstart: ", tstart
+    def process_event(self, e):
+        logger = e.attrib['logger']
+        trial = self.get_or_create_trial(e)
+        dt = datetime.fromtimestamp(float(e.attrib['timestamp']) / 1000)
+        if logger == 'ase':
+            if str(e.message).startswith("DONE with"):
+                res = re.match(r'.*?=([\-+\d.eE]+).*', str(e.message)).group(1)
+                trial.cval_perf = float(res)
+                self.trials.append(trial)
+                del self.current_trials[trial.ident]
+                return
 
-    messages = [message(r) for r in results]
-    perfs = [ re.match(r".*: ([\d.]*)\s*$", m).group(1) for m in messages ]
-    #perfs = [ re.match(r".*\d+/\d+, ([\d.]*).*", m).group(1) for m in messages ]
-    perfs = np.array(perfs)
+            cv_event = str(e.message)
+            if cv_event.startswith('TRAIN '):  # note space!
+                cve = CVEvent(cv_event)
+                trial.cv_events[cv_event] = cve
+                trial.current_cv_event = cve
 
-    #epochs = np.array([int(value(r, "epoch")) for r in results])
-    epochs = np.array([datetime.fromtimestamp(float(r.get('timestamp'))/1000)-tstart for r in results])
+            if hasattr(e, 'properties'):
+                v = [x for x in e.properties.data if 'test0_loss' == x.attrib['name']]
+                if len(v):
+                    trial.test0_loss = float(x.attrib['value'])
+                    print "Test0 Loss: ", trial.test0_loss
+                v = [x for x in e.properties.data if 'test_loss' == x.attrib['name']]
+                if len(v):
+                    trial.test_loss = float(x.attrib['value'])
+                    print "Test Loss: ", trial.test_loss
 
-    def event_to_label(e):
-        host = value(e, "host")
-        layer = value(e, "layer")
-        thread = e.get('thread')
-        if layer == "":
-            layer = "finetune"
-        return "%s:%s L%s" % (host, thread, layer)
+        if logger == 'learner':
+            if str(e.message).startswith('ENTRY '):
+                # we entered a new phase such as finetune, pretrain
+                phase = str(e.message)[6:]
+                gd = GradientDescent(phase)
+                trial.current_cv_event.gds[phase] = gd
+                trial.current_cv_event.current_gd = gd
 
-    labels = map(event_to_label, results)
-    unique_labels = np.unique(labels)
+        if logger == 'mon':
+            for d in e.properties.data:
+                name = d.attrib['name']
+                value = d.attrib['value']
+                z = 0
+                if not hasattr(e, "NDC"):
+                    continue
+                if "early_stopper" in str(e.NDC):
+                    z = 1
+                if re.match(r'^[\-\d.eE]*$', value):
+                    trial.current_cv_event.current_gd.mon[name].append((dt, float(value), z))
 
-    import matplotlib.pyplot as plt
-    for ul in unique_labels:
-        #if "finetune" in ul: continue
-        idx = np.where(np.array(labels) == ul)
-        E = [e.total_seconds()/60. for e in epochs[idx]]
-        #plt.plot(epochs[idx], perfs[idx], label=ul)
-        plt.plot(E, perfs[idx], label=ul)
-        plt.xlabel('minutes')
-        plt.ylabel('loss')
+        if logger == 'early_stop':
+            res = re.match(r".*: (\-[\d.eE]*)\s*$", str(e.message))
+            if res:
+                trial.current_cv_event.current_gd.early_stopping.append((dt, float(res.group(1))))
 
-        ax = plt.gca()
-        for m in convmsg:
-            if event_to_label(m) == ul:
-                #epoch = value(m, "epoch")
-                epoch = datetime.fromtimestamp(float(m.get('timestamp'))/1000)-tstart
-                ax.axvline(epoch.total_seconds()/60.)
-        #plt.ylim(np.min(perfs[idx]), np.max(perfs[idx]))
-        #plt.yscale('log')
+        if logger == 'conv_check':
+            res = re.match(r".*: (\-[\d.eE]*)\s*$", str(e.message))
+            if res:
+                trial.current_cv_event.current_gd.convergence.append((dt, float(res.group(1))))
 
-    plt.legend()
-    plt.show()
 
-def show_earlystop(doc):
-    convchecks = etree.ETXPath("//{%s}event[@logger='early_stop']" % LOG4J_NAMESPACE)
-    results = convchecks(doc)
-    def perf_filter(r):
-        m = r.findtext('{%s}message'%LOG4J_NAMESPACE)
-        if re.match(r".*: ([\d.]*)\s*$", m):
-            return True
-        return False
+def show_single_trial(trial, properties0=None, properties1=None, properties2=None):
+    phases = []
+    for cve_name, cve in trial.cv_events.iteritems():
+        if not cve_name.startswith("TRAIN"):
+            continue
+        for gd in cve.gds:
+            phases.append(gd)
+    phases = np.unique(phases)
 
-    results = filter(perf_filter, results)
+    for phase in phases:
+        fig = plt.figure(figsize=(12, 14))
+        fig.suptitle(phase)
+        fig.canvas.set_window_title(phase)
+        for cve_name, cve in trial.cv_events.iteritems():
+            if not cve_name.startswith("TRAIN"):
+                continue
+            gd = cve.gds[phase]
+            ax = fig.add_subplot(221)
+            X = [x[0] for x in gd.convergence]
+            Y = [x[1] for x in gd.convergence]
+            ax.plot(X, Y, label='convergence')
 
-    messages = [message(r) for r in results]
-    perfs = [ re.match(r".*: ([\d.]*)\s*$", m).group(1) for m in messages ]
-    #perfs = [ re.match(r".*\d+ / \d+, ([\d.]*).*", m).group(1) for m in messages ]
-    perfs = np.array(perfs)
+            X = [x[0] for x in gd.early_stopping]
+            Y = [x[1] for x in gd.early_stopping]
+            ax.plot(X, Y, label='early_stopping')
 
-    epochs = np.array([int(value(r, "epoch")) for r in results])
+            if hasattr(trial, 'test0_loss') and phase == cve.current_gd.name:
+                plt.axhline(trial.test0_loss, label='test0_loss', color='k')
 
-    def event_to_label(e):
-        host = value(e, "host")
-        layer = value(e, "layer")
-        thread = e.get('thread')
-        if layer == "":
-            layer = "finetune"
-        return "%s:%s L%s" % (host, thread, layer)
+            ax.legend()
 
-    labels = map(event_to_label, results)
-    unique_labels = np.unique(labels)
-    if len(unique_labels) == 0:
-        return
+            ax = fig.add_subplot(223)
+            for k, v in gd.mon.iteritems():
+                if properties0 is not None:
+                    if k not in properties0:
+                        continue
+                for z, l in ((0, ""), (1, "_es")):
+                    X = [x[0] for x in v if x[2] == z]
+                    Y = [x[1] for x in v if x[2] == z]
+                    ax.plot(X, Y, '-', label=k + l)
+            ax.legend()
+            ax.set_title("Monitor")
 
-    import matplotlib.pyplot as plt
-    for ul in unique_labels:
-        if "finetune" not in ul: continue
-        idx = np.where(np.array(labels) == ul)
-        plt.plot(epochs[idx], perfs[idx], label=ul)
+            if properties1 is not None:
+                ax = fig.add_subplot(224)
+                D = defaultdict(lambda: {})
+                for k, v in gd.mon.iteritems():
+                    if k in properties1:
+                        X = [x[0] for x in v]
+                        Y = [x[1] for x in v]
+                        ax.plot(X, Y, '-', label=k)
+                    elif k.replace("_mean", "") in properties1:
+                        X = [x[0] for x in v]
+                        mean = [x[1] for x in v]
+                        D[k.replace("_mean", "")]["mean"] = mean
+                        D[k.replace("_mean", "")]["x"] = X
+                    elif k.replace("_var", "") in properties1:
+                        X = [x[0] for x in v]
+                        var = [x[1] for x in v]
+                        D[k.replace("_var", "")]["var"] = var
+                        D[k.replace("_var", "")]["x"] = X
+                    else:
+                        print "ignoring", k, "in p1"
+                for (k, v), c in zip(D.iteritems(), get_random_color()):
+                    mean = v["mean"]
+                    va  = v["var"]
+                    x = v["x"]
+                    ax.plot(x, mean, '-', label=k, color=c, linewidth=2)
+                    ax.fill_between(X, mean - np.sqrt(var), mean + np.sqrt(var), alpha=.2, color=c)
 
-        #plt.yscale('log')
+                ax.legend()
+                ax.set_title("Monitor")
 
-    plt.legend()
-    plt.show()
+            if properties2 is not None:
+                ax = fig.add_subplot(222)
+                for k, v in gd.mon.iteritems():
+                    if k not in properties2:
+                        print "ignoring ", k, " in p2"
+                        continue
+                    X = [x[0] for x in v]
+                    Y = [x[1] for x in v]
+                    ax.plot(X, Y, '-', label=k)
+                ax.legend()
+                ax.set_title("Monitor")
 
+        plt.savefig("%s.pdf" % phase)
 
 
 if __name__ == "__main__":
-    
-    from lxml import etree
+
+    from lxml import objectify
     import sys
     fn = 'log.xml'
     if len(sys.argv) > 1:
@@ -139,13 +234,24 @@ if __name__ == "__main__":
 
     LOG4J_NAMESPACE = "http://logging.apache.org/log4j/"
     LOG4J = "{%s}" % LOG4J_NAMESPACE
-    NSMAP = {None : LOG4J_NAMESPACE}
+    NSMAP = {None: LOG4J_NAMESPACE}
 
     with open(fn, 'r') as f:
         data = f.read()
     data = meta % data
-    doc = etree.fromstring(data)
-    show_convergence(doc)
-    show_earlystop(doc)
+    doc = objectify.fromstring(data)
 
+    lp = LogParser()
+    for e in doc.event:
+        lp.process_event(e)
 
+    p0 = "W0_1,W0_2,W1_2".split(",")
+    p2 = "d_alpha0,d_alpha2,d_beta0,d_beta2".split(",")
+    p2 = "loss".split(",")
+    p1 = "cerr".split(",")
+    p1 = "hl1,hl2,hl3,hl4".split(",")
+
+    idx = np.argmax([t.cval_perf for t in lp.trials])
+    show_single_trial(lp.trials[idx], p0, p1, p2)
+
+    embed()

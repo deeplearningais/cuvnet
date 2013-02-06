@@ -12,7 +12,7 @@ include_directories(${CMAKE_BINARY_DIR}/src)
 
 file(GLOB TEST_SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 add_executable(${PROJECT_TEST_NAME} ${TEST_SRC_FILES})
-target_link_libraries(${PROJECT_TEST_NAME}  ${GTEST_BOTH_LIBRARIES} cuvnet_datasets cuvnet_tools cuvnet_ops cuv jpeg npy ${Boost_LIBRARIES} pthread )
+target_link_libraries(${PROJECT_TEST_NAME}  ${GTEST_BOTH_LIBRARIES} cuvnet cuv jpeg ${Boost_LIBRARIES} pthread )
 
 if ( PYTHONLIBS_FOUND )
     target_link_libraries(${PROJECT_TEST_NAME}  ${PYTHON_LIBRARIES})

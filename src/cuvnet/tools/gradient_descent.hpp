@@ -323,7 +323,8 @@ namespace cuvnet
              * ctor.
              *
              * @param gd gradient_descent object to register with
-             * @param performance a function which determines how good we are after an epoch
+             * @param performance a function which determines how good we are after an epoch,
+             *        e.g. boost::bind(&monitor::mean, &mon, "classificatin loss")
              * @param thresh  determines "significant" performance improvements, i.e. 0.995
              * @param every   called every n-th epoch
              * @param patience_increase prolong training by this much if significant improvement found (e.g. 2 doubles training time)
@@ -425,6 +426,11 @@ namespace cuvnet
              * @param weightdecay weight decay for weight updates
              */
         momentum_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float momentum=0.9f);
+
+        inline void set_momentum(float momentum){
+        	m_momentum = momentum;
+        	std::cout<<"momentum is"<<momentum<<std::endl;
+        }
 
         protected:
         /**
