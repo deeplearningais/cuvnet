@@ -179,7 +179,7 @@ namespace cuvnet
         Op::op_ptr mat_times_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax) { return boost::make_shared<MatTimesVec>(x->result(),v->result(), ax); }
     /// construct a PairwiseNorm object
     inline
-        Op::op_ptr pairwise_norm(Op::op_ptr img) { return boost::make_shared<PairwiseNorm>(img->result()); }
+        Op::op_ptr pairwise_norm(Op::op_ptr img,unsigned int dim) { return boost::make_shared<PairwiseNorm>(img->result(), dim); }
     /// construct a Convolve object
     inline
         Op::op_ptr convolve(Op::op_ptr img, Op::op_ptr flt, bool padding=false, int partialSum=4) { return boost::make_shared<Convolve>(img->result(),flt->result(), padding, partialSum); }

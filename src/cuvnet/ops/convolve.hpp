@@ -508,6 +508,7 @@ namespace cuvnet
                 typedef Op::value_ptr     value_ptr;
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
+                unsigned int m_dim;
             private:
             public:
                 PairwiseNorm() :Op(1,1){} ///< for serialization
@@ -515,8 +516,9 @@ namespace cuvnet
                  * ctor.
                  * @param images the input images
                  */
-                PairwiseNorm(result_t& images)
-                    :Op(1,1)
+                PairwiseNorm(result_t& images, unsigned int dim)
+                    :Op(1,1),
+                    m_dim(dim)
                 {
                     add_param(0,images);
                 }

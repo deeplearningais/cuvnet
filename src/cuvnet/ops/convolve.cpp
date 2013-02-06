@@ -788,7 +788,7 @@ namespace cuvnet
         assert(m_params[0]->shape.size() >= 1);
         assert(m_params[0]->shape.size() % 2 == 0);
         std::vector<unsigned int> dst = m_params[0]->shape;
-        dst[0] /= 2;
+        dst[m_dim] /= 2;
         m_results[0]->shape = dst;
     }
 
@@ -799,10 +799,10 @@ namespace cuvnet
         result_t::element_type& r0 = *m_results[0];
         if(p0.can_overwrite_directly()){
             value_ptr& v = r0.overwrite_or_add_value();
-            pairwise_norm(*v, p0.value.cdata());
+            pairwise_norm(*v, p0.value.cdata(), m_dim);
         }else{
             value_ptr v(new value_type(r0.shape));
-            pairwise_norm(*v, p0.value.cdata());
+            pairwise_norm(*v, p0.value.cdata(), m_dim);
             r0.push(v);
         }
     }
@@ -817,10 +817,10 @@ namespace cuvnet
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
         if(p0.can_overwrite_directly()){
-            pairwise_norm_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata());
+            pairwise_norm_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_dim);
         }else{
             value_ptr v(new value_type(p0.shape));
-            pairwise_norm_grad(*v, p0.value.cdata(), r0.delta.cdata());
+            pairwise_norm_grad(*v, p0.value.cdata(), r0.delta.cdata(), m_dim);
             p0.push(v);
         }
     }
