@@ -13,14 +13,14 @@ namespace cuvnet
         bool filtSizeOK = (r0.shape[0] % 16) == 0;
 
         if(filtSizeOK && r0.can_overwrite_directly()){
-            convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_padding_start,1,m_nGroups);
+            convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_padding_start,m_stride,m_nGroups);
         }else if(filtSizeOK && r0.can_add_directly()){
-            convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_padding_start,1,m_nGroups, 1.f,1.f);
+            convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_padding_start,m_stride,m_nGroups, 1.f,1.f);
         }else{
             // reallocate *sigh*
             if(filtSizeOK){
                 value_ptr v(new value_type(r0.shape));
-                convolve2d(*v, p0.value.cdata(), p1.value.cdata(), m_padding_start,1,m_nGroups);
+                convolve2d(*v, p0.value.cdata(), p1.value.cdata(), m_padding_start, m_stride,m_nGroups);
                 r0.push(v);
             }else{
                 // Alex' code has some serious restrictions; the one hurting me most
@@ -39,7 +39,7 @@ namespace cuvnet
                         indices[index_range()][index_range()][index_range(0,nFiltReal)]);
                 wview = p1.value.cdata();
 
-                convolve2d(tmp_dst, p0.value.cdata(), tmp_flt, m_padding_start,1,m_nGroups);
+                convolve2d(tmp_dst, p0.value.cdata(), tmp_flt, m_padding_start, m_stride,m_nGroups);
                 value_ptr vp(new value_type(tmp_dst[indices[index_range(0,nFiltReal)][index_range()][index_range()][index_range()]]));
                 r0.push(vp);
             }
@@ -105,27 +105,27 @@ namespace cuvnet
             const value_type& img   = p0.value.cdata();
            if(filtSizeOK){
                if(p1.can_overwrite_directly()){
-                   d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding_start, 1, m_nGroups,m_partial_sum);
+                   d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
                }
                else if(p1.can_add_directly()){
-                   d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding_start, 1, m_nGroups,m_partial_sum, 1.f,1.f);
+                   d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum, 1.f,1.f);
                }else{
                    value_ptr ptr(new value_type(p1.shape));
                    value_type& dflt = *ptr;
-                   d_conv2d_dfilt(dflt,delta,img, m_padding_start, 1, m_nGroups,m_partial_sum);
+                   d_conv2d_dfilt(dflt,delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
                    p1.push(ptr);
                }
 
 
            }else{
                if(p1.can_overwrite_directly()){
-                   d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding_start, 1, m_nGroups,m_partial_sum);
+                   d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
                }
                else if(p1.can_add_directly()){
-                   d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding_start, 1, m_nGroups,m_partial_sum, 1.f,1.f);
+                   d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum, 1.f,1.f);
                }else{
                    value_type& dflt = *tmp_dw;
-                   d_conv2d_dfilt(dflt,*tmp_r0delta,img, m_padding_start, 1, m_nGroups,m_partial_sum);
+                   d_conv2d_dfilt(dflt,*tmp_r0delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
                    value_ptr ptr(new value_type(dflt[indices[index_range()][index_range()][index_range(0,nFiltReal)]].copy()));
                    p1.push(ptr);
                }
@@ -139,30 +139,30 @@ namespace cuvnet
             const value_type& flt   = p1.value.cdata();
            if(filtSizeOK){
                if(p0.can_overwrite_directly()){
-                   d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_padding_start, 1, m_nGroups);
+                   d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_padding_start, m_stride, m_nGroups);
                }
                else if(p0.can_add_directly()){
-                   d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_padding_start, 1, m_nGroups,  1.f,1.f);
+                   d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_padding_start, m_stride, m_nGroups,  1.f,1.f);
                }else{
                    value_ptr ptr = p0.value;
                    p0.value.reset();       // try to overwrite input activations
                    value_type& v = ptr.data_onlyshape();
-                   d_conv2d_dimg(v, delta, flt, m_padding_start,1,m_nGroups);
+                   d_conv2d_dimg(v, delta, flt, m_padding_start,m_stride,m_nGroups);
                    p0.push(ptr);
                }
 
 
            }else{
                if(p0.can_overwrite_directly()){
-                   d_conv2d_dimg(*p0.overwrite_or_add_value(), *tmp_r0delta, *tmp_w, m_padding_start,1,m_nGroups);
+                   d_conv2d_dimg(*p0.overwrite_or_add_value(), *tmp_r0delta, *tmp_w, m_padding_start,m_stride,m_nGroups);
                }
                else if(p0.can_add_directly()){
-                   d_conv2d_dimg(*p0.overwrite_or_add_value(), *tmp_r0delta, *tmp_w, m_padding_start,1,m_nGroups, 1.f, 1.f);
+                   d_conv2d_dimg(*p0.overwrite_or_add_value(), *tmp_r0delta, *tmp_w, m_padding_start,m_stride,m_nGroups, 1.f, 1.f);
                }else{
                    value_ptr ptr = p0.value;
                    p0.value.reset();       // try to overwrite input activations
                    value_type& v = ptr.data_onlyshape();
-                   d_conv2d_dimg(v, *tmp_r0delta, *tmp_w, m_padding_start,1,m_nGroups);
+                   d_conv2d_dimg(v, *tmp_r0delta, *tmp_w, m_padding_start,m_stride,m_nGroups);
                    p0.push(ptr);
                }
            }
@@ -193,14 +193,17 @@ namespace cuvnet
         assert(nFltPixX*nFltPixX==flt[1]);
 
         if(m_padding_start) // set to `1' in constructor when padding requested
-            m_padding_start = -(int)nFltPixX/2; // assume nFltPixX%2==1
+            {
+        		//m_padding_start = -(int)nFltPixX/2; // assume nFltPixX%2==1
+        		m_padding_start = -m_padding_size;
+            }
 
         unsigned int nOutPixX = is_padded()
-            ? (nImgPixX)
-            : (nImgPixX+1-nFltPixX);
+            ? ((nImgPixX+m_padding_size-nFltPixX)/m_stride+1)
+            : ((nImgPixX-nFltPixX)/m_stride+1);
         unsigned int nOutPixY = is_padded()
-            ? (nImgPixY)
-            : (nImgPixY+1-nFltPixX);
+            ? ((nImgPixY+m_padding_size-nFltPixX)/m_stride+1)
+            : ((nImgPixY-nFltPixX)/m_stride+1);
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
         LOG4CXX_WARN(log, "Convolving image of shape ("
@@ -820,8 +823,8 @@ namespace cuvnet
         std::vector<unsigned int> img = m_params[0]->shape;
         std::vector<unsigned int> dst(4);
         dst[0] = img[0];
-        dst[1] = img[1] / m_subsx;
-        dst[2] = img[2] / m_subsx;
+        dst[1] = (img[1]-m_subsx) / m_stridex +1;
+        dst[2] = (img[2]-m_subsx) / m_stridex +1;
         dst[3] = img[3];
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
@@ -838,14 +841,14 @@ namespace cuvnet
                 + ")");
 
         cuvAssert(img[1]==img[2]); // currently, cudaConv2 only supports square images for pooling
-        if(m_subsx * dst[1] != img[1]){
-            throw std::runtime_error(
-                    "LocalPooling: incoming size `"
-                    + boost::lexical_cast<std::string>(img[1])
-                    + "' is not divisible by subsampling factor `"
-                    + boost::lexical_cast<std::string>(m_subsx));
-        }
-        cuvAssert(m_subsx * dst[2] == img[2]);
+//        if(m_subsx * dst[1] != img[1]){
+//            throw std::runtime_error(
+//                    "LocalPooling: incoming size `"
+//                    + boost::lexical_cast<std::string>(img[1])
+//                    + "' is not divisible by subsampling factor `"
+//                    + boost::lexical_cast<std::string>(m_subsx));
+//        }
+//        cuvAssert(m_subsx * dst[2] == img[2]);
         m_results[0]->shape = dst;
     }
 
