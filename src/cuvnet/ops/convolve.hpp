@@ -37,8 +37,10 @@ namespace cuvnet
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
             private:
-                unsigned int m_nGroups;
+                unsigned int m_nGroups;//number of groups of filters
                 unsigned int m_partial_sum;
+                int m_stride;
+                int m_padding_size;
                 int m_padding_start;
                 int m_padding_size;
                 int m_stride;
@@ -53,11 +55,13 @@ namespace cuvnet
                  * @param padding if true, pad image s.t. input and output shapes are equal.
                  * @param partial_sum optimization parameter of alex' convolution routines. Good values are probably 4 or 8.
                  */
-                Convolve(result_t& images, result_t& filters, bool padding, unsigned int partial_sum=4)
+                Convolve(result_t& images, result_t& filters, bool padding, int padding_size, int stride, unsigned int partial_sum=4)
                     :Op(2,1)
                     ,m_nGroups(1)
                     ,m_partial_sum(partial_sum)
                     ,m_padding_start(padding)
+                	,m_padding_size(padding_size)
+                	,m_stride(stride)
                 {
                     add_param(0,images);
                     add_param(1,filters);
@@ -455,11 +459,11 @@ namespace cuvnet
                  * @param images the input images
                  * @param pt pooling type
                  */
-                LocalPooling(result_t& images, cuv::alex_conv::pool_type pt)
+                LocalPooling(result_t& images, int subsx, int stridex, cuv::alex_conv::pool_type pt)
                     :Op(1,1),
                     m_pooltype(pt),
-                    m_subsx(2),
-                    m_stridex(2)
+                    m_subsx(subsx),
+                    m_stridex(stridex)
                 {
                     add_param(0,images);
                 }
