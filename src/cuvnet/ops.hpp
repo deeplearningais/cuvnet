@@ -182,7 +182,7 @@ namespace cuvnet
         Op::op_ptr tuplewise_op(Op::op_ptr img, unsigned int dim, unsigned int sub_size=2, cuv::alex_conv::tuplewise_op_functor to = cuv::alex_conv::TO_NORM) { return boost::make_shared<Tuplewise_op>(img->result(), dim, sub_size, to); }
     /// construct a Convolve object
     inline
-        Op::op_ptr convolve(Op::op_ptr img, Op::op_ptr flt, bool padding=false, int partialSum=4) { return boost::make_shared<Convolve>(img->result(),flt->result(), padding, partialSum); }
+        Op::op_ptr convolve(Op::op_ptr img, Op::op_ptr flt, bool padding, int padding_size, int stride, int partialSum=4) { return boost::make_shared<Convolve>(img->result(),flt->result(), padding, partialSum); }
 #ifndef NO_THEANO_WRAPPERS
     /// construct a Convolve theano object
     inline
@@ -217,7 +217,7 @@ namespace cuvnet
         Op::op_ptr flatten(Op::op_ptr img, unsigned int outdim=1) { return boost::make_shared<Flatten>(img->result(),outdim); }
     /// construct a LocalPooling object
     inline
-        Op::op_ptr local_pool(Op::op_ptr img, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(),pt); }
+        Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(),pt); }
 
     /// construct a Reshape object
     template<std::size_t D>
