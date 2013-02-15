@@ -55,9 +55,9 @@ namespace cuvnet
                  * @param padding if true, pad image s.t. input and output shapes are equal.
                  * @param partial_sum optimization parameter of alex' convolution routines. Good values are probably 4 or 8.
                  */
-                Convolve(result_t& images, result_t& filters, bool padding, int padding_size, int stride, unsigned int partial_sum=4)
+                Convolve(result_t& images, result_t& filters, bool padding, int padding_size, int stride, int ngroups, unsigned int partial_sum=4)
                     :Op(2,1)
-                    ,m_nGroups(1)
+                    ,m_nGroups(ngroups)
                     ,m_partial_sum(partial_sum)
                     ,m_padding_start(padding)
                 	,m_padding_size(padding_size)
