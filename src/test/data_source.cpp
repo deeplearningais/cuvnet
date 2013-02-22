@@ -7,6 +7,7 @@
 #include <cuv/basics/tensor.hpp>
 #include <cuv/libs/cimg/cuv_cimg.hpp>
 #include <datasets/bounding_box_tools.hpp>
+#include <datasets/image_queue.hpp>
 
 #include <cuvnet/tools/preprocess.hpp>
 #include <cuvnet/tools/data_source.hpp>
@@ -16,8 +17,70 @@
 #include <CImg.h>
 
 using namespace cuvnet;
+using namespace cuvnet::image_datasets;
+
+struct image_loader_factory{
+    output_properties* m_output_properties;
+
+    image_loader_factory(output_properties* op)
+        : m_output_properties(op) { }
+
+    whole_image_loader
+    operator()(image_queue<pattern>* q, 
+                const bbtools::image_meta_info* meta){
+        return whole_image_loader(q, meta, m_output_properties, 128, true);
+    }
+};
 
 BOOST_AUTO_TEST_SUITE( t_bbtools )
+
+BOOST_AUTO_TEST_CASE( image_dataset_test ){
+
+    image_dataset ids("image_dataset.txt", false);
+    BOOST_CHECK_EQUAL(2, ids.size());
+    BOOST_CHECK_NE(std::string::npos, ids.get(0).filename.find("2008_007573.jpg"));
+    BOOST_CHECK_EQUAL(1, ids.get(0).objects.size());
+    BOOST_CHECK_EQUAL(2, ids.get(1).objects.size());
+
+}
+
+BOOST_AUTO_TEST_CASE( image_loading_and_queueing ){
+
+    image_dataset ids("image_dataset.txt", false);
+
+    output_properties op;
+    op.scale_h = 1;
+    op.scale_w = 1;
+    op.crop_h  = 0;
+    op.crop_w  = 0;
+    for (int grayscale = 0; grayscale < 2; ++grayscale)
+    {
+        image_queue<pattern> q;
+        whole_image_loader ld(&q, &ids.get(0), &op, 128, grayscale);
+
+        ld(); // load a single image
+
+        BOOST_CHECK_EQUAL(1, q.size());
+
+        std::list<pattern*> L;
+        q.pop(L, 1);
+
+        unsigned int ndims = grayscale ? 3 : 1;
+        BOOST_CHECK_EQUAL(ndims, L.front()->img.shape(0));
+        BOOST_CHECK_EQUAL(128, L.front()->img.shape(1));
+        BOOST_CHECK_EQUAL(128, L.front()->img.shape(2));
+    }
+
+    // load a whole bunch of images
+    image_queue<pattern> q;
+    auto pool = make_loader_pool(2, q, ids, image_loader_factory(&op), 2, 2);
+
+    pool->start();
+    boost::this_thread::sleep(boost::posix_time::millisec(500));
+    pool->request_stop();
+
+    BOOST_CHECK_LE(2, q.size());
+}
 
 BOOST_AUTO_TEST_CASE( loadsave ){
     using namespace cuvnet::bbtools;
@@ -103,27 +166,3 @@ BOOST_AUTO_TEST_CASE( loadsave ){
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
-
-/*
- *BOOST_AUTO_TEST_SUITE( data_source_test )
- *
- *BOOST_AUTO_TEST_CASE(t_folder_loader){
- *    folder_loader fl("/home/local/datasets/VOC2011/TrainVal/VOCdevkit/VOC2011/JPEGImages",false);
- *    filename_processor fp;
- *
- *    typedef cuv::tensor<float,cuv::host_memory_space> tens_t;
- *    std::vector<tens_t> v;
- *    fl.get(v, 16, &fp);
- *    std::vector<unsigned int> shape = v[0].shape();
- *    std::copy(shape.begin(),shape.end(),std::ostream_iterator<unsigned int>(std::cout,", "));
- *    for (int i = 0; i < 16; ++i)
- *    {
- *        using namespace cuv;
- *        tensor<float,cuv::host_memory_space> img = v[i];
- *        libs::cimg::save( img, boost::str(boost::format("pp_img%03d.png")%i));
- *    }
- *}
- *
- *BOOST_AUTO_TEST_SUITE_END()
- */
