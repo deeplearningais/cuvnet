@@ -16,7 +16,6 @@ BOOST_AUTO_TEST_SUITE( t_datasets )
 BOOST_AUTO_TEST_CASE(DatasetDumper){
 
 
-    std::cout << " starting test dumper" << std::endl; 
         std::string file_name1 = "test_dumper_train.dat";
         std::string file_name2 = "test_dumper_test.dat";
 
@@ -72,7 +71,6 @@ BOOST_AUTO_TEST_CASE(DatasetDumper){
                 }
             }
         }
-    std::cout << "test dataset dumper finished succesfully" << std::endl;
 }
 
 
