@@ -35,7 +35,8 @@ FIND_PACKAGE( tbb )
 FILE(GLOB CUVNET_OPS_SRC cuvnet/ops/*.cpp)
 
 SET(CUVNET_SRC 
-    datasets/voc_detection.cpp
+    #datasets/voc_detection.cpp
+    datasets/image_queue.cpp
 	datasets/amat_datasets.cpp
 	datasets/read_amat.cpp
 	datasets/bounding_box_tools.cpp
