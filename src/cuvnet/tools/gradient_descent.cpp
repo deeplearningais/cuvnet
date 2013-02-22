@@ -391,11 +391,11 @@ namespace cuvnet
     convergence_checker::convergence_checker(
             gradient_descent& gd,
             boost::function<float(void)> performance,
-            float thresh, unsigned int min_epochs, float patience_inc_fact)
+            float thresh, unsigned int min_wups, float patience_inc_fact)
         :   m_gd(gd),
             m_performance(performance),
             m_thresh(thresh),
-            m_patience(min_epochs),
+            m_patience(min_wups),
             m_patience_inc_fact(patience_inc_fact),
             m_max_steps(1),
             m_steps(0),
