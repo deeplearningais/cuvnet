@@ -163,6 +163,8 @@ namespace cuvnet
         register_ptr_to_python< boost::shared_ptr<Op> >();
         //register_ptr_to_python< boost::shared_ptr<ParameterInput> >(); // gives warning...
 
+        implicitly_convertible<boost::shared_ptr<ParameterInput>, boost::shared_ptr<Op> >();
+
         def("get_valid_shape_info", get_vsi_1);
         def("get_valid_shape_info", get_vsi_2);
 
