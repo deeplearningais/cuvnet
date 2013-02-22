@@ -126,12 +126,15 @@ class LogParser:
                     trial.current_cv_event.current_gd.mon[name].append((dt, float(value), z))
 
         if logger == 'early_stop':
-            res = re.match(r".*: (\-[\d.eE]*)\s*$", str(e.message))
+            # * 20: 50000 / 50000, 0.999: 221.378
+            res = re.match(r".*?: ([\-\d.eE]*)\s*$", str(e.message))
             if res:
                 trial.current_cv_event.current_gd.early_stopping.append((dt, float(res.group(1))))
+            else:
+                print "Could not match early stop message: ", e.message
 
         if logger == 'conv_check':
-            res = re.match(r".*: (\-[\d.eE]*)\s*$", str(e.message))
+            res = re.match(r".*: ([\-\d.eE]*)\s*$", str(e.message))
             if res:
                 trial.current_cv_event.current_gd.convergence.append((dt, float(res.group(1))))
 
