@@ -3,7 +3,6 @@
 
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/tools/dataset_dumper.hpp>
-#include <datasets/voc_detection.hpp>
 #include <datasets/dataset_reader.hpp>
 #include <cuv/libs/cimg/cuv_cimg.hpp>
 
@@ -12,68 +11,7 @@ using namespace cuvnet;
 using namespace std;
 
 
-BOOST_AUTO_TEST_SUITE( VOC_Detection )
-BOOST_AUTO_TEST_CASE(init){
-    // NOTE: must be of same size as the squared-size the dataset produces
-    //       since bndbox coordinates will be translated to new size!
-    std::string fn = "lena.jpg"; 
-    {
-        std::ofstream os("test.txt");
-        os << fn;
-        os << " 2";         // two objects
-        os << " 0 0 0 1 2 3";     // class 0, not truncated,  xmin,xmax, ymin, ymax
-        os << " 1 0 10 11 12 13"; // class 1, not truncated,  xmin,xmax, ymin, ymax
-        os << endl;
-    }
-    voc_detection_dataset ds("test.txt", "test.txt", 1); // 1 thread only
-    // training set is shuffled, switch to test set
-    ds.switch_dataset(voc_detection_dataset::SS_TEST);
-    while(ds.size_available() < 2);
-    std::list<voc_detection_dataset::pattern> L;
-    ds.get_batch(L, 2);
-    BOOST_FOREACH(voc_detection_dataset::pattern& pat, L){
-        BOOST_CHECK_EQUAL(pat.meta_info.filename, fn);
-        BOOST_REQUIRE_EQUAL(pat.meta_info.objects.size(), 2);
-
-        // first object
-        BOOST_CHECK_EQUAL( 0, pat.meta_info.objects[0].klass);
-        BOOST_CHECK_EQUAL( 0, pat.meta_info.objects[0].bb.xmin);
-        BOOST_CHECK_EQUAL( 1, pat.meta_info.objects[0].bb.xmax);
-        BOOST_CHECK_EQUAL( 2, pat.meta_info.objects[0].bb.ymin);
-        BOOST_CHECK_EQUAL( 3, pat.meta_info.objects[0].bb.ymax);
-        
-        // second object
-        BOOST_CHECK_EQUAL( 1, pat.meta_info.objects[1].klass);
-        BOOST_CHECK_EQUAL( 10, pat.meta_info.objects[1].bb.xmin);
-        BOOST_CHECK_EQUAL( 11, pat.meta_info.objects[1].bb.xmax);
-        BOOST_CHECK_EQUAL( 12, pat.meta_info.objects[1].bb.ymin);
-        BOOST_CHECK_EQUAL( 13, pat.meta_info.objects[1].bb.ymax);
-
-    }
-}
-
-BOOST_AUTO_TEST_CASE(realdata){
-    //return;
-
-    const char* realtest = "/home/local/datasets/VOC2011/voc_detection_val.txt";
-    voc_detection_dataset ds(realtest, realtest);
-    ds.switch_dataset(voc_detection_dataset::SS_TEST);
-
-    while(ds.size_available() < 2);
-
-    std::list<voc_detection_dataset::pattern> L;
-    ds.get_batch(L, 2);
-    BOOST_FOREACH(voc_detection_dataset::pattern& pat, L){
-        cuv::libs::cimg::show(pat.img, "image");
-        for (unsigned int i = 0; i < pat.tch.shape(0); ++i)
-        {
-            cuv::libs::cimg::show(pat.ign[cuv::indices[i][cuv::index_range()][cuv::index_range()]], "ignore");
-            cuv::libs::cimg::show(pat.tch[cuv::indices[i][cuv::index_range()][cuv::index_range()]], "teacher");
-        }
-    }
-}
-
-
+BOOST_AUTO_TEST_SUITE( t_datasets )
 
 BOOST_AUTO_TEST_CASE(DatasetDumper){
 
