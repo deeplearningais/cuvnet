@@ -1,6 +1,7 @@
 build_*
 build
 build1
+debug
 build_bigcuda2
 build_cuda1
 .*.swp
