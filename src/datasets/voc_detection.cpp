@@ -26,17 +26,19 @@ namespace cuvnet
 {
 
     /**
-     * loads an image from file using metadata, processes it and places it in queue
+     * loads an image from file using metadata, processes it and places it in queue.
      */
     struct voc_detection_file_loader{
+        unsigned int m_image_size;
         boost::mutex* mutex;
         std::queue<voc_detection_dataset::pattern>* loaded_data;
         const bbtools::image_meta_info* meta;
         const voc_detection_dataset::output_properties* output_properties;
-        voc_detection_file_loader(boost::mutex* m, std::queue<voc_detection_dataset::pattern>* dest, 
+        voc_detection_file_loader(boost::mutex* m, unsigned int image_size, std::queue<voc_detection_dataset::pattern>* dest, 
                 const bbtools::image_meta_info* _meta,
                 const voc_detection_dataset::output_properties* op)
-            : mutex(m)
+            : m_image_size(image_size)
+              , mutex(m)
               , loaded_data(dest)
               , meta(_meta)
               , output_properties(op)
@@ -347,22 +349,24 @@ namespace cuvnet
                 ensure_square_and_enqueue(
                         boost::bind( static_cast<void (queue_type::*)(const arg_type&)>(&queue_type::push)
                             , loaded_data, _1),
-                        si, 176, true);
+                        si, 172, true);
             }else{
                 // split up the image into multiple scales, extract images with
                 // size 128x128 on all scales, and enqueue them.
-                //split_up_scales(img, 176);
-                split_up_bbs(img, 176);
+                //split_up_scales(img, 128);
+                split_up_bbs(img, m_image_size);
             }
         }
     };
     
     /**
-     * loads data from disk using meta-data (asynchronously)
+     * loads data from disk using meta-data (asynchronously).
      */
     class voc_detection_pipe{
         private:
             mutable boost::mutex m_loaded_data_mutex; /// workers use this to ensure thread-safe access to m_loaded_data.
+
+            unsigned int m_image_size; ///< the size of the images extracted
 
             const std::vector<bbtools::image_meta_info>& dataset;
             const voc_detection_dataset::output_properties& m_output_properties;
@@ -383,15 +387,18 @@ namespace cuvnet
              * constructor.
              *
              * @param ds dataset metadata
+             * @param image_size the size of the output images
              * @param n_threads if 0, use number of CPUs
              * @param min_pipe_len when to start filling pipe
              * @param max_pipe_len when to stop filling pipe
              */
             voc_detection_pipe(
                     const std::vector<bbtools::image_meta_info>& ds,
+                    unsigned int image_size,
                     const voc_detection_dataset::output_properties& op,
                     unsigned int n_threads=0, unsigned int min_pipe_len=32, unsigned int max_pipe_len=0)
                 : dataset(ds)
+                , m_image_size(image_size)
                 , m_output_properties(op)
                 , m_min_pipe_len(min_pipe_len)
                 , m_max_pipe_len(max_pipe_len > min_pipe_len ? max_pipe_len : 3 * min_pipe_len)
@@ -413,7 +420,7 @@ namespace cuvnet
             }
 
             /**
-             * call this externally to stop pipe thread
+             * call this externally to stop pipe thread.
              */
             void request_stop(){ 
                 m_request_stop = true; 
@@ -421,6 +428,11 @@ namespace cuvnet
                 m_running = false;
             }
 
+            /**
+             * get the N patterns from the queue, blocks if they're not available.
+             * @param dest the list to write the patterns to
+             * @param n the number of patterns requested
+             */
             void get_batch(std::list<voc_detection_dataset::pattern>& dest, unsigned int n){
                 if(m_min_pipe_len < n){
                     m_min_pipe_len = n;
@@ -470,6 +482,7 @@ namespace cuvnet
                             grp.create_thread(
                                     voc_detection_file_loader(
                                         &m_loaded_data_mutex,
+                                        m_image_size,
                                         &m_loaded_data,
                                         &dataset[idxs[cnt]],
                                         &m_output_properties));
@@ -503,13 +516,13 @@ namespace cuvnet
 
         switch(ss){
             case SS_TRAIN:
-                m_pipe.reset(new voc_detection_pipe(m_training_set, m_output_properties, n_threads));
+                m_pipe.reset(new voc_detection_pipe(m_training_set, m_image_size, m_output_properties, n_threads));
                 break;
             case SS_VAL:
-                m_pipe.reset(new voc_detection_pipe(m_val_set, m_output_properties, n_threads));
+                m_pipe.reset(new voc_detection_pipe(m_val_set, m_image_size, m_output_properties, n_threads));
                 break;
             case SS_TEST:
-                m_pipe.reset(new voc_detection_pipe(m_test_set, m_output_properties, n_threads));
+                m_pipe.reset(new voc_detection_pipe(m_test_set, m_image_size, m_output_properties, n_threads));
                 break;
             default:
                 throw std::runtime_error("VOC Detection Dataset: cannot switch to supplied subset!");
@@ -517,7 +530,9 @@ namespace cuvnet
         m_pipe->start();
     }
 
-    voc_detection_dataset::voc_detection_dataset(const std::string& train_filename, const std::string& test_filename, int n_threads, bool verbose)
+    voc_detection_dataset::voc_detection_dataset(const std::string& train_filename, const std::string& test_filename, int image_size, int n_threads, bool verbose)
+    :   m_image_size(image_size),
+        m_n_threads(n_threads)
     {
         read_meta_info(m_training_set, train_filename, verbose);
         read_meta_info(m_test_set, test_filename, verbose);

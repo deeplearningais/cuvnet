@@ -46,6 +46,7 @@ namespace cuvnet
                     unsigned int crop_h, unsigned int crop_w);
             
         private:
+            int m_image_size;
             int m_n_threads;
             std::list<pattern> m_return_queue;
 
@@ -63,7 +64,7 @@ namespace cuvnet
              * @param n_threads number of threads to start for queue. If zero, use number of CPUs
              * @param verbose if true, print number of images loaded
              */
-            voc_detection_dataset(const std::string& train_filename, const std::string& test_filename, int n_threads=0, bool verbose=false);
+            voc_detection_dataset(const std::string& train_filename, const std::string& test_filename, int image_size=128, int n_threads=0, bool verbose=false);
 
             enum subset{
                 SS_TRAIN, SS_VAL, SS_TEST
