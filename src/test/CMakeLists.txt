@@ -18,5 +18,7 @@ if ( PYTHONLIBS_FOUND )
     target_link_libraries(${PROJECT_TEST_NAME}  ${PYTHON_LIBRARIES})
 endif( PYTHONLIBS_FOUND )
 
+add_subdirectory(data)
+
 add_test(btest ${PROJECT_TEST_NAME})
 
