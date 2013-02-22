@@ -1,8 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as mc
 import matplotlib as mpl
 from matplotlib.widgets import Slider
 from scipy.ndimage import zoom
+#from IPython.core.debugger import Tracer
+#tracer = Tracer()
 
 def cfg(ax):
     ax.xaxis.set_visible(False)
@@ -14,6 +17,11 @@ def center_0(x):
     v += t
     v /= 2*t
     return v
+
+
+def normalizer(data):
+    v = np.abs(data).max()
+    return mc.Normalize(vmin=-v, vmax=v)
 
 
 def generic_filters(x, trans=True, maxx=16, maxy=12, sepnorm=False, vmin=None, vmax=None):
@@ -50,7 +58,7 @@ def generic_filters(x, trans=True, maxx=16, maxy=12, sepnorm=False, vmin=None, v
     return fig
 
 
-def rgb_filters(x, trans=True, sepnorm=False):
+def rgb_filters(x, trans=True, sepnorm=True):
     """ visualize an RGB filter matrix """
     print x.min(), x.mean(), x.max()
     print x.shape
@@ -61,7 +69,7 @@ def rgb_filters(x, trans=True, sepnorm=False):
         # this is an input image array
         n_pix_x = x.shape[2] # == x.shape[3]
 
-    n_filters = min(x.shape[0], max(6, int(176*6 / n_pix_x**2)))
+    n_filters = min(x.shape[0], max(12, int(176*6 / n_pix_x)))
 
     fig, axes = plt.subplots(4, n_filters)
     fig.subplots_adjust(hspace=0.00, wspace=0.00,
@@ -75,9 +83,12 @@ def rgb_filters(x, trans=True, sepnorm=False):
                 flt -= flt.min()
                 flt /= flt.max()
             res = ax.matshow(flt.reshape(n_pix_x, n_pix_x), cmap="binary")
-            res.set_norm(norm)
+            if not sepnorm:
+                res.set_norm(norm)
         else:
-            flt = np.fliplr(np.rot90(x[i / 4, :, :].T, 3))
+            #flt = np.fliplr(np.rot90(x[i / 4, :, :].T, 3))
+            flt = np.rot90(x[i / 4, :, :], 3)
+            #tracer()
             flt -= flt.min()
             flt /= flt.max()
             ax.imshow(
@@ -274,7 +285,11 @@ class obj_detection_gui_spawn:
             node = op.get_sink(long(ptr, 0))
         else:
             node = op.get_node(long(ptr, 0))
-        vsi = get_valid_shape_info(self.input_op, node)
+        vsi = None
+        try:
+            vsi = get_valid_shape_info(self.input_op, node)
+        except:
+            print "No get_valid_shape_info!"
         og = obj_detection_gui(self, typ, node, vsi)
         self.children.append(og)
         og.update()
@@ -318,6 +333,7 @@ class obj_detection_gui:
     def draw(self):
         print "draw:", self.parent.batch_idx
         data = self.data
+        sepnorm = False
         if data.ndim == 3:
             # weights
             n_src, n_fltpix, n_dst = data.shape
@@ -331,16 +347,24 @@ class obj_detection_gui:
                 self.fig.subplots_adjust(hspace=0.00, wspace=0.00,
                         left=0, top=1, bottom=0.10, right=1)
                 self.fig.canvas.mpl_connect('close_event', lambda e: self.parent.remove_child(self))
+
+            if not sepnorm:
+                data = center_0(data)
             for ax, i in zip(self.axes.flatten(), xrange(np.prod(self.axes.shape))):
                 idx_dst = i % n_dst
                 idx_src = i / n_dst
                 if n_src != 3 or idx_src != 3:
                     flt = data[idx_src, :, idx_dst]
-                    flt = center_0(flt)
+                    if sepnorm:
+                        flt = center_0(flt)
+                    else:
+                        print "before", flt.flags
+                        flt = flt.copy()
+                        print "after", flt.flags
+                        #flt = np.clip(flt, 0, 1)
+                    print "Filter : ", flt[0:3]
                     ax.cla()
-                    ax.imshow(flt.reshape(n_fltpix, n_fltpix),
-                            cmap="PuOr", vmin=0, vmax=1,
-                            origin="upper", interpolation="nearest")
+                    ax.matshow(flt.reshape(n_fltpix, n_fltpix), cmap="PuOr", vmin=0, vmax=1)
                 else:
                     flt = data[:, :, idx_dst].reshape(3, n_fltpix, n_fltpix)
                     flt = np.rollaxis(flt, 0, 3)  # move dst axis to end
@@ -357,6 +381,8 @@ class obj_detection_gui:
                 # this is the "weird" format preferred by Alex' convolutions.
                 n_maps, n_pixy, n_pixx, n_bs = data.shape
                 data = data.reshape(n_maps*n_pixy*n_pixx,n_bs).T.reshape(n_bs,n_maps,n_pixy,n_pixx)
+            if not sepnorm:
+                data = center_0(data)
             n_plots_y = min(4, n_bs)
             n_plots_x = min(6, n_maps)
             if n_maps == 3:
@@ -386,20 +412,23 @@ class obj_detection_gui:
                     # most likely an output map, which we can now compare to the input map
                     input = self.parent.input.cache[idx_y].copy()
                     flt = data[self.parent.batch_idx + idx_y, self.map_idx + idx_x, :, :]
-                    flt = center_0(flt)
-                    final_start = self.vsi.crop_h / 2
-                    final_size = (input.shape[0] - self.vsi.crop_h) / self.vsi.scale_h
-                    input = input[final_start:-final_start, final_start:-final_start]
-                    input = zoom(input, float(final_size)/input.shape[0])
-                    input -= input.min()
-                    input *= flt.ptp() / input.max()
-                    input += flt.min()
-                    flt = self.transp*input + (1-self.transp)*flt
+                    if sepnorm:
+                        flt = center_0(flt)
+                    if self.vsi is not None:
+                        final_start = self.vsi.crop_h / 2
+                        final_size = (input.shape[0] - self.vsi.crop_h) / self.vsi.scale_h
+                        input = input[final_start:-final_start, final_start:-final_start]
+                        input = zoom(input, float(final_size)/input.shape[0])
+                        input -= input.min()
+                        input *= flt.ptp() / input.max()
+                        input += flt.min()
+                        flt = self.transp*input + (1-self.transp)*flt
                     ax.cla()
                     ax.matshow(flt.reshape(n_pixy, n_pixx), cmap="PuOr", vmin=0, vmax=1)
                 elif n_maps != 3 or idx_x != 3:
                     flt = data[self.parent.batch_idx + idx_y, self.map_idx + idx_x, :, :]
-                    flt = center_0(flt)
+                    if sepnorm:
+                        flt = center_0(flt)
                     ax.cla()
                     ax.matshow(flt.reshape(n_pixy, n_pixx), cmap="PuOr", vmin=0, vmax=1)
                 else:
