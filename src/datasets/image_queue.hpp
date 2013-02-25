@@ -129,6 +129,9 @@ namespace cuvnet
          */
         struct output_properties{
             unsigned int scale_h, scale_w, crop_h, crop_w;
+            output_properties(unsigned int scale_h_, unsigned int scale_w_, unsigned int crop_h_, unsigned int crop_w_)
+                :scale_h(scale_h_), scale_w(scale_w_), crop_h(crop_h_), crop_w(crop_w_)
+            {}
         };
 
         /**
