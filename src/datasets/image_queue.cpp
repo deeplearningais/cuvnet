@@ -103,7 +103,7 @@ namespace cuvnet { namespace image_datasets {
         pattern* pat_ptr = new pattern;
         pattern& pat = *pat_ptr;
         //pat.meta_info = *meta;
-        int n_dim = m_grayscale ? 3 : 1;
+        int n_dim = m_grayscale ? 1 : 3;
         pat.img.resize(cuv::extents[n_dim][m_pattern_size][m_pattern_size]);
         pat.tch.resize(cuv::extents[tch.depth()][tch.height()][tch.width()]);
         pat.ign.resize(cuv::extents[ign.depth()][ign.height()][ign.width()]);
