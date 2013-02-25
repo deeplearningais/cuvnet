@@ -3,6 +3,7 @@
 
 #include <queue>
 #include <boost/thread.hpp>
+#include <cuvnet/tools/logging.hpp>
 #include <datasets/bounding_box_tools.hpp>
 
 namespace cuvnet
@@ -33,8 +34,11 @@ namespace cuvnet
             private:
                 mutable boost::mutex m_mutex;
                 std::queue<PatternType*> m_queue;
+                log4cxx::LoggerPtr m_log;
             public:
-                image_queue(){}
+                image_queue(){
+                    m_log = log4cxx::Logger::getLogger("image_queue");
+                }
 
                 void push(PatternType* pat, bool lock=true){ 
                     if(!lock){
@@ -67,7 +71,10 @@ namespace cuvnet
                 {
                     // TODO: use boost condition_variable!                                                                                                                      
                     while(size() < n)                                                                                                                                           
+                    {
+                        //LOG4CXX_WARN(m_log, "queue size="<<size()<<", but requested "<<n<<" patterns-->sleeping");
                         boost::this_thread::sleep(boost::posix_time::millisec(10));                                                                                             
+                    }
 
                     // TODO: when getting lock fails, loop again above!                                                                                                         
                     //       that way, multiple clients can use the same queue                                                                                                  
@@ -89,6 +96,7 @@ namespace cuvnet
                 std::vector<bbtools::image_meta_info> m_dataset;
                 std::vector<unsigned int> m_indices;
                 void read_meta_info(std::vector<bbtools::image_meta_info>& dest, const std::string& filename);
+                log4cxx::LoggerPtr m_log;
             public:
                 /**
                  * ctor.
@@ -157,6 +165,7 @@ namespace cuvnet
             private:
                 bool m_grayscale;
                 unsigned int m_pattern_size;
+                log4cxx::LoggerPtr m_log;
             public:
                 /**
                  * @param queue where to put the results
@@ -202,6 +211,7 @@ namespace cuvnet
                 bool m_request_stop;
 
                 WorkerFactory m_worker_factory;
+                log4cxx::LoggerPtr m_log;
 
                 unsigned int m_min_pipe_len, m_max_pipe_len;
             public:
@@ -227,12 +237,15 @@ namespace cuvnet
                 {
                     if(n_threads == 0)
                         m_n_threads = boost::thread::hardware_concurrency();
+
+                    m_log = log4cxx::Logger::getLogger("loader_pool");
                 }
                 /**
                  * start filling the queue asynchronously.
                  */
                 void start(){
                     m_pool_thread = boost::thread(boost::ref(*this));
+                    LOG4CXX_INFO(m_log, "started");
                 }
 
                 /**
@@ -240,7 +253,9 @@ namespace cuvnet
                  */
                 void request_stop(){
                     m_request_stop = true;
+                    LOG4CXX_INFO(m_log, "stop requested");
                     m_pool_thread.join();
+                    LOG4CXX_INFO(m_log, "finished");
                 }
 
                 /// dtor.

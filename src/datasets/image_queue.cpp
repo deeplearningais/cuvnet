@@ -15,6 +15,10 @@ namespace cuvnet { namespace image_datasets {
 
     void image_dataset::read_meta_info(std::vector<bbtools::image_meta_info>& dest, const std::string& filename){
         std::ifstream ifs(filename.c_str());
+        if(!ifs) {
+            LOG4CXX_ERROR(m_log, "Could not open metadata in `"<<filename<<"'");
+            exit(1);
+        }
         unsigned int n_objs;
         unsigned int cnt_imgs=0, cnt_objs=0;
         while(ifs){
@@ -35,12 +39,11 @@ namespace cuvnet { namespace image_datasets {
             dest.push_back(imi);
             cnt_imgs ++;
         }
-        if(true){
-            std::cout << "MetaData loaded:" << filename << " cnt_imgs:" << cnt_imgs << " cnt_objs:" << cnt_objs << std::endl;
-        }
+        LOG4CXX_WARN(m_log, "MetaData loaded:" << filename << " cnt_imgs:" << cnt_imgs << " cnt_objs:" << cnt_objs);
     }
 
     image_dataset::image_dataset(const std::string& filename, bool shuffle){
+        m_log = log4cxx::Logger::getLogger("image_dataset");
         read_meta_info(m_dataset, filename);
         for (unsigned int i = 0; i < m_dataset.size(); ++i)
             m_indices.push_back(i);
@@ -60,9 +63,12 @@ namespace cuvnet { namespace image_datasets {
         , m_grayscale(grayscale)
         , m_pattern_size(pattern_size)
     {
+        m_log = log4cxx::Logger::getLogger("whole_image_loader");
+        //LOG4CXX_INFO(m_log, "started: pattern_size="<<m_pattern_size<<", grayscale="<<m_grayscale);
     }
 
     void whole_image_loader::operator()(){
+        //LOG4CXX_INFO(m_log, "processing file `"<<m_meta->filename<<"'");
         bbtools::image bbimg(m_meta->filename);
         bbimg.meta = *m_meta;
         
@@ -109,6 +115,7 @@ namespace cuvnet { namespace image_datasets {
         pat.img -= 0.5f;
         pat.ign /= 255.f;
 
+        //LOG4CXX_INFO(m_log, "done processing pattern, pushing to queue");
         m_queue->push(pat_ptr);
     }
         
