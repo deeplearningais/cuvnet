@@ -115,6 +115,8 @@ namespace cuvnet { namespace image_datasets {
         pat.img -= 0.5f;
         pat.ign /= 255.f;
 
+        pat.tch /= 255.f; // in [0, 1]
+
         //LOG4CXX_INFO(m_log, "done processing pattern, pushing to queue");
         m_queue->push(pat_ptr);
     }
