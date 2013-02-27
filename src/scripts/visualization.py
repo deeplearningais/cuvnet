@@ -7,15 +7,17 @@ from scipy.ndimage import zoom
 #from IPython.core.debugger import Tracer
 #tracer = Tracer()
 
+
 def cfg(ax):
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
+
 
 def center_0(x):
     t = np.abs(x).max()
     v = x.copy()
     v += t
-    v /= 2*t
+    v /= 2 * t
     return v
 
 
@@ -36,7 +38,7 @@ def generic_filters(x, trans=True, maxx=16, maxy=12, sepnorm=False, vmin=None, v
     n_pix_x = int(np.sqrt(x.shape[2]))
     fig, axes = plt.subplots(n_filters_x, n_filters_y)
     fig.subplots_adjust(hspace=0.00, wspace=0.00,
-            left=0, top=1, bottom=0.10, right=1)
+                        left=0, top=1, bottom=0.10, right=1)
     for ax, i in zip(axes.T.flatten(), xrange(np.prod(axes.shape))):
         idx_x = i % n_filters_x
         idx_y = i / n_filters_x
@@ -67,13 +69,13 @@ def rgb_filters(x, trans=True, sepnorm=True):
         n_pix_x = int(np.sqrt(x.shape[2]))
     elif len(x.shape) == 4:
         # this is an input image array
-        n_pix_x = x.shape[2] # == x.shape[3]
+        n_pix_x = x.shape[2]  # == x.shape[3]
 
-    n_filters = min(x.shape[0], max(12, int(176*6 / n_pix_x)))
+    n_filters = min(x.shape[0], max(12, int(176 * 6 / n_pix_x)))
 
     fig, axes = plt.subplots(4, n_filters)
     fig.subplots_adjust(hspace=0.00, wspace=0.00,
-            left=0, top=1, bottom=0.2, right=1)
+                        left=0, top=1, bottom=0.2, right=1)
     norm = mpl.colors.Normalize(vmin=x.min(), vmax=x.max())
     for ax, i in zip(axes.T.flatten(), xrange(np.prod(axes.shape))):
         idx = i % 4
@@ -92,8 +94,8 @@ def rgb_filters(x, trans=True, sepnorm=True):
             flt -= flt.min()
             flt /= flt.max()
             ax.imshow(
-                    flt.reshape(n_pix_x, n_pix_x, 3),
-                    interpolation='nearest')
+                flt.reshape(n_pix_x, n_pix_x, 3),
+                interpolation='nearest')
 
         cfg(ax)
     if not sepnorm:
@@ -101,30 +103,32 @@ def rgb_filters(x, trans=True, sepnorm=True):
         fig.colorbar(res, cax=cbaxes, orientation='horizontal')
     return fig
 
+
 def mnist_filters(data, n_filters_y=9, n_filters_x=16):
     if n_filters_x * n_filters_y > data.shape[1]:
         n_filters_x = int(np.sqrt(data.shape[1]))
         n_filters_y = int(np.sqrt(data.shape[1]))
     fig, axes = plt.subplots(n_filters_x, n_filters_y)
     fig.subplots_adjust(hspace=0.00, wspace=0.00,
-            left=0, top=1, bottom=0.2, right=1)
+                        left=0, top=1, bottom=0.2, right=1)
 
     norm = mpl.colors.Normalize(vmin=data.min(), vmax=data.max())
     for ax, i in zip(axes.T.flatten(), xrange(np.prod(axes.shape))):
-        flt = data[:,i]
+        flt = data[:, i]
         #if sepnorm:
         #    flt -= flt.min()
         #    flt /= flt.max()
         n = int(np.sqrt(data.shape[0]))
         #t = np.abs(flt).max()
         #res = ax.matshow(flt.reshape(n,n), cmap="PuOr",vmin=-t,vmax=t)
-        res = ax.matshow(flt.reshape(n,n), cmap="binary")
+        res = ax.matshow(flt.reshape(n, n), cmap="binary")
         res.set_norm(norm)
         cfg(ax)
 
 import xdot
 import gtk
 import gtk.gdk
+
 
 class MNISTVisor:
     def __init__(self, s=28):
@@ -144,11 +148,11 @@ class MNISTVisor:
             plt.ion()
             plt.show()
         elif len(data.shape) == 2 and self.input_size ** 2 == data.shape[0]:
-            mnist_filters(data) # do not transpose
+            mnist_filters(data)  # do not transpose
             plt.ion()
             plt.show()
         else:
-            plt.hist(data.flatten(),20)
+            plt.hist(data.flatten(), 20)
             plt.ion()
             plt.show()
 
@@ -161,6 +165,7 @@ class MNISTVisor:
         else:
             node = op.get_node(long(ptr, 0))
         self.show(typ, node)
+
 
 class MapsVisor:
     def __init__(self):
@@ -198,7 +203,7 @@ class MapsVisor:
                 plt.ion()
                 plt.show()
             else:
-                plt.hist(data.flatten(),20)
+                plt.hist(data.flatten(), 20)
                 plt.ion()
                 plt.show()
         elif typ == "generic":
@@ -211,7 +216,7 @@ class MapsVisor:
                 plt.ion()
                 plt.show()
             else:
-                plt.hist(data.flatten(),20)
+                plt.hist(data.flatten(), 20)
                 plt.ion()
                 plt.show()
         return True
@@ -246,6 +251,7 @@ def show_op(op, visor=MapsVisor()):
     window.connect('destroy', gtk.main_quit)
     gtk.main()
 
+
 def show_objdet(op):
     op.evaluate()
     o = op.get_sink("output")
@@ -253,6 +259,7 @@ def show_objdet(op):
     MapsVisor().show("sink", o)
     MapsVisor().show("input", op.get_parameter("input"))
     MapsVisor().show("input", op.get_parameter("target"))
+
 
 class obj_detection_gui_spawn:
     def __init__(self, op):
@@ -266,7 +273,6 @@ class obj_detection_gui_spawn:
         self.input = og
         plt.ion()
         plt.show()
-
 
     def remove_child(self, c):
         self.children.remove(c)
@@ -295,6 +301,7 @@ class obj_detection_gui_spawn:
         og.update()
         plt.ion()
         plt.show()
+
 
 class obj_detection_gui:
     def __init__(self, parent, type, op, vsi, name="unknown"):
@@ -325,10 +332,10 @@ class obj_detection_gui:
     def set_sink(self, sink):
         self.typ = "sink"
         self.op = sink
-        self.draw("sink",sink.evaluate().np)
+        self.draw("sink", sink.evaluate().np)
 
     def set_input(self, input):
-        self.draw("data",input.data.np)
+        self.draw("data", input.data.np)
 
     def draw(self):
         print "draw:", self.parent.batch_idx
@@ -380,7 +387,7 @@ class obj_detection_gui:
             if n_pixy != n_pixx:
                 # this is the "weird" format preferred by Alex' convolutions.
                 n_maps, n_pixy, n_pixx, n_bs = data.shape
-                data = data.reshape(n_maps*n_pixy*n_pixx,n_bs).T.reshape(n_bs,n_maps,n_pixy,n_pixx)
+                data = data.reshape(n_maps * n_pixy * n_pixx, n_bs).T.reshape(n_bs, n_maps, n_pixy, n_pixx)
             if not sepnorm:
                 data = center_0(data)
             n_plots_y = min(4, n_bs)
@@ -390,24 +397,24 @@ class obj_detection_gui:
             if not hasattr(self, "fig"):
                 self.fig, self.axes = plt.subplots(n_plots_y, n_plots_x)
                 self.fig.subplots_adjust(hspace=0.00, wspace=0.00,
-                        left=0, top=1, bottom=0.15, right=1)
+                                         left=0, top=1, bottom=0.15, right=1)
                 self.fig.canvas.mpl_connect('close_event', lambda e: self.parent.remove_child(self))
 
                 ax_batch = plt.axes([.25, .10, .65, .05])
-                self.s_batch = Slider(ax_batch, 'idx in batch',0,n_bs-4,valinit=0)
+                self.s_batch = Slider(ax_batch, 'idx in batch', 0, n_bs - 4, valinit=0)
                 self.s_batch.on_changed(lambda val: self.parent.set_batch_idx(val))
 
                 ax_map = plt.axes([.25, .05, .65, .05])
-                self.s_map = Slider(ax_map, 'idx of map',0,n_maps-6,valinit=0)
+                self.s_map = Slider(ax_map, 'idx of map', 0, n_maps - 6, valinit=0)
                 self.s_map.on_changed(lambda val: self.update())
 
                 ax_transp = plt.axes([.25, .00, .65, .05])
-                self.s_transp = Slider(ax_transp, 'transparency',0.,1.,valinit=0.)
+                self.s_transp = Slider(ax_transp, 'transparency', 0., 1., valinit=0.)
                 self.s_transp.on_changed(lambda val: self.update())
 
             for ax, i in zip(self.axes.flatten(), xrange(np.prod(self.axes.shape))):
-                idx_x = i % n_plots_x # map
-                idx_y = i / n_plots_x # batch
+                idx_x = i % n_plots_x  # map
+                idx_y = i / n_plots_x  # batch
                 if n_maps == 1 and self.name != "input" and self.transp != 0.:
                     # most likely an output map, which we can now compare to the input map
                     input = self.parent.input.cache[idx_y].copy()
@@ -418,11 +425,11 @@ class obj_detection_gui:
                         final_start = self.vsi.crop_h / 2
                         final_size = (input.shape[0] - self.vsi.crop_h) / self.vsi.scale_h
                         input = input[final_start:-final_start, final_start:-final_start]
-                        input = zoom(input, float(final_size)/input.shape[0])
+                        input = zoom(input, float(final_size) / input.shape[0])
                         input -= input.min()
                         input *= flt.ptp() / input.max()
                         input += flt.min()
-                        flt = self.transp*input + (1-self.transp)*flt
+                        flt = self.transp * input + (1 - self.transp) * flt
                     ax.cla()
                     ax.matshow(flt.reshape(n_pixy, n_pixx), cmap="PuOr", vmin=0, vmax=1)
                 elif n_maps != 3 or idx_x != 3:
@@ -444,7 +451,6 @@ class obj_detection_gui:
             # biases, loss, etc
             plt.hist(data, 20)
             pass
-
 
 
 def evaluate_bioid(loss, load_batch, n_batches):
@@ -476,7 +482,7 @@ def evaluate_bioid(loss, load_batch, n_batches):
             mo0 = center_of_mass(o0, mask0)
             mo1 = center_of_mass(o1, mask1)
             dst = max(norm(mo0 - mt0),
-                    norm(mo1 - mt1)) / norm(mt0 - mt1)
+                      norm(mo1 - mt1)) / norm(mt0 - mt1)
             L.append(dst)
     L = np.array(L)
     print "n =", len(L)
