@@ -376,6 +376,7 @@ namespace cuvnet
         private:
             std::vector<Op::value_type> m_learnrates; ///< per-weight learning rates
             std::vector<cuv::tensor<signed char,Op::value_type::memory_space_type> > m_old_dw;     ///< old delta-w signs
+            float m_l1decay;
 
             unsigned int m_n_batches;
 
@@ -391,6 +392,8 @@ namespace cuvnet
              * @param weightdecay weight decay for weight updates
              */
         rprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f);
+
+        inline void set_l1decay(float f){ m_l1decay = f; }
 
         protected:
         /**

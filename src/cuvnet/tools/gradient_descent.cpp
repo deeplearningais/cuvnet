@@ -176,7 +176,7 @@ namespace cuvnet
     }
 
     rprop_gradient_descent::rprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay)
-        :gradient_descent(op, result, params, learnrate, weightdecay), m_learnrates(params.size()), m_old_dw(params.size())
+        :gradient_descent(op, result, params, learnrate, weightdecay), m_learnrates(params.size()), m_old_dw(params.size()), m_l1decay(0.f)
     { 
         unsigned int i=0;
         for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
@@ -203,7 +203,7 @@ namespace cuvnet
                 dW /= (float) m_n_batches;
             float wd = m_weightdecay * param->get_weight_decay_factor();
             //cuv::rprop(*param->data_ptr().ptr(), dW, m_old_dw[i], m_learnrates[i],  0.0000000f, m_weightdecay);
-            cuv::rprop(*param->data_ptr().ptr(), dW, m_old_dw[i], m_learnrates[i], wd, 0.0000000f);
+            cuv::rprop(*param->data_ptr().ptr(), dW, m_old_dw[i], m_learnrates[i], wd, m_l1decay);
             param->reset_delta();
         }
         m_n_batches = 0;
