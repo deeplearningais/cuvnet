@@ -342,44 +342,68 @@ class obj_detection_gui:
         data = self.data
         sepnorm = False
         if data.ndim == 3:
+            n_max = 4
             # weights
             n_src, n_fltpix, n_dst = data.shape
-            n_dst = min(12, n_dst)  # limit number of shown subplots
             n_fltpix = int(np.sqrt(n_fltpix))
-            n_plots_y = n_src
+            n_plots_y = min(n_max, n_src)
+            n_plots_x = min(n_max, n_dst)
             if n_src == 3:
                 n_plots_y += 1
+
             if not hasattr(self, "fig"):
-                self.fig, self.axes = plt.subplots(n_plots_y, n_dst)
+                self.fig, self.axes = plt.subplots(n_plots_y, n_plots_x)
                 self.fig.subplots_adjust(hspace=0.00, wspace=0.00,
-                        left=0, top=1, bottom=0.10, right=1)
+                                         left=0, top=1, bottom=0.10, right=1)
                 self.fig.canvas.mpl_connect('close_event', lambda e: self.parent.remove_child(self))
+
+                ax_map = plt.axes([.25, .05, .65, .05])
+                self.s_filter_src = Slider(ax_map, 'src start index', 0, max(0, n_src - n_max), valinit=0)
+                self.s_filter_src.on_changed(lambda val: self.update())
+
+                ax_transp = plt.axes([.25, .00, .65, .05])
+                self.s_filter_dst = Slider(ax_transp, 'dst start index', 0, max(0, n_dst - n_max), valinit=0)
+                self.s_filter_dst.on_changed(lambda val: self.update())
 
             if not sepnorm:
                 data = center_0(data)
-            for ax, i in zip(self.axes.flatten(), xrange(np.prod(self.axes.shape))):
+
+            all_flt = np.zeros((n_src * n_fltpix, n_dst * n_fltpix))
+            for i in xrange(n_src * n_dst):
                 idx_dst = i % n_dst
                 idx_src = i / n_dst
-                if n_src != 3 or idx_src != 3:
-                    flt = data[idx_src, :, idx_dst]
-                    if sepnorm:
-                        flt = center_0(flt)
-                    else:
-                        print "before", flt.flags
-                        flt = flt.copy()
-                        print "after", flt.flags
-                        #flt = np.clip(flt, 0, 1)
-                    print "Filter : ", flt[0:3]
-                    ax.cla()
-                    ax.matshow(flt.reshape(n_fltpix, n_fltpix), cmap="PuOr", vmin=0, vmax=1)
-                else:
-                    flt = data[:, :, idx_dst].reshape(3, n_fltpix, n_fltpix)
-                    flt = np.rollaxis(flt, 0, 3)  # move dst axis to end
-                    flt -= flt.min()
-                    flt /= flt.max()
-                    ax.cla()
-                    ax.imshow(flt, interpolation='nearest')
-                cfg(ax)
+                flt = data[idx_src, :, idx_dst]
+                if sepnorm:
+                    flt = center_0(flt)
+                all_flt[idx_src * n_fltpix:idx_src * n_fltpix + n_fltpix,
+                        idx_dst * n_fltpix:idx_dst * n_fltpix + n_fltpix] = flt.reshape(n_fltpix, n_fltpix)
+            plt.matshow(all_flt, cmap="PuOr", vmin=0, vmax=1)
+
+            print "DST: ", int(self.s_filter_dst.val), "of", n_dst
+            print "SRC: ", int(self.s_filter_src.val), "of", n_src
+            #for ax, i in zip(self.axes.flatten(), xrange(np.prod(self.axes.shape))):
+            #    idx_dst = (i % n_plots_x) + int(self.s_filter_dst.val)
+            #    idx_src = (i / n_plots_y) + int(self.s_filter_src.val)
+            #    if n_src != 3 or idx_src != 3:
+            #        flt = data[idx_src, :, idx_dst]
+            #        if sepnorm:
+            #            flt = center_0(flt)
+            #        else:
+            #            #print "before", flt.flags
+            #            flt = flt.copy()  # matplotlib destroys data somehow!???
+            #            #print "after", flt.flags
+            #            #flt = np.clip(flt, 0, 1)
+            #        #print "Filter : ", flt[0:3]
+            #        ax.cla()
+            #        ax.matshow(flt.reshape(n_fltpix, n_fltpix), cmap="PuOr", vmin=0, vmax=1)
+            #    else:
+            #        flt = data[:, :, idx_dst].reshape(3, n_fltpix, n_fltpix)
+            #        flt = np.rollaxis(flt, 0, 3)  # move dst axis to end
+            #        flt -= flt.min()
+            #        flt /= flt.max()
+            #        ax.cla()
+            #        ax.imshow(flt, interpolation='nearest')
+            #    cfg(ax)
 
         elif data.ndim == 4:
             # images
