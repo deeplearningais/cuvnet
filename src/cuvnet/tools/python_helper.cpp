@@ -92,6 +92,13 @@ namespace cuvnet
         return valid_shape_info(a,b);
     }
 
+    bool operator==(const Op& a, const Op& b){
+        return &a == &b;
+    }
+    bool operator!=(const Op& a, const Op& b){
+        return &a != &b;
+    }
+
     void export_module(){
         using namespace boost::python;
         class_<Op, boost::shared_ptr<OpWrap>, boost::noncopyable >("Op", no_init)
@@ -122,6 +129,8 @@ namespace cuvnet
                     (Sink* (*)(const boost::shared_ptr<Op>&, const std::string&)) get_node, 
                     return_internal_reference<1>())
             .def("evaluate", &evaluate_op)
+            .def(self == self)
+            .def(self != self)
             ;
 
         class_<Sink, boost::shared_ptr<Sink> >("Sink", no_init)
