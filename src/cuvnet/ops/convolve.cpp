@@ -209,6 +209,122 @@ namespace cuvnet
         m_results[0]->shape = dst;
     }
 
+
+
+
+    /***************************************************
+     * Convolve2dTheano 
+     ***************************************************/
+
+    void Convolve2dTheano::fprop(){
+        using namespace cuv;
+        using namespace cuv::theano_conv;
+        param_t::element_type&  p0 = *m_params[0];
+        param_t::element_type&  p1 = *m_params[1];
+        result_t::element_type& r0 = *m_results[0];
+        cuvAssert(p0.value.cdata().is_c_contiguous());
+
+        if(r0.can_overwrite_directly()){
+            convolve_2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_mode);
+        }else{
+            // reallocate *sigh*
+            value_ptr v(new value_type(r0.shape));
+            convolve_2d(*v, p0.value.cdata(), p1.value.cdata(), m_mode);
+            r0.push(v);
+        }
+        if(!p0.need_derivative && !p1.need_derivative)
+        {
+            p0.value.reset();
+            p1.value.reset();
+        }    
+    }
+
+
+    void Convolve2dTheano::bprop(){
+        using namespace cuv;
+        using namespace cuv::theano_conv;
+
+        param_t::element_type&  p0 = *m_params[0];
+        param_t::element_type&  p1 = *m_params[1];
+        result_t::element_type& r0 = *m_results[0];
+
+        assert(p0.need_derivative || p1.need_derivative);
+        cuvAssert(r0.delta.cdata().is_c_contiguous());
+
+
+        if(p1.need_derivative){
+            // calculate p1 first, then we don't need activations
+            // anymore and can overwrite them. They are usually
+            // larger than the weights, so it should be better in this order.
+            const value_type& delta = r0.delta.cdata();
+            const value_type& img   = p0.value.cdata();
+            if(p1.can_overwrite_directly()){
+                d_convolve_d_kern(*p1.overwrite_or_add_value(),img, delta,  m_mode);
+            }
+            else{
+                value_ptr ptr(new value_type(p1.shape));
+                value_type& dflt = *ptr;
+                d_convolve_d_kern(dflt,img, delta,  m_mode);
+                p1.push(ptr);
+            }
+        }
+        if(p0.need_derivative){
+            // derivative w.r.t. images
+            const value_type& delta = r0.delta.cdata();
+            const value_type& flt   = p1.value.cdata();
+            if(p0.can_overwrite_directly()){
+                d_convolve_d_images(*p0.overwrite_or_add_value(),delta,flt, m_mode);
+            }
+            else{
+                value_ptr ptr = p0.value;
+                p0.value.reset();       // try to overwrite input activations
+                value_type& v = ptr.data_onlyshape();
+                d_convolve_d_images(v,delta,flt, m_mode);
+                p0.push(ptr);
+            }
+        }
+        p0.value.reset();
+        p1.value.reset();
+        r0.delta.reset();
+    }
+
+    void Convolve2dTheano::_determine_shapes(){
+        /*
+         *  dst       (nImg, nFilt, nModules, nModules)
+         *  img       (nImg, nImgChan, nImgPiY, nImgPix)
+         *  filter    (nFilt,nFiltChan, nFiltPiY,nFiltPix)
+         */
+
+
+        assert(m_params[0]->shape.size()==4);
+        assert(m_params[1]->shape.size()==4);
+        std::vector<unsigned int> dst(4);
+        const std::vector<unsigned int>& img = m_params[0]->shape;
+        const std::vector<unsigned int>& flt = m_params[1]->shape;
+        unsigned int nFilt    = flt[0];
+        unsigned int nImgPixY = img[2];
+        unsigned int nImgPixX = img[3];
+        unsigned int nFltPixY = flt[2];
+        unsigned int nFltPixX = flt[3];
+
+        unsigned int nOutPixX = m_mode == "valid" ? nImgPixX+1-nFltPixX :  nImgPixX - 1 + nFltPixX; 
+        unsigned int nOutPixY = m_mode == "valid" ? nImgPixY+1-nFltPixY :  nImgPixY - 1 + nFltPixY; 
+
+        dst[0] = img[0];
+        dst[1] = nFilt;
+        dst[2] = nOutPixY;
+        dst[3] = nOutPixX;
+        m_results[0]->shape = dst;
+    }
+
+    void Convolve2dTheano::init_cuda(){
+        cuv::theano_conv::initcuda();
+    }
+    void Convolve2dTheano::finalize_cuda(){
+        cuv::theano_conv::finalize_cuda();
+    }
+
+
     /***************************************************
      * BedOfNails
      ***************************************************/

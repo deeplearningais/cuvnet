@@ -183,6 +183,9 @@ namespace cuvnet
     /// construct a Convolve object
     inline
         Op::op_ptr convolve(Op::op_ptr img, Op::op_ptr flt, bool padding=false, int partialSum=4) { return boost::make_shared<Convolve>(img->result(),flt->result(), padding, partialSum); }
+    /// construct a Convolve theano object
+    inline
+        Op::op_ptr convolve2dTheano(Op::op_ptr img, Op::op_ptr flt, std::string mode = "valid") { return boost::make_shared<Convolve2dTheano>(img->result(),flt->result(), mode); }
     /// construct a ReorderForConv object
     inline
         Op::op_ptr reorder_for_conv(Op::op_ptr img) { return boost::make_shared<ReorderForConv>(img->result()); }

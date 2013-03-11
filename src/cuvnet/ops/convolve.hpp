@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cuvnet/op.hpp>
 #include <cuv/convolution_ops/convolution_ops.hpp>
+#include <3rd_party/cuda_ndarray/convolutions.hpp>
 #include <log4cxx/logger.h>
 namespace cuvnet
 {
@@ -77,6 +78,72 @@ namespace cuvnet
                         ar & m_padding_start;
                     }
         };
+
+
+
+
+
+
+    /**
+     * convolve a set of images using a set of filters.
+     *
+     * This is the "neural net" type convolution, where filters are 3D and
+     * results are summed over input channels.
+     *
+     * First param, the images, must have shape 
+     *
+     *  nImages x nChannels x nPixels x nPixels
+     *
+     * while filters have shape
+     *  
+     *  nFilt x nFiltChannels x nFiltPix x nFiltPix 
+     *
+     *  @ingroup Ops
+     *
+     */
+    class Convolve2dTheano
+        :public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+            public:
+                Convolve2dTheano() :Op(2,1){} ///< for serialization
+                std::string m_mode;
+                /**
+                 * constructor.
+                 *
+                 * @param images nImages x nChannels x nPixels x nPixels 
+                 * @param filters nFilt x nFiltChannels x nFiltPix x nFiltPix
+                 */
+                Convolve2dTheano(result_t& images, result_t& filters, std::string mode = "valid")
+                    :Op(2,1),
+                    m_mode(mode)    
+                {
+                    add_param(0,images);
+                    add_param(1,filters);
+                }
+                void fprop();
+                void bprop();
+
+                void _determine_shapes();
+                void init_cuda();
+                void finalize_cuda();
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                    }
+        };
+
+
+
+
 
     /**
      * Bed-of-nails subsampling (take every n-th value in the input maps)
