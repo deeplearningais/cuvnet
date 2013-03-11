@@ -48,11 +48,7 @@ BOOST_AUTO_TEST_CASE( image_loading_and_queueing ){
 
     image_dataset ids("image_dataset.txt", false);
 
-    output_properties op;
-    op.scale_h = 1;
-    op.scale_w = 1;
-    op.crop_h  = 0;
-    op.crop_w  = 0;
+    output_properties op(1,1,0,0);
     for (int grayscale = 0; grayscale < 2; ++grayscale)
     {
         image_queue<pattern> q;
