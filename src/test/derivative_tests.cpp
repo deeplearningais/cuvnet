@@ -521,6 +521,41 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
     }
 }
 
+BOOST_AUTO_TEST_CASE(derivative_test_convolve_theano){
+	typedef boost::shared_ptr<Op> ptr_t;
+
+    using namespace cuv::theano_conv;
+
+        {
+            Convolve2dTheano th;
+            th.init_cuda();
+            unsigned int nImgChan = 3;      // must be divisible by nGroups
+            unsigned int nImgPixX = 5;
+            unsigned int nImgPixY = 5;
+            unsigned int nImg     = 2;
+
+            unsigned int nFiltChan = nImgChan;
+            unsigned int nFiltPixX  = 2;
+            unsigned int nFilt     = 2; 
+
+            {
+                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
+                boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFilt][nFiltChan][2][nFiltPixX], "weights");
+
+                {
+                    ptr_t func                       = boost::make_shared<Convolve2dTheano>(inp0->result(), inp1->result(), "valid");
+                    derivative_tester(*func,0,false,.03f);
+                }
+                {
+                    ptr_t func                       = boost::make_shared<Convolve2dTheano>(inp0->result(), inp1->result(), "full");
+                    derivative_tester(*func,0,false,.03f);
+                }
+            }
+            th.finalize_cuda();
+        }
+
+}
+
 BOOST_AUTO_TEST_CASE(derivative_test_pairwise_norm){
     typedef boost::shared_ptr<Op> ptr_t;
 
