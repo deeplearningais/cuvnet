@@ -29,7 +29,7 @@ namespace cuvnet
             }
         }
         void dataset_dumper::accumulate_batch(tensor_type data, tensor_type labels){
-           if (m_current_batch_num <= m_num_batches){
+           if (m_current_batch_num < m_num_batches){
                if(data.ndim() != 2)
                    data.reshape(cuv::extents[m_bs][m_whole_data.shape(1)]);
                if(labels.ndim() != 2)
