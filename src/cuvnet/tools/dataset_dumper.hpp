@@ -52,7 +52,7 @@ namespace cuvnet
          * @param data the inputs
          * @param labels the corresponding labels
          */
-        void write_to_file(const tensor_type& data, const tensor_type& labels);
+        void accumulate_batch(const tensor_type& data, const tensor_type& labels);
 
     };
 
