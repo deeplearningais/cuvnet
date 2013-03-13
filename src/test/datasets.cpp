@@ -44,14 +44,14 @@ BOOST_AUTO_TEST_SUITE( t_datasets )
         all_labels[cuv::indices[0][cuv::index_range()]] = labels;
         all_labels[cuv::indices[1][cuv::index_range()]] = labels2;
         {
-            dataset_dumper dum(file_name1, 2, 1,  3, 2);
-            dum.write_to_file(act,labels);
-            dum.write_to_file(act2,labels2);
+            dataset_dumper dum(file_name1, 2, 1,  3, 2, "tensors");
+            dum.accumulate_batch(act,labels);
+            dum.accumulate_batch(act2,labels2);
         }
         {
-            dataset_dumper dum2(file_name2, 2, 1, 3, 2);
-            dum2.write_to_file(act.copy(),labels.copy());
-            dum2.write_to_file(act2.copy(),labels2.copy());
+            dataset_dumper dum2(file_name2, 2, 1, 3, 2, "tensors");
+            dum2.accumulate_batch(act.copy(),labels.copy());
+            dum2.accumulate_batch(act2.copy(),labels2.copy());
         }
         {
             dataset_reader reader(file_name1, file_name2);
