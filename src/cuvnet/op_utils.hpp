@@ -211,6 +211,37 @@ namespace cuvnet
     };
 
     /**
+     * determine which nodes need to be evaluated in fprop and in bprop.
+     */
+    struct determine_exec_order{
+        /// the container type used to store the found objects.
+        typedef std::vector<Op*> container_type;
+
+        /**
+         * initialize the ordering.
+         *
+         * @param o the op we want to derive for
+         * @param results other, side results we want to calculate
+         * @param parameters parameters that we want to derive for
+         */
+        void init(Op* o, 
+                const std::vector<std::pair<Op*, int> >& results,
+                const std::vector<Op*>& parameters);
+
+        /// the container used to store the nodes that need to be executed during fprop in topological order.
+        container_type     fprop_nodelist;
+
+        /// the container used to store the nodes that need to be executed during bprop in topological order.
+        container_type     bprop_nodelist;
+
+        void determine_bprop_list(Op* o, const std::vector<Op*>& parameters);
+
+        void determine_fprop_list(Op* o, const std::vector<std::pair<Op*, int> >& results);
+
+        private:
+    };
+
+    /**
      * collect all ops in a list in topological order.
      * @ingroup op_visitors
      */
@@ -442,7 +473,14 @@ namespace cuvnet
      * @ingroup op_visitors
      */
     struct swiper{
-        toposort_visitor m_topo; ///< does the topological sorting for us
+        determine_exec_order m_topo; ///< contains exec order information for fprop/bprop
+
+        /**
+         * Other functions that are part of the Op graph and need to
+         * be evaluated, but not derived for.
+         */
+        std::vector<std::pair<Op*,int> > m_other_funcs; 
+
         /**
          * constructor
          *
@@ -459,13 +497,19 @@ namespace cuvnet
         }
 
         /**
+         * add a function that needs to be evaluated, but not derived
+         * for, and is part of the main Op's graph.
+         */
+        void request_other_result(Op& op, int result=0);
+
+        /**
          * calls write_graphviz with the current topological order.
          *
          * @param filename where to store the dot file
          */
         void dump(const std::string& filename){
             std::ofstream os(filename);
-            write_graphviz(*m_op, os, m_topo.plist );
+            write_graphviz(*m_op, os, m_topo.fprop_nodelist );
         }
 
         /**
@@ -477,18 +521,8 @@ namespace cuvnet
         /**
          * determine which results need to be calculated.
          */
-        void set_calculate_result(){
-            BOOST_REVERSE_FOREACH(Op* op, m_topo.plist){
-                BOOST_FOREACH(Op::result_t& r, op->m_results){
-                    r->determine_single_results();
-                    BOOST_FOREACH(boost::weak_ptr<detail::op_param<Op::value_type> >& p, r->result_uses) {
-                        if(p.lock()->get_op()->need_result())
-                            r->need_result = true;
-                        op->need_result(true);
-                    }
-                }
-            }
-        }
+        void set_calculate_result();
+
         /**
          * clean up temp vars.
          */

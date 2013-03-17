@@ -243,6 +243,102 @@ void define_graphviz_node_visitor::postorder(Op* o){
 		cnt++;
 	}
 }
+
+
+
+void determine_exec_order::init(Op* o, 
+        const std::vector<std::pair<Op*, int> >& results,
+        const std::vector<Op*>& parameters){
+    reset_needed_flags rnf;
+    o->visit(rnf, true); 
+
+    std::vector<std::pair<Op*, int> > empty;
+    determine_fprop_list(o, empty);
+    determine_bprop_list(o, parameters);
+    if(results.size() > 0)
+        determine_fprop_list(o, results);
+}
+
+void determine_exec_order::determine_bprop_list(Op* o, const std::vector<Op*>& parameters){
+    bprop_nodelist.clear();
+    std::vector<Op*> stack;
+    std::map<Op*, bool> marked;
+
+    // we need to work forward from all these
+    BOOST_FOREACH(Op* p, parameters){
+        stack.push_back(p);
+    }
+
+    while(!stack.empty()){
+        Op* top = stack.back();
+        stack.pop_back();
+
+        // stop processing if we've seen this item before
+        if(marked.find(top) != marked.end())
+            continue;
+
+        marked[top] = true;
+        top->need_derivative(true);
+        bprop_nodelist.push_back(top); // collect in reverse order
+
+        // mark all successors of top as needed
+        BOOST_FOREACH(Op::result_t& r, top->m_results){
+
+            // do not calculate derivative for parts of the op that do
+            // not need to be calculated in the 1st place.
+            if(!r->need_result)
+                continue;
+
+            // everyone else who uses this result must be derived
+            for(unsigned int i=0;i<r->result_uses.size();i++) {
+                auto p = r->use(i);
+                p->need_derivative = true;
+                Op* top_suc = p->get_op();
+                stack.push_back(top_suc);
+            }
+        }
+    }
+    std::reverse(bprop_nodelist.begin(), bprop_nodelist.end());
+}
+
+void determine_exec_order::determine_fprop_list(Op* o, const std::vector<std::pair<Op*, int> >& results){
+    fprop_nodelist.clear();
+    std::vector<Op*> stack;
+    std::map<Op*, bool> marked;
+
+    // we need to work backwards from all these
+    typedef std::pair<Op*, int> pair_t;
+    BOOST_FOREACH(const pair_t& pt, results){
+        stack.push_back(pt.first);
+    }
+    stack.push_back(o); // make sure this is processed FIRST!
+
+    while(!stack.empty()){
+        Op* top = stack.back();
+        stack.pop_back();
+
+        // stop processing if we've seen this item before
+        if(marked.find(top) != marked.end())
+            continue;
+
+        marked[top] = true;
+        top->need_result(true);
+        fprop_nodelist.push_back(top); // collect in reverse order
+
+        // mark all predecessors of top as needed
+        BOOST_FOREACH(Op::param_t& p, top->m_params){
+            for(unsigned int i=0;i<p->param_uses.size();i++) {
+                auto r = p->use(i);
+                r->need_result = true;
+                Op* top_pred = r->get_op().get();
+                stack.push_back(top_pred);
+            }
+        }
+    }
+    std::reverse(fprop_nodelist.begin(), fprop_nodelist.end());
+}
+
+
 void swiper::init()
 {
     Op& op = *m_op;
@@ -256,15 +352,7 @@ void swiper::init()
                         ptr_caster<Op,ParameterInput>()))),
             m_paramlist.end());
 
-
-    reset_needed_flags rnf;
-    op.visit(rnf);
-
-    op.result(m_result)->need_result = true; // this is the final res we're interested in
-    op.need_result(true);                  // this is a bit redundant
-
-    m_topo.clear();    // remove possible previous ordering
-    op.visit(m_topo);
+    m_topo.init(&op, m_other_funcs, m_paramlist);
     check_param_existence();
 
     this->set_calculate_result();             // determine need_result
@@ -278,9 +366,26 @@ void swiper::init()
     dump("swiper-initial.dot");
 }
 
+void swiper::set_calculate_result(){
+    BOOST_FOREACH(Op* op, m_topo.fprop_nodelist){
+        BOOST_FOREACH(Op::result_t& r, op->m_results){
+            r->determine_single_results();
+        }
+    }
+    BOOST_FOREACH(Op* op, m_topo.bprop_nodelist){
+        BOOST_FOREACH(Op::param_t& p, op->m_params){
+            p->determine_single_results();
+        }
+    }
+}
+
+void swiper::request_other_result(Op& op, int result){
+    m_other_funcs.push_back(std::make_pair(&op, result));
+}
+
 #define SWIPER_DEBUG 0
 void swiper::fprop(){
-	BOOST_FOREACH(Op* o, m_topo.plist){
+	BOOST_FOREACH(Op* o, m_topo.fprop_nodelist){
 		BOOST_FOREACH(Op::result_t& r, o->m_results){
 			BOOST_FOREACH(Op::weak_param_t p, r->result_uses){
 				p.lock()->value_set = false;
@@ -288,7 +393,7 @@ void swiper::fprop(){
 		}
 	}
     unsigned int cnt=0;
-	BOOST_FOREACH(Op* o, m_topo.plist){
+	BOOST_FOREACH(Op* o, m_topo.fprop_nodelist){
         if(o->need_result()){
             if(false){
                 detail::graphviz_node n;
@@ -305,14 +410,14 @@ void swiper::fprop(){
 }
 void swiper::bprop(bool set_last_delta_to_one){
     if(set_last_delta_to_one){
-        BOOST_FOREACH(Op::result_t& r, m_topo.plist.back()->m_results){
+        BOOST_FOREACH(Op::result_t& r, m_topo.fprop_nodelist.back()->m_results){
             if(!r->delta)
                 r->delta.reset(new Op::value_type(r->shape));
             *r->delta = 1.f;
         }
     }
 
-	BOOST_FOREACH(Op* o, m_topo.plist){
+	BOOST_FOREACH(Op* o, m_topo.bprop_nodelist){
 		BOOST_FOREACH(Op::param_t& p, o->m_params){
 			BOOST_FOREACH(Op::result_t& r, p->param_uses){
 				r->delta_set = false;
@@ -322,7 +427,7 @@ void swiper::bprop(bool set_last_delta_to_one){
 #if SWIPER_DEBUG
     unsigned int cnt=0;
 #endif
-	BOOST_REVERSE_FOREACH(Op* o, m_topo.plist){
+	BOOST_FOREACH(Op* o, m_topo.bprop_nodelist){
 		if(o->need_derivative()){
 #if SWIPER_DEBUG
             debug(cnt++,o,true,false,"bprop");
@@ -343,14 +448,14 @@ swiper::debug(unsigned int cnt, Op* o, bool results, bool params, const char* id
         boost::filesystem::create_directories(s);
         std::ofstream os ((s+"/func.dot").c_str());
     
-        write_graphviz(*m_topo.plist.back(),os,m_topo.plist,o);
+        write_graphviz(*m_topo.fprop_nodelist.back(),os,m_topo.fprop_nodelist,o);
     }
 }
 
 
 void swiper::check_param_existence()const{
     BOOST_FOREACH(Op* par, m_paramlist){
-        if (std::find(m_topo.plist.begin(), m_topo.plist.end(), par) == m_topo.plist.end()){
+        if (std::find(m_topo.fprop_nodelist.begin(), m_topo.fprop_nodelist.end(), par) == m_topo.fprop_nodelist.end()){
             Input* inp = dynamic_cast<Input*>(par);
             if(inp)
                 throw std::runtime_error("Parameter `" + inp->name() +  "' not found in the function graph");

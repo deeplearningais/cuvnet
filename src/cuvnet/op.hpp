@@ -171,6 +171,7 @@ namespace cuvnet
                  */
                 bool set_calculate_derivative(const std::vector<Op*>&l);
 
+                friend struct determine_exec_order;
                 friend struct param_collector_visitor;
                 friend struct toposort_visitor;
                 friend struct determine_shapes_visitor;
