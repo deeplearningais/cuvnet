@@ -276,6 +276,9 @@ namespace cuvnet
 
                 void _determine_shapes();
 
+                inline
+                void set_kernel(const matrix& kernel){ m_kernel = kernel; }
+
             private:
                 friend class boost::serialization::access;
                 template<class Archive>
