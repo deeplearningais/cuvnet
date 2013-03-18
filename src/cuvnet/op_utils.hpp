@@ -224,7 +224,7 @@ namespace cuvnet
          * @param results other, side results we want to calculate
          * @param parameters parameters that we want to derive for
          */
-        void init(Op* o, 
+        void init(Op* o, int o_res,
                 const std::vector<std::pair<Op*, int> >& results,
                 const std::vector<Op*>& parameters);
 
@@ -236,7 +236,7 @@ namespace cuvnet
 
         void determine_bprop_list(Op* o, const std::vector<Op*>& parameters);
 
-        void determine_fprop_list(Op* o, const std::vector<std::pair<Op*, int> >& results);
+        void determine_fprop_list(Op* o, int o_res, const std::vector<std::pair<Op*, int> >& results);
 
         private:
     };
@@ -412,18 +412,22 @@ namespace cuvnet
      */
     struct define_graphviz_node_visitor : public op_visitor_adaptor{
         std::ostream& os; ///< the stream to write to
-        std::vector<Op*> m_mark_order; ///< eg the topological ordering of the graph
+        std::vector<Op*> m_fmark_order; ///< eg the topological ordering of the graph (fprop)
+        std::vector<Op*> m_bmark_order; ///< eg the topological ordering of the graph (bprop)
         Op* m_current_op; ///< for stepping through a function, set this to the current position
         bool m_break_after_done; ///< for debugging: is set to true when NaN is found, so that learning can be stopped
         std::map<const void*, std::string> m_seen; ///< records stuff we've seen already, so we do not define nodes twice
         /**
          * ctor.
          * @param o stream to write to
-         * @param mo if given, contain the topological ordering in the graph. Indices will be appended to nodes in this list.
+         * @param fmo if given, contain the topological ordering in the graph for fprop. Indices will be appended to nodes in this list.
+         * @param bmo if given, contain the topological ordering in the graph for bprop. Indices will be appended to nodes in this list.
          */
-        define_graphviz_node_visitor(std::ostream& o, std::vector<Op*>* mo=NULL):os(o),m_current_op(NULL),m_break_after_done(false){
-            if(mo)
-                m_mark_order = *mo;
+        define_graphviz_node_visitor(std::ostream& o, std::vector<Op*>* fmo=NULL, std::vector<Op*>* bmo=NULL):os(o),m_current_op(NULL),m_break_after_done(false){
+            if(fmo)
+                m_fmark_order = *fmo;
+            if(bmo)
+                m_bmark_order = *bmo;
         }
         /**
          * @overload
@@ -456,11 +460,12 @@ namespace cuvnet
      * Dump a symbolic function to a graphviz DOT file.
      * @param op the Op to be dumped
      * @param os the stream to write to
-     * @param mo the mark order (topological sorting) of op
+     * @param fmo the mark order (topological sorting) of op for fprop
+     * @param bmo the mark order (topological sorting) of op for bprop
      * @param current the current node, to be marked (useful for stepping through function evaluation).
      * @ingroup op_visitors
      */
-    void write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& mo, Op* current=NULL);
+    void write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& fmo, std::vector<Op*>& bmo, Op* current=NULL);
 
     /**
      * @brief does a recursive forward/backward pass w.r.t. requested parameters.
@@ -509,7 +514,7 @@ namespace cuvnet
          */
         void dump(const std::string& filename){
             std::ofstream os(filename);
-            write_graphviz(*m_op, os, m_topo.fprop_nodelist );
+            write_graphviz(*m_op, os, m_topo.fprop_nodelist, m_topo.bprop_nodelist );
         }
 
         /**

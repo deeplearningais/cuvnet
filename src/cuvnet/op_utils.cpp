@@ -81,11 +81,17 @@ void define_graphviz_node_visitor::preorder(Op* o){
         n.group = o->get_group();
     }
 
-	if(m_mark_order.size()){
-		std::vector<Op*>::iterator it = std::find(m_mark_order.begin(),m_mark_order.end(),o);
+	if(m_fmark_order.size()){
+		std::vector<Op*>::iterator fit = std::find(m_fmark_order.begin(),m_fmark_order.end(),o);
+		std::vector<Op*>::iterator bit = std::find(m_bmark_order.begin(),m_bmark_order.end(),o);
 #ifndef NDEBUG
-		if(it!=m_mark_order.end())
-			n.label += " <" + boost::lexical_cast<std::string>(std::distance(m_mark_order.begin(),it))+">";
+		if(fit!=m_fmark_order.end() && bit!=m_bmark_order.end())
+			n.label += " <" + boost::lexical_cast<std::string>(std::distance(m_fmark_order.begin(),fit))
+			+ ", " + boost::lexical_cast<std::string>(std::distance(m_bmark_order.begin(),bit))+">";
+        else if(fit!=m_fmark_order.end())
+			n.label += " <" + boost::lexical_cast<std::string>(std::distance(m_fmark_order.begin(),fit))+",>";
+        else if(bit!=m_bmark_order.end())
+			n.label += " <," + boost::lexical_cast<std::string>(std::distance(m_bmark_order.begin(),bit))+">";
 #endif
 	}
     if(current_op()==o){
@@ -246,32 +252,32 @@ void define_graphviz_node_visitor::postorder(Op* o){
 
 
 
-void determine_exec_order::init(Op* o, 
+void determine_exec_order::init(Op* o, int o_res,
         const std::vector<std::pair<Op*, int> >& results,
         const std::vector<Op*>& parameters){
     reset_needed_flags rnf;
     o->visit(rnf, true); 
 
     std::vector<std::pair<Op*, int> > empty;
-    determine_fprop_list(o, empty);
+    determine_fprop_list(o, o_res, empty);
     determine_bprop_list(o, parameters);
     if(results.size() > 0)
-        determine_fprop_list(o, results);
+        determine_fprop_list(o, o_res, results);
 }
 
 void determine_exec_order::determine_bprop_list(Op* o, const std::vector<Op*>& parameters){
     bprop_nodelist.clear();
-    std::vector<Op*> stack;
+    std::list<Op*> queue;
     std::map<Op*, bool> marked;
 
     // we need to work forward from all these
     BOOST_FOREACH(Op* p, parameters){
-        stack.push_back(p);
+        queue.push_back(p);
     }
 
-    while(!stack.empty()){
-        Op* top = stack.back();
-        stack.pop_back();
+    while(!queue.empty()){
+        Op* top = queue.back();
+        queue.pop_back();
 
         // stop processing if we've seen this item before
         if(marked.find(top) != marked.end())
@@ -285,7 +291,7 @@ void determine_exec_order::determine_bprop_list(Op* o, const std::vector<Op*>& p
         BOOST_FOREACH(Op::result_t& r, top->m_results){
 
             // do not calculate derivative for parts of the op that do
-            // not need to be calculated in the 1st place.
+            // not need to be calculated during fprop
             if(!r->need_result)
                 continue;
 
@@ -294,28 +300,57 @@ void determine_exec_order::determine_bprop_list(Op* o, const std::vector<Op*>& p
                 auto p = r->use(i);
                 p->need_derivative = true;
                 Op* top_suc = p->get_op();
-                stack.push_back(top_suc);
+
+                // we shall only push this to the queue if everyone who uses it
+                // has already been put into the queue
+                // this is annoying, but removing edges (as in the wp version)
+                // is not an option.
+                bool can_push = true;
+                BOOST_FOREACH(Op::param_t& p2, top_suc->m_params){
+                    for(unsigned int j = 0; j < p2->param_uses.size(); j++){
+                        Op* p2_op = p2->use(j)->get_op().get();
+                        if(marked.find(p2_op) == marked.end()) {
+
+                            // check whether p2_op depends on any of the parameters
+                            // if it depends, these need to be dealt with first
+                            param_collector_visitor pcv;
+                            p2_op->visit(pcv);
+                            if( pcv.plist.end() !=
+                                    std::find_first_of(
+                                        pcv.plist.begin(), pcv.plist.end(),
+                                        parameters.begin(), parameters.end())) {
+                                can_push = false;
+                                break;
+                            }
+                        }
+                    }
+                    if(!can_push)
+                        break;
+                }
+                if(can_push)
+                    queue.push_front(top_suc);
             }
         }
     }
     std::reverse(bprop_nodelist.begin(), bprop_nodelist.end());
 }
 
-void determine_exec_order::determine_fprop_list(Op* o, const std::vector<std::pair<Op*, int> >& results){
+void determine_exec_order::determine_fprop_list(Op* o, int o_res, const std::vector<std::pair<Op*, int> >& results){
     fprop_nodelist.clear();
-    std::vector<Op*> stack;
+    std::list<Op*> queue;
     std::map<Op*, bool> marked;
 
     // we need to work backwards from all these
     typedef std::pair<Op*, int> pair_t;
     BOOST_FOREACH(const pair_t& pt, results){
-        stack.push_back(pt.first);
+        queue.push_back(pt.first);
     }
-    stack.push_back(o); // make sure this is processed FIRST!
+    queue.push_back(o); // make sure this is processed FIRST!
+    o->result(o_res)->need_result = true;
 
-    while(!stack.empty()){
-        Op* top = stack.back();
-        stack.pop_back();
+    while(!queue.empty()){
+        Op* top = queue.back();
+        queue.pop_back();
 
         // stop processing if we've seen this item before
         if(marked.find(top) != marked.end())
@@ -330,8 +365,26 @@ void determine_exec_order::determine_fprop_list(Op* o, const std::vector<std::pa
             for(unsigned int i=0;i<p->param_uses.size();i++) {
                 auto r = p->use(i);
                 r->need_result = true;
+
+                // we shall only push this to the queue if everyone who uses it
+                // has already been put into the queue
+                // this is annoying, but removing edges (as in the wp version)
+                // is not an option.
                 Op* top_pred = r->get_op().get();
-                stack.push_back(top_pred);
+                bool can_push = true;
+                BOOST_FOREACH(Op::result_t& r2, top_pred->m_results){
+                    for(unsigned int j = 0; j < r2->result_uses.size(); j++){
+                        Op* target = r2->use(j)->get_op();
+                        if(marked.find(target) == marked.end()) {
+                            can_push = false;
+                            break;
+                        }
+                    }
+                    if(!can_push)
+                        break;
+                }
+                if(can_push)
+                    queue.push_front(top_pred);
             }
         }
     }
@@ -352,7 +405,7 @@ void swiper::init()
                         ptr_caster<Op,ParameterInput>()))),
             m_paramlist.end());
 
-    m_topo.init(&op, m_other_funcs, m_paramlist);
+    m_topo.init(&op, m_result, m_other_funcs, m_paramlist);
     check_param_existence();
 
     this->set_calculate_result();             // determine need_result
@@ -448,7 +501,7 @@ swiper::debug(unsigned int cnt, Op* o, bool results, bool params, const char* id
         boost::filesystem::create_directories(s);
         std::ofstream os ((s+"/func.dot").c_str());
     
-        write_graphviz(*m_topo.fprop_nodelist.back(),os,m_topo.fprop_nodelist,o);
+        write_graphviz(*m_topo.fprop_nodelist.back(),os,m_topo.fprop_nodelist,m_topo.bprop_nodelist,o);
     }
 }
 
@@ -480,9 +533,9 @@ void cuvnet::write_graphviz(Op& op, std::ostream& os){
     if(dgnv.m_break_after_done)
         exit(0);
 }
-void cuvnet::write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& l, Op* current){
+void cuvnet::write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& fl, std::vector<Op*>& bl, Op* current){
 	os << "digraph { "<<std::endl;
-	define_graphviz_node_visitor dgnv(os,&l);
+	define_graphviz_node_visitor dgnv(os, &fl, &bl);
     dgnv.current_op(current);
 	op.visit(dgnv,true);
 	os << "}"<<std::endl;

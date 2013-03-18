@@ -73,7 +73,7 @@ namespace cuvnet
         
         std::ostringstream os(path.c_str());
         std::vector<Op*> v;
-        write_graphviz(o, os, v, &o);
+        write_graphviz(o, os, v, v, &o);
 
         return os.str();
     }
