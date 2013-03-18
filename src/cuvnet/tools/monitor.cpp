@@ -14,6 +14,7 @@
 #include <log4cxx/logger.h>
 #include <log4cxx/mdc.h>
 #include <cuvnet/tools/logging.hpp>
+#include <cuvnet/tools/gradient_descent.hpp>
 
 #include "monitor.hpp"
 namespace cuvnet
@@ -248,6 +249,27 @@ namespace cuvnet
         }
 
     }
+    void monitor::register_gd(gradient_descent& gd){
+        gd.after_epoch.connect( boost::bind(&monitor::after_epoch,this));
+        gd.after_batch.connect( boost::bind(&monitor::after_batch,this));
+        gd.before_epoch.connect(boost::bind(&monitor::before_epoch,this));
+
+        BOOST_FOREACH(watchpoint* p, m_impl->m_watchpoints){
+            switch(p->type){
+                case WP_SINK:
+                case WP_SCALAR_EPOCH_STATS:
+                    gd.get_swiper().request_other_result(*(p->op), 0, false);
+                default:
+                    break;
+            };
+        }
+
+        // the user probably registered variables with the monitor,
+        // which attaches sinks. We need to recreate the swiper,
+        // so that the sinks are updated accordingly.
+        gd.repair_swiper(); 
+    }
+
     void monitor::simple_logging()const{
         std::cout << "\r epoch "<<m_epochs<<":"<<m_batch_presentations<<",  free_mb="<<cuv::getFreeDeviceMemory()/1024/1024<<",  ";
         typedef std::pair<std::string, std::string> ss_t;

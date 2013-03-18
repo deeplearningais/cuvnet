@@ -14,6 +14,7 @@ namespace cuvnet
     
     /// contains information tracked by monitor
     struct watchpoint;
+    struct gradient_descent;
 
     /**
      * Monitors a function during learning, eg statistics over
@@ -175,17 +176,7 @@ namespace cuvnet
              *
              * @param gd a gradient descent object
              */
-        template<class G>
-            void register_gd(G& gd){
-                gd.after_epoch.connect( boost::bind(&monitor::after_epoch,this));
-                gd.after_batch.connect( boost::bind(&monitor::after_batch,this));
-                gd.before_epoch.connect(boost::bind(&monitor::before_epoch,this));
-
-                // the user probably registered variables with the monitor,
-                // which attaches sinks. We need to recreate the swiper,
-                // so that the sinks are updated accordingly.
-                gd.repair_swiper(); 
-            }
+            void register_gd(gradient_descent& gd);
 
             /**
              * register the monitor with a gradient_descent object, which needs
