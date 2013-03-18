@@ -144,6 +144,27 @@ BOOST_AUTO_TEST_CASE(destruction){
 	BOOST_CHECK(!pow_cpy.lock());
 }
 
+BOOST_AUTO_TEST_CASE(multi_output_swiper){
+    typedef boost::shared_ptr<Op> ptr_t;
+    typedef boost::shared_ptr<Sink> sink_t;
+
+	boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[10][20], "input");
+	ptr_t pow_2                     = boost::make_shared<Pow>(2,inp->result());
+	ptr_t pow_3                     = boost::make_shared<Pow>(3,inp->result());
+
+    sink_t sink_2 = boost::make_shared<Sink>(pow_2->result());
+    sink_t sink_3 = boost::make_shared<Sink>(pow_3->result());
+
+    std::vector<Op*> params(1, inp.get());
+    //std::vector<Op*> params;
+    swiper swp(*pow_2, 0, params);
+    swp.request_other_result(*pow_3);
+
+    swp.fprop();
+
+    BOOST_CHECK(sink_2->cdata().shape() == sink_3->cdata().shape());
+}
+
 BOOST_AUTO_TEST_CASE(t_write_graphviz){
 	typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);

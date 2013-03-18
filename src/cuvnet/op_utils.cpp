@@ -298,8 +298,10 @@ void determine_exec_order::determine_bprop_list(Op* o, const std::vector<Op*>& p
             // everyone else who uses this result must be derived
             for(unsigned int i=0;i<r->result_uses.size();i++) {
                 auto p = r->use(i);
-                p->need_derivative = true;
                 Op* top_suc = p->get_op();
+                if(! top_suc->need_result() )
+                    continue;
+                p->need_derivative = true;
 
                 // we shall only push this to the queue if everyone who uses it
                 // has already been put into the queue
@@ -333,6 +335,38 @@ void determine_exec_order::determine_bprop_list(Op* o, const std::vector<Op*>& p
         }
     }
     std::reverse(bprop_nodelist.begin(), bprop_nodelist.end());
+}
+
+/**
+ * search all results of an op for a specific op instance.
+ */
+bool determine_exec_order::find_in_results(
+        Op* query, 
+        const std::vector<std::pair<Op*, int> >& other_queries,
+        Op* search_start){
+    std::list<Op*> queue;
+    std::map<Op*, bool> marked;
+    queue.push_back(search_start);
+
+    while(!queue.empty()){
+        Op* top = queue.back();
+        if(marked[top])
+            continue;
+        marked[top] = true;
+        queue.pop_back();
+        if(top == query)
+            return true;
+        for(std::vector<std::pair<Op*, int> >::const_iterator it = other_queries.begin();
+                it != other_queries.end(); ++it)
+            if(it->first == top)
+                return true;
+        BOOST_FOREACH(Op::result_t& r, top->m_results){
+            for(unsigned int i=0;i<r->result_uses.size();i++) {
+                queue.push_back(r->use(i)->get_op());
+            }
+        }
+    }
+    return false;
 }
 
 void determine_exec_order::determine_fprop_list(Op* o, int o_res, const std::vector<std::pair<Op*, int> >& results){
@@ -376,6 +410,11 @@ void determine_exec_order::determine_fprop_list(Op* o, int o_res, const std::vec
                     for(unsigned int j = 0; j < r2->result_uses.size(); j++){
                         Op* target = r2->use(j)->get_op();
                         if(marked.find(target) == marked.end()) {
+                            // if the tree below target does not result in any
+                            // of the 'results' we're interested in, we can
+                            // ignore it.
+                            if(!find_in_results(o, results, target))
+                                continue;
                             can_push = false;
                             break;
                         }
@@ -432,8 +471,10 @@ void swiper::set_calculate_result(){
     }
 }
 
-void swiper::request_other_result(Op& op, int result){
+void swiper::request_other_result(Op& op, int result, bool call_init){
     m_other_funcs.push_back(std::make_pair(&op, result));
+    if(call_init)
+        init();
 }
 
 #define SWIPER_DEBUG 0

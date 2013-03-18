@@ -239,6 +239,9 @@ namespace cuvnet
         void determine_fprop_list(Op* o, int o_res, const std::vector<std::pair<Op*, int> >& results);
 
         private:
+        bool find_in_results(Op* query, 
+                const std::vector<std::pair<Op*, int> >& other_queries,
+                Op* search_start);
     };
 
     /**
@@ -504,8 +507,13 @@ namespace cuvnet
         /**
          * add a function that needs to be evaluated, but not derived
          * for, and is part of the main Op's graph.
+         * 
+         * @param op the other operator we're interested in
+         * @param result the number of the result of the op we're interested in
+         * @param call_init if true, call init, otherwise you have to call it yourself so that changes take effect.
+         *                  When adding multiple 'other' results, this can avoide multiple useless init() calls.
          */
-        void request_other_result(Op& op, int result=0);
+        void request_other_result(Op& op, int result=0, bool call_init=true);
 
         /**
          * calls write_graphviz with the current topological order.
