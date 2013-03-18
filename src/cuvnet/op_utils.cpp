@@ -448,7 +448,6 @@ void swiper::init()
     check_param_existence();
 
     this->set_calculate_result();             // determine need_result
-    op.set_calculate_derivative(m_paramlist); // determine need_derivative
 
     cleanup_temp_vars_visitor ctvv;
     op.visit(ctvv); 
