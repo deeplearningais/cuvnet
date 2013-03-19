@@ -111,6 +111,7 @@ namespace cuvnet
             ar.template register_type<SeparableFilter>();
             ar.template register_type<ResizeBilinear>();
             ar.template register_type<PairwiseNorm>();
+            ar.template register_type<BedOfNails>();
 
             // misc
             ar.template register_type<Identity>();

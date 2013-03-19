@@ -924,7 +924,7 @@ namespace cuvnet
         using namespace cuv::alex_conv;
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
-        if(p0.can_overwrite_directly()){
+        if(r0.can_overwrite_directly()){
             value_ptr& v = r0.overwrite_or_add_value();
             pairwise_norm(*v, p0.value.cdata(), m_dim);
         }else{

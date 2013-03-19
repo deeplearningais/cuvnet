@@ -633,9 +633,18 @@ namespace cuvnet
 
             LocalPooling* poolp;
             Convolve* convp;
+            BedOfNails* bon;
 
             while(*it != plist.back()){
-                if((poolp = dynamic_cast<LocalPooling*>(*it))){
+                if((bon = dynamic_cast<BedOfNails*>(*it))){
+                    std::vector<unsigned int> inshape  = bon->param(0)->shape;
+                    std::vector<unsigned int> outshape = bon->result(0)->shape;
+                    crop_h  *= inshape[1] / outshape[1];
+                    crop_w  *= inshape[2] / outshape[2];
+                    scale_h *= inshape[1] / outshape[1];
+                    scale_w *= inshape[2] / outshape[2];
+                }
+                else if((poolp = dynamic_cast<LocalPooling*>(*it))){
                     std::vector<unsigned int> inshape  = poolp->param(0)->shape;
                     std::vector<unsigned int> outshape = poolp->result(0)->shape;
                     crop_h  *= inshape[1] / outshape[1];
