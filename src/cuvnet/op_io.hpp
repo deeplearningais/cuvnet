@@ -101,6 +101,7 @@ namespace cuvnet
 
             // convolutions
             ar.template register_type<Convolve>();
+            ar.template register_type<Convolve2dTheano>();
             ar.template register_type<ReorderForConv>();
             ar.template register_type<ReorderFromConv>();
             ar.template register_type<LocalPooling>();
