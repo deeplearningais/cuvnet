@@ -225,6 +225,7 @@ namespace cuvnet
 
 
 
+#ifndef NO_THEANO_WRAPPERS
     /***************************************************
      * Convolve2dTheano 
      ***************************************************/
@@ -334,6 +335,8 @@ namespace cuvnet
     void Convolve2dTheano::finalize_cuda(){
        cuv::theano_conv::finalize_cuda();
     }
+
+#endif /* NO_THEANO_WRAPPERS */
 
 
     /***************************************************

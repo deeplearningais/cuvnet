@@ -4,7 +4,9 @@
 #include <cmath>
 #include <cuvnet/op.hpp>
 #include <cuv/convolution_ops/convolution_ops.hpp>
-#include <3rd_party/cuda_ndarray/convolutions.hpp>
+#ifndef NO_THEANO_WRAPPERS
+#      include <cuv/convolution_ops/convolution_ops_theano.hpp>
+#endif
 #include <log4cxx/logger.h>
 namespace cuvnet
 {
@@ -83,7 +85,7 @@ namespace cuvnet
 
 
 
-
+#ifndef NO_THEANO_WRAPPERS
     /**
      * convolve a set of images using a set of filters.
      *
@@ -143,7 +145,7 @@ namespace cuvnet
         };
 
 
-
+#endif
 
 
     /**
