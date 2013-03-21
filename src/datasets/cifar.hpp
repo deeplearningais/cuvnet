@@ -3,6 +3,7 @@
 
 #include "dataset.hpp"
 #include <cuv/basics/tensor.hpp>
+#include <cuv/tensor_ops/tensor_ops.hpp>
 
 namespace cuvnet
 {
