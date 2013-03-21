@@ -33,7 +33,7 @@ namespace cuvnet
 
             float* dest = train_data.ptr();
             for(unsigned int i=0;i<5;i++){
-                sprintf(filename, path.c_str(), templ, i+1);
+                sprintf(filename, templ, path.c_str(), i+1);
                 std::ifstream ifs(filename, std::ios::in | std::ios::binary);
                 for(unsigned int j=0;j<10000;j++){
                     trainl[i*10000+j] = (int) ifs.get();
@@ -79,7 +79,7 @@ namespace cuvnet
                     0.114f * test_data[indices[range()][range(2*32*32, 3*32*32)]].copy();
 
                 train_data = gtrain_data;
-                test_data = test_data;
+                test_data = gtest_data;
             }
 
             train_labels.resize(cuv::extents[50000][10]);
