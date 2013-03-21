@@ -92,7 +92,7 @@ namespace cuvnet
                 test_labels(i, testl[i]) = 1;
             }
 
-            channels = 3;
+            channels = grayscale ? 1 : 3;
             binary   = false;
             image_size = 32;
             std::cout << "done."<<std::endl;
