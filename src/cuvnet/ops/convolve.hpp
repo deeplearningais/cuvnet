@@ -39,8 +39,6 @@ namespace cuvnet
             private:
                 unsigned int m_nGroups;//number of groups of filters
                 unsigned int m_partial_sum;
-                int m_stride;
-                int m_padding_size;
                 int m_padding_start;
                 int m_padding_size;
                 int m_stride;
