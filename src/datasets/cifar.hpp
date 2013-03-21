@@ -13,7 +13,7 @@ namespace cuvnet
      */
     struct cifar_dataset : dataset
     {
-        cifar_dataset(const std::string& path){
+        cifar_dataset(const std::string& path, bool grayscale=false){
             std::cout << "Reading CIFAR10 dataset..."<<std::flush;
             const unsigned int size = 3*32*32;
             train_data.resize(cuv::extents[50000][size]);
@@ -62,7 +62,26 @@ namespace cuvnet
                 }
             }
 
-            train_labels.resize(cuv::extents[60000][10]);
+            if(grayscale){
+                const unsigned int gsize = 32 * 32;
+                using namespace cuv;
+                typedef index_range range;
+                tensor<float, cuv::host_memory_space> gtrain_data(cuv::extents[50000][gsize]);
+                tensor<float, cuv::host_memory_space> gtest_data(cuv::extents[10000][gsize]);
+                gtrain_data[indices[range()]] = 
+                    0.299f * train_data[indices[range()][range(0, 32*32)]].copy() +
+                    0.587f * train_data[indices[range()][range(32*32, 2*32*32)]].copy() +
+                    0.114f * train_data[indices[range()][range(2*32*32, 3*32*32)]].copy();
+                gtest_data[indices[range()]] = 
+                    0.299f * test_data[indices[range()][range(0, 32*32)]].copy() +
+                    0.587f * test_data[indices[range()][range(32*32, 2*32*32)]].copy() +
+                    0.114f * test_data[indices[range()][range(2*32*32, 3*32*32)]].copy();
+
+                train_data = gtrain_data;
+                test_data = test_data;
+            }
+
+            train_labels.resize(cuv::extents[50000][10]);
             test_labels.resize(cuv::extents[10000][10]);
             train_labels = 0.f;
             test_labels = 0.f;
