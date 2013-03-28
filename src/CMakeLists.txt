@@ -76,7 +76,7 @@ endif( PYTHONLIBS_FOUND )
 
 add_library(cuvnet SHARED ${CUVNET_SRC})
 
-TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx cuv ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} )
+TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx cuv tp_theano ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} )
 
 #add_subdirectory(cuvnet)
 #add_subdirectory(third_party)
