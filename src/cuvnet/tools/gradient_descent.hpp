@@ -430,6 +430,7 @@ namespace cuvnet
              */
         momentum_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float momentum=0.9f);
 
+        inline float momentum(){ return m_momentum; }
         inline void set_momentum(float momentum){
         	m_momentum = momentum;
         	std::cout<<"momentum is"<<momentum<<std::endl;
