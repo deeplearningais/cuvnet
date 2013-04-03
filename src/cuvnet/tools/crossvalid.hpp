@@ -32,22 +32,59 @@ namespace cuvnet
 		public:
 			/// switch  to a different split/crossvalidation mode
 			virtual void switch_dataset(unsigned int split, cv_mode mode)=0;
+
 			/// learn on current split
 			virtual void fit()=0;
+
 			/// predict on current test set
 			virtual float predict()=0;
+
 			/// reset parameters
 			virtual void reset_params()=0;
+
 			/// return the number of requested splits
 			virtual unsigned int n_splits()=0;
 
 			/// return minimum on VAL before retraining for TEST is performed
+            /// @return INT_MAX
 			virtual float refit_thresh()const;
 
             /// should return true if retrain for fit is required
             /// @return true
             virtual bool refit_for_test()const;
 	};
+
+    /**
+     * a simpler version of crossvalidatable, when only a validation set is
+     * used (no real cross-validation).
+     * @ingroup learning
+     */
+    class validatable{
+		private:
+            friend class boost::serialization::access;
+            template<class Archive>
+                void serialize(Archive& ar, const unsigned int version) { }
+		public:
+			/** learn on current split.
+             * This method should set the performance member variables.
+             */
+			virtual void fit()=0;
+
+			/// predict on current test set
+			virtual float predict()=0;
+
+			/// reset parameters
+			virtual void reset_params()=0;
+
+            /// access performance on validation set after training on TRAIN
+            virtual float val_perf()const{ return INT_MAX; }
+
+            /// access performance on TEST after training on TRAIN
+            virtual float test_perf0()const{ return INT_MAX; }
+
+            /// access performance on TEST after training on TRAINVAL
+            virtual float test_perf()const{ return INT_MAX; }
+    };
 
     /**
      * crossvalidation namespace
