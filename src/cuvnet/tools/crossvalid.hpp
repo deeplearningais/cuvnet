@@ -30,9 +30,6 @@ namespace cuvnet
         template<class Archive>
             void serialize(Archive& ar, const unsigned int version) { }
 		public:
-			/// initialize the object from a BSON object description
-			virtual void constructFromBSON(const mongo::BSONObj&)=0;
-
 			/// switch  to a different split/crossvalidation mode
 			virtual void switch_dataset(unsigned int split, cv_mode mode)=0;
 			/// learn on current split
