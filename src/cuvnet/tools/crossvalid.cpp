@@ -21,8 +21,6 @@
 
 namespace cuvnet
 {
-	cv::crossvalidation_worker* g_worker;
-
 	void cuda_thread::operator()(){ 
 		cuvSafeCall(cudaThreadExit());
 		std::cout << "switching to device "<<m_dev<<std::endl;
@@ -118,41 +116,6 @@ namespace cuvnet
 					.obj(), 3600 * 24); // 24 hours(??)
 		}
 
-		crossvalidation_worker::crossvalidation_worker(const std::string& url, const std::string& prefix)
-			:mdbq::Client(url,prefix){
-				g_worker = this;
-			}
-
-		void crossvalidation_worker::handle_task(const mongo::BSONObj& task){
-			namespace bar = boost::archive;
-            log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("cv_worker"));
-            LOG4CXX_WARN(log, "handling task: " << task);
-			if(task["task"].String() == "cv_allsplits"){
-				boost::shared_ptr<crossvalidatable> p;
-				int len;
-				const char* cvable_ = task["cvable"].binData(len);
-				std::string cvable(cvable_, len);
-				std::istringstream ss(cvable);
-				{
-					bar::binary_iarchive ia(ss);
-					ia >> p;
-				}
-
-				p->constructFromBSON(task["conf"].Obj());
-				all_splits_evaluator ase(p);
-                try{
-                    ase();
-                    this->finish(BSON("perf"<<ase.perf()<<"test_perf"<<ase.test_perf()<<"test_perf0"<<ase.test_perf0()));
-                }catch(mdbq::timeout_exception& e){
-                    // MDBQ already marked this as finished and failed!
-                    throw;
-                }catch(std::runtime_error& e){
-                    this->finish(BSON("runtime_error"<<e.what()), 0);
-                    throw;
-                }
-                throw std::runtime_error("finished successfully, but crashing to ensure memory is freed *cough*");
-			}
-		}
 	}
 
 }

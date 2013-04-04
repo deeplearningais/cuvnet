@@ -142,16 +142,6 @@ namespace cuvnet
 			crossvalidation_queue(const std::string& url, const std::string& prefix):m_hub(url,prefix){}
 			void dispatch(boost::shared_ptr<crossvalidatable> p, const mongo::BSONObj& description);
 		};
-
-		/**
-		 * Crossvalidation Worker
-         * @ingroup learning
-		 */
-		struct crossvalidation_worker
-		: mdbq::Client{
-			crossvalidation_worker(const std::string& url, const std::string& prefix);
-			void handle_task(const mongo::BSONObj& task);
-		};
 	}
 
 }
