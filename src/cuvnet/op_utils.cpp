@@ -350,8 +350,10 @@ bool determine_exec_order::find_in_results(
 
     while(!queue.empty()){
         Op* top = queue.back();
-        if(marked[top])
+        if(marked[top]) {
+            queue.pop_back();
             continue;
+        }
         marked[top] = true;
         queue.pop_back();
         if(top == query)
