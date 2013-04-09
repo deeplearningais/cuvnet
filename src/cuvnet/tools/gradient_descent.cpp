@@ -139,6 +139,11 @@ namespace cuvnet
         m_epoch_of_saved_params = m_epoch;
     }
 
+    void gradient_descent::forget_best_params(){
+        m_best_perf_params.clear();
+        m_epoch_of_saved_params = 0;
+    }
+
     void gradient_descent::load_best_params(){
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("gd"));
         // load the best parameters again

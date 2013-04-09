@@ -170,6 +170,11 @@ namespace cuvnet
             void save_current_params();
 
             /**
+             *  forget about "best" state saved by save_current_params().
+             */
+            void forget_best_params();
+
+            /**
              * runs an early-stopping epoch.
              *
              * @return number of early-stopping batches
