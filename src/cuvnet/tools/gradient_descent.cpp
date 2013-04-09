@@ -514,9 +514,15 @@ namespace cuvnet
             perf += m_val_perfs[i];
         perf /= window_size;
 
+
+        log4cxx::MDC perf_mdc("perf", boost::lexical_cast<std::string>(perf));
+        log4cxx::MDC patience_mdc("patience", boost::lexical_cast<std::string>(m_patience));
+        log4cxx::MDC wups_mdc("wups", boost::lexical_cast<std::string>(wups));
         if(perf < m_best_perf) {
+            log4cxx::MDC perf_mdc("best_perf", boost::lexical_cast<std::string>(perf));
             LOG4CXX_DEBUG(log, "* "<<current_epoch<<": "<<wups<<" / "<<m_patience<<", "<<std::setprecision(3) <<(perf/m_best_perf)<<": "<< std::setprecision(6) << perf);
         } else {
+            log4cxx::MDC perf_mdc("best_perf", boost::lexical_cast<std::string>(m_best_perf));
             LOG4CXX_DEBUG(log, "- "<<current_epoch<<": "<<wups<<" / "<<m_patience<<", "<<std::setprecision(3) <<(perf/m_best_perf)<<": "<< std::setprecision(6) << perf);
         }
 
