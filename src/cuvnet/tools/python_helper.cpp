@@ -16,6 +16,7 @@ namespace cuvnet
     struct OpWrap
         : public Op, public boost::python::wrapper<Op>
     {
+        std::string this_ptr() const{ return boost::lexical_cast<std::string>(this);}
         void fprop(){
             this->get_override("fprop")();
         }
@@ -110,9 +111,12 @@ namespace cuvnet
             .add_property("need_result", 
                     (bool (OpWrap::*)()const)& OpWrap::need_result,
                     (void (OpWrap::*)(bool)) & OpWrap::need_result)
+            .add_property("ptr", &OpWrap::this_ptr)
             .def("fprop", pure_virtual(&OpWrap::fprop))
             .def("bprop", pure_virtual(&OpWrap::bprop))
             .def("dot", dot)
+            .def("result", &OpWrap::result, (arg("index")=0), return_value_policy<return_by_value>())
+            .def("param",  &OpWrap::param, (arg("index")=0),  return_value_policy<return_by_value>())
             .def("get_parameter", 
                     (ParameterInput* (*)(const boost::shared_ptr<Op>&, const std::string&)) get_node, 
                     return_internal_reference<1>())
@@ -144,6 +148,8 @@ namespace cuvnet
                         &Sink::name,
                         return_value_policy<copy_const_reference>()))
             .def("evaluate", &evaluate_sink)
+            .def("result", &Sink::result, (arg("index")=0), return_value_policy<return_by_value>())
+            .def("param",  &Sink::param, (arg("index")=0),  return_value_policy<return_by_value>())
             ;
         class_<ParameterInput, boost::shared_ptr<ParameterInput> >("ParameterInput", no_init)
             .def("__init__", make_constructor(&create_param_input_with_list))
@@ -167,12 +173,37 @@ namespace cuvnet
                         (Op::value_type& (ParameterInput::*)())
                         &ParameterInput::delta,
                         return_internal_reference<>()))
+
+            // returning references did not work, and is probably not useful for pointers, anyway.
+            .def("result", &ParameterInput::result, (arg("index")=0), return_value_policy<return_by_value>())
+            .def("param",  &ParameterInput::param, (arg("index")=0),  return_value_policy<return_by_value>())
             ;
         ;
         register_ptr_to_python< boost::shared_ptr<Op> >();
         //register_ptr_to_python< boost::shared_ptr<ParameterInput> >(); // gives warning...
 
         implicitly_convertible<boost::shared_ptr<ParameterInput>, boost::shared_ptr<Op> >();
+        implicitly_convertible<boost::shared_ptr<Sink>, boost::shared_ptr<Op> >();
+
+        typedef cuvnet::detail::op_result<matrix> result_t;
+        typedef cuvnet::detail::op_param<matrix> param_t;
+
+        class_<result_t, boost::shared_ptr<result_t> >("Result", no_init)
+            .add_property("n_uses", &result_t::n_uses)
+            .add_property("op",     &result_t::get_op)
+            .def("use", (boost::shared_ptr<param_t> (result_t::*)(unsigned int))&result_t::use, (arg("index")=0u))
+            ;
+
+        class_<param_t, boost::shared_ptr<param_t> >("Param", no_init)
+            .add_property("n_uses", &param_t::n_uses)
+            .add_property("op", make_function(
+                        &param_t::get_op, return_internal_reference<>()))
+            .def("use", (boost::shared_ptr<result_t>& (param_t::*)(unsigned int))&param_t::use, return_value_policy<return_by_value>(), (arg("index")=0))
+            ;
+
+        register_ptr_to_python< boost::shared_ptr<result_t> >();
+        register_ptr_to_python< boost::shared_ptr<param_t> >();
+
 
         def("get_valid_shape_info", get_vsi_1);
         def("get_valid_shape_info", get_vsi_2);
@@ -198,6 +229,7 @@ namespace cuvnet
             export_module();
             object main_namespace = main_module.attr("__dict__");
             object ignored = exec(
+                    "import visualization\n"
                     "visualization.valid_shape_info = valid_shape_info\n"
                     "visualization.get_valid_shape_info = get_valid_shape_info\n",
                     main_namespace);
