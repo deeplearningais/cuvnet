@@ -3,6 +3,7 @@
 #     define __OP_RESULT_HPP__
 #include <boost/shared_ptr.hpp>
 #include <boost/weak_ptr.hpp>
+#include <boost/enable_shared_from_this.hpp>
 #include "cuvnet/smart_ptr.hpp"
 
 namespace cuvnet
@@ -15,7 +16,9 @@ namespace cuvnet
         template<class T> struct op_param;
 
         template<class T>
-            struct op_result{
+            struct op_result
+            : public boost::enable_shared_from_this<op_result<T> >
+            {
                 boost::shared_ptr<op_param<T> >       use(unsigned int i)     { return boost::shared_ptr<op_param<T> >(result_uses[i]); }
                 boost::shared_ptr<const op_param<T> > use(unsigned int i)const{ return boost::shared_ptr<const op_param<T> >(result_uses[i]); }
                 std::vector<boost::weak_ptr<op_param<T>> >   result_uses;
