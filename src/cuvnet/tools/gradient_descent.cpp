@@ -529,6 +529,7 @@ namespace cuvnet
         if(perf < m_best_perf) {
             // save the (now best) parameters
             m_gd.save_current_params();  
+            improved();
             if(perf < m_thresh * m_best_perf){ 
                 // improved by more than thresh
                 m_patience = std::max((float)m_patience, (float)wups * m_patience_increase);

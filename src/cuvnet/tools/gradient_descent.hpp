@@ -324,6 +324,9 @@ namespace cuvnet
             /// triggered after finishing a early-stopping epoch
             boost::signal<void(unsigned int)> after_early_stopping_epoch;
 
+            /// triggered when a new 'best' value is found
+            boost::signal<void()> improved;
+
             /**
              * ctor.
              *
