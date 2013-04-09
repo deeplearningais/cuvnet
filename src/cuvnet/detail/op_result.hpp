@@ -82,7 +82,7 @@ namespace cuvnet
                         op.reset(); // forget op, so that it can be destroyed if needed!
                 }
                 /**
-                 * get the value to write at directly, also sets value_set for convenience
+                 * get the value to write at directly, also sets value_set for convenience.
                  *
                  */
                 cow_ptr<T>& overwrite_or_add_value(){
