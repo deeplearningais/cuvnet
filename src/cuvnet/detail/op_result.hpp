@@ -19,6 +19,7 @@ namespace cuvnet
                 boost::shared_ptr<op_param<T> >       use(unsigned int i)     { return boost::shared_ptr<op_param<T> >(result_uses[i]); }
                 boost::shared_ptr<const op_param<T> > use(unsigned int i)const{ return boost::shared_ptr<const op_param<T> >(result_uses[i]); }
                 std::vector<boost::weak_ptr<op_param<T>> >   result_uses;
+                inline unsigned int n_uses()const{return result_uses.size();}
                 boost::shared_ptr<Op> op;
                 std::vector<unsigned int>      shape;
                 bool                           need_result;

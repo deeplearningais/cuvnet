@@ -30,6 +30,7 @@ namespace cuvnet
             struct op_param{
                 boost::shared_ptr<op_result<T> >&       use(unsigned int i){ return param_uses[i]; }
                 boost::shared_ptr<const op_result<T> >  use(unsigned int i)const{ return param_uses[i]; }
+                inline unsigned int n_uses()const{return param_uses.size();}
                 std::vector<boost::shared_ptr<op_result<T> > >     param_uses;
                 std::vector<unsigned int>      shape;
                 bool                           need_derivative;
