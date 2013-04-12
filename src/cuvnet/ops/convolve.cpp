@@ -328,12 +328,6 @@ namespace cuvnet
        m_results[0]->shape = dst;
     }
 
-    void Convolve2dTheano::init_cuda(){
-       cuv::theano_conv::initcuda();
-    }
-    void Convolve2dTheano::finalize_cuda(){
-       cuv::theano_conv::finalize_cuda();
-    }
 
 
     /***************************************************
@@ -911,43 +905,43 @@ namespace cuvnet
         m_results[0]->shape = dst;
     }
 
-    void PairwiseNorm::_determine_shapes(){
+    void Tuplewise_op::_determine_shapes(){
         assert(m_params[0]->shape.size() >= 1);
-        assert(m_params[0]->shape.size() % 2 == 0);
+        //assert(m_params[0]->shape.size() % 2 == 0);
         std::vector<unsigned int> dst = m_params[0]->shape;
-        dst[m_dim] /= 2;
+        dst[m_dim] /= m_subspace_size;
         m_results[0]->shape = dst;
     }
 
-    void PairwiseNorm::fprop(){
+    void Tuplewise_op::fprop(){
         using namespace cuv;
         using namespace cuv::alex_conv;
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
         if(r0.can_overwrite_directly()){
             value_ptr& v = r0.overwrite_or_add_value();
-            pairwise_norm(*v, p0.value.cdata(), m_dim);
+            tuplewise_op(*v, p0.value.cdata(), m_dim, m_subspace_size, m_to);
         }else{
             value_ptr v(new value_type(r0.shape));
-            pairwise_norm(*v, p0.value.cdata(), m_dim);
+            tuplewise_op(*v, p0.value.cdata(), m_dim, m_subspace_size, m_to);
             r0.push(v);
         }
     }
 
-    void PairwiseNorm::release_data(){
+    void Tuplewise_op::release_data(){
         Op::release_data();
     }
 
-    void PairwiseNorm::bprop(){
+    void Tuplewise_op::bprop(){
         using namespace cuv;
         using namespace cuv::alex_conv;
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
         if(p0.can_overwrite_directly()){
-            pairwise_norm_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_dim);
+            tuplewise_op_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_dim, m_subspace_size, m_to);
         }else{
             value_ptr v(new value_type(p0.shape));
-            pairwise_norm_grad(*v, p0.value.cdata(), r0.delta.cdata(), m_dim);
+            tuplewise_op_grad(*v, p0.value.cdata(), r0.delta.cdata(), m_dim, m_subspace_size, m_to);
             p0.push(v);
         }
     }

@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cuvnet/op.hpp>
 #include <cuv/convolution_ops/convolution_ops.hpp>
-#include <3rd_party/cuda_ndarray/convolutions.hpp>
+#include <cuv/convolution_ops/convolution_ops_theano.hpp>
 #include <log4cxx/logger.h>
 namespace cuvnet
 {
@@ -102,45 +102,42 @@ namespace cuvnet
      *
      */
     class Convolve2dTheano
-        :public Op{
-            public:
-                typedef Op::value_type    value_type;
-                typedef Op::op_ptr        op_ptr;
-                typedef Op::value_ptr     value_ptr;
-                typedef Op::param_t       param_t;
-                typedef Op::result_t      result_t;
-            private:
-            public:
-                Convolve2dTheano() :Op(2,1){} ///< for serialization
-                std::string m_mode;
+       :public Op{
+           public:
+               typedef Op::value_type    value_type;
+               typedef Op::op_ptr        op_ptr;
+               typedef Op::value_ptr     value_ptr;
+               typedef Op::param_t       param_t;
+               typedef Op::result_t      result_t;
+           private:
+           public:
+               Convolve2dTheano() :Op(2,1){} ///< for serialization
+               std::string m_mode;
                 /**
                  * constructor.
                  *
                  * @param images nImages x nChannels x nPixels x nPixels 
                  * @param filters nFilt x nFiltChannels x nFiltPix x nFiltPix
                  */
-                Convolve2dTheano(result_t& images, result_t& filters, std::string mode = "valid")
-                    :Op(2,1),
-                    m_mode(mode)    
-                {
-                    add_param(0,images);
-                    add_param(1,filters);
-                }
-                void fprop();
-                void bprop();
+               Convolve2dTheano(result_t& images, result_t& filters, std::string mode = "valid")
+                   :Op(2,1),
+                   m_mode(mode)    
+               {
+                   add_param(0,images);
+                   add_param(1,filters);
+               }
+               void fprop();
+               void bprop();
+               void _determine_shapes();
 
-                void _determine_shapes();
-                void init_cuda();
-                void finalize_cuda();
-
-            private:
-                friend class boost::serialization::access;
-                template<class Archive>
-                    void serialize(Archive& ar, const unsigned int version){
-                        ar & boost::serialization::base_object<Op>(*this);
-                        ar & m_mode;
-                    }
-        };
+           private:
+               friend class boost::serialization::access;
+               template<class Archive>
+                   void serialize(Archive& ar, const unsigned int version){
+                       ar & boost::serialization::base_object<Op>(*this);
+                       ar & m_mode;
+                   }
+       };
 
 
 
@@ -560,7 +557,7 @@ namespace cuvnet
         };
 
     /**
-     * Calculate the norm of consecutive pairs in the input.
+     * Calculate the norm  or max out of consecutive elements in the input.
      *
      * Expressed in numpy style, this calculates:
      * 
@@ -568,7 +565,7 @@ namespace cuvnet
      *
      * @ingroup Ops
      */
-    class PairwiseNorm
+    class Tuplewise_op
         : public Op{
             public:
                 typedef Op::value_type    value_type;
@@ -577,16 +574,20 @@ namespace cuvnet
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
                 unsigned int m_dim;
+                unsigned int m_subspace_size;
+                cuv::alex_conv::tuplewise_op_functor m_to;
             private:
             public:
-                PairwiseNorm() :Op(1,1){} ///< for serialization
+                Tuplewise_op() :Op(1,1){} ///< for serialization
                 /**
                  * ctor.
                  * @param images the input images
                  */
-                PairwiseNorm(result_t& images, unsigned int dim)
+                Tuplewise_op(result_t& images, unsigned int dim, unsigned int subspace_size, cuv::alex_conv::tuplewise_op_functor to)
                     :Op(1,1),
-                    m_dim(dim)
+                    m_dim(dim),
+                    m_subspace_size(subspace_size),
+                    m_to(to)
                 {
                     add_param(0,images);
                 }
@@ -601,7 +602,7 @@ namespace cuvnet
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
-                        ar & boost::serialization::base_object<Op>(*this) & m_dim;
+                        ar & boost::serialization::base_object<Op>(*this) & m_dim & m_subspace_size & m_to;
                     }
         };
 
