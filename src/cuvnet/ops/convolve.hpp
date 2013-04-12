@@ -4,7 +4,9 @@
 #include <cmath>
 #include <cuvnet/op.hpp>
 #include <cuv/convolution_ops/convolution_ops.hpp>
-#include <cuv/convolution_ops/convolution_ops_theano.hpp>
+#ifndef NO_THEANO_WRAPPERS
+#      include <cuv/convolution_ops/convolution_ops_theano.hpp>
+#endif
 #include <log4cxx/logger.h>
 namespace cuvnet
 {
@@ -38,6 +40,8 @@ namespace cuvnet
                 unsigned int m_nGroups;
                 unsigned int m_partial_sum;
                 int m_padding_start;
+                int m_padding_size;
+                int m_stride;
             public:
                 Convolve() :Op(2,1){} ///< for serialization
 
@@ -76,6 +80,8 @@ namespace cuvnet
                         ar & m_nGroups;
                         ar & m_partial_sum;
                         ar & m_padding_start;
+                        ar & m_padding_size;
+                        ar & m_stride;
                     }
         };
 
@@ -83,7 +89,7 @@ namespace cuvnet
 
 
 
-
+#ifndef NO_THEANO_WRAPPERS
     /**
      * convolve a set of images using a set of filters.
      *
@@ -140,7 +146,7 @@ namespace cuvnet
        };
 
 
-
+#endif
 
 
     /**

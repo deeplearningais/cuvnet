@@ -139,6 +139,11 @@ namespace cuvnet
         m_epoch_of_saved_params = m_epoch;
     }
 
+    void gradient_descent::forget_best_params(){
+        m_best_perf_params.clear();
+        m_epoch_of_saved_params = 0;
+    }
+
     void gradient_descent::load_best_params(){
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("gd"));
         // load the best parameters again
@@ -489,14 +494,15 @@ namespace cuvnet
         // determine how good we've been (usually set to some perf()
         // function of the construct you're trying to minimize)
         float perf = m_performance();
-        if(perf != perf){
-            LOG4CXX_WARN( log,  "STOP Got NaN in early-stopping check!");
-            throw arithmetic_error_stop();
-        }
 
         // call after_early_stopping_epoch() HERE, so that
         // m_performance can rely on still being in validation mode!
         after_early_stopping_epoch(current_epoch);
+
+        if(perf != perf){
+            LOG4CXX_WARN( log,  "STOP Got NaN in early-stopping check!");
+            throw arithmetic_error_stop();
+        }
 
         m_val_perfs.push_back(perf);
 
@@ -508,15 +514,22 @@ namespace cuvnet
             perf += m_val_perfs[i];
         perf /= window_size;
 
+
+        log4cxx::MDC perf_mdc("perf", boost::lexical_cast<std::string>(perf));
+        log4cxx::MDC patience_mdc("patience", boost::lexical_cast<std::string>(m_patience));
+        log4cxx::MDC wups_mdc("wups", boost::lexical_cast<std::string>(wups));
         if(perf < m_best_perf) {
+            log4cxx::MDC perf_mdc("best_perf", boost::lexical_cast<std::string>(perf));
             LOG4CXX_DEBUG(log, "* "<<current_epoch<<": "<<wups<<" / "<<m_patience<<", "<<std::setprecision(3) <<(perf/m_best_perf)<<": "<< std::setprecision(6) << perf);
         } else {
+            log4cxx::MDC perf_mdc("best_perf", boost::lexical_cast<std::string>(m_best_perf));
             LOG4CXX_DEBUG(log, "- "<<current_epoch<<": "<<wups<<" / "<<m_patience<<", "<<std::setprecision(3) <<(perf/m_best_perf)<<": "<< std::setprecision(6) << perf);
         }
 
         if(perf < m_best_perf) {
             // save the (now best) parameters
             m_gd.save_current_params();  
+            improved();
             if(perf < m_thresh * m_best_perf){ 
                 // improved by more than thresh
                 m_patience = std::max((float)m_patience, (float)wups * m_patience_increase);

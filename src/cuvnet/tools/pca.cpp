@@ -60,6 +60,10 @@ void pca_whitening::fit(const cuv::tensor<float,cuv::host_memory_space>& train_)
     lapack::syev( 'V', 'L', Eigv, lambda, lapack::optimal_workspace() );
     std::vector<unsigned int> idx = argsort(lambda.begin(), lambda.end(), std::greater<float>());
 
+
+    for (unsigned int i = 0; i < idx.size(); i++)
+        std::cout << "i = " << i  << "   " << lambda(idx[i]) << std::endl;/* cursor */
+
     // calculate the cut-off Eigv and m_diag matrix 
     m_diag = ublas::diagonal_matrix<real> (m_n_components);
     if(m_whiten)

@@ -170,6 +170,11 @@ namespace cuvnet
             void save_current_params();
 
             /**
+             *  forget about "best" state saved by save_current_params().
+             */
+            void forget_best_params();
+
+            /**
              * runs an early-stopping epoch.
              *
              * @return number of early-stopping batches
@@ -319,6 +324,9 @@ namespace cuvnet
             /// triggered after finishing a early-stopping epoch
             boost::signal<void(unsigned int)> after_early_stopping_epoch;
 
+            /// triggered when a new 'best' value is found
+            boost::signal<void()> improved;
+
             /**
              * ctor.
              *
@@ -430,6 +438,7 @@ namespace cuvnet
              */
         momentum_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float momentum=0.9f);
 
+        inline float momentum(){ return m_momentum; }
         inline void set_momentum(float momentum){
         	m_momentum = momentum;
         	std::cout<<"momentum is"<<momentum<<std::endl;

@@ -225,6 +225,7 @@ namespace cuvnet
 
 
 
+#ifndef NO_THEANO_WRAPPERS
     /***************************************************
      * Convolve2dTheano 
      ***************************************************/
@@ -328,6 +329,8 @@ namespace cuvnet
        m_results[0]->shape = dst;
     }
 
+
+#endif /* NO_THEANO_WRAPPERS */
 
 
     /***************************************************

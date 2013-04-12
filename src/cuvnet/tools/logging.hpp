@@ -20,7 +20,7 @@ namespace cuvnet
 	class Logger{
 		public:
 			/**
-			 * constructor
+			 * constructor.
 			 */
 			Logger(const std::string& fn = "log.xml");
 	};

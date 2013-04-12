@@ -3,6 +3,7 @@
 
 #include "dataset.hpp"
 #include <cuv/basics/tensor.hpp>
+#include <cuv/tensor_ops/tensor_ops.hpp>
 
 namespace cuvnet
 {
@@ -13,7 +14,7 @@ namespace cuvnet
      */
     struct cifar_dataset : dataset
     {
-        cifar_dataset(const std::string& path){
+        cifar_dataset(const std::string& path, bool grayscale=false){
             std::cout << "Reading CIFAR10 dataset..."<<std::flush;
             const unsigned int size = 3*32*32;
             train_data.resize(cuv::extents[50000][size]);
@@ -32,7 +33,7 @@ namespace cuvnet
 
             float* dest = train_data.ptr();
             for(unsigned int i=0;i<5;i++){
-                sprintf(filename, path.c_str(), templ, i+1);
+                sprintf(filename, templ, path.c_str(), i+1);
                 std::ifstream ifs(filename, std::ios::in | std::ios::binary);
                 for(unsigned int j=0;j<10000;j++){
                     trainl[i*10000+j] = (int) ifs.get();
@@ -62,7 +63,26 @@ namespace cuvnet
                 }
             }
 
-            train_labels.resize(cuv::extents[60000][10]);
+            if(grayscale){
+                const unsigned int gsize = 32 * 32;
+                using namespace cuv;
+                typedef index_range range;
+                tensor<float, cuv::host_memory_space> gtrain_data(cuv::extents[50000][gsize]);
+                tensor<float, cuv::host_memory_space> gtest_data(cuv::extents[10000][gsize]);
+                gtrain_data[indices[range()]] = 
+                    0.299f * train_data[indices[range()][range(0, 32*32)]].copy() +
+                    0.587f * train_data[indices[range()][range(32*32, 2*32*32)]].copy() +
+                    0.114f * train_data[indices[range()][range(2*32*32, 3*32*32)]].copy();
+                gtest_data[indices[range()]] = 
+                    0.299f * test_data[indices[range()][range(0, 32*32)]].copy() +
+                    0.587f * test_data[indices[range()][range(32*32, 2*32*32)]].copy() +
+                    0.114f * test_data[indices[range()][range(2*32*32, 3*32*32)]].copy();
+
+                train_data = gtrain_data;
+                test_data = gtest_data;
+            }
+
+            train_labels.resize(cuv::extents[50000][10]);
             test_labels.resize(cuv::extents[10000][10]);
             train_labels = 0.f;
             test_labels = 0.f;
@@ -73,7 +93,7 @@ namespace cuvnet
                 test_labels(i, testl[i]) = 1;
             }
 
-            channels = 3;
+            channels = grayscale ? 1 : 3;
             binary   = false;
             image_size = 32;
             std::cout << "done."<<std::endl;

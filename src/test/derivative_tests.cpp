@@ -527,8 +527,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve_theano){
     using namespace cuv::theano_conv;
 
         {
-            Convolve2dTheano th;
-            th.init_cuda();
+            initcuda();
             unsigned int nImgChan = 3;      // must be divisible by nGroups
             unsigned int nImgPixX = 5;
             unsigned int nImgPixY = 5;
@@ -551,7 +550,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve_theano){
                     derivative_tester(*func,0,false,.03f);
                 }
             }
-            th.finalize_cuda();
+            finalize_cuda();
         }
 
 }
@@ -562,13 +561,14 @@ BOOST_AUTO_TEST_CASE(derivative_test_pairwise_norm){
     using namespace cuv::alex_conv;
 
     {
-       unsigned int nImgChan = 8;      // must be divisible by nGroups
-       unsigned int nImgPixX = 16;
-       unsigned int nImgPixY = 16;
+       unsigned int sub_size = 3;
+       unsigned int nImgChan = 2 * sub_size;      // must be divisible by nGroups
+       unsigned int nImgPixX = 8;
+       unsigned int nImgPixY = 8;
        unsigned int nImg     = 4;
 
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg], "inputs");
-       ptr_t func   = boost::make_shared<PairwiseNorm>(inp0->result(), 0);
+       ptr_t func   = boost::make_shared<PairwiseNorm>(inp0->result(), 0, sub_size);
 
        derivative_tester(*func);
     }
@@ -576,25 +576,27 @@ BOOST_AUTO_TEST_CASE(derivative_test_pairwise_norm){
 
 
     {
-     unsigned int nImgChan = 8;      // must be divisible by nGroups
-     unsigned int nImgPixX = 16;
-     unsigned int nImgPixY = 16;
-     unsigned int nImg     = 4;
+        unsigned int sub_size = 3;
+        unsigned int nImgChan = 2 * sub_size;      // must be divisible by nGroups
+        unsigned int nImgPixX = 8;
+        unsigned int nImgPixY = 8;
+        unsigned int nImg     = 4;
 
-     boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgPixY][nImgPixX][nImg][nImgChan], "inputs");
-     ptr_t func   = boost::make_shared<PairwiseNorm>(inp0->result(), 3);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgPixY][nImgPixX][nImg][nImgChan], "inputs");
+        ptr_t func   = boost::make_shared<PairwiseNorm>(inp0->result(), 3, sub_size);
 
-     derivative_tester(*func);
-     std::cout << "test 2 for norm finished" << std::endl;
+        derivative_tester(*func);
+        std::cout << "test 2 for norm finished" << std::endl;
     }
 
     {
-       unsigned int nImgChan = 8;      // must be divisible by nGroups
-       unsigned int nImg     = 16;
+        unsigned int sub_size = 3;
+        unsigned int nImgChan = 2 * sub_size;      // must be divisible by nGroups
+        unsigned int nImg     = 8;
 
-       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan], "inputs");
-       ptr_t func   = boost::make_shared<PairwiseNorm>(inp0->result(), 1);
-       derivative_tester(*func);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan], "inputs");
+        ptr_t func   = boost::make_shared<PairwiseNorm>(inp0->result(), 1, sub_size);
+        derivative_tester(*func);
     }
 
 }
