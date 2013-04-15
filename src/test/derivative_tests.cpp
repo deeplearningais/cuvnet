@@ -555,9 +555,17 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve_theano){
 
 }
 
+void fill_with_permuted_sequence(matrix& m){
+    cuv::sequence(m);
+    cuv::tensor<float, cuv::host_memory_space> t = m;
+    std::random_shuffle(t.ptr(), t.ptr() + t.size());
+    m = t;
+}
+
 void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
     typedef boost::shared_ptr<Op> ptr_t;
 
+    bool reinit = to != cuv::alex_conv::TO_MAX;
     using namespace cuv::alex_conv;
 
     {
@@ -570,7 +578,11 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg], "inputs");
        ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 0, sub_size, to);
 
-       derivative_tester(*func);
+       fill_with_permuted_sequence(inp0->data());
+       if(reinit)
+           derivative_tester(*func);
+       else
+           derivative_tester(*func, 0, false, 0.03, 0, 0);
     }
 
 
@@ -585,8 +597,10 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgPixY][nImgPixX][nImg][nImgChan], "inputs");
         ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 3, sub_size, to);
 
-        derivative_tester(*func);
-        std::cout << "test 2 for norm finished" << std::endl;
+       if(reinit)
+           derivative_tester(*func);
+       else
+           derivative_tester(*func, 0, false, 0.03, 0, 0);
     }
 
     {
@@ -596,12 +610,20 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
 
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan], "inputs");
         ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 1, sub_size, to);
-        derivative_tester(*func);
+
+        fill_with_permuted_sequence(inp0->data());
+       if(reinit)
+           derivative_tester(*func);
+       else
+           derivative_tester(*func, 0, false, 0.03, 0, 0);
     }
 
 }
-BOOST_AUTO_TEST_CASE(derivative_test_pairwise_norm){
+BOOST_AUTO_TEST_CASE(derivative_test_tuplewise_norm){
     test_derivative_test_tuple_ops(cuv::alex_conv::TO_NORM);
+}
+
+BOOST_AUTO_TEST_CASE(derivative_test_tuplewise_max){
     test_derivative_test_tuple_ops(cuv::alex_conv::TO_MAX);
 }
 
