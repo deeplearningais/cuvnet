@@ -109,6 +109,7 @@ namespace cuvnet
             ar.template register_type<ResponseNormalizationCrossMaps>();
             ar.template register_type<ContrastNormalization>();
             ar.template register_type<SeparableFilter>();
+            ar.template register_type<SeparableFilter1d>();
             ar.template register_type<ResizeBilinear>();
             ar.template register_type<Tuplewise_op>();
             ar.template register_type<BedOfNails>();

@@ -668,6 +668,43 @@ BOOST_AUTO_TEST_CASE(derivative_test_sep_conv){
     }
 }
 
+BOOST_AUTO_TEST_CASE(derivative_test_sep_conv1d){
+	typedef boost::shared_ptr<Op> ptr_t;
+
+    using namespace cuv::alex_conv;
+    unsigned int nImgChan = 5;      // must be divisible by nGroups
+    unsigned int nImgPixY  = 8;
+    unsigned int nImgPixX  = 8;
+    unsigned int nImg     = 1;
+
+    std::cout << "in 1 " << std::endl;/* cursor */
+    cuv::tensor<float,cuv::host_memory_space> kernel(2*2+1);
+    kernel = 1.f;
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg]);
+        for (unsigned int i = 0; i < 3; i++)
+        {
+            ptr_t func		               = boost::make_shared<SeparableFilter1d>(inp0->result(), kernel, i);
+            derivative_tester(*func);
+            std::cout << "in 2 " << std::endl;/* cursor */
+        }
+
+    }
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixX]);
+        for (unsigned int i = 0; i < 3; i++)
+        {
+            std::cout << "in 3 " << i << std::endl;/* cursor */
+            ptr_t func		               = boost::make_shared<SeparableFilter1d>(inp0->result(), kernel, i);
+            derivative_tester(*func);
+            std::cout << "finished " << i << std::endl;/* cursor */
+        }
+
+    }
+
+    std::cout << "derivative test for sep_conv1d finished" << std::endl;/* cursor */
+}
+
 /*
  *BOOST_AUTO_TEST_CASE(DISABLED_derivative_test_resize_bilinear){
  *    typedef boost::shared_ptr<Op> ptr_t;

@@ -19,6 +19,12 @@ LINK_DIRECTORIES( ${LAPACK_LIBRARIES} )
 
 FIND_PACKAGE( PythonLibs )
 
+
+INCLUDE_DIRECTORIES(~/checkout/git/CUV/src)
+LINK_DIRECTORIES(~/checkout/git/CUV/build/src/cuv)
+LINK_DIRECTORIES(~/checkout/git/CUV/build/src/3rd_party/cuda_ndarray)
+
+
 INCLUDE_DIRECTORIES($ENV{HOME}/pool/include/boost-numeric-bindings/)
 #LINK_DIRECTORIES(/usr/local/cuv/lib)
 LINK_DIRECTORIES(~/lib)

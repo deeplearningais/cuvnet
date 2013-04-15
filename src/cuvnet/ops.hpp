@@ -212,6 +212,9 @@ namespace cuvnet
     /// construct a SeparableFilter object
     inline
         Op::op_ptr separable_filter(Op::op_ptr img, const matrix& kernel) { return boost::make_shared<SeparableFilter>(img->result(), kernel); }
+    /// construct a SeparableFilter1d object
+    inline
+        Op::op_ptr separable_filter1d(Op::op_ptr img, const cuv::tensor<float,cuv::host_memory_space>& kernel, unsigned int dim = 0) { return boost::make_shared<SeparableFilter1d>(img->result(), kernel, dim); }
     /// construct a Flatten object
     inline
         Op::op_ptr flatten(Op::op_ptr img, unsigned int outdim=1) { return boost::make_shared<Flatten>(img->result(),outdim); }

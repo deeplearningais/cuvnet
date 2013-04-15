@@ -447,6 +447,86 @@ namespace cuvnet
     }
 
     /***************************************************
+     * SeparableFilter 1D
+     ***************************************************/
+
+    void SeparableFilter1d::fprop(){
+        using namespace cuv;
+        using namespace cuv::libs;
+        using namespace cuv::libs::nlmeans;
+        param_t::element_type&  p0 = *m_params[0];
+        result_t::element_type& r0 = *m_results[0];
+        if(r0.can_overwrite_directly()){
+            if (m_dim == 0)
+                convolutionRows(*r0.overwrite_or_add_value(), p0.value.cdata(), m_kernel);
+            else if(m_dim == 1)
+                convolutionColumns(*r0.overwrite_or_add_value(), p0.value.cdata(), m_kernel);
+            else 
+                convolutionDepth(*r0.overwrite_or_add_value(), p0.value.cdata(), m_kernel);
+
+        }else{
+            // try to overwrite p0
+            value_ptr v(new value_type(r0.shape));
+            if (m_dim == 0)
+                convolutionRows(*v, p0.value.cdata(), m_kernel);
+            else if(m_dim == 1)
+                convolutionColumns(*v, p0.value.cdata(), m_kernel);
+            else 
+                convolutionDepth(*v, p0.value.cdata(), m_kernel);
+            r0.push(v);
+        }
+        p0.value.reset();
+    }
+
+    void SeparableFilter1d::bprop(){
+        using namespace cuv;
+        using namespace cuv::libs;
+        using namespace cuv::libs::nlmeans;
+        param_t::element_type&  p0 = *m_params[0];
+        result_t::element_type& r0 = *m_results[0];
+        if(p0.can_overwrite_directly()){
+            if (m_dim == 0)
+                convolutionRows(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_kernel);
+            else if(m_dim == 1)
+                convolutionColumns(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_kernel);
+            else 
+                convolutionDepth(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_kernel);
+        }else{
+            value_ptr v(new value_type(p0.shape));
+            if (m_dim == 0)
+                convolutionRows(*v, r0.delta.cdata(), m_kernel);
+            else if(m_dim == 1)
+                convolutionColumns(*v, r0.delta.cdata(), m_kernel);
+            else
+                convolutionDepth(*v, r0.delta.cdata(), m_kernel);
+
+            p0.push(v);
+        }
+        r0.delta.reset();
+        p0.value.reset();
+    }
+
+    void SeparableFilter1d::_determine_shapes(){
+        /*
+         * images    (numFilters, imgPixY, imgPixX, numImages)
+         * dst:      (numFilters, imgPixY, imgPixX, numImages)
+         */
+        //assert(m_params[0]->shape.size()==4);
+        m_results[0]->shape = m_params[0]->shape;
+        
+        bool symmetric = true; 
+        bool end = m_kernel.size() - 1;
+        for(int i = 0; i < end / 2; i++){
+            if(m_kernel(i) != m_kernel(end-i)){
+                symmetric = false;
+                break;
+            }
+        }
+        assert(symmetric);
+    }
+
+
+    /***************************************************
      * SeparableFilter
      ***************************************************/
 
@@ -503,6 +583,16 @@ namespace cuvnet
          */
         assert(m_params[0]->shape.size()==4);
         m_results[0]->shape = m_params[0]->shape;
+        
+        bool symmetric = true; 
+        bool end = m_kernel.size() - 1;
+        for(int i = 0; i < end / 2; i++){
+            if(m_kernel(i) != m_kernel(end-i)){
+                symmetric = false;
+                break;
+            }
+        }
+        assert(symmetric);
     }
 
 
