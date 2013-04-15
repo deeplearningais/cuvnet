@@ -137,7 +137,7 @@ namespace cuvnet
             .def(self != self)
             ;
 
-        class_<Sink, boost::shared_ptr<Sink> >("Sink", no_init)
+        class_<Sink, boost::shared_ptr<Sink>, bases<Op>, boost::noncopyable >("Sink", no_init)
             .add_property("cdata",
                     make_function(
                         &Sink::cdata,
@@ -148,10 +148,8 @@ namespace cuvnet
                         &Sink::name,
                         return_value_policy<copy_const_reference>()))
             .def("evaluate", &evaluate_sink)
-            .def("result", &Sink::result, (arg("index")=0), return_value_policy<return_by_value>())
-            .def("param",  &Sink::param, (arg("index")=0),  return_value_policy<return_by_value>())
             ;
-        class_<ParameterInput, boost::shared_ptr<ParameterInput> >("ParameterInput", no_init)
+        class_<ParameterInput, boost::shared_ptr<ParameterInput>, bases<Op>, boost::noncopyable >("ParameterInput", no_init)
             .def("__init__", make_constructor(&create_param_input_with_list))
             .add_property("name", 
                     make_function(
@@ -173,17 +171,21 @@ namespace cuvnet
                         (Op::value_type& (ParameterInput::*)())
                         &ParameterInput::delta,
                         return_internal_reference<>()))
-
-            // returning references did not work, and is probably not useful for pointers, anyway.
-            .def("result", &ParameterInput::result, (arg("index")=0), return_value_policy<return_by_value>())
-            .def("param",  &ParameterInput::param, (arg("index")=0),  return_value_policy<return_by_value>())
             ;
         ;
+        class_<Noiser, boost::shared_ptr<Noiser>, bases<Op>, boost::noncopyable >("Noiser", no_init)
+            .add_property("active", 
+                    &Noiser::is_active,
+                    &Noiser::set_active)
+            .add_property("param", 
+                    &Noiser::get_param,
+                    &Noiser::set_param)
+            ;
         register_ptr_to_python< boost::shared_ptr<Op> >();
         //register_ptr_to_python< boost::shared_ptr<ParameterInput> >(); // gives warning...
 
-        implicitly_convertible<boost::shared_ptr<ParameterInput>, boost::shared_ptr<Op> >();
-        implicitly_convertible<boost::shared_ptr<Sink>, boost::shared_ptr<Op> >();
+        //implicitly_convertible<boost::shared_ptr<ParameterInput>, boost::shared_ptr<Op> >();
+        //implicitly_convertible<boost::shared_ptr<Sink>, boost::shared_ptr<Op> >();
 
         typedef cuvnet::detail::op_result<matrix> result_t;
         typedef cuvnet::detail::op_param<matrix> param_t;
