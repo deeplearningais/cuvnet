@@ -780,7 +780,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve_pooling){
 
     {
 	    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg]);
-	    ptr_t func		               = boost::make_shared<LocalPooling>(inp0->result(), cuv::alex_conv::PT_AVG);
+	    ptr_t func		               = boost::make_shared<LocalPooling>(inp0->result(), 2, 2, cuv::alex_conv::PT_AVG);
 
 	    derivative_tester(*func);
     }
