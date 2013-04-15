@@ -555,7 +555,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve_theano){
 
 }
 
-BOOST_AUTO_TEST_CASE(derivative_test_pairwise_norm){
+void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
     typedef boost::shared_ptr<Op> ptr_t;
 
     using namespace cuv::alex_conv;
@@ -568,7 +568,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_pairwise_norm){
        unsigned int nImg     = 4;
 
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg], "inputs");
-       ptr_t func   = boost::make_shared<PairwiseNorm>(inp0->result(), 0, sub_size);
+       ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 0, sub_size, to);
 
        derivative_tester(*func);
     }
@@ -583,7 +583,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_pairwise_norm){
         unsigned int nImg     = 4;
 
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgPixY][nImgPixX][nImg][nImgChan], "inputs");
-        ptr_t func   = boost::make_shared<PairwiseNorm>(inp0->result(), 3, sub_size);
+        ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 3, sub_size, to);
 
         derivative_tester(*func);
         std::cout << "test 2 for norm finished" << std::endl;
@@ -595,10 +595,14 @@ BOOST_AUTO_TEST_CASE(derivative_test_pairwise_norm){
         unsigned int nImg     = 8;
 
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan], "inputs");
-        ptr_t func   = boost::make_shared<PairwiseNorm>(inp0->result(), 1, sub_size);
+        ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 1, sub_size, to);
         derivative_tester(*func);
     }
 
+}
+BOOST_AUTO_TEST_CASE(derivative_test_pairwise_norm){
+    test_derivative_test_tuple_ops(cuv::alex_conv::TO_NORM);
+    test_derivative_test_tuple_ops(cuv::alex_conv::TO_MAX);
 }
 
 BOOST_AUTO_TEST_CASE(derivative_test_bed_of_nails){
