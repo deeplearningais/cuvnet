@@ -909,8 +909,9 @@ namespace cuvnet
     }
 
     void Tuplewise_op::_determine_shapes(){
-        assert(m_params[0]->shape.size() >= 1);
-        //assert(m_params[0]->shape.size() % 2 == 0);
+        cuvAssert(m_params[0]->shape.size() > 1);
+        cuvAssert(m_params[0]->shape.size() > m_dim);
+        cuvAssert(m_params[0]->shape[m_dim] % m_subspace_size == 0);
         std::vector<unsigned int> dst = m_params[0]->shape;
         dst[m_dim] /= m_subspace_size;
         m_results[0]->shape = dst;
@@ -929,10 +930,6 @@ namespace cuvnet
             tuplewise_op(*v, p0.value.cdata(), m_dim, m_subspace_size, m_to);
             r0.push(v);
         }
-    }
-
-    void Tuplewise_op::release_data(){
-        Op::release_data();
     }
 
     void Tuplewise_op::bprop(){

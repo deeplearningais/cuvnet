@@ -600,8 +600,6 @@ namespace cuvnet
                 void fprop();
                 void bprop();
 
-                void release_data();
-
                 void _determine_shapes();
 
             private:
