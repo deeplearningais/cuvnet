@@ -146,10 +146,10 @@ namespace cuvnet
         Op::op_ptr axpby(Op::op_ptr x, float b, Op::op_ptr y){ return boost::make_shared<Axpby>(x->result(),y->result(),1.f,b); }
     /// construct a Noiser object
     inline
-        Op::op_ptr add_rnd_normal(Op::op_ptr x, float f){ return boost::make_shared<Noiser>(x->result(),f, Noiser::NT_NORMAL); }
+        boost::shared_ptr<Noiser> add_rnd_normal(Op::op_ptr x, float f){ return boost::make_shared<Noiser>(x->result(),f, Noiser::NT_NORMAL); }
     /// construct a Noiser object
     inline
-        Op::op_ptr zero_out(Op::op_ptr x, float f, bool compensate=true){ return boost::make_shared<Noiser>(x->result(),f, Noiser::NT_ZERO_OUT, compensate); }
+        boost::shared_ptr<Noiser> zero_out(Op::op_ptr x, float f, bool compensate=true){ return boost::make_shared<Noiser>(x->result(),f, Noiser::NT_ZERO_OUT, compensate); }
     /// construct a Sum object
     inline
         Op::op_ptr sum(Op::op_ptr x)                    { return boost::make_shared<Sum>(x->result()); }
