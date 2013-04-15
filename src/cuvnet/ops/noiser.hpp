@@ -54,6 +54,18 @@ namespace cuvnet
                      }
 
                 /**
+                 * set amount of noise.
+                 * @param f how much noise to apply.
+                 */
+                inline void set_param(float f){ m_param = f; }
+
+                /**
+                 * tell how much noise is applied
+                 * @return how much noise is applied
+                 */
+                inline float get_param()const{ return m_param; }
+
+                /**
                  * turn noise on/off.
                  * @param b whether to turn noise on or off
                  */
@@ -62,6 +74,12 @@ namespace cuvnet
                 /// @overload
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
 
+
+                /**
+                 * tell whether the noiser is currently active.
+                 * @return whether the noiser is currently active.
+                 */
+                inline bool is_active()const{ return m_active; }
 
                 /// @overload
                 void release_data();
