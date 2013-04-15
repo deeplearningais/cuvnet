@@ -943,10 +943,15 @@ namespace cuvnet
         if(p0.can_overwrite_directly()){
             tuplewise_op_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_dim, m_subspace_size, m_to);
         }else{
-            value_ptr v(new value_type(p0.shape));
-            tuplewise_op_grad(*v, p0.value.cdata(), r0.delta.cdata(), m_dim, m_subspace_size, m_to);
-            p0.push(v);
+            value_ptr ptr = p0.value;
+            p0.value.reset();       // try to overwrite input activations
+            const matrix& oldvalue = ptr.cdata();
+            value_type& v = ptr.data_onlyshape();
+            tuplewise_op_grad(v, oldvalue, r0.delta.cdata(), m_dim, m_subspace_size, m_to);
+            p0.push(ptr);
         }
+        p0.value.reset();
+        r0.delta.reset();
     }
 
 }
