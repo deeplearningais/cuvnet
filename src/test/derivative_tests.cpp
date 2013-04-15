@@ -487,7 +487,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
             {
                 boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg], "inputs");
                 boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFiltChan][nFiltPixX*nFiltPixX][nFilt], "weights");
-                ptr_t func                       = boost::make_shared<Convolve>(inp0->result(), inp1->result(), padding);
+                ptr_t func                       = boost::make_shared<Convolve>(inp0->result(), inp1->result(), padding, 0, 1, 1);
 
                 derivative_tester(*func,0,false,.03f);
             }
@@ -513,7 +513,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
             {
                 boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg],"inputs");
                 boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFiltChan][nFiltPixX*nFiltPixX][nFilt],"weights");
-                ptr_t func                     = boost::make_shared<Convolve>(inp0->result(), inp1->result(), padding);
+                ptr_t func                     = boost::make_shared<Convolve>(inp0->result(), inp1->result(), padding, 0, 1, 1);
 
                 derivative_tester(*func,0,false,.03);
             }
