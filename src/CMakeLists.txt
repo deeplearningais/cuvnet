@@ -36,6 +36,7 @@ CONFIGURE_FILE( ${CMAKE_CURRENT_SOURCE_DIR}/datasets/util/bbtools.jpg ${CMAKE_BI
 CONFIGURE_FILE( ${CMAKE_CURRENT_SOURCE_DIR}/datasets/util/lena.jpg ${CMAKE_BINARY_DIR} COPYONLY)
 
 INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libnpy-0.5/include )
+INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ )
 OPTION(USE_OPENCV "Use OpenCV if available" OFF)
 FIND_PACKAGE( tbb )
 
@@ -66,6 +67,7 @@ SET(CUVNET_SRC
     cuvnet/derivative_test.cpp
 
     third_party/libnpy-0.5/src/npy.c
+    third_party/cnpy/cnpy.cpp
 
     ${CUVNET_OPS_SRC}
     )
