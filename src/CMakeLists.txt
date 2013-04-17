@@ -46,6 +46,7 @@ SET(CUVNET_SRC
     #datasets/voc_detection.cpp
     datasets/image_queue.cpp
 	datasets/amat_datasets.cpp
+	datasets/npy_datasets.cpp
 	datasets/read_amat.cpp
 	datasets/bounding_box_tools.cpp
     datasets/dataset_reader.cpp

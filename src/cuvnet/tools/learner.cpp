@@ -7,6 +7,7 @@
 #include <datasets/tiny_mnist.hpp>
 #include <datasets/randomizer.hpp>
 #include <datasets/amat_datasets.hpp>
+#include <datasets/npy_datasets.hpp>
 #include <datasets/msrc_descriptors.hpp>
 #include <cuvnet/tools/preprocess.hpp>
 #include <cuvnet/op.hpp>
@@ -184,6 +185,13 @@ namespace cuvnet
                 zmuv.fit_transform(dsall.train_data);
                 zmuv.transform(dsall.test_data);
             }
+            m_splits.init(dsall, nsplits, es_frac);
+        }else if(ds == "cifar_zca"){
+            dataset dsall = npy_dataset("/home/local/datasets/cifar10/pylearn2_gcn_whitened");
+            dsall.channels = 3;
+            dsall.image_size = 32;
+            dsall.binary = false;
+            randomizer().transform(dsall.train_data, dsall.train_labels);
             m_splits.init(dsall, nsplits, es_frac);
         }else if(ds == "cifar"){
             dataset dsall = cifar_dataset("/home/local/datasets/CIFAR10");
