@@ -458,9 +458,16 @@ void swiper::check_param_existence()const{
         if (std::find(m_topo.fprop_nodelist.begin(), m_topo.fprop_nodelist.end(), par) == m_topo.fprop_nodelist.end()){
             Input* inp = dynamic_cast<Input*>(par);
             if(inp)
-                throw std::runtime_error("Parameter `" + inp->name() +  "' not found in the function graph");
+                throw std::runtime_error("Parameter `" + inp->name() +  "' not found in the function fprop list");
             else
-                throw std::runtime_error("Parameter not found in the function graph");
+                throw std::runtime_error("Parameter not found in the function fprop list");
+        }
+        if (std::find(m_topo.bprop_nodelist.begin(), m_topo.bprop_nodelist.end(), par) == m_topo.bprop_nodelist.end()){
+            Input* inp = dynamic_cast<Input*>(par);
+            if(inp)
+                throw std::runtime_error("Parameter `" + inp->name() +  "' not found in the function bprop list");
+            else
+                throw std::runtime_error("Parameter not found in the function bprop list");
         }
     }
 } 
