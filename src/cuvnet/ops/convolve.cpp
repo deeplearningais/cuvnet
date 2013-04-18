@@ -750,30 +750,61 @@ namespace cuvnet
         //void local_avg_pool_grad(target, const avgGrads,
         //        int subsX, int startX, int strideX);
 
-        if(m_pooltype == PT_AVG){
-            if(p0.can_overwrite_directly()){
-                local_avg_pool_grad(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_subsx,0,m_stridex);
-            }else{
-                // try overwriting p0.
-                //value_ptr ptr = p0.value;
-                value_ptr ptr(new value_type(p0.shape));
-                value_type& v = *ptr;
-                local_avg_pool_grad(v, r0.delta.cdata(), m_subsx,0,m_stridex);
-                p0.push(ptr);
+        // bprop with alex' code only works if filtSizeOK:
+        bool filtSizeOK = (r0.shape[0] % 16) == 0;
+
+        if(filtSizeOK){
+            if(m_pooltype == PT_AVG){
+                if(p0.can_overwrite_directly()){
+                    local_avg_pool_grad(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_subsx,0,m_stridex);
+                }else{
+                    // try overwriting p0.
+                    //value_ptr ptr = p0.value;
+                    value_ptr ptr(new value_type(p0.shape));
+                    value_type& v = *ptr;
+                    local_avg_pool_grad(v, r0.delta.cdata(), m_subsx,0,m_stridex);
+                    p0.push(ptr);
+                }
+            }else if(m_pooltype == PT_MAX){
+                if(p0.can_overwrite_directly()){
+                    local_max_pool_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex);
+                }else if(p0.can_add_directly()){
+                    local_max_pool_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex, 1.f,1.f);
+                }else{
+                    value_ptr ptr(new value_type(p0.shape));
+                    value_type& v = *ptr;
+                    local_max_pool_grad(v, p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex);
+                    p0.push(ptr);
+                }
+                p0.value.reset(); 
+                m_result.reset();
             }
-        }else if(m_pooltype == PT_MAX){
-            if(p0.can_overwrite_directly()){
-                local_max_pool_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex);
-            }else if(p0.can_add_directly()){
-                local_max_pool_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex, 1.f,1.f);
-            }else{
-                value_ptr ptr(new value_type(p0.shape));
-                value_type& v = *ptr;
-                local_max_pool_grad(v, p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex);
-                p0.push(ptr);
+        }else{
+            // number of maps was not a multiple of 16 --> we need to pad the data.
+            unsigned int nFiltReal = p0.shape[0];
+            unsigned int nFiltTmp  = 16 * std::ceil(nFiltReal / 16.);                            // create intermediate representation of the outputs
+            value_type tmp_p0delta(extents[nFiltTmp][p0.shape[1]][p0.shape[2]][p0.shape[3]]);
+            value_type tmp_r0delta(extents[nFiltTmp][r0.shape[1]][r0.shape[2]][r0.shape[3]]);
+            typedef index_range range;
+            tmp_r0delta[
+                    indices[range(0, nFiltReal)][range()][range()][range()]] = r0.delta.cdata();
+
+            if(m_pooltype == PT_AVG){
+                local_avg_pool_grad(tmp_p0delta, tmp_r0delta, m_subsx,0,m_stridex);
+            }else if(m_pooltype == PT_MAX){
+                // pad input
+                value_type tmp_p0value(extents[nFiltTmp][p0.shape[1]][p0.shape[2]][p0.shape[3]]);
+                tmp_p0value[
+                    indices[range(0,nFiltReal)][range()][range()][range()]] = p0.value.cdata();
+                // pad result
+                value_type tmp_r0value(extents[nFiltTmp][r0.shape[1]][r0.shape[2]][r0.shape[3]]);
+                tmp_r0value[
+                        indices[range(0,nFiltReal)][range()][range()][range()]] = m_result.cdata();
+                local_max_pool_grad(tmp_p0delta, tmp_p0value, tmp_r0delta, tmp_r0value, m_subsx,0,m_stridex);
             }
-            p0.value.reset(); 
-            m_result.reset();
+            p0.push(value_ptr(
+                        new value_type(
+                            tmp_p0delta[indices[range(0,nFiltReal)][range()][range()][range()]])));
         }
         p0.value.reset();
         r0.delta.reset();
