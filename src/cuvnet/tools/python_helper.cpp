@@ -77,7 +77,7 @@ namespace cuvnet
 
         return os.str();
     }
-    void set_data(boost::shared_ptr<ParameterInput>& f, cuvnet::matrix& m){
+    void set_data(boost::shared_ptr<ParameterInput> f, cuvnet::matrix& m){
         f->data() = m;
     }
 
