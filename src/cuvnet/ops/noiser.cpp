@@ -6,6 +6,14 @@ namespace cuvnet
         m_zero_mask.dealloc();
         Op::release_data();
     }
+    
+    void Noiser::_graphviz_node_desc(detail::graphviz_node& desc)const{
+        std::string act = m_active ? "[on]" : "[off]";
+        if(m_noisetype == NT_ZERO_OUT)
+            desc.label = "zero out noise " + act;
+        else if(m_noisetype == NT_NORMAL)
+            desc.label = "gaussnoise " + act;
+    }
 
 
     void Noiser::fprop_zero_out(){

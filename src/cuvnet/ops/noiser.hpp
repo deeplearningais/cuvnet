@@ -54,6 +54,10 @@ namespace cuvnet
                  * @param b whether to turn noise on or off
                  */
                 inline void set_active(bool b=true){ m_active = b; }
+                
+                /// @overload
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
+
 
                 /// @overload
                 void release_data();
