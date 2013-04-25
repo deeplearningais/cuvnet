@@ -107,9 +107,12 @@ namespace cuvnet
                 cuv::apply_scalar_functor(d_res,d_orig,SF_MULT,0.f,&m_zero_mask);
                 p0.overwrite_or_add_value().data() += d_res;
             }else if(p0.can_overwrite_directly()){
-                cuv::apply_scalar_functor(*p0.overwrite_or_add_value(),d_orig,SF_MULT,0.f,&m_zero_mask);
+                value_type& dst = *p0.overwrite_or_add_value();
+                cuv::apply_scalar_functor(dst,d_orig,SF_COPY);
+                cuv::apply_scalar_functor(dst,SF_MULT,0.f,&m_zero_mask);
             }else{
-                value_type& d_res = r0.delta.data_onlyshape();
+                // try to overwrite r0.delta
+                value_type& d_res = r0.delta.data(); // COPY if not unique!
                 cuv::apply_scalar_functor(d_res,d_orig,SF_MULT,0.f,&m_zero_mask);
                 p0.push(r0.delta);
             }
