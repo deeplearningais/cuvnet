@@ -30,6 +30,7 @@
 #include <cuvnet/ops/debug.hpp>
 #include <cuvnet/ops/subtensor.hpp>
 #include <cuvnet/ops/concatenate.hpp>
+#include <cuvnet/ops/theano_ops.hpp>
 
 namespace cuvnet
 {
@@ -226,6 +227,16 @@ namespace cuvnet
     template<std::size_t D>
     inline
         Op::op_ptr reshape(Op::op_ptr img, const cuv::extent_gen<D>& eg) { return boost::make_shared<Reshape>(img->result(),eg); }
+
+    /// construct a ShuffleDim object
+    template<std::size_t D>
+    inline
+       Op::op_ptr shuffle_dim(Op::op_ptr img, const cuv::extent_gen<D>& eg) { return boost::make_shared<ShuffleDim>(img->result(),eg); }
+
+    /// construct a FlipDims object
+    template<std::size_t D>
+    inline
+       Op::op_ptr flip_dims(Op::op_ptr img, const cuv::extent_gen<D>& eg) { return boost::make_shared<FlipDims>(img->result(), eg); }
 
     /// construct a Subtensor object
     template<std::size_t D, std::size_t E>
