@@ -198,11 +198,15 @@ namespace cuvnet
         		m_padding_start = -m_padding_size;
             }
 
+        // force symmetric padding
+        int padsize = m_padding_size;
+        if(is_padded())
+            padsize *= 2;
         unsigned int nOutPixX = is_padded()
-            ? ((nImgPixX+m_padding_size-nFltPixX)/m_stride+1)
+            ? ((nImgPixX+padsize-nFltPixX)/m_stride+1)
             : ((nImgPixX-nFltPixX)/m_stride+1);
         unsigned int nOutPixY = is_padded()
-            ? ((nImgPixY+m_padding_size-nFltPixX)/m_stride+1)
+            ? ((nImgPixY+padsize-nFltPixX)/m_stride+1)
             : ((nImgPixY-nFltPixX)/m_stride+1);
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
