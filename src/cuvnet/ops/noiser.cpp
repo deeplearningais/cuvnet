@@ -32,10 +32,12 @@ namespace cuvnet
         value_type&       res    = p0.value.data();
         cuv::apply_scalar_functor(res,SF_MULT,0.f,&m_zero_mask);
 
-        // remaining units are "amplified", so that during
-        // _inactive_ forward pass, the "mass" arriving at the next
-        // layer is approximately the same.
-        res *= 1.f/(1.f - m_param); 
+        if(m_compensate){
+            // remaining units are "amplified", so that during
+            // _inactive_ forward pass, the "mass" arriving at the next
+            // layer is approximately the same.
+            res *= 1.f/(1.f - m_param); 
+        }
 
         r0.push(p0.value);
         p0.value.reset();

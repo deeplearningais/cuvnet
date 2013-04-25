@@ -32,6 +32,7 @@ namespace cuvnet
                 float m_param;
                 NoiseType m_noisetype;
                 bool m_active;
+                bool m_compensate;
                 
                 cuv::tensor<unsigned char,value_type::memory_space_type> m_zero_mask;
 
@@ -42,9 +43,12 @@ namespace cuvnet
                  * @param p0 the data to apply noise to
                  * @param param controls amount of noise
                  * @param noise_type type of noise to apply
+                 * @param compensate if true and noise_type==NT_ZERO_OUT,
+                 *        compensate for units set to zero by amplifying remaining
+                 *        ones
                  */
-                Noiser(result_t& p0, float param, NoiseType noise_type=NT_NORMAL)
-                    :Op(1,1), m_param(param), m_noisetype(noise_type), m_active(true)
+                Noiser(result_t& p0, float param, NoiseType noise_type=NT_NORMAL, bool compensate=true)
+                    :Op(1,1), m_param(param), m_noisetype(noise_type), m_active(true), m_compensate(compensate)
                      {
                          add_param(0,p0);
                      }
@@ -80,7 +84,7 @@ namespace cuvnet
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
-                        ar & m_param & m_noisetype & m_active;
+                        ar & m_param & m_noisetype & m_active & m_compensate;
                     }
         };
 }
