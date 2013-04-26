@@ -9,6 +9,7 @@
 #include <datasets/amat_datasets.hpp>
 #include <datasets/npy_datasets.hpp>
 #include <datasets/msrc_descriptors.hpp>
+#include <datasets/splitter.hpp>
 #include <cuvnet/tools/preprocess.hpp>
 #include <cuvnet/op.hpp>
 #include "learner.hpp"
@@ -110,15 +111,33 @@ namespace cuvnet
         m_ds_name = ds;
         m_bs = bs;
         m_in_early_stopping = false;
+        unsigned int pos = ds.find('?');
+        unsigned int from = INT_MAX, to = 0; // inverse range == not used
+        if(pos != std::string::npos){
+            std::string ds0 = ds.substr(0, pos);
+            std::string subsetspec = ds.substr(pos+1);
+            unsigned int colonpos = subsetspec.find(':');
+            if(colonpos == std::string::npos){
+                throw std::runtime_error("Could not parse dataset string, should have format 'dataset?from:to'");
+            }
+            from = boost::lexical_cast<int>(subsetspec.substr(0,colonpos));
+            to   = boost::lexical_cast<int>(subsetspec.substr(colonpos+1));
+            ds = ds0;
+        }
         if(0){
             ;
         }else if (ds == "tiny_mnist"){
             dataset dsall = tiny_mnist("/home/local/datasets/tapani");
+            randomizer().transform(dsall.train_data, dsall.train_labels);
+            if(from < to)
+                dsall = select_training_range(dsall, from, to);
             // the dataset is already shuffled and normalized for zero-mean and unit variance.
             m_splits.init(dsall, nsplits, es_frac);
         }else if (ds == "mnist"){
             dataset dsall = mnist_dataset("/home/local/datasets/MNIST");
             randomizer().transform(dsall.train_data, dsall.train_labels);
+            if(from < to)
+                dsall = select_training_range(dsall, from, to);
             global_min_max_normalize<> normalizer(0,1);
             normalizer.fit_transform(dsall.train_data);
             normalizer.transform(dsall.test_data);
@@ -126,6 +145,9 @@ namespace cuvnet
         }else if (ds == "convex"){
             dataset dsall = amat_dataset("/home/local/datasets/bengio/convex.zip", "convex_train.amat","50k/convex_test.amat");
             dsall.binary = true; // Note: not all amat_datasets are binary!
+            randomizer().transform(dsall.train_data, dsall.train_labels);
+            if(from < to)
+                dsall = select_training_range(dsall, from, to);
             //randomizer().transform(dsall.train_data, dsall.train_labels);
             global_min_max_normalize<> normalizer(0,1);
             normalizer.fit_transform(dsall.train_data);
@@ -134,6 +156,9 @@ namespace cuvnet
         }else if (ds == "mnist_rot"){
             dataset dsall = amat_dataset("/home/local/datasets/bengio/mnist_rotation_new.zip", "mnist_all_rotation_normalized_float_train_valid.amat","mnist_all_rotation_normalized_float_test.amat");
             dsall.binary = true; // Note: not all amat_datasets are binary!
+            randomizer().transform(dsall.train_data, dsall.train_labels);
+            if(from < to)
+                dsall = select_training_range(dsall, from, to);
             //randomizer().transform(dsall.train_data, dsall.train_labels);
             global_min_max_normalize<> normalizer(0,1);
             normalizer.fit_transform(dsall.train_data);
@@ -142,6 +167,8 @@ namespace cuvnet
         }else if (ds == "ldpc"){
             dataset dsall = ldpc_dataset("/home/local/datasets/LDPC");
             randomizer().transform(dsall.train_data, dsall.train_labels);
+            if(from < to)
+                dsall = select_training_range(dsall, from, to);
             // no transformation except randomization needed
             m_splits.init(dsall, nsplits);
         }else if(ds == "msrc_descr"){
@@ -162,6 +189,8 @@ namespace cuvnet
             // TODO: this one has complicated pre-processing, needs normalizer
             // to be accessible for filter visualization
             randomizer().transform(dsall.train_data, dsall.train_labels);
+            if(from < to)
+                dsall = select_training_range(dsall, from, to);
             {
                 // after applying logarithm, data distribution looks roughly gaussian.
                 log_transformer<cuv::host_memory_space> lt;
@@ -192,10 +221,14 @@ namespace cuvnet
             dsall.image_size = 32;
             dsall.binary = false;
             randomizer().transform(dsall.train_data, dsall.train_labels);
+            if(from < to)
+                dsall = select_training_range(dsall, from, to);
             m_splits.init(dsall, nsplits, es_frac);
         }else if(ds == "cifar"){
             dataset dsall = cifar_dataset("/home/local/datasets/CIFAR10");
             randomizer().transform(dsall.train_data, dsall.train_labels);
+            if(from < to)
+                dsall = select_training_range(dsall, from, to);
             zero_mean_unit_variance<> normalizer;
             normalizer.fit_transform(dsall.train_data);
             normalizer.transform(dsall.test_data);
@@ -203,6 +236,8 @@ namespace cuvnet
         }else if(ds == "cifar_gray"){
             dataset dsall = cifar_dataset("/home/local/datasets/CIFAR10", true);
             randomizer().transform(dsall.train_data, dsall.train_labels);
+            if(from < to)
+                dsall = select_training_range(dsall, from, to);
             zero_mean_unit_variance<> normalizer;
             normalizer.fit_transform(dsall.train_data);
             normalizer.transform(dsall.test_data);

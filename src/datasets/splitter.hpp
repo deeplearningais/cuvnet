@@ -207,5 +207,12 @@ namespace cuvnet
                 return dst;
             }
     };
+
+    dataset select_training_range(dataset ds, int from, int to){
+        dataset ds2 = ds;
+        ds2.train_data = ds.train_data[cuv::indices[cuv::index_range(from, to)]];
+        ds2.train_labels = ds.train_labels[cuv::indices[cuv::index_range(from, to)]];
+        return ds2;
+    }
 }
 #endif /* __SPLITTER_HPP__ */
