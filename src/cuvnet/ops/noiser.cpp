@@ -104,6 +104,7 @@ namespace cuvnet
         else if(m_noisetype == NT_ZERO_OUT){
             const value_type& d_orig = r0.delta.cdata();
 
+            // TODO does not account for compensation here!
             if(p0.can_add_directly()){
                 // TODO: add masks for binary ops to CUV
                 value_type& d_res = r0.delta.data_onlyshape();
