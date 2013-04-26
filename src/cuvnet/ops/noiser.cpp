@@ -1,4 +1,5 @@
 #include "noiser.hpp"
+#include <boost/format.hpp>
 
 namespace cuvnet
 {
@@ -8,11 +9,11 @@ namespace cuvnet
     }
     
     void Noiser::_graphviz_node_desc(detail::graphviz_node& desc)const{
-        std::string act = m_active ? "[on]" : "[off]";
+        std::string act = m_active ? "on" : "off";
         if(m_noisetype == NT_ZERO_OUT)
-            desc.label = "zero out noise " + act;
+            desc.label = (boost::format("zero out noise %1.2f [%s]") % act % m_param).str();
         else if(m_noisetype == NT_NORMAL)
-            desc.label = "gaussnoise " + act;
+            desc.label = (boost::format("gaussian noise %1.2f [%s]") % act % m_param).str();
     }
 
 
