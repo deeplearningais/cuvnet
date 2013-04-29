@@ -162,6 +162,14 @@ namespace cuvnet
                 return m_learnrate;
             }
 
+            /**
+             * set the learnrate to the given value
+             * @param lr the new learnrate value
+             */
+            inline void set_learnrate(float lr){
+                m_learnrate = lr;
+            }
+
 
             /**
              * save the current parameters (on host) for retrieval
