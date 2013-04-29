@@ -537,6 +537,11 @@ namespace cuvnet
             m_best_perf = perf;
         }
 
+        if(m_best_perf == 0.f){
+            log4cxx::MDC mdc("best_perf", boost::lexical_cast<std::string>(m_best_perf));
+            LOG4CXX_WARN(log, "STOP loss zero after " <<current_epoch << " epochs");
+            throw no_improvement_stop();
+        }
         if(m_patience <= wups){
             // stop learning if we failed to get significant improvements
             log4cxx::MDC mdc("best_perf", boost::lexical_cast<std::string>(m_best_perf));
