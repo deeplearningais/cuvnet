@@ -67,6 +67,11 @@ SET(CUVNET_SRC
     cuvnet/op_io.cpp
     cuvnet/derivative_test.cpp
 
+    cuvnet/models/models.cpp
+    cuvnet/models/initialization.cpp
+    cuvnet/models/logistic_regression.cpp
+    cuvnet/models/mlp.cpp
+
     third_party/libnpy-0.5/src/npy.c
     third_party/cnpy/cnpy.cpp
 
