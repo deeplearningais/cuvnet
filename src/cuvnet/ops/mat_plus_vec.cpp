@@ -10,23 +10,16 @@ namespace cuvnet
         if(r0.can_overwrite_directly()){
             r0.overwrite_or_add_value() = p0.value;
             p0.value.reset(); // try to overwrite p0
-            if(m_axis!=0)
-                cuv::matrix_plus_row(*r0.overwrite_or_add_value(), p1.value.cdata());
-            else
-                cuv::matrix_plus_col(*r0.overwrite_or_add_value(), p1.value.cdata());
+            cuv::matrix_op_vec(*r0.overwrite_or_add_value(),*r0.overwrite_or_add_value(), p1.value.cdata(), m_axis, BF_ADD);
         }
         else if(r0.can_add_directly()){
             *r0.overwrite_or_add_value() += p0.value.cdata();
-            if(m_axis!=0)
-                cuv::matrix_plus_row(*r0.overwrite_or_add_value(), p1.value.cdata());
-            else
-                cuv::matrix_plus_col(*r0.overwrite_or_add_value(), p1.value.cdata());
+            cuv::matrix_op_vec(*r0.overwrite_or_add_value(),*r0.overwrite_or_add_value(), p1.value.cdata(), m_axis, BF_ADD);
         }else{
             // reallocate *sigh*
             value_ptr v = p0.value;
             p0.value.reset(); // try to overwrite p0
-            if(m_axis!=0) cuv::matrix_plus_row(*v, p1.value.cdata());
-            else          cuv::matrix_plus_col(*v, p1.value.cdata());
+            cuv::matrix_op_vec(*v,*v, p1.value.cdata(), m_axis, BF_ADD);
             r0.push(v);
         }
         p0.value.reset();

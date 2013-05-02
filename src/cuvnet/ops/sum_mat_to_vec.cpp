@@ -83,23 +83,22 @@ namespace cuvnet
 
         float fact_new = m_mean ? 1.f/m_n_summed : 1.f;
         assert(p0.need_derivative);
-        int broadcast_axis = p0.shape.size()-1-m_axis;
         if(!m_squared){
             if(p0.can_overwrite_directly()){
                 matrix_op_vec(
                         *p0.overwrite_or_add_value(), 
                         *p0.overwrite_or_add_value(), 
-                        r0.delta.cdata(), broadcast_axis, BF_2ND, fact_new, 0.f);
+                        r0.delta.cdata(), m_axis, BF_2ND, fact_new, 0.f);
             }else if(p0.can_add_directly()){
                 matrix_op_vec(
                         *p0.overwrite_or_add_value(), 
                         *p0.overwrite_or_add_value(), 
-                        r0.delta.cdata(), broadcast_axis, BF_ADD, fact_new, 1.f);
+                        r0.delta.cdata(), m_axis, BF_ADD, fact_new, 1.f);
             }else{
                 value_ptr v(new value_type(p0.shape));
                 matrix_op_vec(
                         *v, *v, 
-                        r0.delta.cdata(), broadcast_axis, BF_2ND, fact_new, 0.f);
+                        r0.delta.cdata(), m_axis, BF_2ND, fact_new, 0.f);
                 p0.push(v);
             }
         }else{
@@ -111,7 +110,7 @@ namespace cuvnet
             matrix_op_vec(
                     dst,
                     dst,
-                    r0.delta.cdata(), broadcast_axis, BF_MULT, fact_new, 0.f);
+                    r0.delta.cdata(), m_axis, BF_MULT, fact_new, 0.f);
             p0.push(p0.value);
             p0.value.reset();
         }
