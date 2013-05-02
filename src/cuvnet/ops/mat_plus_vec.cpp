@@ -35,28 +35,62 @@ namespace cuvnet
         if(p0.need_derivative)
             p0.push(r0.delta);
         if(p1.need_derivative){
+            unsigned int size = 1;
+            unsigned int ndim = r0.shape.size();
+            unsigned int cols = size / r0.shape[ndim-1];
+            for(unsigned int i = 0; i < ndim;i++){
+                size *= r0.shape[i];
+            }
+
             if(p1.can_overwrite_directly()){
-                if(m_axis!=0)
+                if(m_axis == p0.shape.size()-1)
                     reduce_to_row(*p1.overwrite_or_add_value(),
                             r0.delta.cdata(),RF_ADD, 1.f, 0.f);
-                else
+                else if (m_axis == 0)
                     reduce_to_col(*p1.overwrite_or_add_value(),
                             r0.delta.cdata(),RF_ADD, 1.f, 0.f);
+                else{
+                    value_type v(cols);
+                    value_type r = r0.delta.cdata();
+                    r.reshape(cuv::extents[cols][r0.shape[ndim-1]]);
+                    reduce_to_col(v, r,RF_ADD, 1.f, 0.f);
+                    v.reshape(cuv::extents[r0.shape[size/r0.shape[m_axis]]][r0.shape[m_axis]]);
+                    reduce_to_row(*p1.overwrite_or_add_value(), v, RF_ADD, 1.f, 0.f);
+                }
             }
             else if(p1.can_add_directly()){
-                if(m_axis!=0)
+                if(m_axis == p0.shape.size()-1)
                     reduce_to_row(*p1.overwrite_or_add_value(),
                             r0.delta.cdata(),RF_ADD, 1.f, 1.f);
-                else
+                else if (m_axis == 0)
                     reduce_to_col(*p1.overwrite_or_add_value(),
                             r0.delta.cdata(),RF_ADD, 1.f, 1.f);
+                else{
+                    value_type v(cols);
+                    value_type r = r0.delta.cdata();
+                    r.reshape(cuv::extents[cols][r0.shape[ndim-1]]);
+                    reduce_to_col(v, r,RF_ADD, 1.f, 0.f);
+                    v.reshape(cuv::extents[r0.shape[size/r0.shape[m_axis]]][r0.shape[m_axis]]);
+                    reduce_to_row(*p1.overwrite_or_add_value(), v, RF_ADD, 1.f, 1.f);
+                }
             }else{
                 // reallocate *sigh*
                 value_ptr v(new value_type(p1.shape));
-                if(m_axis!=0)
+                if(m_axis == p0.shape.size()-1)
                     reduce_to_row(*v, r0.delta.cdata(),RF_ADD, 1.f, 0.f);
-                else
+                else if(m_axis == 0)
                     reduce_to_col(*v, r0.delta.cdata(),RF_ADD, 1.f, 0.f);
+                else{
+                    value_type w(cols);
+                    value_type r = r0.delta.cdata();
+                    r.reshape(cuv::extents[cols][r0.shape[ndim-1]]);
+                    reduce_to_col(w, r,RF_ADD, 1.f, 0.f);
+                    w.reshape(cuv::extents[r0.shape[size/r0.shape[m_axis]]][r0.shape[m_axis]]);
+                    reduce_to_row(*v, w, RF_ADD, 1.f, 0.f);
+                    
+                }
+                    
+                
                 p1.push(v);
             }
         }
