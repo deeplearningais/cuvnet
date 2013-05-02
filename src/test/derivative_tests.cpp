@@ -463,6 +463,13 @@ BOOST_AUTO_TEST_CASE(derivative_test_mat_times_vec){
 
 	    derivative_tester(*func);
     }
+    {
+	    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][2][6]);
+	    boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [5]);
+	    ptr_t func		           = boost::make_shared<MatTimesVec>(inp0->result(), inp1->result(), 2);
+
+	    derivative_tester(*func);
+    }
 }
 BOOST_AUTO_TEST_CASE(derivative_test_convolve){
 	typedef boost::shared_ptr<Op> ptr_t;
