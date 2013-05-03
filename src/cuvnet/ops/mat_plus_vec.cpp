@@ -37,11 +37,13 @@ namespace cuvnet
         if(p1.need_derivative){
             unsigned int size = 1;
             unsigned int ndim = r0.shape.size();
-            unsigned int cols = size / r0.shape[ndim-1];
+            unsigned int rows = 1;
             for(unsigned int i = 0; i < ndim;i++){
                 size *= r0.shape[i];
+                if(i > m_axis)
+                    rows *= r0.shape[i];
             }
-
+            unsigned int cols = size / rows;
             if(p1.can_overwrite_directly()){
                 if(m_axis == p0.shape.size()-1)
                     reduce_to_row(*p1.overwrite_or_add_value(),
@@ -52,9 +54,9 @@ namespace cuvnet
                 else{
                     value_type v(cols);
                     value_type r = r0.delta.cdata();
-                    r.reshape(cuv::extents[cols][r0.shape[ndim-1]]);
+                    r.reshape(cuv::extents[cols][rows]);
                     reduce_to_col(v, r,RF_ADD, 1.f, 0.f);
-                    v.reshape(cuv::extents[r0.shape[size/r0.shape[m_axis]]][r0.shape[m_axis]]);
+                    v.reshape(cuv::extents[cols/r0.shape[m_axis]][r0.shape[m_axis]]);
                     reduce_to_row(*p1.overwrite_or_add_value(), v, RF_ADD, 1.f, 0.f);
                 }
             }
@@ -68,9 +70,9 @@ namespace cuvnet
                 else{
                     value_type v(cols);
                     value_type r = r0.delta.cdata();
-                    r.reshape(cuv::extents[cols][r0.shape[ndim-1]]);
+                    r.reshape(cuv::extents[cols][rows]);
                     reduce_to_col(v, r,RF_ADD, 1.f, 0.f);
-                    v.reshape(cuv::extents[r0.shape[size/r0.shape[m_axis]]][r0.shape[m_axis]]);
+                    v.reshape(cuv::extents[cols/r0.shape[m_axis]][r0.shape[m_axis]]);
                     reduce_to_row(*p1.overwrite_or_add_value(), v, RF_ADD, 1.f, 1.f);
                 }
             }else{
@@ -83,9 +85,9 @@ namespace cuvnet
                 else{
                     value_type w(cols);
                     value_type r = r0.delta.cdata();
-                    r.reshape(cuv::extents[cols][r0.shape[ndim-1]]);
+                    r.reshape(cuv::extents[cols][rows]);
                     reduce_to_col(w, r,RF_ADD, 1.f, 0.f);
-                    w.reshape(cuv::extents[r0.shape[size/r0.shape[m_axis]]][r0.shape[m_axis]]);
+                    w.reshape(cuv::extents[cols/r0.shape[m_axis]][r0.shape[m_axis]]);
                     reduce_to_row(*v, w, RF_ADD, 1.f, 0.f);
                     
                 }
@@ -100,7 +102,6 @@ namespace cuvnet
     void MatPlusVec::_determine_shapes(){
         assert(m_params[0]->shape.size()>=2);
         assert(m_params[1]->shape.size()==1);
-        assert(m_axis == 0 || m_axis == m_params[0]->shape.size()-1);
         assert(m_params[0]->shape[m_axis] == m_params[1]->shape[0]);
         m_results[0]->shape = m_params[0]->shape;
     }
