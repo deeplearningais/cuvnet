@@ -135,24 +135,21 @@ namespace cuvnet
             void batch_learning(const unsigned int n_epochs, unsigned long int n_max_secs=INT_MAX);
 
             /**
+             * set the current epoch.
+             *
+             * This is useful if we want to continue learning from an earlier
+             * point in time. All functions which depend on the current epoch,
+             * e.g. adapting the learning rates, can work correctly.
+             */
+            inline void set_epoch(unsigned int epoch){
+                m_epoch = epoch;
+            }
+
+            /**
              * return the epoch where \c best_perf was attained.
              */
             inline unsigned int epoch_of_saved_params(){
                 return m_epoch_of_saved_params;
-            }
-
-            /**
-             * decay learnrate by factor.
-             */
-            inline void decay_learnrate(float fact=0.98){
-                m_learnrate *= fact;
-            }
-
-            /**
-             * decrease learnrate by value.
-             */
-            inline void decrease_learnrate(float val){
-                m_learnrate = std::max(1e-8f, m_learnrate-val);
             }
 
             /**

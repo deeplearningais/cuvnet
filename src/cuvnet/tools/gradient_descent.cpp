@@ -441,7 +441,7 @@ namespace cuvnet
                 LOG4CXX_WARN( log,"STOP after "<<current_epoch<<" epochs:"<< perf);
                 throw convergence_stop();
             }
-            m_gd.decay_learnrate(m_lr_fact);
+            m_gd.set_learnrate(m_gd.learnrate() * m_lr_fact);
             LOG4CXX_WARN(log, "converged: decreasing learnrate");
             m_patience = std::max(m_patience, (unsigned int)(m_patience_inc_fact*wups));
         }
