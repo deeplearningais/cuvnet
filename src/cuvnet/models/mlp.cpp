@@ -21,14 +21,18 @@ namespace cuvnet
                     mat_plus_vec(
                         prod(X, m_W), m_bias, 1));
         }
-        std::vector<Op*> mlp_layer::get_params(){
+        std::vector<Op*> 
+        mlp_layer::get_params(){
             std::vector<Op*> params(2);
             params[0] = m_W.get();
             params[1] = m_bias.get();
             return params;
         }
 
-        mlp::mlp(mlp::input_ptr X, mlp::input_ptr Y, std::vector<unsigned int> hlsizes){
+        mlp_classifier::mlp_classifier(
+                mlp_classifier::input_ptr X, 
+                mlp_classifier::input_ptr Y, 
+                std::vector<unsigned int> hlsizes){
             m_layers.resize(hlsizes.size());
             op_ptr o = X;
             for(unsigned int i=0; i< hlsizes.size(); i++) {

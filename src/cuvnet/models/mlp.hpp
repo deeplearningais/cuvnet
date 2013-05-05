@@ -36,7 +36,7 @@ namespace cuvnet
                     };
         };
 
-        struct mlp
+        struct mlp_classifier
             : public metamodel{
                 private:
                     typedef boost::shared_ptr<ParameterInput> input_ptr;
@@ -44,8 +44,8 @@ namespace cuvnet
                     std::vector<mlp_layer> m_layers;
                     logistic_regression m_logreg;
                 public:
-                    mlp(input_ptr X, input_ptr Y, std::vector<unsigned int> hlsizes);
-                    virtual ~mlp(){}
+                    mlp_classifier(input_ptr X, input_ptr Y, std::vector<unsigned int> hlsizes);
+                    virtual ~mlp_classifier(){}
                 private:
                     friend class boost::serialization::access;                                                                 
                     template<class Archive>                                                                                    
