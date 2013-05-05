@@ -21,6 +21,9 @@ namespace cuvnet { namespace models {
     void model::reset_params(){
     }
 
+    void model::register_watches(monitor& mon){
+    }
+
     model::~model(){}
 
     /****************************************

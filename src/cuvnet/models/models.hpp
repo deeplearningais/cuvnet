@@ -7,6 +7,8 @@
 
 namespace cuvnet
 {
+    class monitor;
+
     namespace models
     {
         struct model{
@@ -29,6 +31,16 @@ namespace cuvnet
                  * @return empty vector by default.
                  */
                 virtual std::vector<Op*> get_params();
+
+                /**
+                 * Register any variables that you want the monitor to watch,
+                 * eg for statistics over the epoch, or sinks for postprocessing.
+                 *
+                 * Does nothing by default.
+                 *
+                 * @param mon the object you should register the watches with
+                 */
+                virtual void register_watches(monitor& mon);
 
                 /**
                  * return the inputs of the model.
