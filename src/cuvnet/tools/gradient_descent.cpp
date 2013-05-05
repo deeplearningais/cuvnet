@@ -35,7 +35,7 @@ namespace cuvnet
         unsigned long int wups = 0;
         try{
             unsigned long int t_start = time(NULL);
-            for (m_epoch = 0; ; ++m_epoch) {
+            for (; ; ++m_epoch) {
                 log4cxx::MDC epoch_mdc("epoch",boost::lexical_cast<std::string>(m_epoch));
 
                 // stop if time limit is exceeded
@@ -44,7 +44,7 @@ namespace cuvnet
                     throw timeout_stop();
                 }
                 // stop if epoch limit is exceeded
-                if(iter/n_batches >= n_max_epochs){
+                if(m_epoch >= n_max_epochs){
                     LOG4CXX_WARN(log, "STOP minibatch learning: Max epochs");
                     throw max_iter_stop();
                 }
@@ -94,17 +94,17 @@ namespace cuvnet
     void gradient_descent::batch_learning(const unsigned int n_epochs, unsigned long int n_max_secs){
         try{
             unsigned long int t_start = time(NULL);
-            for (unsigned int epoch = 0; epoch < n_epochs; ++epoch) {
+            for (; m_epoch < n_epochs; ++m_epoch) {
                 if(time(NULL) - t_start > n_max_secs)
                     throw timeout_stop();
-                before_epoch(epoch, epoch); // wups==epoch
+                before_epoch(m_epoch, m_epoch); // wups==epoch
                 m_swipe.fprop();
                 m_swipe.bprop();
-                after_batch(epoch, 0); // should accumulate errors etc
-                before_weight_update(epoch);
+                after_batch(m_epoch, 0); // should accumulate errors etc
+                before_weight_update(m_epoch);
                 update_weights();
-                after_weight_update(epoch);
-                after_epoch(epoch, epoch); // wups==epoch
+                after_weight_update(m_epoch);
+                after_epoch(m_epoch, m_epoch); // wups==epoch
                 //m_learnrate *= m_learnrate_decay;
             }
         }catch(gradient_descent_stop){
