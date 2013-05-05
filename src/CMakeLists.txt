@@ -61,6 +61,7 @@ SET(CUVNET_SRC
     cuvnet/tools/network_communication.cpp
     cuvnet/tools/dataset_dumper.cpp
     cuvnet/tools/dumper.cpp
+    cuvnet/tools/learner2.cpp
 
     cuvnet/op.cpp
     cuvnet/op_utils.cpp
@@ -70,6 +71,7 @@ SET(CUVNET_SRC
     cuvnet/models/models.cpp
     cuvnet/models/initialization.cpp
     cuvnet/models/logistic_regression.cpp
+    cuvnet/models/linear_regression.cpp
     cuvnet/models/mlp.cpp
 
     third_party/libnpy-0.5/src/npy.c
