@@ -150,6 +150,13 @@ namespace cuvnet
         public:
 
             /**
+             * Determine how many splits there are for crossvalidation.
+             *
+             * @return 1 by default
+             */
+            virtual unsigned int n_splits()const;
+
+            /**
              * Serialize the model to a file. 
              * This is needed by crossvalidation to save the best intermediate model.
              */

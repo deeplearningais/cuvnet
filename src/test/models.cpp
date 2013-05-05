@@ -34,6 +34,7 @@ BOOST_AUTO_TEST_CASE(learn){
     pt.put("fit.gd.learnrate", 0.1f);
     pt.put("fit.gd.batchsize", bs);
     pt.put("fit.gd.max_epochs", 5);
+    pt.put("fit.path", ".");
     pt.put("fit.learnrate_schedule.type", "linear");
     pt.put("fit.learnrate_schedule.final", 1e-5);
     pt.put("fit.early_stopper.active", true);
@@ -44,7 +45,36 @@ BOOST_AUTO_TEST_CASE(learn){
     ptree result1 = lrn.fit(lr, pt.get_child("fit"));
     ptree result2 = lrn.continue_learning_until_previous_loss_reached(lr, pt.get_child("fit"), result1);
     BOOST_CHECK_GT(
-            result1.get<float>("gd.early_stopper.best_perf"),
+           result1.get<float>("gd.early_stopper.best_perf"),
+           result2.get<float>("loss"));
+}
+
+BOOST_AUTO_TEST_CASE(xval_learn){
+    using namespace cuvnet;
+    int bs = 10;
+    boost::shared_ptr<ParameterInput> inp = input(cuv::extents[bs][15]);
+    boost::shared_ptr<ParameterInput> tgt = input(cuv::extents[bs][2]);
+    cuv::fill_rnd_uniform(inp->data());
+    cuv::fill_rnd_uniform(tgt->data());
+    cuvnet::models::linear_regression lr(inp, tgt);
+    
+    using boost::property_tree::ptree;
+    ptree pt;
+    pt.put("fit.gd.learnrate", 0.1f);
+    pt.put("fit.gd.batchsize", bs);
+    pt.put("fit.gd.max_epochs", 5);
+    pt.put("fit.path", ".");
+    pt.put("fit.learnrate_schedule.type", "linear");
+    pt.put("fit.learnrate_schedule.final", 1e-5);
+    pt.put("fit.early_stopper.active", true);
+    pt.put("fit.early_stopper.watch", "loss"); // or cerr
+    pt.put("fit.monitor.verbose", true);
+
+    learner2 lrn;
+    ptree result1 = lrn.crossvalidation_fit(lr, pt.get_child("fit"));
+    ptree result2 = lrn.continue_learning_until_previous_loss_reached(lr, pt.get_child("fit"), result1.get_child("xval.best_fold"));
+    BOOST_CHECK_GT(
+            result1.get<float>("xval.best_fold.gd.early_stopper.best_perf"),
             result2.get<float>("loss"));
 }
 BOOST_AUTO_TEST_SUITE_END()

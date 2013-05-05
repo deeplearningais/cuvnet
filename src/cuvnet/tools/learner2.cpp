@@ -220,9 +220,13 @@ namespace cuvnet
         return res;
     }
 
+    unsigned int learner2::n_splits()const{
+        return 1;
+    }
+
     ptree 
     learner2::crossvalidation_fit(model& m, const ptree& cfg){
-        unsigned int n_splits = 0;
+        unsigned int n_splits = this->n_splits();
         ptree result;
         using namespace boost::accumulators;
         namespace ba = boost::accumulators;
@@ -230,6 +234,7 @@ namespace cuvnet
             features<tag::mean, tag::median, tag::variance, tag::min> > s_valperf;
         unsigned int best_split = 0;
         bfs::path bestfile;
+        ptree best_result;
         for(unsigned int split = 0; split < n_splits; split ++){
             m.reset_params();
             switch_dataset(CM_TRAIN, split);
@@ -241,9 +246,11 @@ namespace cuvnet
                 bestfile =  bfs::path(res.get<std::string>("path")) / "after_train.ser";
                 save_model(m, bestfile.string());
                 best_split = split;
+                best_result = res;
             }
             // TODO stop evaluating if too bad in comparison with current best?
         }
+        result.put_child("xval.best_fold", best_result);
         return result;
     }
 
@@ -302,7 +309,7 @@ namespace cuvnet
         }
         ptree result;
         result.put("gd.result_epoch", gd->iters());
-        result.put("gd.path", tmppath.string());
+        result.put("path", tmppath.string());
         if(learnrate_schedule)
             result.put("gd.final_learnrate", gd->learnrate());
         if(momentum_schedule)
