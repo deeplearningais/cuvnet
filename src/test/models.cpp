@@ -43,8 +43,8 @@ BOOST_AUTO_TEST_CASE(learn){
     learner2 lrn;
     ptree result1 = lrn.fit(lr, pt.get_child("fit"));
     ptree result2 = lrn.continue_learning_until_previous_loss_reached(lr, pt.get_child("fit"), result1);
-    BOOST_CHECK_LT(
-            result1.get<float>("early_stopper.best_perf"),
+    BOOST_CHECK_GT(
+            result1.get<float>("gd.early_stopper.best_perf"),
             result2.get<float>("loss"));
 }
 BOOST_AUTO_TEST_SUITE_END()
