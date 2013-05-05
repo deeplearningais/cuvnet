@@ -153,6 +153,11 @@ namespace cuvnet
             log_to_file();
         m_batch_presentations = 0;
     }
+    bool monitor::has(const std::string& name)const{
+        std::map<std::string, watchpoint*>::const_iterator it 
+            = m_impl->m_wpmap.find(name);
+        return it != m_impl->m_wpmap.end();
+    }
     watchpoint& monitor::get(const std::string& name){
         std::map<std::string, watchpoint*>::iterator it 
             = m_impl->m_wpmap.find(name);

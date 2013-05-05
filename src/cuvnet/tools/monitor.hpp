@@ -124,6 +124,9 @@ namespace cuvnet
             /// @return the number of batch presentations this monitor has observed
             inline unsigned int batch_presentations()const{ return m_batch_presentations; }
 
+            /// @return whether a watchpoint is registered under that name
+            bool has(const std::string& name)const;
+
             /// get a watchpoint by name
             watchpoint& get(const std::string& name);
 
