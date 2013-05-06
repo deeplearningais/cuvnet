@@ -230,6 +230,8 @@ namespace cuvnet
     inline
         Op::op_ptr reshape(Op::op_ptr img, const cuv::extent_gen<D>& eg) { return boost::make_shared<Reshape>(img->result(),eg); }
 
+
+#ifndef NO_THEANO_WRAPPERS
     /// construct a ShuffleDim object
     template<std::size_t D>
     inline
@@ -239,6 +241,7 @@ namespace cuvnet
     template<std::size_t D>
     inline
        Op::op_ptr flip_dims(Op::op_ptr img, const cuv::extent_gen<D>& eg) { return boost::make_shared<FlipDims>(img->result(), eg); }
+#endif
 
     /// construct a Subtensor object
     template<std::size_t D, std::size_t E>
