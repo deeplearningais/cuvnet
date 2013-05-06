@@ -1,4 +1,5 @@
 # ---------- Find Boost Headers/Libraries -----------------------
+ADD_DEFINITIONS(-DNO_THEANO_WRAPPERS=1)
 SET (Boost_FIND_REQUIRED TRUE)
 SET (Boost_FIND_QUIETLY TRUE)
 SET (Boost_USE_MULTITHREADED TRUE)
