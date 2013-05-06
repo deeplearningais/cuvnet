@@ -44,9 +44,9 @@ namespace cuvnet
 
                 /**
                  * return the inputs of the model.
-                 * @return empty map by default
+                 * @return empty vector by default
                  */
-                virtual std::map<unsigned int, Op*> get_inputs();
+                virtual std::vector<Op*> get_inputs();
 
                 /**
                  * return the loss of the model (including regularization).

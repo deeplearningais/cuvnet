@@ -6,7 +6,7 @@ namespace cuvnet { namespace models {
         return std::vector<Op*>();
     }
 
-    std::map<unsigned int, Op*> model::get_inputs(){
+    std::vector<Op*> model::get_inputs(){
         return m_inputs;
     }
 
