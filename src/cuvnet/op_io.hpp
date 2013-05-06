@@ -101,7 +101,6 @@ namespace cuvnet
 
             // convolutions
             ar.template register_type<Convolve>();
-            ar.template register_type<Convolve2dTheano>();
             ar.template register_type<ReorderForConv>();
             ar.template register_type<ReorderFromConv>();
             ar.template register_type<LocalPooling>();
@@ -124,9 +123,12 @@ namespace cuvnet
             ar.template register_type<RectifiedLinear>();
             ar.template register_type<Printer>();
 
+#ifndef NO_THEANO_WRAPPERS
             //theano ops
             ar.template register_type<FlipDims>();
             ar.template register_type<ShuffleDim>();
+            ar.template register_type<Convolve2dTheano>();
+#endif
 
         } 
 }

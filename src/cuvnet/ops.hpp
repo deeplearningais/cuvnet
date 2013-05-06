@@ -30,8 +30,10 @@
 #include <cuvnet/ops/debug.hpp>
 #include <cuvnet/ops/subtensor.hpp>
 #include <cuvnet/ops/concatenate.hpp>
-#include <cuvnet/ops/theano_ops.hpp>
 
+#ifndef NO_THEANO_WRAPPERS
+#include <cuvnet/ops/theano_ops.hpp>
+#endif
 namespace cuvnet
 {
     /// @addtogroup convenience_funcs

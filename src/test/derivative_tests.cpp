@@ -535,6 +535,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
     }
 }
 
+#ifndef NO_THEANO_WRAPPERS
 BOOST_AUTO_TEST_CASE(derivative_test_convolve_theano){
 	typedef boost::shared_ptr<Op> ptr_t;
 
@@ -622,6 +623,10 @@ BOOST_AUTO_TEST_CASE(derivative_test_shuffle_dim){
             finalize_cuda();
         }
 }
+#endif
+
+
+
 void fill_with_permuted_sequence(matrix& m){
     cuv::sequence(m);
     cuv::tensor<float, cuv::host_memory_space> t = m;
