@@ -14,7 +14,7 @@ namespace cuvnet
         }
         else if(r0.can_add_directly()){
             *r0.overwrite_or_add_value() += p0.value.cdata();
-            cuv::matrix_op_vec(*r0.overwrite_or_add_value(),*r0.overwrite_or_add_value(), p1.value.cdata(), m_axis, BF_ADD);
+            cuv::matrix_op_vec(*r0.overwrite_or_add_value(),*r0.overwrite_or_add_value(), p1.value.cdata(), m_axis, BF_ADD, 1.f, 1.f);
         }else{
             // reallocate *sigh*
             value_ptr v = p0.value;
