@@ -89,10 +89,7 @@ namespace cuvnet
                     reduce_to_col(w, r,RF_ADD, 1.f, 0.f);
                     w.reshape(cuv::extents[cols/r0.shape[m_axis]][r0.shape[m_axis]]);
                     reduce_to_row(*v, w, RF_ADD, 1.f, 0.f);
-                    
                 }
-                    
-                
                 p1.push(v);
             }
         }
@@ -112,33 +109,26 @@ namespace cuvnet
         param_t::element_type&  p1 = *m_params[1];
         result_t::element_type& r0 = *m_results[0];
         if(r0.can_overwrite_directly()){
-            r0.overwrite_or_add_value() = p0.value; // will be copied when written to in next lines
+            r0.overwrite_or_add_value() = p0.value;
             if(!p0.need_derivative)
                 p0.value.reset();   // avoid copy if it is not needed anymore
-            if(m_axis!=0)
-                cuv::matrix_times_row(*r0.overwrite_or_add_value(), p1.value.cdata());
-            else
-                cuv::matrix_times_col(*r0.overwrite_or_add_value(), p1.value.cdata());
+            cuv::matrix_op_vec(*r0.overwrite_or_add_value(),*r0.overwrite_or_add_value(), p1.value.cdata(), m_axis, BF_MULT);
         }
         else if(r0.can_add_directly()){
             *r0.overwrite_or_add_value() += p0.value.cdata();
-            if(m_axis!=0)
-                cuv::matrix_times_row(*r0.overwrite_or_add_value(), p1.value.cdata());
-            else
-                cuv::matrix_times_col(*r0.overwrite_or_add_value(), p1.value.cdata());
+            cuv::matrix_op_vec(*r0.overwrite_or_add_value(),*r0.overwrite_or_add_value(), p1.value.cdata(), m_axis, BF_MULT, 1.f, 1.f);
         }else{
             // reallocate *sigh*
-            value_ptr v = p0.value; // will be copied when written to in next lines
+            value_ptr v = p0.value;
             if(!p1.need_derivative)
                 p0.value.reset();   // avoid copy if it is not needed anymore
-            if(m_axis!=0) cuv::matrix_times_row(*v, p1.value.cdata());
-            else          cuv::matrix_times_col(*v, p1.value.cdata());
+            cuv::matrix_op_vec(*v,*v, p1.value.cdata(), m_axis, BF_MULT);
             r0.push(v);
         }
         if(!p1.need_derivative)
-            p0.value.reset();
+           p0.value.reset();
         if(!p0.need_derivative)
-            p1.value.reset();
+           p1.value.reset();
     }
 
     void MatTimesVec::bprop(){
@@ -152,14 +142,12 @@ namespace cuvnet
             if(!p1.need_derivative){
                 // try overwriting r0.delta
                 value_ptr& v = r0.delta;
-                if(m_axis!=0) matrix_times_row(v.data(),p1.value.cdata());
-                else          matrix_times_col(v.data(),p1.value.cdata());
+                matrix_op_vec(v.data(), v.data(), p1.value.cdata(), m_axis, BF_MULT);
                 p0.push(v);
             }else{
                 // cannot overwrite r0, we need it later
                 value_ptr  v(new value_type(r0.delta.cdata().copy()));
-                if(m_axis!=0) matrix_times_row(v.data(),p1.value.cdata());
-                else          matrix_times_col(v.data(),p1.value.cdata());
+                matrix_op_vec(v.data(), v.data(), p1.value.cdata(), m_axis, BF_MULT);
                 p0.push(v);
             }
         }
@@ -169,29 +157,61 @@ namespace cuvnet
             value_type& m = r0.delta.data_onlyshape();    // this /may/ be the same as r0delta
             apply_binary_functor(m, r0delta, p0.value.cdata(), BF_MULT);
 
-            // p0.delta = reduce_to_{row/col} ( r.delta * m )
+            unsigned int size = 1;
+            unsigned int ndim = r0.shape.size();
+            unsigned int rows = 1;
+            for(unsigned int i = 0; i < ndim;i++){
+                size *= r0.shape[i];
+                if(i > m_axis)
+                    rows *= r0.shape[i];
+            }
+            unsigned int cols = size / rows;
             if(p1.can_overwrite_directly()){
-                if(m_axis!=0)
+                if(m_axis == p0.shape.size()-1)
                     reduce_to_row(*p1.overwrite_or_add_value(),
                             m,RF_ADD, 1.f, 0.f);
-                else
+                else if (m_axis == 0)
                     reduce_to_col(*p1.overwrite_or_add_value(),
                             m,RF_ADD, 1.f, 0.f);
+                else{
+                    value_type v(cols);
+                    value_type r = m;
+                    r.reshape(cuv::extents[cols][rows]);
+                    reduce_to_col(v, r,RF_ADD, 1.f, 0.f);
+                    v.reshape(cuv::extents[cols/r0.shape[m_axis]][r0.shape[m_axis]]);
+                    reduce_to_row(*p1.overwrite_or_add_value(), v, RF_ADD, 1.f, 0.f);
+                }
             }
             else if(p1.can_add_directly()){
-                if(m_axis!=0)
+                if(m_axis == p0.shape.size()-1)
                     reduce_to_row(*p1.overwrite_or_add_value(),
                             m,RF_ADD, 1.f, 1.f);
-                else
+                else if (m_axis == 0)
                     reduce_to_col(*p1.overwrite_or_add_value(),
                             m,RF_ADD, 1.f, 1.f);
+                else{
+                    value_type v(cols);
+                    value_type r = m;
+                    r.reshape(cuv::extents[cols][rows]);
+                    reduce_to_col(v, r,RF_ADD, 1.f, 0.f);
+                    v.reshape(cuv::extents[cols/r0.shape[m_axis]][r0.shape[m_axis]]);
+                    reduce_to_row(*p1.overwrite_or_add_value(), v, RF_ADD, 1.f, 1.f);
+                }
             }else{
                 // reallocate *sigh*
                 value_ptr v(new value_type(p1.shape));
-                if(m_axis!=0)
+                if(m_axis == p0.shape.size()-1)
                     reduce_to_row(*v, m,RF_ADD, 1.f, 0.f);
-                else
+                else if(m_axis == 0)
                     reduce_to_col(*v, m,RF_ADD, 1.f, 0.f);
+                else{
+                    value_type w(cols);
+                    value_type r = m;
+                    r.reshape(cuv::extents[cols][rows]);
+                    reduce_to_col(w, r,RF_ADD, 1.f, 0.f);
+                    w.reshape(cuv::extents[cols/r0.shape[m_axis]][r0.shape[m_axis]]);
+                    reduce_to_row(*v, w, RF_ADD, 1.f, 0.f);
+                }
                 p1.push(v);
             }
         }
@@ -203,7 +223,6 @@ namespace cuvnet
     void MatTimesVec::_determine_shapes(){
         assert(m_params[0]->shape.size()>=2);
         assert(m_params[1]->shape.size()==1);
-        assert(m_axis == 0  || m_axis == m_params[0]->shape.size()-1);
         assert(m_params[0]->shape[m_axis] == m_params[1]->shape[0]);
         m_results[0]->shape = m_params[0]->shape;
     }
