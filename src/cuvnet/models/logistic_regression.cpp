@@ -22,20 +22,19 @@ namespace cuvnet
             determine_shapes(*X);
             determine_shapes(*Y);
 
-            op_ptr estimator;
             if(!degenerate) {
                 m_W = input(cuv::extents[X->result()->shape[1]][Y->result()->shape[1]]);
                 m_bias = input(cuv::extents[Y->result()->shape[1]]);
-                estimator = mat_plus_vec(prod(X, m_W), m_bias, 1);
+                m_estimator = mat_plus_vec(prod(X, m_W), m_bias, 1);
             }
             else
-                estimator = X;
+                m_estimator = X;
 
             // TODO: if Y is vector, switch to non-multinomial logreg!
             m_loss = mean(
                     multinomial_logistic_loss(
-                        estimator, Y, 1));
-            m_classloss = classification_loss(estimator, Y);
+                        m_estimator, Y, 1));
+            m_classloss = classification_loss(m_estimator, Y);
         }
         std::vector<Op*> logistic_regression::get_params(){
             std::vector<Op*> params;

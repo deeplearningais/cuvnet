@@ -16,7 +16,7 @@ namespace cuvnet
             typedef boost::shared_ptr<Op> op_ptr;
             typedef boost::shared_ptr<ParameterInput> input_ptr;
 
-            op_ptr m_loss, m_classloss;
+            op_ptr m_loss, m_classloss, m_estimator;
             input_ptr m_W;
             input_ptr m_bias;
 
@@ -43,7 +43,7 @@ namespace cuvnet
             template<class Archive>                                                                                    
                 void serialize(Archive& ar, const unsigned int version) { 
                     ar & boost::serialization::base_object<boost::enable_shared_from_this<model> >(*this);;
-                    ar & m_loss & m_classloss & m_W & m_bias;
+                    ar & m_loss & m_classloss & m_W & m_bias & m_estimator;
                 };
         };
     }
