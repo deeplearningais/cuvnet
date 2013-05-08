@@ -8,12 +8,20 @@ namespace cuvnet
     namespace models
     {
         /**
-         * initializes weights as in Glorot & Bengio.
+         * initializes weights as in Glorot & Bengio, Dense Version.
          *
          * @param p the weight parameter (2D)
          * @param act_func_tanh if false, assume logistic activation function
          */
         void initialize_dense_glorot_bengio(boost::shared_ptr<ParameterInput> p, bool act_func_tanh=true);
+
+        /**
+         * initializes weights as in Glorot & Bengio, Version for Alex' convolution routines.
+         *
+         * @param p the weight parameter (2D)
+         * @param act_func_tanh if false, assume logistic activation function
+         */
+        void initialize_alexconv_glorot_bengio(boost::shared_ptr<ParameterInput> p, unsigned int n_groups=1, bool act_func_tanh=true);
 
         /**
          * Set learnrate factors as advertised by LeCun
