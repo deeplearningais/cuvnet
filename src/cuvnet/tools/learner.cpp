@@ -111,12 +111,12 @@ namespace cuvnet
         m_ds_name = ds;
         m_bs = bs;
         m_in_early_stopping = false;
-        unsigned int pos = ds.find('?');
+        size_t pos = ds.find('?');
         unsigned int from = INT_MAX, to = 0; // inverse range == not used
         if(pos != std::string::npos){
             std::string ds0 = ds.substr(0, pos);
             std::string subsetspec = ds.substr(pos+1);
-            unsigned int colonpos = subsetspec.find(':');
+            size_t colonpos = subsetspec.find(':');
             if(colonpos == std::string::npos){
                 throw std::runtime_error("Could not parse dataset string, should have format 'dataset?from:to'");
             }
