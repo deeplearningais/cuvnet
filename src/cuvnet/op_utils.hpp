@@ -234,7 +234,7 @@ namespace cuvnet
         /// the container used to store the nodes that need to be executed during bprop in topological order.
         container_type     bprop_nodelist;
 
-        void determine_bprop_list(Op* o, const std::vector<Op*>& parameters);
+        void determine_bprop_list(Op* o, const container_type& parameters, const container_type& plainfprop);
 
         void determine_fprop_list(Op* o, int o_res, const std::vector<std::pair<Op*, int> >& results);
 

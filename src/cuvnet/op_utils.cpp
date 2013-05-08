@@ -260,12 +260,13 @@ void determine_exec_order::init(Op* o, int o_res,
 
     std::vector<std::pair<Op*, int> > empty;
     determine_fprop_list(o, o_res, empty);
-    determine_bprop_list(o, parameters);
+    container_type     plainfprop = fprop_nodelist;
+    determine_bprop_list(o, parameters, plainfprop);
     if(results.size() > 0)
         determine_fprop_list(o, o_res, results);
 }
 
-void determine_exec_order::determine_bprop_list(Op* o, const std::vector<Op*>& parameters){
+void determine_exec_order::determine_bprop_list(Op* o, const std::vector<Op*>& parameters, const std::vector<Op*>& plainfprop){
     bprop_nodelist.clear();
     std::list<Op*> queue;
     std::map<Op*, bool> marked;
@@ -275,6 +276,9 @@ void determine_exec_order::determine_bprop_list(Op* o, const std::vector<Op*>& p
         queue.push_back(p);
     }
 
+    // difficulty here, as oppposed to fprop: 
+    // - not all results are calculated in fprop
+    // - not all results need bprop (actually, just one should...)
     while(!queue.empty()){
         Op* top = queue.back();
         queue.pop_back();
@@ -283,58 +287,45 @@ void determine_exec_order::determine_bprop_list(Op* o, const std::vector<Op*>& p
         if(marked.find(top) != marked.end())
             continue;
 
-        marked[top] = true;
-        top->need_derivative(true);
-        bprop_nodelist.push_back(top); // collect in reverse order
+        // stop processing if we diverge from the path leading to the loss we derived for.
+        if(std::find(plainfprop.begin(), plainfprop.end(), top) 
+                == plainfprop.end())
+            continue;
 
-        // mark all successors of top as needed
-        BOOST_FOREACH(Op::result_t& r, top->m_results){
+        // check all results of the current one, whether they have been
+        // calculated already 
+        bool all_res_ready = true;
+        BOOST_FOREACH(Op::result_t& p, top->m_results){
+            for(unsigned int i=0;i<p->result_uses.size();i++) {
+                auto r = p->use(i);
+                r->need_derivative = true;
+                Op* top_res = r->get_op();
 
-            // do not calculate derivative for parts of the op that do
-            // not need to be calculated during fprop
-            if(!r->need_result)
-                continue;
-
-            // everyone else who uses this result must be derived
-            for(unsigned int i=0;i<r->result_uses.size();i++) {
-                auto p = r->use(i);
-                Op* top_suc = p->get_op();
-                if(! top_suc->need_result() )
+                // only stuff that we need for plainfprop needs to be calculated already!
+                if(std::find(plainfprop.begin(), plainfprop.end(), top_res) 
+                        == plainfprop.end())
                     continue;
-                p->need_derivative = true;
-
-                // we shall only push this to the queue if everyone who uses it
-                // has already been put into the queue
-                // this is annoying, but removing edges (as in the wp version)
-                // is not an option.
-                bool can_push = true;
-                BOOST_FOREACH(Op::param_t& p2, top_suc->m_params){
-                    for(unsigned int j = 0; j < p2->param_uses.size(); j++){
-                        Op* p2_op = p2->use(j)->get_op().get();
-                        if(marked.find(p2_op) == marked.end()) {
-
-                            // check whether p2_op depends on any of the parameters
-                            // if it depends, these need to be dealt with first
-                            param_collector_visitor pcv;
-                            p2_op->visit(pcv);
-                            if( pcv.plist.end() !=
-                                    std::find_first_of(
-                                        pcv.plist.begin(), pcv.plist.end(),
-                                        parameters.begin(), parameters.end())) {
-                                can_push = false;
-                                break;
-                            }
-                        }
-                    }
-                    if(!can_push)
-                        break;
+                if(marked.find(top_res) != marked.end()) {
+                    continue;
                 }
-                if(can_push)
-                    queue.push_front(top_suc);
+                // we need to calculate this before top!
+                queue.push_back(top_res); 
+                all_res_ready = false;
+                break;
             }
+            if(!all_res_ready)
+                break;
+        }
+        if(all_res_ready){
+            // calculate top at this position
+            bprop_nodelist.push_back(top);
+            top->need_derivative(true);
+            marked[top] = true;
+        }else{
+            // need to revisit top at some later point in time
+            queue.push_front(top);
         }
     }
-    std::reverse(bprop_nodelist.begin(), bprop_nodelist.end());
 }
 
 /**
@@ -372,6 +363,13 @@ bool determine_exec_order::find_in_results(
 }
 
 void determine_exec_order::determine_fprop_list(Op* o, int o_res, const std::vector<std::pair<Op*, int> >& results){
+    // put all outputs in a queue
+    // for every element in the queue,
+    // - if all its predecessors have already been calculated,
+    //   - put the element in the fprop_nodelist
+    //   - mark it as done
+    // - else
+    //   - put the element in the queue again for visiting later
     fprop_nodelist.clear();
     std::list<Op*> queue;
     std::map<Op*, bool> marked;
@@ -392,44 +390,35 @@ void determine_exec_order::determine_fprop_list(Op* o, int o_res, const std::vec
         if(marked.find(top) != marked.end())
             continue;
 
-        marked[top] = true;
-        top->need_result(true);
-        fprop_nodelist.push_back(top); // collect in reverse order
-
-        // mark all predecessors of top as needed
+        // check all predecessors of the current one, whether they have been
+        // calculated already
+        bool all_preds_ready = true;
         BOOST_FOREACH(Op::param_t& p, top->m_params){
             for(unsigned int i=0;i<p->param_uses.size();i++) {
                 auto r = p->use(i);
                 r->need_result = true;
-
-                // we shall only push this to the queue if everyone who uses it
-                // has already been put into the queue
-                // this is annoying, but removing edges (as in the wp version)
-                // is not an option.
                 Op* top_pred = r->get_op().get();
-                bool can_push = true;
-                BOOST_FOREACH(Op::result_t& r2, top_pred->m_results){
-                    for(unsigned int j = 0; j < r2->result_uses.size(); j++){
-                        Op* target = r2->use(j)->get_op();
-                        if(marked.find(target) == marked.end()) {
-                            // if the tree below target does not result in any
-                            // of the 'results' we're interested in, we can
-                            // ignore it.
-                            if(!find_in_results(o, results, target))
-                                continue;
-                            can_push = false;
-                            break;
-                        }
-                    }
-                    if(!can_push)
-                        break;
+                if(marked.find(top_pred) != marked.end()) {
+                    continue;
                 }
-                if(can_push)
-                    queue.push_front(top_pred);
+                // we need to calculate this before top!
+                queue.push_back(top_pred); 
+                all_preds_ready = false;
+                break;
             }
+            if(!all_preds_ready)
+                break;
+        }
+        if(all_preds_ready){
+            // calculate top at this position
+            fprop_nodelist.push_back(top);
+            top->need_result(true);
+            marked[top] = true;
+        }else{
+            // need to revisit top at some later point in time
+            queue.push_front(top);
         }
     }
-    std::reverse(fprop_nodelist.begin(), fprop_nodelist.end());
 }
 
 
