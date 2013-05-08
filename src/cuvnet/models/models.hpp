@@ -1,7 +1,6 @@
 #ifndef __CUVNET_MODELS_HPP__
 #     define __CUVNET_MODELS_HPP__
 
-#include <map>
 #include <vector>
 #include <cuvnet/op.hpp>
 
@@ -23,7 +22,7 @@ namespace cuvnet
                     }
 
             protected:
-                std::map<unsigned int, Op*> m_inputs;
+                std::vector<Op*> m_inputs;
 
             public:
                 /**
