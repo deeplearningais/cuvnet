@@ -1,5 +1,4 @@
 # ---------- Find Boost Headers/Libraries -----------------------
-ADD_DEFINITIONS(-DNO_THEANO_WRAPPERS=1)
 SET (Boost_FIND_REQUIRED TRUE)
 SET (Boost_FIND_QUIETLY TRUE)
 SET (Boost_USE_MULTITHREADED TRUE)
@@ -37,7 +36,13 @@ CONFIGURE_FILE( ${CMAKE_CURRENT_SOURCE_DIR}/datasets/util/lena.jpg ${CMAKE_BINAR
 
 INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libnpy-0.5/include )
 INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ )
+
 OPTION(USE_OPENCV "Use OpenCV if available" OFF)
+OPTION(USE_THEANO_WRAPPERS "Use Theano wrappers (requires CUV to be compiled with python support" ON)
+IF(USE_THEANO_WRAPPERS)
+    ADD_DEFINITIONS(-DNO_THEANO_WRAPPERS=1)
+ENDIF(USE_THEANO_WRAPPERS)
+
 FIND_PACKAGE( tbb )
 
 FILE(GLOB CUVNET_OPS_SRC cuvnet/ops/*.cpp)
