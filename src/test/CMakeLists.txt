@@ -14,11 +14,7 @@ file(GLOB TEST_SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 add_executable(${PROJECT_TEST_NAME} ${TEST_SRC_FILES})
 target_link_libraries(${PROJECT_TEST_NAME}  ${GTEST_BOTH_LIBRARIES} cuvnet cuv tp_theano jpeg ${Boost_LIBRARIES} pthread )
 
-LINK_DIRECTORIES(~/checkout/git/CUV/build/src/3rd_party/cuda_ndarray)
-
-INCLUDE_DIRECTORIES(~/checkout/git/CUV/src)
-LINK_DIRECTORIES(~/checkout/git/CUV/build/src/cuv)
-
+FIND_PACKAGE( PythonLibs )
 if ( PYTHONLIBS_FOUND )
     target_link_libraries(${PROJECT_TEST_NAME}  ${PYTHON_LIBRARIES})
 endif( PYTHONLIBS_FOUND )
