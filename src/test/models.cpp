@@ -2,6 +2,7 @@
 //#include <boost/property_tree/ptree.hpp>
 #include <cuvnet/ops.hpp>
 #include <cuvnet/tools/gradient_descent.hpp>
+#include <cuvnet/tools/monitor.hpp>
 #include <cuvnet/tools/learner2.hpp>
 #include <cuvnet/models/mlp.hpp>
 #include <cuvnet/models/linear_regression.hpp>
@@ -19,6 +20,46 @@ BOOST_AUTO_TEST_SUITE( t_mlp )
         gradient_descent gd(mlp.loss(), 0, mlp.get_params(), 0.01f);
         gd.batch_learning(1);
     }
+
+struct tmplogreg : public cuvnet::models::logistic_regression{
+    tmplogreg(boost::shared_ptr<cuvnet::ParameterInput> inp, boost::shared_ptr<cuvnet::ParameterInput> tgt)
+        : cuvnet::models::logistic_regression(inp,tgt,false){}
+
+    void register_watches(cuvnet::monitor& mon){
+        mon.add(cuvnet::monitor::WP_SINK, m_estimator, "output");
+    }
+};
+
+BOOST_AUTO_TEST_CASE(nenadbug){
+    // this is a regression test for an error in traversing models when a
+    // WP_SINK was attached
+    using namespace cuvnet;
+    int bs = 10;
+    boost::shared_ptr<ParameterInput> inp = input(cuv::extents[bs][15]);
+    boost::shared_ptr<ParameterInput> tgt = input(cuv::extents[bs][2]);
+    cuv::fill_rnd_uniform(inp->data());
+    cuv::fill_rnd_uniform(tgt->data());
+    tmplogreg lr(inp, tgt);
+    
+    using boost::property_tree::ptree;
+    ptree pt;
+    pt.put("fit.gd.learnrate", 0.1f);
+    pt.put("fit.gd.batchsize", bs);
+    pt.put("fit.gd.max_epochs", 5);
+    pt.put("fit.path", ".");
+    pt.put("fit.learnrate_schedule.type", "linear");
+    pt.put("fit.learnrate_schedule.final", 1e-5);
+    pt.put("fit.early_stopper.active", true);
+    pt.put("fit.early_stopper.watch", "loss"); // or cerr
+    pt.put("fit.monitor.verbose", true);
+
+    learner2 lrn;
+    ptree result1 = lrn.fit(lr, pt.get_child("fit"));
+    ptree result2 = lrn.continue_learning_until_previous_loss_reached(lr, pt.get_child("fit"), result1);
+    BOOST_CHECK_GT(
+           result1.get<float>("gd.early_stopper.best_perf"),
+           result2.get<float>("cerr"));
+}
 
 BOOST_AUTO_TEST_CASE(learn){
     using namespace cuvnet;

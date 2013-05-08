@@ -1,6 +1,7 @@
 #ifndef __LEARNER2_HPP__
 #define __LEARNER2_HPP__
 
+#include <boost/signals.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <cuvnet/models/models.hpp>
 #include <datasets/dataset.hpp>    /* for cv_mode */
