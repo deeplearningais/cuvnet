@@ -8,3 +8,6 @@ build_cuda1
 src/boost
 *.pyc
 *~
+src/tags
+src/types_c.taghl
+src/types_py.taghl
