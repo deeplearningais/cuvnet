@@ -494,7 +494,7 @@ void swiper::fprop(){
 }
 void swiper::bprop(bool set_last_delta_to_one){
     if(set_last_delta_to_one){
-        BOOST_FOREACH(Op::result_t& r, m_topo.fprop_nodelist.back()->m_results){
+        BOOST_FOREACH(Op::result_t& r, m_op->m_results){
             if(!r->delta)
                 r->delta.reset(new Op::value_type(r->shape));
             *r->delta = 1.f;
