@@ -13,6 +13,63 @@
 
 namespace cuvnet
 {
+
+
+
+    // Parses the value of the active python exception
+    // NOTE SHOULD NOT BE CALLED IF NO EXCEPTION
+    std::string parse_python_exception(){
+        PyObject *type_ptr = NULL, *value_ptr = NULL, *traceback_ptr = NULL;
+        // Fetch the exception info from the Python C API
+        PyErr_Fetch(&type_ptr, &value_ptr, &traceback_ptr);
+        namespace py = boost::python;
+
+        // Fallback error
+        std::string ret("Unfetchable Python error");
+        // If the fetch got a type pointer, parse the type into the exception string
+        if(type_ptr != NULL){
+            py::handle<> h_type(type_ptr);
+            py::str type_pstr(h_type);
+            // Extract the string from the boost::python object
+            py::extract<std::string> e_type_pstr(type_pstr);
+            // If a valid string extraction is available, use it 
+            //  otherwise use fallback
+            if(e_type_pstr.check())
+                ret = e_type_pstr();
+            else
+                ret = "Unknown exception type";
+        }
+        // Do the same for the exception value (the stringification of the exception)
+        if(value_ptr != NULL){
+            py::handle<> h_val(value_ptr);
+            py::str a(h_val);
+            py::extract<std::string> returned(a);
+            if(returned.check())
+                ret +=  ": " + returned();
+            else
+                ret += std::string(": Unparseable Python error: ");
+        }
+        // Parse lines from the traceback using the Python traceback module
+        if(traceback_ptr != NULL){
+            py::handle<> h_tb(traceback_ptr);
+            // Load the traceback module and the format_tb function
+            py::object tb(py::import("traceback"));
+            py::object fmt_tb(tb.attr("format_tb"));
+            // Call format_tb to get a list of traceback strings
+            py::object tb_list(fmt_tb(h_tb));
+            // Join the traceback strings into a single string
+            py::object tb_str(py::str("\n").join(tb_list));
+            // Extract the string, check the extraction, and fallback in necessary
+            py::extract<std::string> returned(tb_str);
+            if(returned.check())
+                ret += ": " + returned();
+            else
+                ret += std::string(": Unparseable Python traceback");
+        }
+        return ret;
+    }
+
+
     struct OpWrap
         : public Op, public boost::python::wrapper<Op>
     {
@@ -236,8 +293,8 @@ namespace cuvnet
                     "visualization.get_valid_shape_info = get_valid_shape_info\n",
                     main_namespace);
         }catch(const boost::python::error_already_set&){
-            PyErr_PrintEx(0);
-            throw std::runtime_error("python failure in export_ops");
+            std::string perror_str = parse_python_exception();
+            throw std::runtime_error("python failure in export_ops: " + perror_str);
         }
         return 0;
     }
@@ -249,8 +306,8 @@ namespace cuvnet
             object main_namespace = main_module.attr("__dict__");
             main_namespace[name] = op;
         }catch(const boost::python::error_already_set&){
-            PyErr_PrintEx(0);
-            throw std::runtime_error("python failure in export_op");
+            std::string perror_str = parse_python_exception();
+            throw std::runtime_error("python failure in export_op: " + perror_str);
         }
         return 0;
     }
@@ -262,33 +319,30 @@ namespace cuvnet
         object main_module = import("__main__");
         object main_namespace = main_module.attr("__dict__");
         object ignored = exec(
-                "import sys\n"
-                "sys.argv = ['cuvnet.py']\n" // otherwise, embed() fails below!
-                "import cuv_python as cp\n"
-                "import sys\n"
-                "sys.path.insert(0, '../src/scripts')\n"
-                "import visualization\n"
-                "import matplotlib.pyplot as plt\n",
+                "import cuv_python as cp\n",
                 main_namespace);
         }catch(const boost::python::error_already_set&){
-            PyErr_PrintEx(0);
-            throw std::runtime_error("python failure");
+            std::string perror_str = parse_python_exception();
+            throw std::runtime_error("python failure in initialize_python: " + perror_str);
         }
         return 0;
     }
 
-    int embed_python(){
+    int embed_python(bool IPython){
         using namespace boost::python;
         try{
             object main_module = import("__main__");
             object main_namespace = main_module.attr("__dict__");
-            object ignored = exec(
-                    "from IPython import embed\n"
-                    "embed()\n",
-                    main_namespace);
+            exec("import sys\nsys.argv = ['cuvnet.py']\n", main_namespace); // otherwise, embed() fails below!
+            if(!IPython){
+                exec("import os\nexecfile(os.path.expanduser('~/.pythonrc'))\n", main_namespace);
+                exec("import pdb\npdb.set_trace()()\n", main_namespace);
+            }else{
+                exec("import IPython\nIPython.embed()\n", main_namespace);
+            }
         }catch(const boost::python::error_already_set&){
-            PyErr_PrintEx(0);
-            throw std::runtime_error("python failure in embed_python");
+            std::string perror_str = parse_python_exception();
+            throw std::runtime_error("python failure in embed_python: " + perror_str);
         }
         return 0;
     }
@@ -312,8 +366,8 @@ namespace cuvnet
                         default_call_policies(),
                         boost::mpl::vector<unsigned int>()));
         }catch(const boost::python::error_already_set&){
-            PyErr_PrintEx(0);
-            throw std::runtime_error("python failure in export_loadbatch");
+            std::string perror_str = parse_python_exception();
+            throw std::runtime_error("python failure in export_loadbatch: " + perror_str);
         }
         return 0;
         

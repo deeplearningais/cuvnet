@@ -59,11 +59,17 @@ namespace cuvnet
     /**
      * start an IPython session with the current main scope.
      *
+     * If not using IPython, you should have a ~/.pythonrc file which will be
+     * executed. In there, you can add readline support etc. The file may also
+     * be empty.
+     *
      * @see initialize_python export_ops export_op export_loadbatch
+     *
+     * @param IPython if true, drop to IPython, not python
      *
      * @return zero iff OK
      */
-    int embed_python();
+    int embed_python(bool IPython=true);
 
     /**
      * @}
