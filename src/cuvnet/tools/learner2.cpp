@@ -98,6 +98,11 @@ namespace cuvnet
                 boost::make_shared<gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate);
             gd->set_epoch(start_epoch);
             return gd;
+        }else if(typ == "rprop"){
+            boost::shared_ptr<gradient_descent> gd =
+                boost::make_shared<rprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate);
+            gd->set_epoch(start_epoch);
+            return gd;
         }else if(typ == "momentum"){
             boost::shared_ptr<gradient_descent> gd =
                 boost::make_shared<momentum_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, initial_momentum);
