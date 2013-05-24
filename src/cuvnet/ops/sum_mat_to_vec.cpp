@@ -31,41 +31,72 @@ namespace cuvnet
             return;
         }
         float fact_new = m_mean ? 1.f/m_n_summed : 1.f;
+        reduce_functor red_func = m_squared ? RF_ADD_SQUARED : RF_ADD;
+
+        unsigned int ndim, shape_before, shape_after, size_axis;
+        if(m_axis != 0 && m_axis != p0.shape.size()-1){
+            ndim = p0.shape.size();
+            size_axis = p0.shape[m_axis];
+            shape_after = 1;
+            shape_before = 1;
+            for (unsigned int i = 0; i < ndim; ++i)
+            {
+                if(i < m_axis)
+                    shape_before *= p0.shape[i];
+                else if(i > m_axis)
+                    shape_after *= p0.shape[i];
+            }
+            
+        }
+
+        // sum up all squared entries
+        if(r0.can_overwrite_directly()){
+
+            if(m_axis == p0.shape.size()-1) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(), red_func, fact_new, 0.f);
+            else if (m_axis == 0)           cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(), red_func, fact_new, 0.f);
+            else
+            {
+                value_type v(shape_before * size_axis);
+                value_type r = p0.value.cdata();
+                r.reshape(cuv::extents[shape_before * size_axis][shape_after]);
+                reduce_to_col(v, r,red_func, 1.f,  0.f);
+                v.reshape(cuv::extents[shape_before][size_axis]);
+                reduce_to_row(*r0.overwrite_or_add_value(), v,RF_ADD,fact_new, 0.f);
+            }
+        }
+        else if(r0.can_add_directly()){
+            if(m_axis == p0.shape.size()-1) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(),red_func,fact_new,1.f);
+            else if (m_axis == 0)           cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(),red_func,fact_new,1.f);
+            else{
+                value_type v(shape_before * size_axis);
+                value_type r = p0.value.cdata();
+                r.reshape(cuv::extents[shape_before * size_axis][shape_after]);
+                reduce_to_col(v, r,red_func,1.f, 1.f);
+                v.reshape(cuv::extents[shape_before][size_axis]);
+                reduce_to_row(*r0.overwrite_or_add_value(), v,RF_ADD,fact_new, 1.f);
+            }
+
+        }else{
+            // reallocate *sigh*
+            value_ptr v(new value_type(r0.shape));
+            if(m_axis == p0.shape.size()-1) cuv::reduce_to_row(*v, p0.value.cdata(), red_func, fact_new, 0.f);
+            else if (m_axis == 0)           cuv::reduce_to_col(*v, p0.value.cdata(), red_func, fact_new, 0.f);
+            else{
+                value_type w(shape_before * size_axis);
+                value_type r = p0.value.cdata();
+                r.reshape(cuv::extents[shape_before * size_axis][shape_after]);
+                reduce_to_col(w, r,red_func, 1.f,  0.f);
+                w.reshape(cuv::extents[shape_before][size_axis]);
+                reduce_to_row(*v, w,RF_ADD, fact_new,  0.f);
+            }
+            r0.push(v);
+        }
+
         if(m_squared){
-            // sum up all squared entries
-            if(r0.can_overwrite_directly()){
-                if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(), RF_ADD_SQUARED, fact_new, 0.f);
-                else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(), RF_ADD_SQUARED, fact_new, 0.f);
-            }
-            else if(r0.can_add_directly()){
-                if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD_SQUARED,fact_new,1.f);
-                else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD_SQUARED,fact_new,1.f);
-            }else{
-                // reallocate *sigh*
-                value_ptr v(new value_type(r0.shape));
-                if(m_axis!=0) cuv::reduce_to_row(*v, p0.value.cdata(), RF_ADD_SQUARED, fact_new, 0.f);
-                else          cuv::reduce_to_col(*v, p0.value.cdata(), RF_ADD_SQUARED, fact_new, 0.f);
-                r0.push(v);
-            }
             if(!p0.need_derivative)
                 p0.value.reset(); // needed for bprop
         }else{
-            // sum up all entries
-            if(r0.can_overwrite_directly()){
-                if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(), RF_ADD, fact_new, 0.f);
-                else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(), RF_ADD, fact_new, 0.f);
-            }
-            else if(r0.can_add_directly()){
-                if(m_axis!=0) cuv::reduce_to_row(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD,fact_new,1.f);
-                else          cuv::reduce_to_col(*r0.overwrite_or_add_value(), p0.value.cdata(),RF_ADD,fact_new,1.f);
-            }else{
-                // reallocate *sigh*
-                value_ptr v(new value_type(r0.shape));
-                if(m_axis!=0) cuv::reduce_to_row(*v, p0.value.cdata(), RF_ADD, fact_new, 0.f);
-                else          cuv::reduce_to_col(*v, p0.value.cdata(), RF_ADD, fact_new, 0.f);
-                r0.push(v);
-            }
-            p0.value.reset();
+            p0.value.reset(); 
         }
 
     }
@@ -118,7 +149,7 @@ namespace cuvnet
 
     void SumMatToVec::_determine_shapes(){
         assert(m_params[0]->shape.size()>=2);
-        assert(m_axis == 0 || m_axis == m_params[0]->shape.size()-1);
+        assert(m_axis <= m_params[0]->shape.size()-1);
         unsigned int all
             = std::accumulate(
                     m_params[0]->shape.begin(),
