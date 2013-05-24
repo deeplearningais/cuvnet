@@ -61,7 +61,7 @@ BOOST_AUTO_TEST_CASE( image_loading_and_queueing ){
         std::list<pattern*> L;
         q.pop(L, 1);
 
-        unsigned int ndims = grayscale ? 3 : 1;
+        unsigned int ndims = grayscale ? 1 : 3;
         BOOST_CHECK_EQUAL(ndims, L.front()->img.shape(0));
         BOOST_CHECK_EQUAL(128, L.front()->img.shape(1));
         BOOST_CHECK_EQUAL(128, L.front()->img.shape(2));

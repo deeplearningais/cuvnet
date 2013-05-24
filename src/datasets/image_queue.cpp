@@ -2,6 +2,7 @@
 #include <fstream>
 #include <CImg.h>
 #include <log4cxx/logger.h>
+#include <boost/asio.hpp>
 
 #include <cuv.hpp>
 #include <cuv/libs/cimg/cuv_cimg.hpp>
@@ -89,9 +90,9 @@ namespace cuvnet { namespace image_datasets {
         cimg_library::CImg<unsigned char> ign(m_pattern_size, m_pattern_size);
 
         tch.fill(0);
-        ign.fill(0);
-        si.mark_objects(2, 255, 0.1f, &tch);
-        si.mark_objects(2, 255, 0.1f, &ign);
+        ign.fill(1);
+        si.mark_objects(1, 255, 0.1f, &tch);
+        //si.mark_objects(0, 255, 0.1f, &ign);
         //si.mark_objects(0, 255, 1, &img);
         si.fill_padding(0, &ign);
 
@@ -119,6 +120,42 @@ namespace cuvnet { namespace image_datasets {
 
         //LOG4CXX_INFO(m_log, "done processing pattern, pushing to queue");
         m_queue->push(pat_ptr);
+    }
+
+
+    namespace detail
+    {
+        struct asio_queue_impl{
+            boost::asio::io_service io_service;
+            boost::asio::io_service::work work;
+            boost::thread_group threads;
+            asio_queue_impl(unsigned int n_threads)
+                :io_service(), work(io_service){
+                    if(n_threads == 0)
+                        n_threads = boost::thread::hardware_concurrency();
+                    for (std::size_t i = 0; i < n_threads; ++i)
+                            threads.create_thread(boost::bind(&boost::asio::io_service::run, &io_service));
+            }
+            void stop(){
+                io_service.stop();
+                threads.join_all();
+            }
+            ~asio_queue_impl(){
+                this->stop();
+            }
+        };
+
+        asio_queue::asio_queue(unsigned int n_threads){
+            m_impl.reset(new asio_queue_impl(n_threads));
+        }
+
+        void asio_queue::stop(){
+            m_impl->stop();
+        }
+
+        void asio_queue::post(boost::function<void(void)> f){
+            m_impl->io_service.post(f);
+        }
     }
         
 } } // namespace image_datasets, cuvnet

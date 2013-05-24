@@ -185,8 +185,29 @@ namespace cuvnet
 
                 virtual void operator()();
         };
+
+        namespace detail
+        {
+            struct asio_queue_impl;
+            struct asio_queue{
+                boost::shared_ptr<asio_queue_impl> m_impl;
+                asio_queue(unsigned int n_threads);
+                void stop();
+                void post(boost::function<void (void)>);
+            };
+        }
         /**
-         * starts many workers which process images to patterns and enqueue them into an image queue.
+         * starts many workers which process images to patterns and enqueue
+         * them into an image queue.
+         *
+         *                   _-----> worker ---_
+         *                  /                   \
+         * ---> dataset --> +------> worker -----+---> image queue ---> ...
+         *                  \_                  /
+         *                    -----> worker ---^
+         *
+         * Running in a separate thread, it ensures that the image queue always
+         * has a certain "fill level".
          *
          * @tparam Queue the type of the queue where patterns are stored
          *
@@ -205,8 +226,8 @@ namespace cuvnet
         template<class Queue, class Dataset, class WorkerFactory>
         class loader_pool{
             private:
+                typedef loader_pool<Queue,Dataset,WorkerFactory> my_type;
                 Queue* m_queue;
-                unsigned int m_n_threads;
                 Dataset* m_dataset;
 
                 boost::thread m_pool_thread;
@@ -217,6 +238,11 @@ namespace cuvnet
                 log4cxx::LoggerPtr m_log;
 
                 unsigned int m_min_pipe_len, m_max_pipe_len;
+
+                detail::asio_queue m_asio_queue;
+                void on_stop(){
+                    m_running = false;
+                }
             public:
 
                 /**
@@ -230,17 +256,14 @@ namespace cuvnet
                  */
                 loader_pool(Queue& queue, unsigned int n_threads, Dataset& ds, WorkerFactory worker_factory, size_t min_queue_len=32, size_t max_queue_len=32*3)
                     : m_queue(&queue)
-                    , m_n_threads(n_threads)
                     , m_dataset(&ds)
                     , m_running(false)
                     , m_request_stop(false)
                     , m_worker_factory(worker_factory)
                     , m_min_pipe_len(min_queue_len)
                     , m_max_pipe_len(max_queue_len)
+                    , m_asio_queue(n_threads)
                 {
-                    if(n_threads == 0)
-                        m_n_threads = boost::thread::hardware_concurrency();
-
                     m_log = log4cxx::Logger::getLogger("loader_pool");
                 }
                 /**
@@ -271,25 +294,25 @@ namespace cuvnet
                  */
                 void operator()(){
                     unsigned int cnt = 0;
-                    m_running = true;
+                    m_running = false;
                     while(!m_request_stop){
                         unsigned int size = m_queue->size();
-                        if(size < m_min_pipe_len){
-                            boost::thread_group grp;
-                            for (unsigned int i = 0; i < m_n_threads && i+size < m_max_pipe_len; ++i)
+                        if(size < m_min_pipe_len && !m_running){
+                            for (unsigned int i = 0; i < m_min_pipe_len && i + size < m_max_pipe_len; ++i)
                             {
-                                grp.create_thread(m_worker_factory(
-                                            m_queue, 
-                                            &m_dataset->get(cnt)));
+                                m_asio_queue.post(m_worker_factory(m_queue, &m_dataset->get(cnt)));
                                 cnt = (cnt+1) % m_dataset->size();
                                 //if(cnt == 0)
                                 //    LOG4CXX_INFO(g_log, "Roundtrip through dataset completed. Shuffling.");
                             }
-                            grp.join_all();
+
+                            // the last job should set m_running to false;
+                            m_running = true;
+                            m_asio_queue.post(boost::bind(&my_type::on_stop, this));
                         }
                         boost::this_thread::sleep(boost::posix_time::millisec(10));
                     }
-                    m_running = false;
+                    on_stop();
                 }
         };
 
