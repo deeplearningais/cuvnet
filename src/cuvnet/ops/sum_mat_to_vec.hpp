@@ -61,6 +61,7 @@ namespace cuvnet
                         ar & m_axis;
                         ar & m_mean;
                         ar & m_identity;
+                        ar & m_squared;
                     }
     };
 
