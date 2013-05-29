@@ -167,6 +167,9 @@ namespace cuvnet
     valid_shape_info get_vsi_2(const boost::shared_ptr<ParameterInput> a, const boost::shared_ptr<Op> b){
         return valid_shape_info(a,b);
     }
+    valid_shape_info get_vsi_3(const boost::shared_ptr<Op> a, const boost::shared_ptr<Op> b){
+        return valid_shape_info(a,b);
+    }
 
     bool operator==(const Op& a, const Op& b){
         return &a == &b;
@@ -285,6 +288,7 @@ namespace cuvnet
 
         def("get_valid_shape_info", get_vsi_1);
         def("get_valid_shape_info", get_vsi_2);
+        def("get_valid_shape_info", get_vsi_3);
 
         class_<swiper>("swiper", no_init)
             .def("fprop", &swiper::fprop)
