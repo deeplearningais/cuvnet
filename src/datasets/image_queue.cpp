@@ -89,9 +89,12 @@ namespace cuvnet { namespace image_datasets {
         cimg_library::CImg<unsigned char> tch(m_pattern_size, m_pattern_size);
         cimg_library::CImg<unsigned char> ign(m_pattern_size, m_pattern_size);
 
+        pattern* pat_ptr = new pattern;
+        pattern& pat = *pat_ptr;
+
         tch.fill(0);
         ign.fill(1);
-        si.mark_objects(1, 255, 0.1f, &tch);
+        si.mark_objects(1, 255, 0.1f, &tch, &pat.bboxes);
         //si.mark_objects(0, 255, 0.1f, &ign);
         //si.mark_objects(0, 255, 1, &img);
         si.fill_padding(0, &ign);
@@ -101,8 +104,6 @@ namespace cuvnet { namespace image_datasets {
         tch.resize(final_size, final_size, -100, -100, 3, 2, 0.5f, 0.5f);
         ign.resize(final_size, final_size, -100, -100, 3, 2, 0.5f, 0.5f);
 
-        pattern* pat_ptr = new pattern;
-        pattern& pat = *pat_ptr;
         //pat.meta_info = *meta;
         int n_dim = m_grayscale ? 1 : 3;
         pat.img.resize(cuv::extents[n_dim][m_pattern_size][m_pattern_size]);

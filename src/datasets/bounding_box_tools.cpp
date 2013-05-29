@@ -228,7 +228,7 @@ namespace cuvnet { namespace bbtools {
 
     
     sub_image& 
-    sub_image::mark_objects(int type, unsigned char color, float scale, cimg_library::CImg<unsigned char>* img){
+    sub_image::mark_objects(int type, unsigned char color, float scale, cimg_library::CImg<unsigned char>* img, std::vector<std::vector<bbtools::rectangle> >* bboxes){
         if(!img){
             if(!pcut)
                 throw std::runtime_error("mark_objects: supply image or crop first!");
@@ -238,10 +238,14 @@ namespace cuvnet { namespace bbtools {
         const unsigned char clr[] = {color,color,color};
         if(type==2)
             img->fill(0);
+        if(bboxes)
+            bboxes->resize(img->depth());
         BOOST_FOREACH(const object& orig_o, objs){
             if(objfilt && !objfilt->filter(*this, orig_o)) 
                 continue;
             object o = object_relative_to_subimg(orig_o);
+            //(*bboxes)[o.klass].push_back(o.bb);
+            (*bboxes)[0].push_back(o.bb); // only one class for now....
             if(type==0){
                 img->draw_rectangle(o.bb.xmin, o.bb.ymin, o.bb.xmax, o.bb.ymax, clr, 1.f, ~0U);
             }else if(type == 1){

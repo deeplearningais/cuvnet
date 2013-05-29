@@ -180,7 +180,7 @@ namespace cuvnet
              * @param scale a parameter of the method, determines eg size of blobs
              * @param img1 the picture, if NULL use internal cropped \c pcut variable
              */
-            sub_image& mark_objects(int type=0, unsigned char color=255, float scale=1.f, cimg_library::CImg<unsigned char>* img1=NULL);
+            sub_image& mark_objects(int type=0, unsigned char color=255, float scale=1.f, cimg_library::CImg<unsigned char>* img1=NULL, std::vector<std::vector<bbtools::rectangle> >* bboxes=NULL);
 
             /**
              * scale a cropped sub_image such that larger dimension is a fixed given size.

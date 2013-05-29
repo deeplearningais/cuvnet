@@ -19,6 +19,10 @@ namespace cuvnet
             cuv::tensor<float,cuv::host_memory_space> ign; ///< ignore mask                                                                                             
 
             cuv::tensor<float,cuv::host_memory_space> result; ///< result                                                                                               
+
+            std::vector<  // one for each map
+                std::vector< // one for each object
+                    bbtools::rectangle> > bboxes;
         };       
 
 
