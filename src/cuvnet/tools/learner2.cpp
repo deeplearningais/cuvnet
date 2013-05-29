@@ -186,7 +186,7 @@ namespace cuvnet
             return hs;
         if(schedule == "linear"){
             float initial = cfg.get("initial", gd->momentum());
-            float final   = cfg.get("final", 0.0f);
+            float final   = cfg.get("final", 0.9f);
             int   duration = cfg.get("duration", max_epochs);
             hs.reset(new schedules::linear_momentum_schedule(gd, initial, final, duration));
             return hs;
