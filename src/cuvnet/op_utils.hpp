@@ -490,6 +490,13 @@ namespace cuvnet
         std::vector<std::pair<Op*,int> > m_other_funcs; 
 
         /**
+         * turn cleaning up temp vars off/on
+         */
+        inline void set_cleanup_temp_vars(bool b){
+            m_cleanup_temp_vars = b;
+        }
+
+        /**
          * constructor
          *
          * @param op      the operator to do swipes on
@@ -499,7 +506,8 @@ namespace cuvnet
         swiper(Op& op, int result, const param_collector_visitor::container_type& paramlist)
             :m_op(&op),
             m_result(result),
-            m_paramlist(paramlist)
+            m_paramlist(paramlist),
+            m_cleanup_temp_vars(true)
         {
                 init();
         }
@@ -540,8 +548,10 @@ namespace cuvnet
          * clean up temp vars.
          */
         ~swiper(){
-            cleanup_temp_vars_visitor ctvv;
-            m_op->visit(ctvv,true);
+            if(m_cleanup_temp_vars){
+                cleanup_temp_vars_visitor ctvv;
+                m_op->visit(ctvv,true);
+            }
 
             reset_needed_flags rnf;
             m_op->visit(rnf); 
@@ -579,6 +589,13 @@ namespace cuvnet
         Op* m_op;
         int m_result;
         param_collector_visitor::container_type m_paramlist;
+
+        /**
+         * If this is set to false, no cleaning up of values stored in sinks
+         * etc. is done when the swiper is destroyed.
+         */
+        bool m_cleanup_temp_vars;
+
     };
 
     /**

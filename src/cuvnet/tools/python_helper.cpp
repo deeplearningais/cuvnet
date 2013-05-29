@@ -117,12 +117,30 @@ namespace cuvnet
         }
 
     struct Dummy{};
-    matrix evaluate_op(Op& o){
+    matrix evaluate_op(Op& o, boost::python::list l){
         cuvnet::function f(o.shared_from_this(), 0, "click");
+        
+        boost::python::ssize_t n = boost::python::len(l);
+        for(boost::python::ssize_t i=0;i<n;i++) {
+            boost::shared_ptr<Op> elem = boost::python::extract<boost::shared_ptr<Op> >(l[i]);
+            f.add(elem->shared_from_this());
+        }
+        if(n>0)
+            f.set_cleanup_temp_vars(false);
+
         return f.evaluate();
     }
-    matrix evaluate_sink(Sink& o){
+    matrix evaluate_sink(Sink& o, boost::python::list l){
         cuvnet::function f(o.param(0)->param_uses[0]->get_op(), 0, "click");
+        
+        boost::python::ssize_t n = boost::python::len(l);
+        for(boost::python::ssize_t i=0;i<n;i++) {
+            boost::shared_ptr<Op> elem = boost::python::extract<boost::shared_ptr<Op> >(l[i]);
+            f.add(elem);
+        }
+        if(n>0)
+            f.set_cleanup_temp_vars(false);
+
         return f.evaluate();
     }
     std::string dot(Op& o){
@@ -189,7 +207,7 @@ namespace cuvnet
             .def("get_sink", 
                     (Sink* (*)(const boost::shared_ptr<Op>&, const std::string&)) get_node, 
                     return_internal_reference<1>())
-            .def("evaluate", &evaluate_op)
+            .def("evaluate", &evaluate_op, (arg("additional_res")=boost::python::list()))
             .def(self == self)
             .def(self != self)
             ;
@@ -204,8 +222,9 @@ namespace cuvnet
                         (const std::string& (Sink::*)()const)
                         &Sink::name,
                         return_value_policy<copy_const_reference>()))
-            .def("evaluate", &evaluate_sink)
+            .def("evaluate", &evaluate_sink, (arg("additional_res")=boost::python::list()))
             ;
+
         class_<ParameterInput, boost::shared_ptr<ParameterInput>, bases<Op>, boost::noncopyable >("ParameterInput", no_init)
             .def("__init__", make_constructor(&create_param_input_with_list))
             .add_property("name", 

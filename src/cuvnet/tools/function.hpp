@@ -34,6 +34,15 @@ namespace cuvnet
             }
 
             /**
+             * Add an output to the function
+             * @param op the other output requested
+             * @param result the index of the op's result we're interested 
+             */
+            void add(boost::shared_ptr<Op> op, int result=0){
+                m_swiper->request_other_result(*op, result);
+            }
+
+            /**
              * re-create a function object.
              * @param op the wrapped op
              * @param result the index of the op's result we're interested in
@@ -60,6 +69,20 @@ namespace cuvnet
              */
             const matrix& result()const{
                 return m_sink->cdata();
+            }
+
+            /**
+             * tells swiper not to clean up temporary variables. This is useful
+             * when the function object is destroyed before all variables can
+             * be collected. A typical use case is in the Op.evaluate()
+             * function exported to python, which returns the main result, but
+             * not the "additional" results requested. It then destroys the
+             * function object, removing the intermediate results. To allow the
+             * user access to the results she requested, the Op.evaluate() function
+             * requests temporary variables to be kept using this function.
+             */
+            inline void set_cleanup_temp_vars(bool b){
+                m_swiper->set_cleanup_temp_vars(b);
             }
     };
 }
