@@ -226,6 +226,20 @@ namespace cuvnet { namespace bbtools {
         return *this;
     }
 
+    std::vector<std::vector<rectangle> > 
+    sub_image::get_objects()const{
+        std::vector<std::vector<rectangle> > bboxes;
+        const std::vector<object>& objs = original_img.meta.objects;
+        bboxes.resize(1); // TODO only one map
+        BOOST_FOREACH(const object& orig_o, objs){
+            if(objfilt && !objfilt->filter(*this, orig_o)) 
+                continue;
+            object o = object_relative_to_subimg(orig_o);
+            //bboxes[o.klass].push_back(o.bb);
+            bboxes[0].push_back(o.bb); // only one class for now....
+        }
+        return bboxes;
+    }
     
     sub_image& 
     sub_image::mark_objects(int type, unsigned char color, float scale, cimg_library::CImg<unsigned char>* img, std::vector<std::vector<bbtools::rectangle> >* bboxes){
@@ -244,8 +258,10 @@ namespace cuvnet { namespace bbtools {
             if(objfilt && !objfilt->filter(*this, orig_o)) 
                 continue;
             object o = object_relative_to_subimg(orig_o);
-            //(*bboxes)[o.klass].push_back(o.bb);
-            (*bboxes)[0].push_back(o.bb); // only one class for now....
+            if(bboxes){
+                //(*bboxes)[o.klass].push_back(o.bb);
+                (*bboxes)[0].push_back(o.bb); // only one class for now....
+            }
             if(type==0){
                 img->draw_rectangle(o.bb.xmin, o.bb.ymin, o.bb.xmax, o.bb.ymax, clr, 1.f, ~0U);
             }else if(type == 1){
@@ -270,7 +286,7 @@ namespace cuvnet { namespace bbtools {
         return *this;
     }
 
-    object sub_image::object_relative_to_subimg(const object& o){
+    object sub_image::object_relative_to_subimg(const object& o)const{
         object r = o;
         r.bb.xmin = (o.bb.xmin-pos.xmin) * scale_fact;
         r.bb.xmax = (o.bb.xmax-pos.xmin) * scale_fact;

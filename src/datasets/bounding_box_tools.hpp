@@ -168,7 +168,7 @@ namespace cuvnet
              * determine the position of an object in the original image in a sub_image.
              * @param o the object to be processed
              */
-            object object_relative_to_subimg(const object& o);
+            object object_relative_to_subimg(const object& o)const;
 
             /**
              * draw rectangles around the positions where objects are in the original image.
@@ -181,6 +181,8 @@ namespace cuvnet
              * @param img1 the picture, if NULL use internal cropped \c pcut variable
              */
             sub_image& mark_objects(int type=0, unsigned char color=255, float scale=1.f, cimg_library::CImg<unsigned char>* img1=NULL, std::vector<std::vector<bbtools::rectangle> >* bboxes=NULL);
+
+            std::vector<std::vector<rectangle> > get_objects()const;
 
             /**
              * scale a cropped sub_image such that larger dimension is a fixed given size.

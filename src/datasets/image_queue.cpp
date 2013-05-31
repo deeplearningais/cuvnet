@@ -3,6 +3,7 @@
 #include <CImg.h>
 #include <log4cxx/logger.h>
 #include <boost/asio.hpp>
+#include <boost/foreach.hpp>
 
 #include <cuv.hpp>
 #include <cuv/libs/cimg/cuv_cimg.hpp>
@@ -86,23 +87,39 @@ namespace cuvnet { namespace image_datasets {
 
         int final_size = (m_pattern_size - m_output_properties->crop_h) / m_output_properties->scale_h;
         int final_start = m_output_properties->crop_h / 2;
-        cimg_library::CImg<unsigned char> tch(m_pattern_size, m_pattern_size);
-        cimg_library::CImg<unsigned char> ign(m_pattern_size, m_pattern_size);
+        cimg_library::CImg<unsigned char> tch(final_size, final_size);
+        cimg_library::CImg<unsigned char> ign(final_size, final_size);
 
         pattern* pat_ptr = new pattern;
         pattern& pat = *pat_ptr;
 
         tch.fill(0);
         ign.fill(1);
-        si.mark_objects(1, 255, 0.1f, &tch, &pat.bboxes);
+        //si.mark_objects(1, 255, 0.1f, &tch, &pat.bboxes);
+
+        {
+            pat.bboxes = si.get_objects();
+            float color = 255.f;
+            const output_properties& op = *m_output_properties;
+            BOOST_FOREACH(const bbtools::rectangle& s, pat.bboxes[0]){ // TODO only one map
+                bbtools::rectangle r;
+                r.ymin = std::min(final_size-1.f, std::max(0.f, (s.ymin-op.crop_h/2.f)) / (float)op.scale_h) + 0.5f;
+                r.xmin = std::min(final_size-1.f, std::max(0.f, (s.xmin-op.crop_w/2.f)) / (float)op.scale_w) + 0.5f;
+                r.ymax = std::min(final_size-1.f, std::max(0.f, (s.ymax-op.crop_h/2.f)) / (float)op.scale_h) + 0.5f;
+                r.xmax = std::min(final_size-1.f, std::max(0.f, (s.xmax-op.crop_w/2.f)) / (float)op.scale_w) + 0.5f;
+                tch.draw_rectangle(r.xmin, r.ymin,0,0, 
+                        r.xmax, r.ymax, tch.depth()-1, tch.spectrum()-1, color);
+            }
+        }
+        
         //si.mark_objects(0, 255, 0.1f, &ign);
         //si.mark_objects(0, 255, 1, &img);
-        si.fill_padding(0, &ign);
+        //si.fill_padding(0, &ign);
 
-        tch.crop(final_start, final_start, tch.width()-final_start-1, tch.height()-final_start-1, false);
-        ign.crop(final_start, final_start, ign.width()-final_start-1, ign.height()-final_start-1, false);
-        tch.resize(final_size, final_size, -100, -100, 3, 2, 0.5f, 0.5f);
-        ign.resize(final_size, final_size, -100, -100, 3, 2, 0.5f, 0.5f);
+        //tch.crop(final_start, final_start, tch.width()-final_start-1, tch.height()-final_start-1, false);
+        //ign.crop(final_start, final_start, ign.width()-final_start-1, ign.height()-final_start-1, false);
+        //tch.resize(final_size, final_size, -100, -100, 3, 2, 0.5f, 0.5f);
+        //ign.resize(final_size, final_size, -100, -100, 3, 2, 0.5f, 0.5f);
 
         //pat.meta_info = *meta;
         int n_dim = m_grayscale ? 1 : 3;
