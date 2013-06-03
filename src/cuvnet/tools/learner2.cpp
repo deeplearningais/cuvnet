@@ -92,20 +92,21 @@ namespace cuvnet
         std::string typ = cfg.get("type", "plain");
         float initial_learnrate = cfg.get("learnrate", 0.01);
         float initial_momentum = cfg.get("momentum", 0.9);
+        float l2decay = cfg.get("l2decay", 0.0);
         unsigned int start_epoch = cfg.get("start_epoch", 0);
         if(typ == "plain"){
             boost::shared_ptr<gradient_descent> gd =
-                boost::make_shared<gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate);
+                boost::make_shared<gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
             return gd;
         }else if(typ == "rprop"){
             boost::shared_ptr<gradient_descent> gd =
-                boost::make_shared<rprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate);
+                boost::make_shared<rprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
             return gd;
         }else if(typ == "momentum"){
             boost::shared_ptr<gradient_descent> gd =
-                boost::make_shared<momentum_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, initial_momentum);
+                boost::make_shared<momentum_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, initial_momentum);
             gd->set_epoch(start_epoch);
             return gd;
         }else{
