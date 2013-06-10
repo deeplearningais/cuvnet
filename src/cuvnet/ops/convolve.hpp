@@ -122,6 +122,8 @@ namespace cuvnet
            public:
                Convolve2dTheano() :Op(2,1){} ///< for serialization
                std::string m_mode;
+               bool m_use_bias;
+               value_type m_extended_orig;
                 /**
                  * constructor.
                  *
@@ -130,10 +132,22 @@ namespace cuvnet
                  */
                Convolve2dTheano(result_t& images, result_t& filters, std::string mode = "valid")
                    :Op(2,1),
-                   m_mode(mode)    
+                   m_mode(mode),
+                   m_use_bias(false)
                {
                    add_param(0,images);
                    add_param(1,filters);
+               }
+
+
+               Convolve2dTheano(result_t& images, result_t& filters, result_t& bias, std::string mode = "valid")
+                   :Op(3,1),
+                   m_mode(mode),
+                   m_use_bias(true)
+               {
+                   add_param(0,images);
+                   add_param(1,filters);
+                   add_param(2,bias);
                }
                void fprop();
                void bprop();
@@ -144,7 +158,7 @@ namespace cuvnet
                template<class Archive>
                    void serialize(Archive& ar, const unsigned int version){
                        ar & boost::serialization::base_object<Op>(*this);
-                       ar & m_mode;
+                       ar & m_mode & m_use_bias & m_extended_orig;
                    }
        };
 

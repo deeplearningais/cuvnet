@@ -246,11 +246,33 @@ namespace cuvnet
        cuvAssert(p0.value.cdata().is_c_contiguous());
 
        if(r0.can_overwrite_directly()){
-           convolve_2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_mode);
+           if (m_use_bias){
+               value_type extended(m_extended_orig.shape());
+               param_t::element_type&  p2 = *m_params[2];
+               value_type v(r0.shape);
+               convolve_2d(v, p0.value.cdata(), p1.value.cdata(), m_mode);
+            
+               cuv::matrix_op_vec(extended,m_extended_orig, p2.value.cdata(), 1, BF_MULT);
+
+               cuv::apply_binary_functor(*r0.overwrite_or_add_value(), v, extended, cuv::BF_ADD);
+           }
+           else
+               convolve_2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_mode);
        }else{
            // reallocate *sigh*
            value_ptr v(new value_type(r0.shape));
-           convolve_2d(*v, p0.value.cdata(), p1.value.cdata(), m_mode);
+           if (m_use_bias){
+               param_t::element_type&  p2 = *m_params[2];
+               value_type extended(m_extended_orig.shape());
+               value_type r(r0.shape);
+               convolve_2d(r, p0.value.cdata(), p1.value.cdata(), m_mode);
+
+               cuv::matrix_op_vec(extended,m_extended_orig, p2.value.cdata(), 1, BF_MULT);
+
+               cuv::apply_binary_functor(*v, r, extended, cuv::BF_ADD);
+           }
+           else
+               convolve_2d(*v, p0.value.cdata(), p1.value.cdata(), m_mode);
            r0.push(v);
        }
        if(!p0.need_derivative && !p1.need_derivative)
@@ -304,6 +326,61 @@ namespace cuvnet
                p0.push(ptr);
            }
        }
+       if(m_use_bias){
+          param_t::element_type&  p2 = *m_params[2];
+          const value_type& delta = r0.delta.cdata();
+
+          unsigned int size = 1;
+          unsigned int ndim = delta.shape().size();
+          unsigned int rows = 1;
+          for(unsigned int i = 0; i < ndim;i++){
+              size *= delta.shape(i);
+              if(i > 1)
+                  rows *= delta.shape(i);
+          }
+          unsigned int cols = size / rows;
+
+          if(p2.need_derivative){
+              unsigned int axis = 1;
+              if(p2.can_overwrite_directly()){
+                  value_type v(cols);
+                  value_type r(r0.shape);
+                  // multiplies delta with mask of ones at the border and zeros in center and summes up all
+                  cuv::apply_binary_functor(r, delta, m_extended_orig, cuv::BF_MULT);
+                  r.reshape(cuv::extents[cols][rows]);
+                  reduce_to_col(v, r,RF_ADD, 1.f, 0.f);
+                  v.reshape(cuv::extents[cols/r0.shape[axis]][r0.shape[axis]]);
+                  reduce_to_row(*p2.overwrite_or_add_value(), v, RF_ADD, 1.f, 0.f);
+              }
+              else if(p2.can_add_directly()){
+                  value_type v(cols);
+                  value_type r(r0.shape);
+                  // multiplies delta with mask of ones at the border and zeros in center and summes up all
+                  cuv::apply_binary_functor(r, delta, m_extended_orig, cuv::BF_MULT);
+                  r.reshape(cuv::extents[cols][rows]);
+                  reduce_to_col(v, r,RF_ADD, 1.f, 0.f);
+                  v.reshape(cuv::extents[cols/r0.shape[axis]][r0.shape[axis]]);
+                  reduce_to_row(*p2.overwrite_or_add_value(), v, RF_ADD, 1.f, 1.f);
+
+              }
+              else{
+                  value_ptr v(new value_type(p2.shape));
+                  value_type w(cols);
+                  value_type r(r0.shape);
+                  // multiplies delta with mask of ones at the border and zeros in center and summes up all
+                  cuv::apply_binary_functor(r, delta, m_extended_orig, cuv::BF_MULT);
+                  r.reshape(cuv::extents[cols][rows]);
+                  reduce_to_col(w, r,RF_ADD, 1.f, 0.f);
+                  w.reshape(cuv::extents[cols/r0.shape[axis]][r0.shape[axis]]);
+                  reduce_to_row(*v, w, RF_ADD, 1.f, 0.f);
+                  p2.push(v);
+              }
+                       
+          }
+          p2.value.reset();
+       }
+
+
        p0.value.reset();
        p1.value.reset();
        r0.delta.reset();
@@ -328,6 +405,29 @@ namespace cuvnet
 
        unsigned int nOutPixX = m_mode == "valid" ? nImgPixX+1-nFltPixX :  nImgPixX - 1 + nFltPixX; 
        unsigned int nOutPixY = m_mode == "valid" ? nImgPixY+1-nFltPixY :  nImgPixY - 1 + nFltPixY; 
+
+       if(m_use_bias){
+           // create mask, which is used for delta calcualtion of bias
+           unsigned int width_x = nFltPixX-1; 
+           unsigned int width_y = nFltPixY-1; 
+           unsigned int mask_size_x = nImgPixX + nFltPixX - 1;
+           unsigned int mask_size_y = nImgPixY + nFltPixY - 1;
+           value_type mask(cuv::extents[mask_size_y][mask_size_x]);
+           for (unsigned int i = 0; i < mask_size_y; ++i)
+           {
+               for (unsigned int j = 0; j < mask_size_x; ++j){
+                   if (j < width_x || j >= nImgPixX || i < width_y || i >= nImgPixY)
+                       mask(i,j) = 1;
+                   else 
+                       mask(i,j) = 0;
+               }
+           }
+           mask.reshape(cuv::extents[mask_size_y * mask_size_x]);
+           m_extended_orig.resize(cuv::extents[img[0]][nFilt][mask_size_y * mask_size_x]);
+           m_extended_orig = 1.f;
+           cuv::matrix_op_vec(m_extended_orig, m_extended_orig, mask, 2, cuv::BF_MULT);
+           m_extended_orig.reshape(cuv::extents[img[0]][nFilt][mask_size_y][mask_size_x]);
+       }
 
        dst[0] = img[0];
        dst[1] = nFilt;

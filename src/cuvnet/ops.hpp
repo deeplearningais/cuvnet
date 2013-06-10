@@ -189,7 +189,12 @@ namespace cuvnet
 #ifndef NO_THEANO_WRAPPERS
     /// construct a Convolve theano object
     inline
-        Op::op_ptr convolve2dTheano(Op::op_ptr img, Op::op_ptr flt, std::string mode = "valid") { return boost::make_shared<Convolve2dTheano>(img->result(),flt->result(), mode); }
+        Op::op_ptr convolve2dTheano(Op::op_ptr img, Op::op_ptr flt, std::string mode = "valid", Op::op_ptr bias = Op::op_ptr()) { 
+            if (bias)
+                return boost::make_shared<Convolve2dTheano>(img->result(),flt->result(), bias->result(), mode);
+            else 
+                return boost::make_shared<Convolve2dTheano>(img->result(),flt->result(), mode);
+        }
 #endif
     /// construct a ReorderForConv object
     inline
