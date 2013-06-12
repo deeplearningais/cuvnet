@@ -124,6 +124,7 @@ namespace cuvnet
                std::string m_mode;
                bool m_use_bias;
                value_type m_extended_orig;
+               value_type m_extended;
                 /**
                  * constructor.
                  *
