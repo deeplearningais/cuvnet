@@ -116,6 +116,14 @@ namespace cuvnet
                 boost::make_shared<gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
             return gd;
+        }else if(typ == "rmsprop"){
+            float delta = cfg.get("delta", 0.01f);
+            float grad_avg = cfg.get("grad_avg", 0.9f);
+            float l1decay = cfg.get("l1decay", 0.f);
+            boost::shared_ptr<gradient_descent> gd =
+                boost::make_shared<rmsprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay);
+            gd->set_epoch(start_epoch);
+            return gd;
         }else if(typ == "rprop"){
             boost::shared_ptr<gradient_descent> gd =
                 boost::make_shared<rprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
