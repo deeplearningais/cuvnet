@@ -40,6 +40,23 @@ namespace cuvnet
                         (final - initial) * epoch  / (float)duration));
         }
         /*****************************************
+         * exponential_learnrate_schedule
+         *****************************************/
+        exponential_learnrate_schedule::exponential_learnrate_schedule(gradient_descent* _gd, float begin, float end, int epochs)
+            :initial(begin), final(end), duration(epochs), gd(_gd)
+        {
+            con = gd->before_epoch.connect(boost::ref(*this));
+        }
+        void exponential_learnrate_schedule::operator()(unsigned int epoch, unsigned int wups)
+        {
+            gd->set_learnrate(
+                    std::max(final, 
+                        initial * 
+                        std::pow(
+                            final/initial, 
+                            duration / (float) duration)));
+        }
+        /*****************************************
          * linear_momentum_schedule
          *****************************************/
         linear_momentum_schedule::linear_momentum_schedule(momentum_gradient_descent* _gd, float begin, float end, int epochs)
@@ -169,6 +186,16 @@ namespace cuvnet
             float final   = cfg.get("final", 0.0f);
             int   duration = cfg.get("duration", max_epochs);
             hs.reset(new schedules::linear_learnrate_schedule(&gd, initial, final, duration));
+            return hs;
+        }
+        if(schedule == "exponential"){
+            float initial = cfg.get("initial", gd.learnrate());
+            float final   = cfg.get("final", 0.000001f);
+            int   duration = cfg.get("duration", max_epochs);
+            LOG4CXX_WARN(g_log, "Setting up exponential learnrate schedule (initial: "<<initial
+                    << ", final:" << final
+                    << ", duration:"<<duration<<")");
+            hs.reset(new schedules::exponential_learnrate_schedule(&gd, initial, final, duration));
             return hs;
         }
         throw std::runtime_error("unknown learnrate schedule: " + schedule);

@@ -39,6 +39,17 @@ namespace cuvnet
             linear_learnrate_schedule(gradient_descent* _gd, float begin, float end, int epochs);
             virtual void operator()(unsigned int epoch, unsigned int wups);
         };
+        /**
+         * An exponentially decreasing learnrate schedule
+         * @ingroup learning
+         */
+        struct exponential_learnrate_schedule : public hyperparam_schedule{
+            float initial, final, duration;
+            gradient_descent* gd;
+            boost::signals::scoped_connection con;
+            exponential_learnrate_schedule(gradient_descent* _gd, float begin, float end, int epochs);
+            virtual void operator()(unsigned int epoch, unsigned int wups);
+        };
 
         /**
          * A linearly increasing momentum schedule.
