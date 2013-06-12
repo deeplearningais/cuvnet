@@ -190,7 +190,7 @@ namespace cuvnet
     }
 
     unsigned int 
-    learner2::n_batches(){
+    learner2::n_batches(unsigned int batchsize){
         return 1;
     }
 
@@ -368,7 +368,7 @@ namespace cuvnet
             gd->batch_learning(max_epochs, time_limit);
         }else {
             gd->before_batch.connect(boost::bind(&learner2::load_batch, this, &m, _1));
-            gd->current_batch_num = boost::bind(&learner2::n_batches, this);
+            gd->current_batch_num = boost::bind(&learner2::n_batches, this, batch_size);
             gd->minibatch_learning(max_epochs, time_limit);
         }
         ptree result;

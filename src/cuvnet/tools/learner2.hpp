@@ -109,9 +109,10 @@ namespace cuvnet
             /**
              * Overload this to tell learner how many batches your dataset has.
              *
+             * @param batchsize the number of instances in one batch
              * @return 1 by default
              */
-            virtual unsigned int n_batches();
+            virtual unsigned int n_batches(unsigned int batchsize);
 
             /**
              * Overload this to switch to a different mode on the dataset.
