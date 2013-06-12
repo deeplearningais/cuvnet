@@ -14,12 +14,18 @@
 
 #include <cuvnet/tools/gradient_descent.hpp>
 #include <cuvnet/tools/monitor.hpp>
+#include <cuvnet/tools/logging.hpp>
 
 #include "learner2.hpp"
 
 namespace bfs = boost::filesystem;
 
 typedef boost::property_tree::ptree ptree;
+
+namespace 
+{
+    log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("learner2"));
+}
 
 namespace cuvnet
 {
@@ -112,11 +118,13 @@ namespace cuvnet
         float l2decay = cfg.get("l2decay", 0.0);
         unsigned int start_epoch = cfg.get("start_epoch", 0);
         if(typ == "plain"){
+            LOG4CXX_WARN(g_log, "Creating Plain GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
             boost::shared_ptr<gradient_descent> gd =
                 boost::make_shared<gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
             return gd;
         }else if(typ == "rmsprop"){
+            LOG4CXX_WARN(g_log, "Creating RMSProp GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
             float delta = cfg.get("delta", 0.01f);
             float grad_avg = cfg.get("grad_avg", 0.9f);
             float l1decay = cfg.get("l1decay", 0.f);
@@ -125,11 +133,13 @@ namespace cuvnet
             gd->set_epoch(start_epoch);
             return gd;
         }else if(typ == "rprop"){
+            LOG4CXX_WARN(g_log, "Creating RPROP GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
             boost::shared_ptr<gradient_descent> gd =
                 boost::make_shared<rprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
             return gd;
         }else if(typ == "momentum"){
+            LOG4CXX_WARN(g_log, "Creating Momentum GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", momentum: "<< initial_momentum << ")");
             boost::shared_ptr<gradient_descent> gd =
                 boost::make_shared<momentum_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, initial_momentum);
             gd->set_epoch(start_epoch);
@@ -151,6 +161,12 @@ namespace cuvnet
         float multiply = cfg.get("multiply", 2.f);
         int boxfilter = cfg.get("boxfilter", 1);
         int patience = cfg.get("patience", 100);
+        LOG4CXX_WARN(g_log, "Setting up Early Stopper (watch:"<<watch
+                <<", thresh:"<< thresh
+                << ", every: "<< every 
+                << ", multiply:"<<multiply
+                << ", boxfilter:" << boxfilter 
+                << ", patience:" << patience<< ")");
         es.reset(new early_stopper(gd, boost::bind(&monitor::mean, &mon, watch), thresh, every, multiply, boxfilter));
         es->before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, 0));
         es->after_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_TRAIN, 0));
@@ -191,8 +207,11 @@ namespace cuvnet
             return hs;
         if(schedule == "linear"){
             float initial = cfg.get("initial", gd.learnrate());
-            float final   = cfg.get("final", 0.0f);
+            float final   = cfg.get("final", initial * 0.01f);
             int   duration = cfg.get("duration", max_epochs);
+            LOG4CXX_WARN(g_log, "Setting up linear learnrate schedule (initial: "<<initial
+                    << ", final:" << final
+                    << ", duration:"<<duration<<")");
             hs.reset(new schedules::linear_learnrate_schedule(&gd, initial, final, duration));
             return hs;
         }
@@ -224,6 +243,9 @@ namespace cuvnet
             float initial = cfg.get("initial", gd->momentum());
             float final   = cfg.get("final", 0.9f);
             int   duration = cfg.get("duration", max_epochs);
+            LOG4CXX_WARN(g_log, "Setting up linear momentum schedule (initial: "<<initial
+                    << ", final:" << final
+                    << ", duration:"<<duration<<")");
             hs.reset(new schedules::linear_momentum_schedule(gd, initial, final, duration));
             return hs;
         }
@@ -327,6 +349,7 @@ namespace cuvnet
         int time_limit = cfg.get("time_limit", INT_MAX);
         int batch_size = cfg.get("batchsize", -1);
         int max_epochs = cfg.get("gd.max_epochs", 5);
+        LOG4CXX_WARN(g_log, "batchsize:"<< batch_size<< ", max_epochs:"<<max_epochs<<", time_limit:"<<time_limit);
 
         boost::shared_ptr<schedules::hyperparam_schedule> learnrate_schedule =
             get_learnrate_schedule(*gd, max_epochs, cfg.get_child("learnrate_schedule", ptree()));
