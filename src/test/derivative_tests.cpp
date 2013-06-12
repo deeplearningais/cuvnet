@@ -584,101 +584,6 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
     }
 }
 
-#ifndef NO_THEANO_WRAPPERS
-BOOST_AUTO_TEST_CASE(derivative_test_convolve_theano){
-	typedef boost::shared_ptr<Op> ptr_t;
-
-    using namespace cuv::theano_conv;
-
-        {
-            initcuda();
-            unsigned int nImgChan = 3;      // must be divisible by nGroups
-            unsigned int nImgPixX = 5;
-            unsigned int nImgPixY = 5;
-            unsigned int nImg     = 1;
-
-            unsigned int nFiltChan = nImgChan;
-            unsigned int nFiltPixX  = 3;
-            unsigned int nFiltPixY  = 3;
-            unsigned int nFilt     = 2; 
-
-            {
-                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
-                boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFilt][nFiltChan][nFiltPixY][nFiltPixX], "weights");
-                boost::shared_ptr<ParameterInput> padding_bias = boost::make_shared<ParameterInput>(cuv::extents[nFilt], "padding_bias");
-
-                {
-                  ptr_t func                       = boost::make_shared<Convolve2dTheano>(inp0->result(), inp1->result(), "valid");
-                  derivative_tester(*func,0,false,.03f);
-                }
-                {
-                   ptr_t func                       = boost::make_shared<Convolve2dTheano>(inp0->result(), inp1->result(), "full");
-                   derivative_tester(*func,0,false,.03f);
-                }
-                {
-                  ptr_t func                       = boost::make_shared<Convolve2dTheano>(inp0->result(), inp1->result(), padding_bias->result(), "full");
-                  derivative_tester(*func,0,false,.03f);
-                }
-            }
-            finalize_cuda();
-        }
-
-}
-
-BOOST_AUTO_TEST_CASE(derivative_test_flip_dims){
-	typedef boost::shared_ptr<Op> ptr_t;
-
-    using namespace cuv::theano_ops;
-
-        {
-            initcuda();
-            unsigned int nImgChan = 3;      // must be divisible by nGroups
-            unsigned int nImgPixX = 5;
-            unsigned int nImgPixY = 5;
-            unsigned int nImg     = 2;
-
-
-            {
-                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
-
-                {
-                    ptr_t func                       = boost::make_shared<FlipDims>(inp0->result(), cuv::extents[0][0][1][1]);
-                    derivative_tester(*func,0,false,.03f);
-                }
-            }
-            finalize_cuda();
-        }
-}
-
-BOOST_AUTO_TEST_CASE(derivative_test_shuffle_dim){
-	typedef boost::shared_ptr<Op> ptr_t;
-
-    using namespace cuv::theano_ops;
-
-        {
-            initcuda();
-            unsigned int nImgChan = 3;      // must be divisible by nGroups
-            unsigned int nImgPixX = 5;
-            unsigned int nImgPixY = 5;
-            unsigned int nImg     = 2;
-
-
-            {
-                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
-
-                {
-                    ptr_t func                       = boost::make_shared<ShuffleDim>(inp0->result(), cuv::extents[1][0][2][3]);
-                    derivative_tester(*func,0,false,.03f);
-                }
-                {
-                    ptr_t func                       = boost::make_shared<ShuffleDim>(inp0->result(), cuv::extents[0][1][3][2]);
-                    derivative_tester(*func,0,false,.03f);
-                }
-            }
-            finalize_cuda();
-        }
-}
-#endif
 
 
 
@@ -1284,4 +1189,101 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
       derivative_tester(*func);
     }
 }
+
+
+#ifndef NO_THEANO_WRAPPERS
+
+
+BOOST_AUTO_TEST_CASE(theano_flip_dims){
+	typedef boost::shared_ptr<Op> ptr_t;
+
+    using namespace cuv::theano_ops;
+
+        {
+            unsigned int nImgChan = 3;      // must be divisible by nGroups
+            unsigned int nImgPixX = 5;
+            unsigned int nImgPixY = 5;
+            unsigned int nImg     = 2;
+
+
+            {
+                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
+
+                {
+                    ptr_t func                       = boost::make_shared<FlipDims>(inp0->result(), cuv::extents[0][0][1][1]);
+                    derivative_tester(*func,0,false,.03f);
+                }
+            }
+        }
+}
+BOOST_AUTO_TEST_CASE(theano_convolve){
+	typedef boost::shared_ptr<Op> ptr_t;
+
+    using namespace cuv::theano_conv;
+
+        {
+            unsigned int nImgChan = 3;      // must be divisible by nGroups
+            unsigned int nImgPixX = 5;
+            unsigned int nImgPixY = 5;
+            unsigned int nImg     = 1;
+
+            unsigned int nFiltChan = nImgChan;
+            unsigned int nFiltPixX  = 3;
+            unsigned int nFiltPixY  = 3;
+            unsigned int nFilt     = 2; 
+
+            {
+               boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
+               boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFilt][nFiltChan][nFiltPixY][nFiltPixX], "weights");
+               boost::shared_ptr<ParameterInput> padding_bias = boost::make_shared<ParameterInput>(cuv::extents[nFilt][nFiltPixY + nImgPixY - 1][nFiltPixX + nImgPixX - 1], "padding_bias");
+
+               {
+                 ptr_t func                       = boost::make_shared<Convolve2dTheano>(inp0->result(), inp1->result(), "valid");
+                 derivative_tester(*func,0,false,.03f);
+               }
+               {
+                  ptr_t func                       = boost::make_shared<Convolve2dTheano>(inp0->result(), inp1->result(), "full");
+                  derivative_tester(*func,0,false,.03f);
+               }
+               {
+                 ptr_t func                       = boost::make_shared<Convolve2dTheano>(inp0->result(), inp1->result(), padding_bias->result(), "full");
+                 derivative_tester(*func,0,false,.03f);
+               }
+            }
+        }
+
+}
+
+BOOST_AUTO_TEST_CASE(theano_shuffle_dim){
+	typedef boost::shared_ptr<Op> ptr_t;
+    using namespace cuv::theano_ops;
+        {
+            unsigned int nImgChan = 3;      // must be divisible by nGroups
+            unsigned int nImgPixX = 5;
+            unsigned int nImgPixY = 5;
+            unsigned int nImg     = 2;
+
+
+            {
+                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
+
+                {
+                    ptr_t func                       = boost::make_shared<ShuffleDim>(inp0->result(), cuv::extents[1][0][2][3]);
+                    derivative_tester(*func,0,false,.03f);
+                }
+                {
+                    ptr_t func                       = boost::make_shared<ShuffleDim>(inp0->result(), cuv::extents[0][1][3][2]);
+                    derivative_tester(*func,0,false,.03f);
+                }
+            }
+        }
+}
+
+#endif
+
+
 BOOST_AUTO_TEST_SUITE_END()
+
+
+
+

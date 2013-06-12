@@ -9,6 +9,10 @@
 #include <cuvnet/tools/logging.hpp>
 
 
+#ifndef NO_THEANO_WRAPPERS
+#      include <cuv/convolution_ops/convolution_ops_theano.hpp>
+#endif
+
 std::ofstream os;
 
 struct FooEnvironment 
@@ -21,8 +25,16 @@ struct FooEnvironment
         if(cuv::IsSame<cuv::dev_memory_space, cuvnet::matrix::memory_space_type>::Result::value){
             cuv::initialize_mersenne_twister_seeds();
         }
+#ifndef NO_THEANO_WRAPPERS
+        cuv::theano_conv::initcuda();
+#endif
     }
-  ~FooEnvironment(){}
+  ~FooEnvironment(){
+#ifndef NO_THEANO_WRAPPERS
+      cuv::theano_conv::finalize_cuda();
+#endif
+  
+  }
 };
 
 BOOST_GLOBAL_FIXTURE(FooEnvironment);
