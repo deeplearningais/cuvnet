@@ -131,7 +131,17 @@ namespace cuvnet
          * a network that performs valid convolutions (crop) and pooling
          * (scale) operations.
          */
-        struct output_properties{
+        struct output_properties
+        : public bbtools::coordinate_transformer
+        {
+            virtual void transform(int& x, int& y)const{
+                y = (y - crop_h / 2.f) / scale_h + 0.5f;
+                x = (x - crop_w / 2.f) / scale_w + 0.5f;
+            }
+            virtual void inverse_transform(int& x, int& y)const{
+                y = y * scale_h + crop_h / 2.f;
+                x = x * scale_w + crop_w / 2.f;
+            }
             int scale_h, scale_w, crop_h, crop_w;
             output_properties(int scale_h_, int scale_w_, int crop_h_, int crop_w_)
                 :scale_h(scale_h_), scale_w(scale_w_), crop_h(crop_h_), crop_w(crop_w_)

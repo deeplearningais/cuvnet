@@ -86,7 +86,7 @@ namespace cuvnet { namespace image_datasets {
         cuvAssert(img.height() == (int)m_pattern_size);
 
         int final_size = (m_pattern_size - m_output_properties->crop_h) / m_output_properties->scale_h;
-        int final_start = m_output_properties->crop_h / 2;
+
         cimg_library::CImg<unsigned char> tch(final_size, final_size);
         cimg_library::CImg<unsigned char> ign(final_size, final_size);
 
@@ -102,19 +102,26 @@ namespace cuvnet { namespace image_datasets {
             float color = 255.f;
             const output_properties& op = *m_output_properties;
             BOOST_FOREACH(const bbtools::rectangle& s, pat.bboxes[0]){ // TODO only one map
-                bbtools::rectangle r;
-                r.ymin = std::min(final_size-1.f, std::max(0.f, (s.ymin-op.crop_h/2.f)) / (float)op.scale_h) + 0.5f;
-                r.xmin = std::min(final_size-1.f, std::max(0.f, (s.xmin-op.crop_w/2.f)) / (float)op.scale_w) + 0.5f;
-                r.ymax = std::min(final_size-1.f, std::max(0.f, (s.ymax-op.crop_h/2.f)) / (float)op.scale_h) + 0.5f;
-                r.xmax = std::min(final_size-1.f, std::max(0.f, (s.xmax-op.crop_w/2.f)) / (float)op.scale_w) + 0.5f;
+                bbtools::rectangle r = s.scale(0.5f);
+                op.transform(r.xmin, r.ymin);
+                op.transform(r.xmax, r.ymax);
+                r.ymin = std::min(final_size-1, std::max(0, r.ymin));
+                r.xmin = std::min(final_size-1, std::max(0, r.xmin));
+                r.ymax = std::min(final_size-1, std::max(0, r.ymax));
+                r.xmax = std::min(final_size-1, std::max(0, r.xmax));
                 tch.draw_rectangle(r.xmin, r.ymin,0,0, 
                         r.xmax, r.ymax, tch.depth()-1, tch.spectrum()-1, color);
+
+                unsigned char clr = 0;
+                ign.draw_rectangle(r.xmin-1, r.ymin-1, r.xmax+1, r.ymax+1, &clr, 1.f, ~0U);
+                //ign.draw_rectangle(r.xmin+0, r.ymin+0, r.xmax+0, r.ymax+0, &clr, 1.f, ~0U);
+                //ign.draw_rectangle(r.xmin+1, r.ymin+1, r.xmax-1, r.ymax-1, &clr, 1.f, ~0U);
             }
         }
         
         //si.mark_objects(0, 255, 0.1f, &ign);
         //si.mark_objects(0, 255, 1, &img);
-        //si.fill_padding(0, &ign);
+        si.fill_padding(0, &ign, *m_output_properties);
 
         //tch.crop(final_start, final_start, tch.width()-final_start-1, tch.height()-final_start-1, false);
         //ign.crop(final_start, final_start, ign.width()-final_start-1, ign.height()-final_start-1, false);

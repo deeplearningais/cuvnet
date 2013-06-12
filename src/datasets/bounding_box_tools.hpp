@@ -31,6 +31,7 @@ namespace cuvnet
             int xmax;
             int ymin;
             int ymax;
+            rectangle scale(float fact)const;
             /// @}
         };
 
@@ -108,6 +109,11 @@ namespace cuvnet
         };
 
         struct object_filter;
+
+        struct coordinate_transformer{
+            virtual void transform(int& x, int& y)const;
+            virtual void inverse_transform(int& x, int& y)const;
+        };
 
         /** 
          * Represents a region inside an image.
@@ -193,9 +199,10 @@ namespace cuvnet
              * the margin outside the original image is filled with the supplied color.
              * @param color the fill-color
              * @param img if not given, will paint into the pcut variable.
+             * @param ct if given, thi
              * @throw runtime_error if neither img nor pcut available.
              */
-            sub_image& fill_padding(int color, cimg_library::CImg<unsigned char>* img = NULL);
+            sub_image& fill_padding(int color, cimg_library::CImg<unsigned char>* img = NULL, const coordinate_transformer& ct = coordinate_transformer());
 
             /**
              * cuts padding from an image, resulting only in parts that have a counterpart in the original image.

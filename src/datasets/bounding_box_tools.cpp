@@ -10,6 +10,24 @@ namespace{
 }
 
 namespace cuvnet { namespace bbtools {
+    void coordinate_transformer::transform(int& x, int& y)const{
+    }
+    void coordinate_transformer::inverse_transform(int& x, int& y)const{
+    }
+    rectangle 
+    rectangle::scale(float factor)const{
+        float cx = xmin + (xmax-xmin)/2.f;
+        float cy = ymin + (ymax-ymin)/2.f;
+        float dx = (cx - xmin) * factor;
+        float dy = (cy - ymin) * factor;
+        rectangle r;
+        r.xmin = cx - dx + 0.5f;
+        r.xmax = cx + dx + 0.5f;
+        r.ymin = cy - dy + 0.5f;
+        r.ymax = cy + dy + 0.5f;
+        return r;
+    }
+
     image::image(const std::string& fn){
         using namespace cimg_library;
         porig = new CImg<unsigned char>(fn.c_str());
@@ -161,27 +179,29 @@ namespace cuvnet { namespace bbtools {
         
         return *this;
     }
-    sub_image& sub_image::fill_padding(int color, cimg_library::CImg<unsigned char>* img){
+    sub_image& sub_image::fill_padding(int color, cimg_library::CImg<unsigned char>* img, const coordinate_transformer& ct){
         if(img == NULL) {
             if(!pcut)
                 throw std::runtime_error("fill_padding: image argument NULL and no cropped subimage available!");
             img = pcut;
         }
-        int dbot   = -std::min(0, pos.ymin) * scale_fact;
-        int dleft  = -std::min(0, pos.xmin) * scale_fact;
-        int dright = -std::min(0, -pos.xmax + original_img.porig->width() - 1) * scale_fact;
-        int dtop   = -std::min(0, -pos.ymax + original_img.porig->height() - 1) * scale_fact;
-
         cimg_library::CImg<unsigned char>& dst = *img;
+        int dbot   = -std::min(0, pos.ymin) * scale_fact + 0.5f;
+        int dleft  = -std::min(0, pos.xmin) * scale_fact + 0.5f;
+        int dright = (-pos.xmin + (original_img.porig->width() - 1)) * scale_fact + 0.5f;
+        int dtop   = (-pos.ymin + (original_img.porig->height() - 1)) * scale_fact + 0.5f;
+
+        ct.transform(dleft, dbot);
+        ct.transform(dright, dtop);
 
         if(dleft > 0)
             dst.draw_rectangle(0,0,0,0,  dleft, dst.height()-1, dst.depth()-1, dst.spectrum()-1, color);
-        if(dright > 0)
-            dst.draw_rectangle(dst.width()-dright,0,0,0,  dst.width()-1, dst.height()-1, dst.depth()-1, dst.spectrum()-1, color);
+        if(dright < dst.width())
+            dst.draw_rectangle(dright,0,0,0,  dst.width()-1, dst.height()-1, dst.depth()-1, dst.spectrum()-1, color);
         if(dbot > 0)
             dst.draw_rectangle(0,0,0,0,  dst.width()-1, dbot-1, dst.depth()-1, dst.spectrum()-1, color);
-        if(dtop > 0)
-            dst.draw_rectangle(0,dst.height()-dtop,0,0,  dst.width()-1, dst.height()-1, dst.depth()-1, dst.spectrum()-1, color);
+        if(dtop < dst.height())
+            dst.draw_rectangle(0,dtop,0,0,  dst.width()-1, dst.height()-1, dst.depth()-1, dst.spectrum()-1, color);
         
         return *this;
     }
