@@ -96,7 +96,7 @@ namespace cuvnet
     /**
      * convolve a set of images using a set of filters.
      *
-     * This is the "neural net" type convolution, where filters are 3D and
+     * This is the "neural net" type convolution, where filters are 4D and
      * results are summed over input channels.
      *
      * First param, the images, must have shape 
@@ -105,7 +105,12 @@ namespace cuvnet
      *
      * while filters have shape
      *  
-     *  nFilt x nFiltChannels x nFiltPix x nFiltPix 
+     *  nFilt x nFiltChannels x nFiltPiy x nFiltPix 
+     *
+     *  Bias is optional parameter, if not passed to the constructor, just convolution is performed. 
+     *  If bias is passed, then first "full" convolution is done as usual, and to the result of the convolution, the bias is added. 
+     *  The bias has non-zero value at the "border" of the result, for all elements of the result which are affected by padding in full convolution.
+     *  All other elements are zero, and are not updated during training. 
      *
      *  @ingroup Ops
      *
