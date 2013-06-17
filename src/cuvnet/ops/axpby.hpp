@@ -48,6 +48,8 @@ namespace cuvnet
                 void fprop();
                 void bprop();
                 void _determine_shapes();
+                inline void set_fact_a(float f){ m_fact_a = f; }
+                inline void set_fact_b(float f){ m_fact_b = f; }
             private:
                 friend class boost::serialization::access;
                 template<class Archive>
