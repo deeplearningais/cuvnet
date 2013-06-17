@@ -5,6 +5,8 @@
 #include <cuvnet/op.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/ops/output.hpp>
+#include <cuvnet/tools/serialization_helper.hpp>
+#include <boost/serialization/split_member.hpp>
 
 namespace cuvnet
 {
@@ -19,6 +21,24 @@ namespace cuvnet
             boost::shared_ptr<Sink> m_sink;
             std::auto_ptr<swiper>   m_swiper;
         public:
+
+            template<class Archive>
+            void save(Archive & ar, const unsigned int version) const
+            {
+                ar << m_op << m_sink;
+            }
+            template<class Archive>
+            void load(Archive & ar, const unsigned int version) 
+            {
+                ar >> m_op >> m_sink;
+                m_swiper.reset(new swiper(*m_op, 0, std::vector<Op*>()));
+            }
+            friend class boost::serialization::access;
+            template<class Archive>
+                void serialize(Archive& ar, const unsigned int version) { 
+                    boost::serialization::split_member(ar, *this, version);
+                }
+
             function(){}
             inline void repair_swiper(){
                 m_swiper->init();
