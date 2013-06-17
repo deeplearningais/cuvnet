@@ -8,6 +8,14 @@ namespace cuvnet
             desc.label = "y - x";
         else if( m_fact_a == 1.f && m_fact_b == -1.f)
             desc.label = "x - y";
+        else if( m_fact_a == 1.f && m_fact_b == 0.f)
+            desc.label = "x";
+        else if( m_fact_a == 0.f && m_fact_b == 1.f)
+            desc.label = "y";
+        else if(  m_fact_b == 0.f)
+            desc.label = boost::str(boost::format("%2.3f x") % m_fact_a);
+        else if(  m_fact_a == 0.f)
+            desc.label = boost::str(boost::format("%2.3f y") % m_fact_b);
         else
             desc.label = boost::str(boost::format("%2.3f x + %2.3f y")%m_fact_a%m_fact_b);
     }
