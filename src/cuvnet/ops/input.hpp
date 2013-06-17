@@ -111,7 +111,7 @@ namespace cuvnet
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
-                        ar & m_name & m_learnrate_factor & m_shape;
+                        ar & m_name & m_learnrate_factor & m_shape & m_derivable;
                     }
         };
 
