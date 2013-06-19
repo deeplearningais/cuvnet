@@ -174,6 +174,9 @@ namespace cuvnet
                 << ", boxfilter:" << boxfilter 
                 << ", patience:" << patience<< ")");
         es.reset(new early_stopper(gd, boost::bind(&monitor::mean, &mon, watch), thresh, every, multiply, boxfilter));
+        es->before_early_stopping_epoch.connect(boost::bind(&learner2::switch_dataset, this, CM_VALID, 0));
+        es->after_early_stopping_epoch.connect(boost::bind(&learner2::switch_dataset, this, CM_TRAIN, 0));
+
         es->before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, 0));
         es->after_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_TRAIN, 0));
         es->set_patience(patience);
