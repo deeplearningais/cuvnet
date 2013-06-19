@@ -48,19 +48,25 @@ namespace cuvnet
         /*****************************************
          * exponential_learnrate_schedule
          *****************************************/
-        exponential_learnrate_schedule::exponential_learnrate_schedule(gradient_descent* _gd, float begin, float end, int epochs)
-            :initial(begin), final(end), duration(epochs), gd(_gd)
+        exponential_learnrate_schedule::exponential_learnrate_schedule(gradient_descent* _gd, float begin, float end, int epochs, float t0_)
+            :initial(begin), final(end), duration(epochs), t0(t0_), gd(_gd)
         {
+            alpha = std::log(final/initial) / std::log(t0/(t0 + duration));
+            eta0  = initial * std::pow(t0, alpha);
+            LOG4CXX_WARN(g_log, "Setting up exponential learnrate schedule (initial: "<<initial
+                    << ", final:" << final
+                    << ", duration:"<<duration
+                    << ", alpha:"<<alpha
+                    << ", eta0:"<<eta0
+                    << ", t0:"<<t0<<")");
             con = gd->before_epoch.connect(boost::ref(*this));
         }
         void exponential_learnrate_schedule::operator()(unsigned int epoch, unsigned int wups)
         {
             gd->set_learnrate(
                     std::max(final, 
-                        initial * 
-                        std::pow(
-                            final/initial, 
-                            duration / (float) duration)));
+                        eta0 / std::pow(t0 + epoch, alpha)
+                        ));
         }
         /*****************************************
          * linear_momentum_schedule
@@ -218,11 +224,9 @@ namespace cuvnet
         if(schedule == "exponential"){
             float initial = cfg.get("initial", gd.learnrate());
             float final   = cfg.get("final", 0.000001f);
+            float t0   = cfg.get("t0", 10.f);
             int   duration = cfg.get("duration", max_epochs);
-            LOG4CXX_WARN(g_log, "Setting up exponential learnrate schedule (initial: "<<initial
-                    << ", final:" << final
-                    << ", duration:"<<duration<<")");
-            hs.reset(new schedules::exponential_learnrate_schedule(&gd, initial, final, duration));
+            hs.reset(new schedules::exponential_learnrate_schedule(&gd, initial, final, duration, t0));
             return hs;
         }
         throw std::runtime_error("unknown learnrate schedule: " + schedule);

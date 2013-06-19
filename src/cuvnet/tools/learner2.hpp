@@ -44,10 +44,10 @@ namespace cuvnet
          * @ingroup learning
          */
         struct exponential_learnrate_schedule : public hyperparam_schedule{
-            float initial, final, duration;
+            float initial, final, duration, t0, alpha, eta0;
             gradient_descent* gd;
             boost::signals::scoped_connection con;
-            exponential_learnrate_schedule(gradient_descent* _gd, float begin, float end, int epochs);
+            exponential_learnrate_schedule(gradient_descent* _gd, float begin, float end, int epochs, float t0);
             virtual void operator()(unsigned int epoch, unsigned int wups);
         };
 
