@@ -122,6 +122,13 @@ namespace cuvnet
             virtual void switch_dataset(cv_mode mode, int split=0);
 
             /**
+             * In this hook you can modify the gradient_descent object just before learning.
+             * 
+             * Does nothing by default.
+             */
+            virtual void before_learning(model* m, gradient_descent& gd);
+
+            /**
              * Returns a gradient Gradient Descent object described by the configuration parameter.
              *
              * Not all gradient_descent objects in cuvnet are currently

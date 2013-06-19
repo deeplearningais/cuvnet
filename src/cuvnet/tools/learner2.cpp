@@ -198,6 +198,10 @@ namespace cuvnet
     learner2::load_batch(model* m, unsigned int batch){
     }
 
+    void 
+    learner2::before_learning(model* m, gradient_descent&){
+    }
+
     unsigned int 
     learner2::n_batches(unsigned int batchsize){
         return 1;
@@ -370,6 +374,7 @@ namespace cuvnet
         if(target_loss)
             swtlr.reset(new stop_when_target_loss_reached(*gd, *mon, *target_loss));
 
+        this->before_learning(&m, *gd);
         if(batch_size < 0){
             load_batch(&m, 0);
             gd->batch_learning(max_epochs, time_limit);
