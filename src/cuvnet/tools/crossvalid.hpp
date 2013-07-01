@@ -120,6 +120,9 @@ namespace cuvnet
                 /// @return the average CV performance
 				inline float perf()const{return m_perf;}
 
+                /// @return the variance of CV performance
+                inline float perf_var()const{ return m_var; }
+
                 /// @return the test performance after training on TRAINVAL
 				inline float test_perf()const{return m_test_perf;}
 
@@ -127,7 +130,8 @@ namespace cuvnet
                 ///useful if only one TRAIN/VAL split is used)
 				inline float test_perf0()const{return m_test_perf0;}
 			private:
-				float m_perf;       ///< VAL performance after training on TRAIN
+				float m_perf;       ///< mean VAL performance after training on TRAIN
+                float m_var;        ///< variance of VAL performance after training on TRAIN
                 float m_test_perf0; ///< test performance of model trained only on TRAIN
 				float m_test_perf;  ///< test performance after training on TRAINVAL
 				boost::shared_ptr<crossvalidatable> m_ptr;

@@ -55,6 +55,7 @@ namespace cuvnet
 			m_test_perf  = 0.f;
 			m_test_perf0 = 0.f;
             m_perf       = 0.f;
+            m_var        = 0.f;
 		}
 		float all_splits_evaluator::operator()(){
 			log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("ase"));
@@ -65,12 +66,16 @@ namespace cuvnet
 				m_ptr->fit();
                 LOG4CXX_WARN(log, "VALID split "<<s<<"/"<<m_ptr->n_splits());
 				m_ptr->switch_dataset(s,CM_VALID);
-				m_perf += m_ptr->predict();
+                float perf = m_ptr->predict();
+				m_perf += perf;
+                m_var += perf * perf;
                 LOG4CXX_WARN(log, "X-val error:" << m_perf/(s+1));
                 if(s < m_ptr->n_splits()-1)
                     m_ptr->reset_params(); // otherwise taken care of below
 			}
 			m_perf /= m_ptr->n_splits();
+            m_var  /= m_ptr->n_splits();
+            m_var -= m_perf * m_perf;
 
             float refit_thresh = m_ptr->refit_thresh();
             if(m_perf == m_perf 
