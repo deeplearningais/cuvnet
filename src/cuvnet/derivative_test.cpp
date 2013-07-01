@@ -11,33 +11,37 @@ namespace cuvnet{ namespace derivative_testing {
 
     void ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params){
         { // forward pass
+            using namespace cuv;
             swp.fprop();
-            cuv::tensor<float,cuv::host_memory_space> r0 = out->cdata().copy();
+            tensor<float,host_memory_space> r0 = out->cdata().copy();
             swp.fprop();
-            cuv::tensor<float,cuv::host_memory_space> r1 = out->cdata().copy();
+            tensor<float,host_memory_space> r1 = out->cdata().copy();
 
-            BOOST_CHECK(cuv::equal_shape(r0,r1));
-            cuv::tensor<float,cuv::host_memory_space> rdiff(r0-r1);
-            cuv::apply_scalar_functor(rdiff, cuv::SF_ABS);
-            BOOST_CHECK_LT(cuv::maximum(rdiff), 0.00000001);
+            BOOST_CHECK(equal_shape(r0,r1));
+            tensor<float,host_memory_space> rdiff(r0.shape());
+            apply_binary_functor(rdiff, r0, r1, BF_SUBTRACT);
+            apply_scalar_functor(rdiff, SF_ABS);
+            BOOST_CHECK_LT(maximum(rdiff), 0.00000001);
         }
         BOOST_FOREACH(Op* raw, params){
+            using namespace cuv;
             ParameterInput* pi = dynamic_cast<ParameterInput*>(raw);
             BOOST_CHECK(pi != NULL);
             pi->reset_delta();
             swp.fprop();
             swp.bprop();
-            cuv::tensor<float,cuv::host_memory_space> r0 = pi->delta().copy();
+            tensor<float,host_memory_space> r0 = pi->delta().copy();
             pi->reset_delta();
             swp.fprop();
             swp.bprop();
-            cuv::tensor<float,cuv::host_memory_space> r1 = pi->delta().copy();
+            tensor<float,host_memory_space> r1 = pi->delta().copy();
             pi->reset_delta();
 
-            BOOST_CHECK(cuv::equal_shape(r0,r1));
-            cuv::tensor<float,cuv::host_memory_space> rdiff(r0-r1);
-            cuv::apply_scalar_functor(rdiff, cuv::SF_ABS);
-            BOOST_CHECK_LT(cuv::maximum(rdiff), 0.00000001);
+            BOOST_CHECK(equal_shape(r0,r1));
+            tensor<float,host_memory_space> rdiff(r0.shape());
+            apply_binary_functor(rdiff, r0, r1, BF_SUBTRACT);
+            apply_scalar_functor(rdiff, SF_ABS);
+            BOOST_CHECK_LT(maximum(rdiff), 0.00000001);
         }
     }
 
@@ -193,7 +197,10 @@ namespace cuvnet{ namespace derivative_testing {
                 cuv::tensor<float,cuv::host_memory_space> J_h = J_; J_.dealloc(); // save device space
                 cuv::tensor<float,cuv::host_memory_space> J_t(n_outputs, n_inputs);
                 cuv::transpose(J_t,J_h); J_h.dealloc();
-                double maxdiff = cuv::maximum((J_t-Jh)*(J_t-Jh));    // squared(!) 
+                cuv::tensor<float, cuv::host_memory_space> tmp(Jh.shape());
+                cuv::apply_binary_functor(tmp, J_t, Jh, cuv::BF_SUBTRACT);
+                cuv::apply_scalar_functor(tmp, cuv::SF_SQUARE);
+                double maxdiff = cuv::maximum(tmp);    // squared(!) 
                 double prec_  = prec * prec;                       // square precision, too
                 if(verbose)
                 {
