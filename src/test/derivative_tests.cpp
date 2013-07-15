@@ -601,6 +601,7 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
     using namespace cuv::alex_conv;
 
     {
+       std::cout << "in first case tuplewise op" << std::endl;/* cursor */
        unsigned int sub_size = 3;
        unsigned int nImgChan = 2 * sub_size;      // must be divisible by nGroups
        unsigned int nImgPixX = 8;
@@ -620,6 +621,7 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
 
 
     {
+        std::cout << "in 2nd case tuplewise op" << std::endl;/* cursor */
         unsigned int sub_size = 3;
         unsigned int nImgChan = 2 * sub_size;      // must be divisible by nGroups
         unsigned int nImgPixX = 8;
@@ -636,6 +638,7 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
     }
 
     {
+        std::cout << "in 3rd case tuplewise op" << std::endl;/* cursor */
         unsigned int sub_size = 3;
         unsigned int nImgChan = 2 * sub_size;      // must be divisible by nGroups
         unsigned int nImg     = 8;
@@ -657,6 +660,16 @@ BOOST_AUTO_TEST_CASE(derivative_test_tuplewise_norm){
 
 BOOST_AUTO_TEST_CASE(derivative_test_tuplewise_max){
     test_derivative_test_tuple_ops(cuv::alex_conv::TO_MAX);
+}
+
+BOOST_AUTO_TEST_CASE(derivative_test_tuplewise_mean){
+    test_derivative_test_tuple_ops(cuv::alex_conv::TO_MEAN);
+}
+BOOST_AUTO_TEST_CASE(derivative_test_tuplewise_subsample){
+    test_derivative_test_tuple_ops(cuv::alex_conv::TO_SUBSAMPLE);
+}
+BOOST_AUTO_TEST_CASE(derivative_test_tuplewise_add_squared){
+    test_derivative_test_tuple_ops(cuv::alex_conv::TO_ADD_SQUARED);
 }
 
 BOOST_AUTO_TEST_CASE(derivative_test_bed_of_nails){
