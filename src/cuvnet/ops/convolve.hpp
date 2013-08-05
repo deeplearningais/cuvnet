@@ -52,6 +52,9 @@ namespace cuvnet
                  * @param images nChannels x nPixels x nImages
                  * @param filters nFiltChannels x nFiltPix x nFilt
                  * @param padding if true, pad image s.t. input and output shapes are equal.
+                 * @padding_size if padding is true, it is used to pad images symmetrically(on both column and row)
+                 * @stride distance between neighboring neurons in a bank
+                 * @ngroups the number of groups that input and the filters are divided to
                  * @param partial_sum optimization parameter of alex' convolution routines. Good values are probably 4 or 8.
                  */
                 Convolve(result_t& images, result_t& filters, bool padding, int padding_size, int stride, int ngroups, unsigned int partial_sum=4)
@@ -528,6 +531,8 @@ namespace cuvnet
                 /**
                  * ctor.
                  * @param images the input images
+                 * @subx pooling size
+                 * @stridex distance between neighboring neurons in a bank
                  * @param pt pooling type
                  */
                 LocalPooling(result_t& images, int subsx, int stridex, cuv::alex_conv::pool_type pt)
