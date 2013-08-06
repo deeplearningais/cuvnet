@@ -197,7 +197,7 @@ namespace cuvnet
     }
 
     void 
-    learner2::load_batch(model* m, unsigned int batch){
+    learner2::load_batch(model* m, unsigned int batch, const std::string& stage){
     }
 
     void 
@@ -398,10 +398,10 @@ namespace cuvnet
 
         this->before_learning(&m, *gd, es.get());
         if(batch_size < 0){
-            load_batch(&m, 0);
+            load_batch(&m, 0, stage);
             gd->batch_learning(max_epochs, time_limit);
         }else {
-            gd->before_batch.connect(boost::bind(&learner2::load_batch, this, &m, _1));
+            gd->before_batch.connect(boost::bind(&learner2::load_batch, this, &m, _1, stage));
             gd->current_batch_num = boost::bind(&learner2::n_batches, this, batch_size);
             gd->minibatch_learning(max_epochs, time_limit);
         }

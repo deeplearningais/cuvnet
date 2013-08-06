@@ -103,8 +103,9 @@ namespace cuvnet
              *
              * @param m the model to load the batch into
              * @param bid the batch id which is to be loaded into the model
+             * @param stage the current training stage (e.g. pretraining)
              */
-            virtual void load_batch(model* m, unsigned int bid);
+            virtual void load_batch(model* m, unsigned int bid, const std::string& stage="");
 
             /**
              * Overload this to tell learner how many batches your dataset has.
