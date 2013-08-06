@@ -28,7 +28,7 @@ struct image_loader_factory{
     whole_image_loader
     operator()(image_queue<pattern>* q, 
                 const bbtools::image_meta_info* meta){
-        return whole_image_loader(q, meta, m_output_properties, 128, true);
+        return whole_image_loader(q, meta, m_output_properties, 128, true, 4);
     }
 };
 
@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE( image_loading_and_queueing ){
     for (int grayscale = 0; grayscale < 2; ++grayscale)
     {
         image_queue<pattern> q;
-        whole_image_loader ld(&q, &ids.get(0), &op, 128, grayscale);
+        whole_image_loader ld(&q, &ids.get(0), &op, 128, grayscale, 4);
 
         ld(); // load a single image
 
