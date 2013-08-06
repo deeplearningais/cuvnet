@@ -8,6 +8,8 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/filesystem.hpp>
 
+#include <boost/algorithm/string.hpp> 
+
 #include <cuvnet/tools/serialization_helper.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -117,7 +119,7 @@ namespace cuvnet
      * Learner2
      *****************************************/
     boost::shared_ptr<gradient_descent> 
-    learner2::get_gradient_descent(model& m, const ptree& cfg){
+    learner2::get_gradient_descent(model& m, const ptree& cfg, const std::string& stage){
         std::string typ = cfg.get("type", "plain");
         float initial_learnrate = cfg.get("learnrate", 0.01);
         float initial_momentum = cfg.get("momentum", 0.9);
@@ -126,7 +128,7 @@ namespace cuvnet
         if(typ == "plain"){
             LOG4CXX_WARN(g_log, "Creating Plain GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
             boost::shared_ptr<gradient_descent> gd =
-                boost::make_shared<gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
+                boost::make_shared<gradient_descent>(m.loss(stage), 0, m.get_params(stage), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
             return gd;
         }else if(typ == "rmsprop"){
@@ -135,19 +137,19 @@ namespace cuvnet
             float grad_avg = cfg.get("grad_avg", 0.9f);
             float l1decay = cfg.get("l1decay", 0.f);
             boost::shared_ptr<gradient_descent> gd =
-                boost::make_shared<rmsprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay);
+                boost::make_shared<rmsprop_gradient_descent>(m.loss(stage), 0, m.get_params(stage), initial_learnrate, l2decay, delta, grad_avg, l1decay);
             gd->set_epoch(start_epoch);
             return gd;
         }else if(typ == "rprop"){
             LOG4CXX_WARN(g_log, "Creating RPROP GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
             boost::shared_ptr<gradient_descent> gd =
-                boost::make_shared<rprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
+                boost::make_shared<rprop_gradient_descent>(m.loss(stage), 0, m.get_params(stage), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
             return gd;
         }else if(typ == "momentum"){
             LOG4CXX_WARN(g_log, "Creating Momentum GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", momentum: "<< initial_momentum << ")");
             boost::shared_ptr<gradient_descent> gd =
-                boost::make_shared<momentum_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, initial_momentum);
+                boost::make_shared<momentum_gradient_descent>(m.loss(stage), 0, m.get_params(stage), initial_learnrate, l2decay, initial_momentum);
             gd->set_epoch(start_epoch);
             return gd;
         }else{
@@ -156,7 +158,7 @@ namespace cuvnet
     }
 
     boost::shared_ptr<early_stopper>
-    learner2::get_early_stopper(gradient_descent& gd, monitor& mon, const ptree& cfg){
+    learner2::get_early_stopper(gradient_descent& gd, monitor& mon, const ptree& cfg, const std::string& stage){
         boost::shared_ptr<early_stopper> es;
         bool active = cfg.get("active", true);
         if(!active)
@@ -174,8 +176,8 @@ namespace cuvnet
                 << ", boxfilter:" << boxfilter 
                 << ", patience:" << patience<< ")");
         es.reset(new early_stopper(gd, boost::bind(&monitor::mean, &mon, watch), thresh, every, multiply, boxfilter));
-        es->before_early_stopping_epoch.connect(boost::bind(&learner2::switch_dataset, this, CM_VALID, 0));
-        es->after_early_stopping_epoch.connect(boost::bind(&learner2::switch_dataset, this, CM_TRAIN, 0));
+        es->before_early_stopping_epoch.connect(boost::bind(&learner2::switch_dataset, this, CM_VALID, 0, stage));
+        es->after_early_stopping_epoch.connect(boost::bind(&learner2::switch_dataset, this, CM_TRAIN, 0, stage));
 
         es->before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, 0));
         es->after_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_TRAIN, 0));
@@ -184,13 +186,13 @@ namespace cuvnet
     }
 
     boost::shared_ptr<monitor> 
-    learner2::get_monitor(model& m, const ptree& cfg){
+    learner2::get_monitor(model& m, const ptree& cfg, const std::string& stage){
         bool verbose = cfg.get("verbose", true);
         boost::shared_ptr<monitor> mon = boost::make_shared<monitor>(verbose);
-        mon->add(monitor::WP_SCALAR_EPOCH_STATS, m.loss(), "loss");
+        mon->add(monitor::WP_SCALAR_EPOCH_STATS, m.loss(stage), "loss");
         if(m.error())
-            mon->add(monitor::WP_SCALAR_EPOCH_STATS, m.error(), "cerr");
-        m.register_watches(*mon);
+            mon->add(monitor::WP_SCALAR_EPOCH_STATS, m.error(stage), "cerr");
+        m.register_watches(*mon, stage);
         return mon;
     }
 
@@ -199,7 +201,7 @@ namespace cuvnet
     }
 
     void 
-    learner2::before_learning(model* m, gradient_descent&){
+    learner2::before_learning(model* m, gradient_descent&, cuvnet::early_stopper* es){
     }
 
     unsigned int 
@@ -207,7 +209,7 @@ namespace cuvnet
         return 1;
     }
 
-    void learner2::switch_dataset(cv_mode mode, int split){
+    void learner2::switch_dataset(cv_mode mode, int split, const std::string& stage){
     }
 
     learner2::~learner2(){};
@@ -280,7 +282,7 @@ namespace cuvnet
         ia >> m;
     }
     ptree 
-    learner2::continue_learning_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result){
+    learner2::continue_learning_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result, const std::string& stage){
         // - stop when target loss reached
         // - set max_epochs=old_epoch PLUS new max_epochs
         // - let gradient_descent START from a certain number of epochs
@@ -290,7 +292,7 @@ namespace cuvnet
         cfg2.put("min_loss_stopper.target_loss", result.get<float>("gd.early_stopper.optimal_training_error"));
         cfg2.put("gd.start_epoch",    result.get<unsigned int>("gd.result_epoch"));
         cfg2.put("gd.max_epochs", 2 * result.get<unsigned int>("gd.result_epoch"));
-        ptree res = fit(m, cfg2);
+        ptree res = fit(m, cfg2, stage);
         return res;
     }
 
@@ -304,6 +306,11 @@ namespace cuvnet
         ptree result;
         using namespace boost::accumulators;
         namespace ba = boost::accumulators;
+        std::vector<std::string> stages;
+        {
+            std::string tmp = cfg.get("stages", "");
+                boost::split(stages, tmp, boost::is_any_of(";"));
+        }
         accumulator_set<double, 
             features<tag::mean, tag::median, tag::variance, tag::min> > s_valperf;
         unsigned int best_split = 0;
@@ -311,17 +318,32 @@ namespace cuvnet
         ptree best_result;
         for(unsigned int split = 0; split < n_splits; split ++){
             m.reset_params();
-            switch_dataset(CM_TRAIN, split);
-            ptree res = fit(m, cfg);
-            result.add_child("xval.folds", res);
+            std::vector<ptree> stageres;
+            for(unsigned int stage = 0; stage < stages.size(); stage++){
+                switch_dataset(CM_TRAIN, split, stages[stage]);
+                // take params from a subtree named like the stage if it exists
+                ptree res = fit(m, cfg.get_child(stages[stage], cfg), stages[stage]);
+                stageres.push_back(res);
+                // TODO generate new dataset using current model?
+            }
+            if(stages.size() == 1)
+                result.add_child("xval.folds", stageres.back());
+            else{
+                for(unsigned int stage = 0; stage < stages.size(); stage++){
+                    result.add_child("xval.folds." + stages[stage], stageres[stage]);
+                }
+            }
+
+
             result.put("xval.mean", ba::mean(s_valperf));
             result.put("xval.var", ba::variance(s_valperf));
-            if(split == 0 || ba::min(s_valperf) < res.get<float>("gd.early_stopper.best_perf")){
-                bestfile =  bfs::path(res.get<std::string>("path")) / "after_train.ser";
+            if(split == 0 || ba::min(s_valperf) > stageres.back().get<float>("gd.early_stopper.best_perf")){
+                bestfile =  bfs::path(stageres.back().get<std::string>("path")) / "after_train.ser";
                 save_model(m, bestfile.string());
                 best_split = split;
-                best_result = res;
+                best_result = stageres.back();
             }
+            s_valperf(stageres.back().get<float>("gd.early_stopper.best_perf")); 
             // TODO stop evaluating if too bad in comparison with current best?
         }
         result.put_child("xval.best_fold", best_result);
@@ -329,17 +351,17 @@ namespace cuvnet
     }
 
     ptree 
-    learner2::fit(model& m, const ptree& cfg)
+    learner2::fit(model& m, const ptree& cfg, const std::string& stage)
     {
         std::string uuid = boost::lexical_cast<std::string>(boost::uuids::uuid(boost::uuids::random_generator()()));
         bfs::path tmppath = bfs::path("experiments") / uuid;
         tmppath = cfg.get("path", tmppath.string());
 
         boost::shared_ptr<gradient_descent> gd 
-            = get_gradient_descent(m, cfg.get_child("gd"));
+            = get_gradient_descent(m, cfg.get_child("gd"), stage);
 
         boost::shared_ptr<monitor> mon 
-            = get_monitor(m, cfg.get_child("monitor", ptree()));
+            = get_monitor(m, cfg.get_child("monitor", ptree()), stage);
 
         boost::shared_ptr<early_stopper> es;
         boost::shared_ptr<record_optimal_training_loss> rotl;
@@ -360,7 +382,7 @@ namespace cuvnet
         int time_limit = cfg.get("time_limit", INT_MAX);
         int batch_size = cfg.get("batchsize", -1);
         int max_epochs = cfg.get("gd.max_epochs", 5);
-        LOG4CXX_WARN(g_log, "batchsize:"<< batch_size<< ", max_epochs:"<<max_epochs<<", time_limit:"<<time_limit);
+        LOG4CXX_WARN(g_log, "stage:`"<<stage<<"', batchsize:"<< batch_size<< ", max_epochs:"<<max_epochs<<", time_limit:"<<time_limit);
 
         boost::shared_ptr<schedules::hyperparam_schedule> learnrate_schedule =
             get_learnrate_schedule(*gd, max_epochs, cfg.get_child("learnrate_schedule", ptree()));
@@ -374,7 +396,7 @@ namespace cuvnet
         if(target_loss)
             swtlr.reset(new stop_when_target_loss_reached(*gd, *mon, *target_loss));
 
-        this->before_learning(&m, *gd);
+        this->before_learning(&m, *gd, es.get());
         if(batch_size < 0){
             load_batch(&m, 0);
             gd->batch_learning(max_epochs, time_limit);

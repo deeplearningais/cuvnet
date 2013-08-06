@@ -27,9 +27,10 @@ namespace cuvnet
             public:
                 /**
                  * return the parameters wrt which we want to derive.
+                 * @param stage the name of the current learning stage
                  * @return empty vector by default.
                  */
-                virtual std::vector<Op*> get_params();
+                virtual std::vector<Op*> get_params(const std::string& stage = "");
 
                 /**
                  * Register any variables that you want the monitor to watch,
@@ -37,32 +38,38 @@ namespace cuvnet
                  *
                  * Does nothing by default.
                  *
+                 * @param stage the name of the current learning stage
                  * @param mon the object you should register the watches with
                  */
-                virtual void register_watches(monitor& mon);
+                virtual void register_watches(monitor& mon, const std::string& stage = "");
 
                 /**
                  * return the inputs of the model.
+                 * @param stage the name of the current learning stage
                  * @return empty vector by default
                  */
-                virtual std::vector<Op*> get_inputs();
+                virtual std::vector<Op*> get_inputs(const std::string& stage = "");
 
                 /**
                  * return the loss of the model (including regularization).
+                 * @param stage the name of the current learning stage
                  * @return NULL by default
                  */
-                virtual op_ptr loss()const;
+                virtual op_ptr loss(const std::string& stage = "")const;
 
                 /**
                  * return the error of the model (eg zero-one loss).
+                 * @param stage the name of the current learning stage
                  * @return NULL by default
                  */
-                virtual op_ptr error()const;
+                virtual op_ptr error(const std::string& stage = "")const;
 
                 /**
                  * reset all parameters. Does nothing by default.
+                 *
+                 * @param stage the name of the current learning stage
                  */
-                virtual void reset_params();
+                virtual void reset_params(const std::string& stage = "");
 
                 /**
                  * dtor.
@@ -98,22 +105,25 @@ namespace cuvnet
                 /**
                  * reset all submodels.
                  */
-                virtual void reset_params();
+                virtual void reset_params(const std::string& stage = "");
 
                 /** 
                  * accumulate params of all submodels.
+                 * @param stage the name of the current learning stage
                  */
-                virtual std::vector<Op*> get_params();
+                virtual std::vector<Op*> get_params(const std::string& stage = "");
 
                 /**
                  * returns the last non-NULL loss from the models, NULL if none found.
+                 * @param stage the name of the current learning stage
                  */
-                virtual op_ptr loss()const;
+                virtual op_ptr loss(const std::string& stage = "")const;
 
                 /**
                  * returns the last non-NULL error from the models, NULL if none found.
+                 * @param stage the name of the current learning stage
                  */
-                virtual op_ptr error()const;
+                virtual op_ptr error(const std::string& stage = "")const;
 
                 /**
                  * dtor.

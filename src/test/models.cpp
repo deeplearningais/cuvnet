@@ -25,7 +25,7 @@ struct tmplogreg : public cuvnet::models::logistic_regression{
     tmplogreg(boost::shared_ptr<cuvnet::ParameterInput> inp, boost::shared_ptr<cuvnet::ParameterInput> tgt)
         : cuvnet::models::logistic_regression(inp,tgt,false){}
 
-    void register_watches(cuvnet::monitor& mon){
+    void register_watches(cuvnet::monitor& mon, const std::string& stage = ""){
         mon.add(cuvnet::monitor::WP_SINK, m_estimator, "output");
     }
 };
@@ -103,6 +103,7 @@ BOOST_AUTO_TEST_CASE(xval_learn){
     ptree pt;
     pt.put("fit.gd.learnrate", 0.1f);
     pt.put("fit.gd.batchsize", bs);
+    pt.put("fit.stages", "finetuning");
     pt.put("fit.gd.max_epochs", 5);
     pt.put("fit.path", ".");
     pt.put("fit.learnrate_schedule.type", "linear");

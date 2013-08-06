@@ -24,8 +24,8 @@ namespace cuvnet
                  */
                 mlp_layer(op_ptr X, unsigned int size);
                 mlp_layer(){} ///< default ctor for serialization
-                virtual std::vector<Op*> get_params();
-                virtual void reset_params();
+                virtual std::vector<Op*> get_params(const std::string& stage="");
+                virtual void reset_params(const std::string& stage="");
                 virtual ~mlp_layer(){}
             private:
                 friend class boost::serialization::access;                                                                 

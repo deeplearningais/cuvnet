@@ -119,14 +119,14 @@ namespace cuvnet
              *
              * Does nothing by default.
              */
-            virtual void switch_dataset(cv_mode mode, int split=0);
+            virtual void switch_dataset(cv_mode mode, int split=0, const std::string& stage = "");
 
             /**
              * In this hook you can modify the gradient_descent object just before learning.
              * 
              * Does nothing by default.
              */
-            virtual void before_learning(model* m, gradient_descent& gd);
+            virtual void before_learning(model* m, gradient_descent& gd, cuvnet::early_stopper* es);
 
             /**
              * Returns a gradient Gradient Descent object described by the configuration parameter.
@@ -134,26 +134,34 @@ namespace cuvnet
              * Not all gradient_descent objects in cuvnet are currently
              * supported, but it should be easy to add them, either by
              * modifying this function or by overloading it.
-             * 
+             *
+             * @param m the model for which to generate the gd object
+             * @param cfg the configuration subtree describing how the gd object should be created
+             * @param stage the current training stage (e.g. pretraining) to be passed on to the model
              */
             virtual
             boost::shared_ptr<gradient_descent> 
-                get_gradient_descent(model& m, const ptree& cfg);
+                get_gradient_descent(model& m, const ptree& cfg, const std::string& stage = "");
 
             /**
              * Returns an early stopper or NULL, configured according to the cfg parameter.
              */
             boost::shared_ptr<early_stopper>
-                get_early_stopper(gradient_descent& gd, monitor& mon, const ptree& cfg);
+                get_early_stopper(gradient_descent& gd, monitor& mon, const ptree& cfg, const std::string& stage = "");
 
             /**
              * Returns a monitor that watches loss and error of the model.
              *
              * It also asks the model to register possible other watchpoints
              * with the monitor using model::register_watches().
+             *
+             * @param m the model that we want to monitor
+             * @param cfg the configuration subtree of the monitor
+             * @param stage the stage of training we're in (e.g. pretraining),
+             *              passed to model
              */
             boost::shared_ptr<monitor> 
-                get_monitor(model& m, const ptree& cfg);
+                get_monitor(model& m, const ptree& cfg, const std::string& stage = "");
 
             /**
              * Returns a learnrate schedule, which will be called in the before_epoch event.
@@ -193,8 +201,9 @@ namespace cuvnet
              *
              * @param m the model to be fitted
              * @param cfg parameters for fitting
+             * @param stage an identifier for the current stage of training (e.g. for pretraining)
              */
-            ptree fit(model& m, const ptree& cfg);
+            ptree fit(model& m, const ptree& cfg, const std::string& stage = "");
 
             /**
              * Call fit() for a number of splits, saving the best result, and returning the performance on all folds.
@@ -212,7 +221,7 @@ namespace cuvnet
              * @param cfg how to train (probably the same thing given to fit() previously)
              * @param result the result of fit(), or the best result of crossvalidation_fit
              */
-            ptree continue_learning_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result);
+            ptree continue_learning_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result, const std::string& stage="");
 
             /**
              * (virtual) dtor.
