@@ -4,6 +4,7 @@
 #include <log4cxx/logger.h>
 #include <boost/asio.hpp>
 #include <boost/foreach.hpp>
+#include <boost/format.hpp>
 
 #include <cuv.hpp>
 #include <cuv/libs/cimg/cuv_cimg.hpp>
@@ -60,10 +61,13 @@ namespace cuvnet { namespace image_datasets {
             const bbtools::image_meta_info* meta, 
             const output_properties* op,
             unsigned int pattern_size,
-            bool grayscale)
+            bool grayscale,
+            unsigned int n_classes
+            )
         : image_loader(queue, meta, op)
         , m_grayscale(grayscale)
         , m_pattern_size(pattern_size)
+        , m_n_classes(n_classes)
     {
         m_log = log4cxx::Logger::getLogger("whole_image_loader");
         //LOG4CXX_INFO(m_log, "started: pattern_size="<<m_pattern_size<<", grayscale="<<m_grayscale);
@@ -87,8 +91,8 @@ namespace cuvnet { namespace image_datasets {
 
         int final_size = (m_pattern_size - m_output_properties->crop_h) / m_output_properties->scale_h;
 
-        cimg_library::CImg<unsigned char> tch(final_size, final_size);
-        cimg_library::CImg<unsigned char> ign(final_size, final_size);
+        cimg_library::CImg<unsigned char> tch(final_size, final_size, m_n_classes);
+        cimg_library::CImg<unsigned char> ign(final_size, final_size, m_n_classes);
 
         pattern* pat_ptr = new pattern;
         pattern& pat = *pat_ptr;
@@ -98,24 +102,28 @@ namespace cuvnet { namespace image_datasets {
         //si.mark_objects(1, 255, 0.1f, &tch, &pat.bboxes);
 
         {
-            pat.bboxes = si.get_objects();
+            pat.bboxes = si.get_objects(m_n_classes);
             float color = 255.f;
             const output_properties& op = *m_output_properties;
-            BOOST_FOREACH(const bbtools::rectangle& s, pat.bboxes[0]){ // TODO only one map
-                bbtools::rectangle r = s.scale(0.5f);
-                op.transform(r.xmin, r.ymin);
-                op.transform(r.xmax, r.ymax);
-                r.ymin = std::min(final_size-1, std::max(0, r.ymin));
-                r.xmin = std::min(final_size-1, std::max(0, r.xmin));
-                r.ymax = std::min(final_size-1, std::max(0, r.ymax));
-                r.xmax = std::min(final_size-1, std::max(0, r.xmax));
-                tch.draw_rectangle(r.xmin, r.ymin,0,0, 
-                        r.xmax, r.ymax, tch.depth()-1, tch.spectrum()-1, color);
+            for(unsigned int map=0; map != pat.bboxes.size(); map++){
+                BOOST_FOREACH(const bbtools::rectangle& s, pat.bboxes[map]){ // TODO only one map
+                    bbtools::rectangle r = s.scale(0.5f);
+                    op.transform(r.xmin, r.ymin);
+                    op.transform(r.xmax, r.ymax);
+                    r.ymin = std::min(final_size-1, std::max(0, r.ymin));
+                    r.xmin = std::min(final_size-1, std::max(0, r.xmin));
+                    r.ymax = std::min(final_size-1, std::max(0, r.ymax));
+                    r.xmax = std::min(final_size-1, std::max(0, r.xmax));
+                    //tch.draw_rectangle(r.xmin, r.ymin,0,0, 
+                            //r.xmax, r.ymax, tch.depth()-1, tch.spectrum()-1, color);
+                    tch.draw_rectangle(r.xmin, r.ymin,map,0, 
+                            r.xmax, r.ymax, map, tch.spectrum()-1, color);
 
-                unsigned char clr = 0;
-                ign.draw_rectangle(r.xmin-1, r.ymin-1, r.xmax+1, r.ymax+1, &clr, 1.f, ~0U);
-                //ign.draw_rectangle(r.xmin+0, r.ymin+0, r.xmax+0, r.ymax+0, &clr, 1.f, ~0U);
-                //ign.draw_rectangle(r.xmin+1, r.ymin+1, r.xmax-1, r.ymax-1, &clr, 1.f, ~0U);
+                    unsigned char clr = 0;
+                    ign.draw_rectangle(r.xmin-1, r.ymin-1, r.xmax+1, r.ymax+1, &clr, 1.f, ~0U);
+                    //ign.draw_rectangle(r.xmin+0, r.ymin+0, r.xmax+0, r.ymax+0, &clr, 1.f, ~0U);
+                    //ign.draw_rectangle(r.xmin+1, r.ymin+1, r.xmax-1, r.ymax-1, &clr, 1.f, ~0U);
+                }
             }
         }
         
@@ -142,6 +150,10 @@ namespace cuvnet { namespace image_datasets {
         pat.ign /= 255.f;
 
         pat.tch /= 255.f; // in [0, 1]
+
+        //static int cnt = 0;
+        //img.save_jpeg((boost::format("/tmp/ii/loaded_%d.jpg")%cnt++).str().c_str());
+
 
         //LOG4CXX_INFO(m_log, "done processing pattern, pushing to queue");
         m_queue->push(pat_ptr);

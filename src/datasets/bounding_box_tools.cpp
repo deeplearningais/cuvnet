@@ -247,16 +247,17 @@ namespace cuvnet { namespace bbtools {
     }
 
     std::vector<std::vector<rectangle> > 
-    sub_image::get_objects()const{
+    sub_image::get_objects(int n_classes)const{
         std::vector<std::vector<rectangle> > bboxes;
         const std::vector<object>& objs = original_img.meta.objects;
-        bboxes.resize(1); // TODO only one map
+        bboxes.resize(n_classes);
         BOOST_FOREACH(const object& orig_o, objs){
             if(objfilt && !objfilt->filter(*this, orig_o)) 
                 continue;
             object o = object_relative_to_subimg(orig_o);
-            //bboxes[o.klass].push_back(o.bb);
-            bboxes[0].push_back(o.bb); // only one class for now....
+            assert(n_classes > o.klass);
+            bboxes[o.klass].push_back(o.bb);
+            //bboxes[0].push_back(o.bb); // only one class for now....
         }
         return bboxes;
     }

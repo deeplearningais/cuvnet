@@ -182,6 +182,7 @@ namespace cuvnet
             private:
                 bool m_grayscale;
                 unsigned int m_pattern_size;
+                unsigned int m_n_classes;
                 log4cxx::LoggerPtr m_log;
             public:
                 /**
@@ -190,12 +191,14 @@ namespace cuvnet
                  * @param output_properties how the output parts of the pattern should be cropped/scaled w.r.t. the input
                  * @param pattern_size width/height of patterns
                  * @param grayscale if true, discard color information
+                 * @param n_classes the number of classes that can be distinguished (=number of output maps).
                  */
                 whole_image_loader(image_queue<pattern>* queue, 
                         const bbtools::image_meta_info* meta, 
                         const output_properties* op,
                         unsigned int pattern_size, 
-                        bool grayscale);
+                        bool grayscale,
+                        unsigned int n_classes);
 
                 virtual void operator()();
         };

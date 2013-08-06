@@ -188,7 +188,7 @@ namespace cuvnet
              */
             sub_image& mark_objects(int type=0, unsigned char color=255, float scale=1.f, cimg_library::CImg<unsigned char>* img1=NULL, std::vector<std::vector<bbtools::rectangle> >* bboxes=NULL);
 
-            std::vector<std::vector<rectangle> > get_objects()const;
+            std::vector<std::vector<rectangle> > get_objects(int n_classes)const;
 
             /**
              * scale a cropped sub_image such that larger dimension is a fixed given size.
