@@ -24,6 +24,12 @@ namespace cuvnet
                 T* raw;
                 bool operator()(const boost::shared_ptr<const T>& wk)const{ return wk.get()==raw; }
             };
+        template<class T>
+            struct cmp_shared_and_shared_ptr{
+                cmp_shared_and_shared_ptr(boost::shared_ptr<T> r):raw(r){}
+                boost::shared_ptr<T> raw;
+                bool operator()(const boost::shared_ptr<const T>& wk)const{ return wk==raw; }
+            };
 
         template<class T> struct op_result;
 
@@ -95,6 +101,11 @@ namespace cuvnet
                     param_uses.erase(
                             std::remove_if(param_uses.begin(),param_uses.end(),cmp_shared_and_raw_ptr<op_result<T> >(x)),
                             param_uses.end());
+                }
+                void substitute(boost::shared_ptr<op_result<T> > old, boost::shared_ptr<op_result<T> > novel){
+                    std::replace_if(
+                            param_uses.begin(), param_uses.end(),
+                            cmp_shared_and_shared_ptr<op_result<T> >(old), novel);
                 }
                 /**
                  * get the delta to write at directly, also sets delta_set for convenience

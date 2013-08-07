@@ -85,6 +85,12 @@ namespace cuvnet
                     if(result_uses.empty())
                         op.reset(); // forget op, so that it can be destroyed if needed!
                 }
+                void substitute(op_param<T>* old, boost::shared_ptr<op_param<T> > novel){
+                    std::replace_if(
+                            result_uses.begin(),result_uses.end(),
+                            cmp_weak_and_raw_ptr<op_param<T> >(old),
+                            novel);
+                }
                 /**
                  * get the value to write at directly, also sets value_set for convenience.
                  *
