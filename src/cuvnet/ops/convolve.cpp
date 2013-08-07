@@ -349,7 +349,6 @@ namespace cuvnet
           unsigned int rows = size / cols;
 
           if(p2.need_derivative){
-              unsigned int axis = 1;
               if(p2.can_overwrite_directly()){
                   value_type v(rows);
                   value_type r(r0.shape);
