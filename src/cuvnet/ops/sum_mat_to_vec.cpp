@@ -22,6 +22,7 @@ namespace cuvnet
     }
 
     void SumMatToVec::fprop(){
+        std::cout << "in frop" << std::endl;/* cursor */
         using namespace cuv;
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
@@ -32,8 +33,9 @@ namespace cuvnet
         }
         float fact_new = m_mean ? 1.f/m_n_summed : 1.f;
         reduce_functor red_func = m_squared ? RF_ADD_SQUARED : RF_ADD;
-
-        unsigned int ndim, shape_before, shape_after, size_axis;
+        // this variables are just used in the case that
+        // m_axis is not the first or last dimension
+        unsigned int ndim = 0, shape_before = 0, shape_after = 0, size_axis = 0;
         if(m_axis != 0 && m_axis != p0.shape.size()-1){
             ndim = p0.shape.size();
             size_axis = p0.shape[m_axis];
