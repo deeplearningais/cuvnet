@@ -68,6 +68,7 @@ SET(CUVNET_SRC
     cuvnet/op_utils.cpp
     cuvnet/op_io.cpp
     cuvnet/derivative_test.cpp
+    cuvnet/graph_modifiers.cpp
 
     cuvnet/models/models.cpp
     cuvnet/models/initialization.cpp

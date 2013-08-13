@@ -18,6 +18,10 @@
 #include <cuvnet/tools/monitor.hpp>
 #include <cuvnet/tools/logging.hpp>
 
+#include <cuv/basics/io.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+
 #include "learner2.hpp"
 
 namespace bfs = boost::filesystem;
@@ -28,6 +32,27 @@ namespace
 {
     log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("learner2"));
 }
+
+/* For streaming, it is essential to turn off object tracking, since multiple
+ * objects may be saved under the same address at different times.
+ * 
+ * Boost does not currently interpret the no_tracking parameter to the archive
+ * constructor. The mechanism via 
+ *   BOOST_CLASS_TRACKING(my_class, boost::serialization::track_never)
+ * is broken for shared_ptr (you get static asserts).
+ * The method from here:
+ *   http://stackoverflow.com/questions/15614093/derived-class-serialization-without-class-tracking-in-boost-c/16018170#16018170
+ * approaches the problem by injecting no_tracking support into
+ * an existing archive class:
+ */
+namespace boost {                                                                                                                                                             
+    namespace archive {                                                                                                                                                       
+        namespace detail {                                                                                                                                                    
+            template<>                                                                                                                                                        
+                bool oserializer<class binary_oarchive, class matrix >::tracking(const unsigned int f /* flags */) const {                                                            
+                    return !(f & no_tracking);                                                                                                                                
+                }                                                                                                                                                             
+        }}}  
 
 namespace cuvnet
 {
@@ -119,7 +144,7 @@ namespace cuvnet
      * Learner2
      *****************************************/
     boost::shared_ptr<gradient_descent> 
-    learner2::get_gradient_descent(model& m, const ptree& cfg, const std::string& stage){
+    learner2::get_gradient_descent(model& m, const ptree& cfg){
         std::string typ = cfg.get("type", "plain");
         float initial_learnrate = cfg.get("learnrate", 0.01);
         float initial_momentum = cfg.get("momentum", 0.9);
@@ -128,7 +153,7 @@ namespace cuvnet
         if(typ == "plain"){
             LOG4CXX_WARN(g_log, "Creating Plain GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
             boost::shared_ptr<gradient_descent> gd =
-                boost::make_shared<gradient_descent>(m.loss(stage), 0, m.get_params(stage), initial_learnrate, l2decay);
+                boost::make_shared<gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
             return gd;
         }else if(typ == "rmsprop"){
@@ -137,19 +162,19 @@ namespace cuvnet
             float grad_avg = cfg.get("grad_avg", 0.9f);
             float l1decay = cfg.get("l1decay", 0.f);
             boost::shared_ptr<gradient_descent> gd =
-                boost::make_shared<rmsprop_gradient_descent>(m.loss(stage), 0, m.get_params(stage), initial_learnrate, l2decay, delta, grad_avg, l1decay);
+                boost::make_shared<rmsprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay);
             gd->set_epoch(start_epoch);
             return gd;
         }else if(typ == "rprop"){
             LOG4CXX_WARN(g_log, "Creating RPROP GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
             boost::shared_ptr<gradient_descent> gd =
-                boost::make_shared<rprop_gradient_descent>(m.loss(stage), 0, m.get_params(stage), initial_learnrate, l2decay);
+                boost::make_shared<rprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
             return gd;
         }else if(typ == "momentum"){
             LOG4CXX_WARN(g_log, "Creating Momentum GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", momentum: "<< initial_momentum << ")");
             boost::shared_ptr<gradient_descent> gd =
-                boost::make_shared<momentum_gradient_descent>(m.loss(stage), 0, m.get_params(stage), initial_learnrate, l2decay, initial_momentum);
+                boost::make_shared<momentum_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, initial_momentum);
             gd->set_epoch(start_epoch);
             return gd;
         }else{
@@ -158,7 +183,7 @@ namespace cuvnet
     }
 
     boost::shared_ptr<early_stopper>
-    learner2::get_early_stopper(gradient_descent& gd, monitor& mon, const ptree& cfg, const std::string& stage){
+    learner2::get_early_stopper(gradient_descent& gd, monitor& mon, const ptree& cfg){
         boost::shared_ptr<early_stopper> es;
         bool active = cfg.get("active", true);
         if(!active)
@@ -176,8 +201,8 @@ namespace cuvnet
                 << ", boxfilter:" << boxfilter 
                 << ", patience:" << patience<< ")");
         es.reset(new early_stopper(gd, boost::bind(&monitor::mean, &mon, watch), thresh, every, multiply, boxfilter));
-        es->before_early_stopping_epoch.connect(boost::bind(&learner2::switch_dataset, this, CM_VALID, 0, stage));
-        es->after_early_stopping_epoch.connect(boost::bind(&learner2::switch_dataset, this, CM_TRAIN, 0, stage));
+        es->before_early_stopping_epoch.connect(boost::bind(&learner2::_switch_dataset, this, CM_VALID, 0));
+        es->after_early_stopping_epoch.connect(boost::bind(&learner2::_switch_dataset, this, CM_TRAIN, 0));
 
         es->before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, 0));
         es->after_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_TRAIN, 0));
@@ -186,18 +211,23 @@ namespace cuvnet
     }
 
     boost::shared_ptr<monitor> 
-    learner2::get_monitor(model& m, const ptree& cfg, const std::string& stage){
+    learner2::get_monitor(model& m, const ptree& cfg){
         bool verbose = cfg.get("verbose", true);
         boost::shared_ptr<monitor> mon = boost::make_shared<monitor>(verbose);
-        mon->add(monitor::WP_SCALAR_EPOCH_STATS, m.loss(stage), "loss");
+        mon->add(monitor::WP_SCALAR_EPOCH_STATS, m.loss(), "loss");
         if(m.error())
-            mon->add(monitor::WP_SCALAR_EPOCH_STATS, m.error(stage), "cerr");
-        m.register_watches(*mon, stage);
+            mon->add(monitor::WP_SCALAR_EPOCH_STATS, m.error(), "cerr");
+        m.register_watches(*mon);
         return mon;
     }
 
     void 
-    learner2::load_batch(model* m, unsigned int batch, const std::string& stage){
+    learner2::load_batch(model* m, unsigned int batch){
+    }
+
+    void 
+    learner2::_load_batch(model* m, unsigned int batch){
+        load_batch(m, batch);
     }
 
     void 
@@ -209,7 +239,11 @@ namespace cuvnet
         return 1;
     }
 
-    void learner2::switch_dataset(cv_mode mode, int split, const std::string& stage){
+    void learner2::_switch_dataset(cv_mode mode, int split){
+        switch_dataset(mode, split);
+    }
+
+    void learner2::switch_dataset(cv_mode mode, int split){
     }
 
     learner2::~learner2(){};
@@ -282,7 +316,7 @@ namespace cuvnet
         ia >> m;
     }
     ptree 
-    learner2::continue_learning_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result, const std::string& stage){
+    learner2::continue_learning_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result){
         // - stop when target loss reached
         // - set max_epochs=old_epoch PLUS new max_epochs
         // - let gradient_descent START from a certain number of epochs
@@ -292,7 +326,7 @@ namespace cuvnet
         cfg2.put("min_loss_stopper.target_loss", result.get<float>("gd.early_stopper.optimal_training_error"));
         cfg2.put("gd.start_epoch",    result.get<unsigned int>("gd.result_epoch"));
         cfg2.put("gd.max_epochs", 2 * result.get<unsigned int>("gd.result_epoch"));
-        ptree res = fit(m, cfg2, stage);
+        ptree res = fit(m, cfg2);
         return res;
     }
 
@@ -301,45 +335,29 @@ namespace cuvnet
     }
 
     ptree 
-    learner2::crossvalidation_fit(model& m, const ptree& cfg){
-        unsigned int n_splits = this->n_splits();
+    crossvalidator2::fit(learner2& lrn, model& m, const ptree& cfg){
+        unsigned int n_splits = m_n_splits;
         ptree result;
         using namespace boost::accumulators;
         namespace ba = boost::accumulators;
-        std::vector<std::string> stages;
-        {
-            std::string tmp = cfg.get("stages", "");
-                boost::split(stages, tmp, boost::is_any_of(";"));
-        }
         accumulator_set<double, 
             features<tag::mean, tag::median, tag::variance, tag::min> > s_valperf;
         unsigned int best_split = 0;
         bfs::path bestfile;
         ptree best_result;
+        std::vector<ptree> stageres;
         for(unsigned int split = 0; split < n_splits; split ++){
             m.reset_params();
-            std::vector<ptree> stageres;
-            for(unsigned int stage = 0; stage < stages.size(); stage++){
-                switch_dataset(CM_TRAIN, split, stages[stage]);
-                // take params from a subtree named like the stage if it exists
-                ptree res = fit(m, cfg.get_child(stages[stage], cfg), stages[stage]);
-                stageres.push_back(res);
-                // TODO generate new dataset using current model?
-            }
-            if(stages.size() == 1)
-                result.add_child("xval.folds", stageres.back());
-            else{
-                for(unsigned int stage = 0; stage < stages.size(); stage++){
-                    result.add_child("xval.folds." + stages[stage], stageres[stage]);
-                }
-            }
-
-
+            lrn._switch_dataset(CM_TRAIN, split);
+            // take params from a subtree named like the stage if it exists
+            ptree res = lrn.fit(m, cfg);
+            stageres.push_back(res);
+            result.add_child("xval.folds", stageres.back());
             result.put("xval.mean", ba::mean(s_valperf));
             result.put("xval.var", ba::variance(s_valperf));
             if(split == 0 || ba::min(s_valperf) > stageres.back().get<float>("gd.early_stopper.best_perf")){
                 bestfile =  bfs::path(stageres.back().get<std::string>("path")) / "after_train.ser";
-                save_model(m, bestfile.string());
+                lrn.save_model(m, bestfile.string());
                 best_split = split;
                 best_result = stageres.back();
             }
@@ -351,17 +369,17 @@ namespace cuvnet
     }
 
     ptree 
-    learner2::fit(model& m, const ptree& cfg, const std::string& stage)
+    learner2::fit(model& m, const ptree& cfg)
     {
         std::string uuid = boost::lexical_cast<std::string>(boost::uuids::uuid(boost::uuids::random_generator()()));
         bfs::path tmppath = bfs::path("experiments") / uuid;
         tmppath = cfg.get("path", tmppath.string());
 
         boost::shared_ptr<gradient_descent> gd 
-            = get_gradient_descent(m, cfg.get_child("gd"), stage);
+            = get_gradient_descent(m, cfg.get_child("gd"));
 
         boost::shared_ptr<monitor> mon 
-            = get_monitor(m, cfg.get_child("monitor", ptree()), stage);
+            = get_monitor(m, cfg.get_child("monitor", ptree()));
 
         boost::shared_ptr<early_stopper> es;
         boost::shared_ptr<record_optimal_training_loss> rotl;
@@ -382,7 +400,7 @@ namespace cuvnet
         int time_limit = cfg.get("time_limit", INT_MAX);
         int batch_size = cfg.get("batchsize", -1);
         int max_epochs = cfg.get("gd.max_epochs", 5);
-        LOG4CXX_WARN(g_log, "stage:`"<<stage<<"', batchsize:"<< batch_size<< ", max_epochs:"<<max_epochs<<", time_limit:"<<time_limit);
+        LOG4CXX_WARN(g_log, "batchsize:"<< batch_size<< ", max_epochs:"<<max_epochs<<", time_limit:"<<time_limit);
 
         boost::shared_ptr<schedules::hyperparam_schedule> learnrate_schedule =
             get_learnrate_schedule(*gd, max_epochs, cfg.get_child("learnrate_schedule", ptree()));
@@ -398,10 +416,10 @@ namespace cuvnet
 
         this->before_learning(&m, *gd, es.get());
         if(batch_size < 0){
-            load_batch(&m, 0, stage);
+            _load_batch(&m, 0);
             gd->batch_learning(max_epochs, time_limit);
         }else {
-            gd->before_batch.connect(boost::bind(&learner2::load_batch, this, &m, _1, stage));
+            gd->before_batch.connect(boost::bind(&learner2::_load_batch, this, &m, _1));
             gd->current_batch_num = boost::bind(&learner2::n_batches, this, batch_size);
             gd->minibatch_learning(max_epochs, time_limit);
         }
@@ -424,5 +442,151 @@ namespace cuvnet
                 result.put("cerr", mon->mean("cerr"));
         }
         return result;
+    }
+
+    struct save_stage_dataset{
+        std::string m_path;
+        std::string m_dataset;
+        std::string m_stagename;
+        monitor& m_monitor;
+        std::ofstream m_ofs;
+        boost::archive::binary_oarchive m_oa;
+        unsigned int m_n_outputs;
+
+        save_stage_dataset(monitor& mon, const std::string& path, const std::string& dataset, const std::string& stage, unsigned int n_outputs)
+            : m_path(path), m_dataset(dataset), m_stagename(stage), m_monitor(mon),
+            m_ofs(path + "/" + dataset + "-" + stage + ".ser"),
+            m_oa(m_ofs, boost::archive::no_tracking),
+            m_n_outputs(n_outputs)
+        {
+        }
+
+        void operator()(unsigned int epoch, unsigned int batch)
+        {
+            for(unsigned int i = 0; i < m_n_outputs; i++){
+                m_oa << m_monitor["output-"+boost::lexical_cast<std::string>(i)];
+            }
+        }
+    };
+
+    struct stage_dataset{
+        std::string m_path;
+        std::string m_dataset;
+        std::string m_stagename;
+        std::vector<std::vector<matrix> > m_data;
+        std::vector<boost::shared_ptr<ParameterInput> > m_inputs;
+
+        stage_dataset(const std::string& path, const std::string& dataset, const std::string& stage, std::vector<boost::shared_ptr<ParameterInput> > inputs)
+        : m_path(path), m_dataset(dataset), m_stagename(stage), m_data(inputs.size()), m_inputs(inputs)
+        {
+            std::ifstream ifs(path + "/" + dataset + "-" + stage + ".ser");
+            boost::archive::binary_iarchive ia(ifs);
+                while(true){
+                    for(unsigned int i=0; inputs.size(); i++){
+                        matrix tmp;
+                        try{
+                            ia >> tmp;
+                        }catch(boost::archive::archive_exception const& e){
+                            break;
+                        }
+                        m_data[i].push_back(tmp);
+                    }
+                }
+        }
+
+        void load_batch(unsigned int batch, unsigned int epoch){
+            for(unsigned int i=0; m_inputs.size(); i++){
+                m_inputs[i]->data() = m_data[i][batch];
+            }
+        }
+
+        unsigned int n_batches()const{
+            return m_data[0].size();
+        }
+    };
+
+    ptree 
+    multistage_learner::fit(model& _m, const ptree& cfg){
+
+        std::vector<boost::shared_ptr<graph_modifiers::substitute_op_with_input> > saved;
+        typedef models::multistage_model multistage_model;
+        multistage_model& m = *dynamic_cast<multistage_model*>(&_m);
+        if(&m == NULL)
+            throw std::runtime_error("Need multi-stage model for multi-stage learner!");
+
+        typedef multistage_model::stage_type stage_type;
+        stage_type n_stages = m.n_stages();
+
+        ptree stageres;
+        std::string stage_name;
+        for(unsigned int stage = 0; stage < n_stages; stage++){
+            m.switch_stage(stage);
+            switch_dataset(CM_TRAIN, -1);
+            // take params from a subtree named like the stage if it exists
+            stage_name = "stage_" + boost::lexical_cast<std::string>(stage);
+            LOG4CXX_WARN(g_log, "multistage_learner: fitting `"<<stage_name<<"'");
+            ptree res = learner2::fit(m, cfg.get_child(stage_name, cfg));
+            stageres.put_child(stage_name, res);
+            if(stage < n_stages - 1){
+                // TODO generate new dataset using current model?
+                int batch_size = cfg.get("batchsize", -1);
+                saved = switch_stage_with_outputs(m, stage, res.get("path", "."), batch_size);
+            }
+        }
+        // result is result of the last stage, with the list of all stage
+        // results as a subtree
+        ptree result = stageres.get_child(stage_name);
+        result.put_child("stage_results", stageres);
+        return result;
+    }
+
+    std::vector<boost::shared_ptr<graph_modifiers::substitute_op_with_input> >
+    multistage_learner::switch_stage_with_outputs(multistage_model& m,
+            const multistage_model::stage_type& current_stage, const
+            std::string& path, unsigned int batch_size){
+        LOG4CXX_WARN(g_log, "stage switch: saving outputs of stage`"<<current_stage<<"' to "<<path);
+        // 1. record all "outputs" of the model to a file
+        std::vector<Op*> outputs = m.get_outputs();
+        monitor mon;
+        for(unsigned int i=0; i<outputs.size(); i++)
+            mon.add(monitor::WP_SINK, outputs[i]->shared_from_this(), "output-" + boost::lexical_cast<std::string>(i));
+
+        cv_mode cm[] = {CM_TRAIN, CM_VALID, CM_TEST};
+        for(unsigned int v = 0; v < 3; v++){
+            switch_dataset(cm[v], -1);
+
+            std::string stage_name = "stage_" + boost::lexical_cast<std::string>(current_stage);
+
+            gradient_descent gd(outputs[0]->shared_from_this(), 0, std::vector<Op*>(), 0.0, 0.0);
+            save_stage_dataset ssd(mon, path,
+                    boost::lexical_cast<std::string>(v), stage_name,
+                    outputs.size());
+
+            gd.after_batch.connect(boost::ref(ssd));
+            //gd.current_batch_num = boost::bind(&learner2::n_batches, this);
+            gd.current_batch_num = boost::bind(&learner2::n_batches, this, batch_size);
+            gd.minibatch_learning(1);
+        }
+
+        // 3. substitute all "outputs" with inputs for the next stage
+        std::vector<boost::shared_ptr<graph_modifiers::substitute_op_with_input> > undo;
+        for (unsigned int i = 0; i < outputs.size(); ++i)
+        {
+            undo.push_back(boost::make_shared<graph_modifiers::substitute_op_with_input>(
+                        outputs[i]->shared_from_this()));
+        }
+        return undo;
+    }
+
+    void 
+    multistage_learner::_load_batch(model* m, unsigned int batch){
+        // TODO if stage is first or no dataset for current stage generated
+        load_batch(m, batch);
+    }
+
+    void
+    multistage_learner::_switch_dataset(cv_mode mode, int split){
+        // TODO depending on stage, call switch_dataset or our own function
+        switch_dataset(mode, split);
     }
 }

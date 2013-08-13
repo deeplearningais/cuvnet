@@ -5,6 +5,7 @@
 #include <boost/property_tree/ptree.hpp>
 #include <cuvnet/models/models.hpp>
 #include <datasets/dataset.hpp>    /* for cv_mode */
+#include <cuvnet/graph_modifiers.hpp>
 
 namespace cuvnet
 {
@@ -103,24 +104,16 @@ namespace cuvnet
              *
              * @param m the model to load the batch into
              * @param bid the batch id which is to be loaded into the model
-             * @param stage the current training stage (e.g. pretraining)
              */
-            virtual void load_batch(model* m, unsigned int bid, const std::string& stage="");
+            virtual void load_batch(model* m, unsigned int bid);
 
             /**
-             * Overload this to tell learner how many batches your dataset has.
              *
-             * @param batchsize the number of instances in one batch
-             * @return 1 by default
-             */
-            virtual unsigned int n_batches(unsigned int batchsize);
-
-            /**
-             * Overload this to switch to a different mode on the dataset.
+             * This function calls load_batch, and is overloaded by multistage
+             * learner, and you should likely neither overload nor touch it.
              *
-             * Does nothing by default.
              */
-            virtual void switch_dataset(cv_mode mode, int split=0, const std::string& stage = "");
+            virtual void _load_batch(model* m, unsigned int bid);
 
             /**
              * In this hook you can modify the gradient_descent object just before learning.
@@ -138,17 +131,16 @@ namespace cuvnet
              *
              * @param m the model for which to generate the gd object
              * @param cfg the configuration subtree describing how the gd object should be created
-             * @param stage the current training stage (e.g. pretraining) to be passed on to the model
              */
             virtual
             boost::shared_ptr<gradient_descent> 
-                get_gradient_descent(model& m, const ptree& cfg, const std::string& stage = "");
+                get_gradient_descent(model& m, const ptree& cfg);
 
             /**
              * Returns an early stopper or NULL, configured according to the cfg parameter.
              */
             boost::shared_ptr<early_stopper>
-                get_early_stopper(gradient_descent& gd, monitor& mon, const ptree& cfg, const std::string& stage = "");
+                get_early_stopper(gradient_descent& gd, monitor& mon, const ptree& cfg);
 
             /**
              * Returns a monitor that watches loss and error of the model.
@@ -158,11 +150,9 @@ namespace cuvnet
              *
              * @param m the model that we want to monitor
              * @param cfg the configuration subtree of the monitor
-             * @param stage the stage of training we're in (e.g. pretraining),
-             *              passed to model
              */
             boost::shared_ptr<monitor> 
-                get_monitor(model& m, const ptree& cfg, const std::string& stage = "");
+                get_monitor(model& m, const ptree& cfg);
 
             /**
              * Returns a learnrate schedule, which will be called in the before_epoch event.
@@ -186,6 +176,14 @@ namespace cuvnet
             virtual unsigned int n_splits()const;
 
             /**
+             * Overload this to tell learner how many batches your dataset has.
+             *
+             * @param batchsize the number of instances in one batch
+             * @return 1 by default
+             */
+            virtual unsigned int n_batches(unsigned int batchsize);
+
+            /**
              * Serialize the model to a file. 
              * This is needed by crossvalidation to save the best intermediate model.
              */
@@ -202,18 +200,8 @@ namespace cuvnet
              *
              * @param m the model to be fitted
              * @param cfg parameters for fitting
-             * @param stage an identifier for the current stage of training (e.g. for pretraining)
              */
-            ptree fit(model& m, const ptree& cfg, const std::string& stage = "");
-
-            /**
-             * Call fit() for a number of splits, saving the best result, and returning the performance on all folds.
-             *
-             * @param m the model to be fitted
-             * @param cfg how to fit the model
-             * @return one result for every split
-             */
-            ptree crossvalidation_fit(model& m, const ptree& cfg);
+            virtual ptree fit(model& m, const ptree& cfg);
 
             /**
              * Continue learning in an already learned model, eg on TRAINVAL instead of on TRAIN.
@@ -222,12 +210,102 @@ namespace cuvnet
              * @param cfg how to train (probably the same thing given to fit() previously)
              * @param result the result of fit(), or the best result of crossvalidation_fit
              */
-            ptree continue_learning_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result, const std::string& stage="");
+            ptree continue_learning_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result);
+
+            /**
+             * Overload this to switch to a different mode on the dataset.
+             *
+             * Does nothing by default.
+             *
+             * @param mode determines whether we're in training, validation or testing
+             * @param split if less than zero, the split should not be changed. 
+             */
+            virtual void switch_dataset(cv_mode mode, int split=-1);
+
+            /**
+             * This function calls switch_dataset, and is overloaded by multistage
+             * learner, and you should likely neither overload nor touch it.
+             *
+             * @param mode determines whether we're in training, validation or testing
+             * @param split if less than zero, the split should not be changed. 
+             */
+            virtual void _switch_dataset(cv_mode mode, int split=0);
 
             /**
              * (virtual) dtor.
              */
             virtual ~learner2();
+    };
+
+    /**
+     * Cross-validation that works together with the learner2 and model class
+     */
+    struct crossvalidator2{
+        private:
+            unsigned int m_n_splits;
+        public:
+            typedef boost::property_tree::ptree ptree;
+            typedef models::model model;
+            /**
+             * ctor. 
+             * @param n_splits into how many equal-sized parts the dataset
+             *        should be split.
+             */
+            crossvalidator2(unsigned int n_splits=5):m_n_splits(n_splits){}
+
+            /**
+             * Call fit() for a number of splits, saving the best result, and returning the performance on all folds.
+             *
+             * @param lrn the learner, on which we'll call fit()
+             * @param m the model to be fitted
+             * @param cfg how to fit the model
+             * @return one result for every split
+             */
+            ptree fit(learner2& lrn, model& m, const ptree& cfg);
+    };
+
+    /**
+     * A multi-stage learner can for example learn a model that requires
+     * 'pre-training'. There should be a sequence of stages which need to be
+     * trained, each one has a loss function to be optimized and its own
+     * optimization settings. Optionally, a (lower) stage may be substituted by
+     * its outputs, resulting in a smaller model and a new dataset.
+     */
+    class multistage_learner
+        : public learner2
+    {
+        public:
+            typedef models::multistage_model multistage_model;
+            typedef boost::property_tree::ptree ptree;
+
+            /**
+             * @overload
+             */
+            ptree fit(model& m, const ptree& cfg);
+
+            /**
+             * Switch to a new learning stage.
+             *
+             * 1. record all "outputs" of the model to a file
+             * 2. switch to the new dataset
+             * 3. substitute all "outputs" with inputs for the next stage
+             */
+            std::vector<boost::shared_ptr<graph_modifiers::substitute_op_with_input> >
+                switch_stage_with_outputs(multistage_model& m,
+                        const multistage_model::stage_type& current_stage,
+                        const std::string& path, unsigned int batch_size);
+
+            /**
+             * this _load_batch version only calls load_batch if in the 1st stage, 
+             * but uses our own functions for the other stages.
+             */
+            virtual void _load_batch(model* m, unsigned int bid);
+
+            /**
+             * this _load_batch version only calls switch_dataset if in
+             * the 1st stage, but uses our own functions for the other stages.
+             */
+            virtual void _switch_dataset(cv_mode mode, int split=0);
     };
 }
 
