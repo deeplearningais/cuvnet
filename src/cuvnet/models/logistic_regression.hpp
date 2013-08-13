@@ -32,10 +32,10 @@ namespace cuvnet
              */
             logistic_regression(op_ptr X, op_ptr Y, bool degenerate=false);
 
-            virtual std::vector<Op*> get_params(const std::string& stage="");
-            virtual void reset_params(const std::string& stage="");
-            virtual op_ptr loss(const std::string& stage="")const;
-            virtual op_ptr error(const std::string& stage="")const;
+            virtual std::vector<Op*> get_params();
+            virtual void reset_params();
+            virtual op_ptr loss()const;
+            virtual op_ptr error()const;
 
             virtual ~logistic_regression(){}
             private:

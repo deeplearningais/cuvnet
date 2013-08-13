@@ -7,7 +7,7 @@ namespace cuvnet
 {
     namespace models
     {
-        void linear_regression::reset_params(const std::string& stage){
+        void linear_regression::reset_params(){
             if(m_W)
                 initialize_dense_glorot_bengio(m_W, false);
             if(m_bias) {
@@ -15,7 +15,7 @@ namespace cuvnet
                 m_bias->set_weight_decay_factor(0.f);
             }
         }
-        linear_regression::op_ptr linear_regression::loss(const std::string& stage)const{ return m_loss; }
+        linear_regression::op_ptr linear_regression::loss()const{ return m_loss; }
 
         linear_regression::linear_regression(op_ptr X, op_ptr Y, bool degenerate){
             determine_shapes(*X);
@@ -32,7 +32,7 @@ namespace cuvnet
 
             m_loss = mean(sum_to_vec(square(estimator-Y), 0));
         }
-        std::vector<Op*> linear_regression::get_params(const std::string& stage){
+        std::vector<Op*> linear_regression::get_params(){
             std::vector<Op*> params;
             if(m_W)    params.push_back(m_W.get());
             if(m_bias) params.push_back(m_bias.get());

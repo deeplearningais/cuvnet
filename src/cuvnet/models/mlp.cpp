@@ -8,7 +8,7 @@ namespace cuvnet
 {
     namespace models
     {
-        void mlp_layer::reset_params(const std::string& stage){
+        void mlp_layer::reset_params(){
             initialize_dense_glorot_bengio(m_W, true);
         }
 
@@ -22,7 +22,7 @@ namespace cuvnet
                         prod(X, m_W), m_bias, 1));
         }
         std::vector<Op*> 
-        mlp_layer::get_params(const std::string& stage){
+        mlp_layer::get_params(){
             std::vector<Op*> params(2);
             params[0] = m_W.get();
             params[1] = m_bias.get();
