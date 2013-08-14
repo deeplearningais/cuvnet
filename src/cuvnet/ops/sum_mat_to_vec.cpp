@@ -22,7 +22,6 @@ namespace cuvnet
     }
 
     void SumMatToVec::fprop(){
-        std::cout << "in frop" << std::endl;/* cursor */
         using namespace cuv;
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
