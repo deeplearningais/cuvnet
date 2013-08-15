@@ -108,7 +108,7 @@ namespace cuvnet
                             cmp_shared_and_shared_ptr<op_result<T> >(old), novel);
                 }
                 /**
-                 * get the delta to write at directly, also sets delta_set for convenience
+                 * get the delta to write at directly, also sets delta_set for convenience.
                  *
                  */
                 cow_ptr<T>& overwrite_or_add_value(){
