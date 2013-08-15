@@ -16,7 +16,7 @@ namespace cuvnet
             op_ptr m_original_op;
             input_ptr m_input;
 
-            substitute_op_with_input(op_ptr p);
+            substitute_op_with_input(const op_ptr& p);
             ~substitute_op_with_input();
         };
     }

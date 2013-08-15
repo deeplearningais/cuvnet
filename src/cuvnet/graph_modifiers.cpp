@@ -2,7 +2,7 @@
 #include <cuvnet/op_utils.hpp>
 
 namespace cuvnet { namespace graph_modifiers {
-    substitute_op_with_input::substitute_op_with_input(boost::shared_ptr<Op> p)
+    substitute_op_with_input::substitute_op_with_input(const op_ptr& p)
         :m_original_op(p)
     {
         // determine the shape of p's output(s)
@@ -10,34 +10,39 @@ namespace cuvnet { namespace graph_modifiers {
 
         // create an input object with the same shape
         cuvAssert(p->get_n_results() == 1);
-        m_input = boost::make_shared<Input>(p->result()->shape, "substituted input");
 
+        boost::shared_ptr<detail::op_result<matrix> >  r = p->result();
+        m_input = boost::make_shared<ParameterInput>(r->shape, "substituted input");
+        boost::shared_ptr<detail::op_result<matrix> >  ir = m_input->result();
         // we first determine all uses of p's (only) result
-        for(unsigned int ru = 0; ru < p->result()->result_uses.size(); ru++){
-            boost::shared_ptr<detail::op_param<matrix> >  u = p->result()->use(ru);
-
-            // swap backwards pointer from param of following op to p's result
-            u->substitute(p->result(), m_input->result());
-            
-            // tell input that it is being used by u now
-            m_input->result()->result_uses.push_back(u);
+        while(r->result_uses.size()){
+            boost::shared_ptr<detail::op_param<matrix> >  u 
+                = r->use(r->result_uses.size()-1);
 
             // remove forward pointer from p's result to param of following op
-            p->result()->remove(u.get());
+            r->remove(u.get(), false);
+            u->remove(r.get());
+            
+            // tell input that it is being used by u now
+            ir->result_uses.push_back(u);
+            u->param_uses.push_back(ir);
 
         }
     }
 
     substitute_op_with_input::~substitute_op_with_input(){
+        boost::shared_ptr<detail::op_result<matrix> >  ir = m_input->result();
+        boost::shared_ptr<detail::op_result<matrix> >  r = m_original_op->result();
+
         // we first determine all uses of m_input's (only) result
-        for(unsigned int ru = 0; ru < m_input->result()->result_uses.size(); ru++){
-            boost::shared_ptr<detail::op_param<matrix> >  u = m_input->result()->use(ru);
+        while(ir->result_uses.size()){
+            boost::shared_ptr<detail::op_param<matrix> >  u 
+                = ir->use(ir->result_uses.size()-1);
 
-            u->substitute(m_input->result(), m_original_op->result());
+            u->substitute(ir, r);
             
-            m_original_op->result()->result_uses.push_back(u);
-
-            m_input->result()->remove(u.get());
+            r->result_uses.push_back(u);
+            ir->remove(u.get());
         }
         m_input.reset();
     }
