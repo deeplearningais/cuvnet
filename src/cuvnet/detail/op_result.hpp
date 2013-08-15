@@ -78,11 +78,12 @@ namespace cuvnet
                     }
                     result_uses.clear();
                 }
-                void remove(op_param<T>* x){
+                void remove(op_param<T>* x, bool reset_if_last=true){
                     result_uses.erase(
-                            std::remove_if(result_uses.begin(),result_uses.end(),cmp_weak_and_raw_ptr<op_param<T> >(x)),
+                            std::remove_if(result_uses.begin(),result_uses.end(),
+                                cmp_weak_and_raw_ptr<op_param<T> >(x)),
                             result_uses.end());
-                    if(result_uses.empty())
+                    if(reset_if_last && result_uses.empty())
                         op.reset(); // forget op, so that it can be destroyed if needed!
                 }
                 void substitute(op_param<T>* old, boost::shared_ptr<op_param<T> > novel){
