@@ -67,13 +67,9 @@ struct multistage_testmodel : public cuvnet::models::multistage_model {
     }
     std::vector<cuvnet::Op*> get_params(){
         using namespace cuvnet;
-        std::vector<Op*> v(1, m_weights0.get());
         if(current_stage() == 0)
-            return v;
-
-        std::vector<Op*> w = m_linreg->get_params();
-        std::copy(w.begin(), w.end(), std::back_inserter(v));
-        return v;
+            return std::vector<Op*> (1, m_weights0.get());
+        return m_linreg->get_params();
     }
     void reset_params(){
         cuv::fill_rnd_uniform(m_weights0->data());
