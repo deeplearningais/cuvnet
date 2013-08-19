@@ -93,7 +93,7 @@ BOOST_AUTO_TEST_CASE(nenadbug){
     using boost::property_tree::ptree;
     ptree pt;
     pt.put("fit.gd.learnrate", 0.1f);
-    pt.put("fit.gd.batchsize", bs);
+    pt.put("fit.batchsize", bs);
     pt.put("fit.gd.max_epochs", 5);
     pt.put("fit.path", ".");
     pt.put("fit.learnrate_schedule.type", "linear");
@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(learn){
     using boost::property_tree::ptree;
     ptree pt;
     pt.put("fit.gd.learnrate", 0.1f);
-    pt.put("fit.gd.batchsize", bs);
+    pt.put("fit.batchsize", bs);
     pt.put("fit.gd.max_epochs", 5);
     pt.put("fit.path", ".");
     pt.put("fit.learnrate_schedule.type", "linear");
@@ -151,7 +151,7 @@ BOOST_AUTO_TEST_CASE(learn_multistage){
     using boost::property_tree::ptree;
     ptree pt;
     pt.put("fit.gd.learnrate", 0.1f);
-    pt.put("fit.gd.batchsize", bs);
+    pt.put("fit.batchsize", bs);
     pt.put("fit.gd.max_epochs", 5);
     pt.put("fit.path", ".");
     pt.put("fit.learnrate_schedule.type", "linear");
@@ -177,7 +177,7 @@ BOOST_AUTO_TEST_CASE(xval_learn){
     using boost::property_tree::ptree;
     ptree pt;
     pt.put("fit.gd.learnrate", 0.1f);
-    pt.put("fit.gd.batchsize", bs);
+    pt.put("fit.batchsize", bs);
     pt.put("fit.stages", "finetuning");
     pt.put("fit.gd.max_epochs", 5);
     pt.put("fit.path", ".");
