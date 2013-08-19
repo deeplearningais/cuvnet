@@ -540,10 +540,15 @@ namespace cuvnet
             stageres.put_child(stage_name, res);
             if(stage < n_stages - 1){
                 // TODO generate new dataset using current model?
-                int batch_size = cfg.get("batchsize", -1);
-                saved.clear(); // repairs graph to original
-                if(stagecfg.get("switch_stage_with_outputs", false))
-                    saved = switch_stage_with_outputs(m, stage, res.get("path", "."), batch_size);
+                std::string next_stage_name = "stage_" + boost::lexical_cast<std::string>(stage + 1);
+                ptree next_stagecfg = cfg.get_child(next_stage_name, cfg);
+                if(next_stagecfg.get("switch_stage_with_outputs", false))
+                {
+                    int batch_size = cfg.get("batchsize", -1);
+                    saved = switch_stage_with_outputs(m, stage, res.get<std::string>("path"), batch_size);
+                }
+                else
+                    saved.clear(); // repairs graph to original
             }
         }
         saved.clear();
