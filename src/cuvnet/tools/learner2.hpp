@@ -11,6 +11,7 @@ namespace cuvnet
 {
     class monitor;
     class gradient_descent;
+    class early_stopper;
     class momentum_gradient_descent;
 
     /**
