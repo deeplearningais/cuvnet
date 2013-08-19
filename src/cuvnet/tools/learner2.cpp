@@ -452,12 +452,14 @@ namespace cuvnet
         std::ofstream m_ofs;
         boost::archive::binary_oarchive m_oa;
         unsigned int m_n_outputs;
+        unsigned int m_n_batches;
 
         save_stage_dataset(monitor& mon, const std::string& path, const std::string& dataset, const std::string& stage, unsigned int n_outputs)
             : m_path(path), m_dataset(dataset), m_stagename(stage), m_monitor(mon),
             m_ofs(path + "/" + dataset + "-" + stage + ".ser"),
             m_oa(m_ofs, boost::archive::no_tracking),
-            m_n_outputs(n_outputs)
+            m_n_outputs(n_outputs),
+            m_n_batches(0)
         {
             LOG4CXX_WARN(g_log, "save_stage_dataset: saving outputs of stage`"<<stage<<"' to `"<<(path + "/"+ dataset + "-" + stage + ".ser"));
         }
@@ -467,6 +469,11 @@ namespace cuvnet
             for(unsigned int i = 0; i < m_n_outputs; i++){
                 m_oa << m_monitor["output-"+boost::lexical_cast<std::string>(i)];
             }
+            m_n_batches ++;
+        }
+
+        ~save_stage_dataset(){
+            LOG4CXX_WARN(g_log, "save_stage_dataset: saved "<<m_n_batches<<" batches.");
         }
     };
 
@@ -481,11 +488,13 @@ namespace cuvnet
         LOG4CXX_WARN(g_log, "multistage_dataset: loading `" <<filename <<"'");
         boost::archive::binary_iarchive ia(ifs);
         bool stop = false;
+        unsigned int n_batches = 0;
         do{
             for(unsigned int i=0; inputs.size(); i++){
                 matrix tmp;
                 try{
                     ia >> tmp;
+                    n_batches ++;
                 }catch(boost::archive::archive_exception const& e){
                     stop = true;
                     break;
@@ -493,6 +502,7 @@ namespace cuvnet
                 m_data[i].push_back(tmp);
             }
         }while(!stop);
+        LOG4CXX_WARN(g_log, "multistage_dataset: loaded " << n_batches<<" batches");
     }
 
     void multistage_dataset::load_batch(unsigned int batch, unsigned int epoch){
