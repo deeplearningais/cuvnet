@@ -45,7 +45,8 @@ namespace cuvnet
                 }
                 // stop if epoch limit is exceeded
                 if(m_epoch >= n_max_epochs){
-                    LOG4CXX_WARN(log, "STOP minibatch learning: Max epochs");
+                    if(m_learnrate != 0.f)
+                        LOG4CXX_WARN(log, "STOP minibatch learning: Max epochs");
                     throw max_iter_stop();
                 }
 
