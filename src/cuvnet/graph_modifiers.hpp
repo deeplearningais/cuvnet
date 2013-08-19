@@ -11,7 +11,7 @@ namespace cuvnet
          */
         struct substitute_op_with_input{
             typedef boost::shared_ptr<Op>               op_ptr;
-            typedef boost::shared_ptr<Input>            input_ptr;
+            typedef boost::shared_ptr<ParameterInput>   input_ptr;
 
             op_ptr m_original_op;
             input_ptr m_input;
