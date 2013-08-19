@@ -10,6 +10,7 @@ namespace cuvnet
      *  determining whether the GPU is used -- or not.
      */
 	typedef cuv::tensor<float,cuv::dev_memory_space> matrix;
+	typedef cuv::tensor<float,cuv::host_memory_space> host_matrix;
 }
 
 #endif /* __MODULES_COMMON_HPP__ */
