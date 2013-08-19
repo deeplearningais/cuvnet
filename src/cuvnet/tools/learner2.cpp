@@ -222,12 +222,12 @@ namespace cuvnet
     }
 
     void 
-    learner2::load_batch(model* m, unsigned int batch){
+    learner2::load_batch(model* m, unsigned int batch, unsigned int epoch){
     }
 
     void 
-    learner2::_load_batch(model* m, unsigned int batch){
-        load_batch(m, batch);
+    learner2::_load_batch(model* m, unsigned int batch, unsigned int epoch){
+        load_batch(m, batch, epoch);
     }
 
     void 
@@ -416,10 +416,10 @@ namespace cuvnet
 
         this->before_learning(&m, *gd, es.get());
         if(batch_size < 0){
-            _load_batch(&m, 0);
+            _load_batch(&m, 0, 0);
             gd->batch_learning(max_epochs, time_limit);
         }else {
-            gd->before_batch.connect(boost::bind(&learner2::_load_batch, this, &m, _1));
+            gd->before_batch.connect(boost::bind(&learner2::_load_batch, this, &m, _1, _2));
             gd->current_batch_num = boost::bind(&learner2::n_batches, this, batch_size);
             gd->minibatch_learning(max_epochs, time_limit);
         }
@@ -459,6 +459,7 @@ namespace cuvnet
             m_oa(m_ofs, boost::archive::no_tracking),
             m_n_outputs(n_outputs)
         {
+            LOG4CXX_WARN(g_log, "save_stage_dataset: saving outputs of stage`"<<stage<<"' to `"<<(path + "/"+ dataset + "-" + stage + ".ser"));
         }
 
         void operator()(unsigned int epoch, unsigned int batch)
@@ -469,41 +470,40 @@ namespace cuvnet
         }
     };
 
-    struct stage_dataset{
-        std::string m_path;
-        std::string m_dataset;
-        std::string m_stagename;
-        std::vector<std::vector<matrix> > m_data;
-        std::vector<boost::shared_ptr<ParameterInput> > m_inputs;
-
-        stage_dataset(const std::string& path, const std::string& dataset, const std::string& stage, std::vector<boost::shared_ptr<ParameterInput> > inputs)
+    multistage_dataset::multistage_dataset(const std::string& path, 
+            const std::string& dataset,
+            const std::string& stage,
+            std::vector<boost::shared_ptr<ParameterInput> > inputs)
         : m_path(path), m_dataset(dataset), m_stagename(stage), m_data(inputs.size()), m_inputs(inputs)
-        {
-            std::ifstream ifs(path + "/" + dataset + "-" + stage + ".ser");
-            boost::archive::binary_iarchive ia(ifs);
-                while(true){
-                    for(unsigned int i=0; inputs.size(); i++){
-                        matrix tmp;
-                        try{
-                            ia >> tmp;
-                        }catch(boost::archive::archive_exception const& e){
-                            break;
-                        }
-                        m_data[i].push_back(tmp);
-                    }
+    {
+        std::string filename = path + "/" + dataset + "-" + stage + ".ser";
+        std::ifstream ifs(filename.c_str());
+        LOG4CXX_WARN(g_log, "multistage_dataset: loading `" <<filename <<"'");
+        boost::archive::binary_iarchive ia(ifs);
+        bool stop = false;
+        do{
+            for(unsigned int i=0; inputs.size(); i++){
+                matrix tmp;
+                try{
+                    ia >> tmp;
+                }catch(boost::archive::archive_exception const& e){
+                    stop = true;
+                    break;
                 }
-        }
-
-        void load_batch(unsigned int batch, unsigned int epoch){
-            for(unsigned int i=0; m_inputs.size(); i++){
-                m_inputs[i]->data() = m_data[i][batch];
+                m_data[i].push_back(tmp);
             }
-        }
+        }while(!stop);
+    }
 
-        unsigned int n_batches()const{
-            return m_data[0].size();
+    void multistage_dataset::load_batch(unsigned int batch, unsigned int epoch){
+        for(unsigned int i=0; m_inputs.size(); i++){
+            m_inputs[i]->data() = m_data[i][batch];
         }
-    };
+    }
+
+    unsigned int multistage_dataset::n_batches()const{
+        return m_data[0].size();
+    }
 
     ptree 
     multistage_learner::fit(model& _m, const ptree& cfg){
@@ -525,14 +525,20 @@ namespace cuvnet
             // take params from a subtree named like the stage if it exists
             stage_name = "stage_" + boost::lexical_cast<std::string>(stage);
             LOG4CXX_WARN(g_log, "multistage_learner: fitting `"<<stage_name<<"'");
-            ptree res = learner2::fit(m, cfg.get_child(stage_name, cfg));
+            ptree stagecfg = cfg.get_child(stage_name, cfg);
+            ptree res = learner2::fit(m, stagecfg);
             stageres.put_child(stage_name, res);
             if(stage < n_stages - 1){
                 // TODO generate new dataset using current model?
                 int batch_size = cfg.get("batchsize", -1);
-                saved = switch_stage_with_outputs(m, stage, res.get("path", "."), batch_size);
+                saved.clear(); // repairs graph to original
+                if(stagecfg.get("switch_stage_with_outputs", false))
+                    saved = switch_stage_with_outputs(m, stage, res.get("path", "."), batch_size);
             }
         }
+        saved.clear();
+        m_stage_datasets.clear();
+        m_current_dataset.reset();
         // result is result of the last stage, with the list of all stage
         // results as a subtree
         ptree result = stageres.get_child(stage_name);
@@ -543,8 +549,7 @@ namespace cuvnet
     std::vector<boost::shared_ptr<graph_modifiers::substitute_op_with_input> >
     multistage_learner::switch_stage_with_outputs(multistage_model& m,
             const multistage_model::stage_type& current_stage, const
-            std::string& path, unsigned int batch_size){
-        LOG4CXX_WARN(g_log, "stage switch: saving outputs of stage`"<<current_stage<<"' to "<<path);
+            std::string& path, int batch_size){
         // 1. record all "outputs" of the model to a file
         std::vector<Op*> outputs = m.get_outputs();
         monitor mon;
@@ -563,30 +568,53 @@ namespace cuvnet
                     outputs.size());
 
             gd.after_batch.connect(boost::ref(ssd));
-            //gd.current_batch_num = boost::bind(&learner2::n_batches, this);
-            gd.current_batch_num = boost::bind(&learner2::n_batches, this, batch_size);
-            gd.minibatch_learning(1);
+
+            if(batch_size < 0){
+                _load_batch(&m, 0, 0);
+                gd.batch_learning(1, INT_MAX);
+            }else {
+                gd.before_batch.connect(boost::bind(&learner2::_load_batch, this, &m, _1, _2));
+                gd.current_batch_num = boost::bind(&learner2::n_batches, this, batch_size);
+                gd.minibatch_learning(1, INT_MAX);
+            }
         }
 
         // 3. substitute all "outputs" with inputs for the next stage
         std::vector<boost::shared_ptr<graph_modifiers::substitute_op_with_input> > undo;
+        std::vector<boost::shared_ptr<ParameterInput> > inputs;
         for (unsigned int i = 0; i < outputs.size(); ++i)
         {
             undo.push_back(boost::make_shared<graph_modifiers::substitute_op_with_input>(
                         outputs[i]->shared_from_this()));
+            inputs.push_back(undo.back()->m_input);
+        }
+        m_stage_datasets.clear();
+        m_stage_datasets.resize(4);
+        for(unsigned int v = 0; v < 3; v++){
+            std::string stage_name = "stage_" + boost::lexical_cast<std::string>(current_stage);
+            boost::shared_ptr<multistage_dataset> msd =
+                boost::make_shared<multistage_dataset>(path,
+                        boost::lexical_cast<std::string>(v), stage_name, 
+                        inputs);
+            m_stage_datasets[cm[v]] = msd;
         }
         return undo;
     }
 
     void 
-    multistage_learner::_load_batch(model* m, unsigned int batch){
-        // TODO if stage is first or no dataset for current stage generated
-        load_batch(m, batch);
+    multistage_learner::_load_batch(model* m, unsigned int batch, unsigned int epoch){
+        if(!m_current_dataset)
+            load_batch(m, batch, epoch);
+        else
+            m_current_dataset->load_batch(batch, epoch);
     }
 
     void
     multistage_learner::_switch_dataset(cv_mode mode, int split){
-        // TODO depending on stage, call switch_dataset or our own function
-        switch_dataset(mode, split);
+        if(!m_stage_datasets[mode])
+            switch_dataset(mode, split);
+        else{
+            m_current_dataset = m_stage_datasets[mode];
+        }
     }
 }

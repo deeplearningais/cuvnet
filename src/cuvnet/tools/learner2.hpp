@@ -105,15 +105,7 @@ namespace cuvnet
              * @param m the model to load the batch into
              * @param bid the batch id which is to be loaded into the model
              */
-            virtual void load_batch(model* m, unsigned int bid);
-
-            /**
-             *
-             * This function calls load_batch, and is overloaded by multistage
-             * learner, and you should likely neither overload nor touch it.
-             *
-             */
-            virtual void _load_batch(model* m, unsigned int bid);
+            virtual void load_batch(model* m, unsigned int bid, unsigned int epoch);
 
             /**
              * In this hook you can modify the gradient_descent object just before learning.
@@ -232,6 +224,14 @@ namespace cuvnet
             virtual void _switch_dataset(cv_mode mode, int split=0);
 
             /**
+             *
+             * This function calls load_batch, and is overloaded by multistage
+             * learner, and you should likely neither overload nor touch it.
+             *
+             */
+            virtual void _load_batch(model* m, unsigned int bid, unsigned int epoch);
+
+            /**
              * (virtual) dtor.
              */
             virtual ~learner2();
@@ -264,6 +264,19 @@ namespace cuvnet
             ptree fit(learner2& lrn, model& m, const ptree& cfg);
     };
 
+    struct multistage_dataset{
+        std::string m_path;
+        std::string m_dataset;
+        std::string m_stagename;
+        std::vector<std::vector<host_matrix> > m_data;
+        std::vector<boost::shared_ptr<ParameterInput> > m_inputs;
+        multistage_dataset(const std::string& path, const std::string& dataset,
+                const std::string& stage,
+                std::vector<boost::shared_ptr<ParameterInput> > inputs);
+        void load_batch(unsigned int batch, unsigned int epoch);
+        unsigned int n_batches()const;
+    };
+
     /**
      * A multi-stage learner can for example learn a model that requires
      * 'pre-training'. There should be a sequence of stages which need to be
@@ -274,9 +287,19 @@ namespace cuvnet
     class multistage_learner
         : public learner2
     {
+        private:
+            std::vector<
+                boost::shared_ptr<multistage_dataset> >
+                m_stage_datasets;
+            boost::shared_ptr<multistage_dataset> m_current_dataset;
         public:
             typedef models::multistage_model multistage_model;
             typedef boost::property_tree::ptree ptree;
+
+            /**
+             * ctor.
+             */
+            multistage_learner():m_stage_datasets(4){}
 
             /**
              * @overload
@@ -293,16 +316,16 @@ namespace cuvnet
             std::vector<boost::shared_ptr<graph_modifiers::substitute_op_with_input> >
                 switch_stage_with_outputs(multistage_model& m,
                         const multistage_model::stage_type& current_stage,
-                        const std::string& path, unsigned int batch_size);
+                        const std::string& path, int batch_size);
 
             /**
              * this _load_batch version only calls load_batch if in the 1st stage, 
              * but uses our own functions for the other stages.
              */
-            virtual void _load_batch(model* m, unsigned int bid);
+            virtual void _load_batch(model* m, unsigned int bid, unsigned int epoch);
 
             /**
-             * this _load_batch version only calls switch_dataset if in
+             * this _switch_dataset version only calls switch_dataset if in
              * the 1st stage, but uses our own functions for the other stages.
              */
             virtual void _switch_dataset(cv_mode mode, int split=0);
