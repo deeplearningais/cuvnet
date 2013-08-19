@@ -103,9 +103,10 @@ namespace cuvnet
              * Does nothing by default.
              *
              * @param m the model to load the batch into
+             * @param epoch current epoch number
              * @param bid the batch id which is to be loaded into the model
              */
-            virtual void load_batch(model* m, unsigned int bid, unsigned int epoch);
+            virtual void load_batch(model* m, unsigned int epoch, unsigned int bid);
 
             /**
              * In this hook you can modify the gradient_descent object just before learning.
@@ -229,7 +230,7 @@ namespace cuvnet
              * learner, and you should likely neither overload nor touch it.
              *
              */
-            virtual void _load_batch(model* m, unsigned int bid, unsigned int epoch);
+            virtual void _load_batch(model* m, unsigned int epoch, unsigned int batchid);
 
             /**
              * (virtual) dtor.
@@ -273,7 +274,7 @@ namespace cuvnet
         multistage_dataset(const std::string& path, const std::string& dataset,
                 const std::string& stage,
                 std::vector<boost::shared_ptr<ParameterInput> > inputs);
-        void load_batch(unsigned int batch, unsigned int epoch);
+        void load_batch(unsigned int epoch, unsigned int batch);
         unsigned int n_batches()const;
     };
 
@@ -322,7 +323,7 @@ namespace cuvnet
              * this _load_batch version only calls load_batch if in the 1st stage, 
              * but uses our own functions for the other stages.
              */
-            virtual void _load_batch(model* m, unsigned int bid, unsigned int epoch);
+            virtual void _load_batch(model* m, unsigned int epoch, unsigned int bid);
 
             /**
              * this _switch_dataset version only calls switch_dataset if in

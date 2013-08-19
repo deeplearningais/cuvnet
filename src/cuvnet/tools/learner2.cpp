@@ -222,12 +222,12 @@ namespace cuvnet
     }
 
     void 
-    learner2::load_batch(model* m, unsigned int batch, unsigned int epoch){
+    learner2::load_batch(model* m, unsigned int epoch, unsigned int batch){
     }
 
     void 
-    learner2::_load_batch(model* m, unsigned int batch, unsigned int epoch){
-        load_batch(m, batch, epoch);
+    learner2::_load_batch(model* m, unsigned int epoch, unsigned int batch){
+        load_batch(m, epoch, batch);
     }
 
     void 
@@ -505,8 +505,8 @@ namespace cuvnet
         LOG4CXX_WARN(g_log, "multistage_dataset: loaded " << n_batches<<" batches");
     }
 
-    void multistage_dataset::load_batch(unsigned int batch, unsigned int epoch){
-        for(unsigned int i=0; m_inputs.size(); i++){
+    void multistage_dataset::load_batch(unsigned int epoch, unsigned int batch){
+        for(unsigned int i=0; i < m_inputs.size(); i++){
             m_inputs[i]->data() = m_data[i][batch];
         }
     }
@@ -612,11 +612,11 @@ namespace cuvnet
     }
 
     void 
-    multistage_learner::_load_batch(model* m, unsigned int batch, unsigned int epoch){
+    multistage_learner::_load_batch(model* m, unsigned int epoch, unsigned int batch){
         if(!m_current_dataset)
-            load_batch(m, batch, epoch);
+            load_batch(m, epoch, batch);
         else
-            m_current_dataset->load_batch(batch, epoch);
+            m_current_dataset->load_batch(epoch, batch);
     }
 
     void
