@@ -159,6 +159,7 @@ BOOST_AUTO_TEST_CASE(learn_multistage){
     pt.put("fit.early_stopper.active", true);
     pt.put("fit.early_stopper.watch", "loss"); // or cerr
     pt.put("fit.monitor.verbose", true);
+    pt.put("fit.switch_stage_with_outputs", true);
 
     multistage_learner lrn;
     ptree result1 = lrn.fit(mstm, pt.get_child("fit"));
