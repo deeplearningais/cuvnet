@@ -63,6 +63,7 @@ SET(CUVNET_SRC
     cuvnet/tools/dataset_dumper.cpp
     cuvnet/tools/dumper.cpp
     cuvnet/tools/learner2.cpp
+    cuvnet/tools/simple_dataset_learner.cpp
 
     cuvnet/op.cpp
     cuvnet/op_utils.cpp
