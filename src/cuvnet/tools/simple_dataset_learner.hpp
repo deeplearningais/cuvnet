@@ -52,9 +52,14 @@ namespace cuvnet
             inline unsigned int n_splits()const{ return m_splits.n_splits(); }
 
             /**
-             * load a batch from the current split/mode into a model
+             * load a batch from the current split/mode into a model.
              */
             void load_batch(model* m, unsigned int epoch, unsigned int bid);
+
+            /**
+             * @return the splitter object.
+             */
+            inline const splitter& get_splitter()const{ return m_splits; }
     };
 }
 #endif /* __SIMPLE_DATASET_LEARNER_HPP__ */

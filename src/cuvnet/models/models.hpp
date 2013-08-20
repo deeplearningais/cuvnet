@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cuvnet/op.hpp>
+#include <boost/serialization/export.hpp>                                                                                                        
 
 namespace cuvnet
 {
@@ -10,7 +11,8 @@ namespace cuvnet
 
     namespace models
     {
-        struct model{
+        struct model
+        {
             private:
                 typedef boost::shared_ptr<Op> op_ptr;
 
@@ -61,7 +63,6 @@ namespace cuvnet
 
                 /**
                  * reset all parameters. Does nothing by default.
-                 *
                  */
                 virtual void reset_params();
 
@@ -172,5 +173,8 @@ namespace cuvnet
         };
     }
 }
+BOOST_CLASS_EXPORT_KEY(cuvnet::models::model) 
+BOOST_CLASS_EXPORT_KEY(cuvnet::models::multistage_model) 
+BOOST_CLASS_EXPORT_KEY(cuvnet::models::metamodel) 
 
 #endif /* __CUVNET_MODELS_HPP__ */

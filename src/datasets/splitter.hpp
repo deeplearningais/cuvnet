@@ -77,6 +77,11 @@ namespace cuvnet
 			unsigned int n_splits()const{return m_n_splits; }
 
             /**
+             * @return fraction of dataset used in early stopping if n_splits=1
+             */
+            float val_frac()const{return m_val_frac;}
+
+            /**
              * if indicators were given in \c init, return the dataset corresponding to the given indicator.
              *
              * @param idx the indicator which we want to evaluate on, all others go to training set

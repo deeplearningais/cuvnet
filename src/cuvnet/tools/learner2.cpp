@@ -28,6 +28,9 @@ namespace bfs = boost::filesystem;
 
 typedef boost::property_tree::ptree ptree;
 
+
+BOOST_SERIALIZATION_ASSUME_ABSTRACT(cuvnet::model)
+
 namespace 
 {
     log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("learner2"));
@@ -308,22 +311,6 @@ namespace cuvnet
         throw std::runtime_error("unknown learnrate schedule: " + schedule);
     }
 
-    void 
-    learner2::save_model(model& m, std::string filename){
-        namespace bar= boost::archive;
-        std::ofstream f(filename.c_str());
-        bar::binary_oarchive oa(f);
-        register_objects(oa);
-        oa << m;
-    }
-    void 
-    learner2::load_model(model& m, std::string filename){
-        namespace bar= boost::archive;
-        std::ifstream f(filename.c_str());
-        bar::binary_iarchive ia(f);
-        register_objects(ia);
-        ia >> m;
-    }
     ptree 
     learner2::continue_learning_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result){
         // - stop when target loss reached
@@ -342,10 +329,27 @@ namespace cuvnet
     unsigned int learner2::n_splits()const{
         return 1;
     }
+    void 
+        learner2::save_model(boost::shared_ptr<model>& m, std::string filename){
+            namespace bar= boost::archive;
+            std::ofstream f(filename.c_str());
+            bar::binary_oarchive oa(f);
+            register_objects(oa);
+            oa << m;
+        }
+    void 
+        learner2::load_model(boost::shared_ptr<model>& m, std::string filename){
+            namespace bar= boost::archive;
+            std::ifstream f(filename.c_str());
+            bar::binary_iarchive ia(f);
+            register_objects(ia);
+            ia >> m;
+        }
 
     ptree 
-    crossvalidator2::fit(learner2& lrn, model& m, const ptree& cfg){
-        unsigned int n_splits = m_n_splits;
+    crossvalidator2::fit(learner2& lrn, boost::shared_ptr<model> mptr, const ptree& cfg){
+        model& m = *mptr;
+        unsigned int n_splits = lrn.n_splits();
         ptree result;
         using namespace boost::accumulators;
         namespace ba = boost::accumulators;
@@ -354,25 +358,24 @@ namespace cuvnet
         unsigned int best_split = 0;
         bfs::path bestfile;
         ptree best_result;
-        std::vector<ptree> stageres;
+        std::vector<ptree> foldres;
         for(unsigned int split = 0; split < n_splits; split ++){
             m.reset_params();
             lrn._switch_dataset(CM_TRAIN, split);
-            // take params from a subtree named like the stage if it exists
             ptree res = lrn.fit(m, cfg);
-            stageres.push_back(res);
-            result.add_child("xval.folds", stageres.back());
-            result.put("xval.mean", ba::mean(s_valperf));
-            result.put("xval.var", ba::variance(s_valperf));
-            if(split == 0 || ba::min(s_valperf) > stageres.back().get<float>("gd.early_stopper.best_perf")){
-                bestfile =  bfs::path(stageres.back().get<std::string>("path")) / "after_train.ser";
-                lrn.save_model(m, bestfile.string());
+            foldres.push_back(res);
+            result.add_child("xval.folds.fold_" + boost::lexical_cast<std::string>(split), foldres.back());
+            if(split == 0 || ba::min(s_valperf) > res.get<float>("gd.early_stopper.best_perf")){
+                bestfile =  bfs::path(res.get<std::string>("path")) / "after_train.ser";
+                lrn.save_model(mptr, bestfile.string());
                 best_split = split;
-                best_result = stageres.back();
+                best_result = foldres.back();
             }
-            s_valperf(stageres.back().get<float>("gd.early_stopper.best_perf")); 
+            s_valperf(foldres.back().get<float>("gd.early_stopper.best_perf")); 
             // TODO stop evaluating if too bad in comparison with current best?
         }
+        result.put("xval.mean", ba::mean(s_valperf));
+        result.put("xval.var", ba::variance(s_valperf));
         result.put_child("xval.best_fold", best_result);
         return result;
     }

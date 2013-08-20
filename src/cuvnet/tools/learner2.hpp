@@ -190,14 +190,22 @@ namespace cuvnet
             /**
              * Serialize the model to a file. 
              * This is needed by crossvalidation to save the best intermediate model.
+             *
+             * @param m the model to be serialized
+             * @param filename the filename where the model should end up in
              */
-            virtual void save_model(model& m, std::string filename);
+            void 
+                save_model(boost::shared_ptr<model>& m, std::string filename);
 
             /**
              * Deserialize the model from a file. 
              * This is needed by crossvalidation to load the best intermediate model.
+             *
+             * @param m the model to be serialized
+             * @param filename the filename where the model should end up in
              */
-            virtual void load_model(model& m, std::string filename);
+            void 
+                load_model(boost::shared_ptr<model>& m, std::string filename);
 
             /**
              * Fit a model, using features described in configuration param.
@@ -254,25 +262,9 @@ namespace cuvnet
      */
     struct crossvalidator2{
         private:
-            /** 
-             * the number of equal parts that the dataset has been split into.
-             */
-            unsigned int m_n_splits;
-            /**
-             * the fraction of the dataset used for validation in case m_n_splits=1
-             */
-            float m_es_frac;
         public:
             typedef boost::property_tree::ptree ptree;
             typedef models::model model;
-            /**
-             * ctor. 
-             * @param n_splits into how many equal-sized parts the dataset
-             *        should be split.
-             * @param es_frac the fraction of the dataset used for validation in case n_splits=1
-             */
-            crossvalidator2(unsigned int n_splits=5, unsigned int es_frac=.1f):m_n_splits(n_splits), m_es_frac(es_frac){}
-
             /**
              * Call fit() for a number of splits, saving the best result, and returning the performance on all folds.
              *
@@ -281,7 +273,7 @@ namespace cuvnet
              * @param cfg how to fit the model
              * @return one result for every split
              */
-            ptree fit(learner2& lrn, model& m, const ptree& cfg);
+            ptree fit(learner2& lrn, boost::shared_ptr<model> m, const ptree& cfg);
     };
 
     struct multistage_dataset{
@@ -307,7 +299,7 @@ namespace cuvnet
     class multistage_learner
         : public learner2
     {
-        private:
+        protected:
             std::vector<
                 boost::shared_ptr<multistage_dataset> >
                 m_stage_datasets;
