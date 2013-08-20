@@ -170,6 +170,16 @@ namespace cuvnet
             virtual unsigned int n_splits()const;
 
             /**
+             * 
+             * This function calls n_batches, and is overloaded by multistage
+             * learner, and you should likely neither overload nor touch it.
+             *
+             * @param batchsize the number of instances in one batch
+             * @return 1 by default
+             */
+            virtual unsigned int _n_batches(unsigned int batchsize);
+
+            /**
              * Overload this to tell learner how many batches your dataset has.
              *
              * @param batchsize the number of instances in one batch
@@ -244,7 +254,14 @@ namespace cuvnet
      */
     struct crossvalidator2{
         private:
+            /** 
+             * the number of equal parts that the dataset has been split into.
+             */
             unsigned int m_n_splits;
+            /**
+             * the fraction of the dataset used for validation in case m_n_splits=1
+             */
+            float m_es_frac;
         public:
             typedef boost::property_tree::ptree ptree;
             typedef models::model model;
@@ -252,8 +269,9 @@ namespace cuvnet
              * ctor. 
              * @param n_splits into how many equal-sized parts the dataset
              *        should be split.
+             * @param es_frac the fraction of the dataset used for validation in case n_splits=1
              */
-            crossvalidator2(unsigned int n_splits=5):m_n_splits(n_splits){}
+            crossvalidator2(unsigned int n_splits=5, unsigned int es_frac=.1f):m_n_splits(n_splits), m_es_frac(es_frac){}
 
             /**
              * Call fit() for a number of splits, saving the best result, and returning the performance on all folds.
@@ -331,6 +349,15 @@ namespace cuvnet
              * the 1st stage, but uses our own functions for the other stages.
              */
             virtual void _switch_dataset(cv_mode mode, int split=0);
+
+            /**
+             * this _n_batches version only calls n_batches if in the 
+             * 1st stage, but uses our own function for the other stages.
+             *
+             * @param batchsize the number of instances in one batch
+             * @return 1 by default
+             */
+            virtual unsigned int _n_batches(unsigned int batchsize);
     };
 }
 

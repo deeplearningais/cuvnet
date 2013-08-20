@@ -235,6 +235,11 @@ namespace cuvnet
     }
 
     unsigned int 
+    learner2::_n_batches(unsigned int batchsize){
+        return n_batches(batchsize);
+    }
+
+    unsigned int 
     learner2::n_batches(unsigned int batchsize){
         return 1;
     }
@@ -420,7 +425,7 @@ namespace cuvnet
             gd->batch_learning(max_epochs, time_limit);
         }else {
             gd->before_batch.connect(boost::bind(&learner2::_load_batch, this, &m, _1, _2));
-            gd->current_batch_num = boost::bind(&learner2::n_batches, this, batch_size);
+            gd->current_batch_num = boost::bind(&learner2::_n_batches, this, batch_size);
             gd->minibatch_learning(max_epochs, time_limit);
         }
         ptree result;
@@ -467,7 +472,8 @@ namespace cuvnet
         void operator()(unsigned int epoch, unsigned int batch)
         {
             for(unsigned int i = 0; i < m_n_outputs; i++){
-                m_oa << m_monitor["output-"+boost::lexical_cast<std::string>(i)];
+                host_matrix hm(m_monitor["output-"+boost::lexical_cast<std::string>(i)]);
+                m_oa << hm;
             }
             m_n_batches ++;
         }
@@ -490,17 +496,17 @@ namespace cuvnet
         bool stop = false;
         unsigned int n_batches = 0;
         do{
-            for(unsigned int i=0; inputs.size(); i++){
-                matrix tmp;
+            for(unsigned int i=0; i < m_inputs.size(); i++){
+                host_matrix tmp;
                 try{
                     ia >> tmp;
-                    n_batches ++;
                 }catch(boost::archive::archive_exception const& e){
                     stop = true;
                     break;
                 }
                 m_data[i].push_back(tmp);
             }
+            n_batches ++;
         }while(!stop);
         LOG4CXX_WARN(g_log, "multistage_dataset: loaded " << n_batches<<" batches");
     }
@@ -526,12 +532,13 @@ namespace cuvnet
 
         typedef multistage_model::stage_type stage_type;
         stage_type n_stages = m.n_stages();
+        LOG4CXX_WARN(g_log, "multistage_learner: fitting a model with "<<n_stages<<" stages");
 
         ptree stageres;
         std::string stage_name;
         for(unsigned int stage = 0; stage < n_stages; stage++){
             m.switch_stage(stage);
-            switch_dataset(CM_TRAIN, -1);
+            _switch_dataset(CM_TRAIN, -1);
             // take params from a subtree named like the stage if it exists
             stage_name = "stage_" + boost::lexical_cast<std::string>(stage);
             LOG4CXX_WARN(g_log, "multistage_learner: fitting `"<<stage_name<<"'");
@@ -539,7 +546,7 @@ namespace cuvnet
             ptree res = learner2::fit(m, stagecfg);
             stageres.put_child(stage_name, res);
             if(stage < n_stages - 1){
-                // TODO generate new dataset using current model?
+                // generate new dataset using current model
                 std::string next_stage_name = "stage_" + boost::lexical_cast<std::string>(stage + 1);
                 ptree next_stagecfg = cfg.get_child(next_stage_name, cfg);
                 if(next_stagecfg.get("switch_stage_with_outputs", false))
@@ -547,13 +554,19 @@ namespace cuvnet
                     int batch_size = cfg.get("batchsize", -1);
                     saved = switch_stage_with_outputs(m, stage, res.get<std::string>("path"), batch_size);
                 }
-                else
+                else{
                     saved.clear(); // repairs graph to original
+                    m_current_dataset.reset();
+                    BOOST_FOREACH(auto& a, m_stage_datasets){
+                        a.reset();
+                    }
+                }
             }
         }
         saved.clear();
         m_stage_datasets.clear();
         m_current_dataset.reset();
+        m.switch_stage(0); // back to the start
         // result is result of the last stage, with the list of all stage
         // results as a subtree
         ptree result = stageres.get_child(stage_name);
@@ -573,7 +586,7 @@ namespace cuvnet
 
         cv_mode cm[] = {CM_TRAIN, CM_VALID, CM_TEST};
         for(unsigned int v = 0; v < 3; v++){
-            switch_dataset(cm[v], -1);
+            _switch_dataset(cm[v], -1);
 
             std::string stage_name = "stage_" + boost::lexical_cast<std::string>(current_stage);
 
@@ -584,13 +597,14 @@ namespace cuvnet
 
             gd.after_batch.connect(boost::ref(ssd));
 
+            mon.register_gd(gd);
             if(batch_size < 0){
                 _load_batch(&m, 0, 0);
                 gd.batch_learning(1, INT_MAX);
             }else {
                 gd.before_batch.connect(boost::bind(&learner2::_load_batch, this, &m, _1, _2));
-                gd.current_batch_num = boost::bind(&learner2::n_batches, this, batch_size);
-                gd.minibatch_learning(1, INT_MAX);
+                gd.current_batch_num = boost::bind(&learner2::_n_batches, this, batch_size);
+                gd.minibatch_learning(1, INT_MAX, 1, false); // don't shuffle
             }
         }
 
@@ -626,10 +640,20 @@ namespace cuvnet
 
     void
     multistage_learner::_switch_dataset(cv_mode mode, int split){
-        if(!m_stage_datasets[mode])
+        if(!m_stage_datasets[mode]){
+            //LOG4CXX_WARN(g_log, "switch_dataset virtual: mode:"<<mode<<" split:"<<split);
             switch_dataset(mode, split);
+        }
         else{
+            //LOG4CXX_WARN(g_log, "switch_dataset stage_ds: mode:"<<mode<<" split:"<<split);
             m_current_dataset = m_stage_datasets[mode];
         }
     }
+
+    unsigned int
+        multistage_learner::_n_batches(unsigned int batchsize){
+            if(m_current_dataset)
+                return m_current_dataset->n_batches();
+            return n_batches(batchsize);
+        }
 }
