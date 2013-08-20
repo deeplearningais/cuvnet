@@ -45,14 +45,18 @@ namespace
  * approaches the problem by injecting no_tracking support into
  * an existing archive class:
  */
-namespace boost {                                                                                                                                                             
-    namespace archive {                                                                                                                                                       
-        namespace detail {                                                                                                                                                    
-            template<>                                                                                                                                                        
-                bool oserializer<class binary_oarchive, class matrix >::tracking(const unsigned int f /* flags */) const {                                                            
-                    return !(f & no_tracking);                                                                                                                                
-                }                                                                                                                                                             
-        }}}  
+namespace boost {
+    namespace archive {
+        namespace detail {
+            template<>
+                bool oserializer<class binary_oarchive, class matrix >::tracking(const unsigned int f /* flags */) const {
+                    return !(f & no_tracking);
+                }
+            template<>
+                bool oserializer<class binary_oarchive, class host_matrix >::tracking(const unsigned int f /* flags */) const {
+                    return !(f & no_tracking);
+                }
+        }}}
 
 namespace cuvnet
 {
