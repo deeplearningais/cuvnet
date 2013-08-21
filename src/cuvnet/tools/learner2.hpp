@@ -216,6 +216,15 @@ namespace cuvnet
             virtual ptree fit(model& m, const ptree& cfg);
 
             /**
+             * Evaluate the model for the current dataset (one
+             * pass), using features described in configuration param.
+             *
+             * @param m the model to be evaluated
+             * @param cfg parameters for evaluation
+             */
+            virtual ptree predict(model& m, const ptree& cfg);
+
+            /**
              * Continue learning in an already learned model, eg on TRAINVAL instead of on TRAIN.
              *
              * @param m the model to be learned further.

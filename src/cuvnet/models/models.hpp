@@ -86,7 +86,7 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<model>(*this);
                         ar & m_current_stage;
-                        cuvAssert(m_current_stage == 0);
+                        //cuvAssert(m_current_stage == 0);
                     }
             public:
 

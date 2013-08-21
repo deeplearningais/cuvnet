@@ -355,28 +355,63 @@ namespace cuvnet
         namespace ba = boost::accumulators;
         accumulator_set<double, 
             features<tag::mean, tag::median, tag::variance, tag::min> > s_valperf;
+        accumulator_set<double, 
+            features<tag::mean, tag::median, tag::variance, tag::min> > s_testperf;
         unsigned int best_split = 0;
         bfs::path bestfile;
         ptree best_result;
         std::vector<ptree> foldres;
+        std::string measure_path = cfg.get("xval.measure_path", "gd.early_stopper.best_perf");
         for(unsigned int split = 0; split < n_splits; split ++){
             m.reset_params();
             lrn._switch_dataset(CM_TRAIN, split);
             ptree res = lrn.fit(m, cfg);
-            foldres.push_back(res);
-            result.add_child("xval.folds.fold_" + boost::lexical_cast<std::string>(split), foldres.back());
-            if(split == 0 || ba::min(s_valperf) > res.get<float>("gd.early_stopper.best_perf")){
+            if(split == 0 || ba::min(s_valperf) > res.get<float>(measure_path)){
                 bestfile =  bfs::path(res.get<std::string>("path")) / "after_train.ser";
                 lrn.save_model(mptr, bestfile.string());
                 best_split = split;
-                best_result = foldres.back();
+                best_result = res;
             }
-            s_valperf(foldres.back().get<float>("gd.early_stopper.best_perf")); 
+
+            // evaluate on test set, (not used for model selection!)
+            lrn._switch_dataset(CM_TEST);
+            ptree pres = lrn.predict(m, cfg);
+            res.add_child("testset", pres);
+
+
+            // record fold result
+            foldres.push_back(res);
+            result.add_child("xval.folds.fold_" + boost::lexical_cast<std::string>(split), res);
+            s_valperf(res.get<float>(measure_path)); 
+            s_testperf(pres.get<float>("cerr_mean")); 
             // TODO stop evaluating if too bad in comparison with current best?
         }
-        result.put("xval.mean", ba::mean(s_valperf));
-        result.put("xval.var", ba::variance(s_valperf));
+        result.put("xval.val_mean", ba::mean(s_valperf));
+        result.put("xval.val_var", ba::variance(s_valperf));
+        result.put("xval.test_mean", ba::mean(s_testperf));
+        result.put("xval.test_var", ba::variance(s_testperf));
         result.put_child("xval.best_fold", best_result);
+        return result;
+    }
+
+    ptree learner2::predict(model& m, const ptree& cfg){
+        boost::shared_ptr<monitor> mon 
+            = get_monitor(m, cfg.get_child("monitor", ptree()));
+
+        int batch_size = cfg.get("batchsize", -1);
+        gradient_descent gd(m.loss(), 0, std::vector<Op*>(), 0.0, 0.0);
+        mon->register_gd(gd);
+        if(batch_size < 0){
+            _load_batch(&m, 0, 0);
+            gd.batch_learning(1, INT_MAX);
+        }else {
+            gd.before_batch.connect(boost::bind(&learner2::_load_batch, this, &m, _1, _2));
+            gd.current_batch_num = boost::bind(&learner2::_n_batches, this, batch_size);
+            gd.minibatch_learning(1, INT_MAX, 1, false); // don't shuffle
+        }
+        ptree result;
+        result.put("cerr_mean", mon->mean("cerr"));
+        result.put("cerr_var", mon->var("cerr"));
         return result;
     }
 
@@ -573,7 +608,7 @@ namespace cuvnet
         saved.clear();
         m_stage_datasets.clear();
         m_current_dataset.reset();
-        m.switch_stage(0); // back to the start
+        //m.switch_stage(0); // back to the start
         // result is result of the last stage, with the list of all stage
         // results as a subtree
         ptree result = stageres.get_child(stage_name);
