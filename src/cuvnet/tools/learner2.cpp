@@ -585,6 +585,7 @@ namespace cuvnet
             _switch_dataset(CM_TRAIN, -1);
             // take params from a subtree named like the stage if it exists
             stage_name = "stage_" + boost::lexical_cast<std::string>(stage);
+            log4cxx::NDC ndc(stage_name);
             LOG4CXX_WARN(g_log, "multistage_learner: fitting `"<<stage_name<<"'");
             ptree stagecfg = cfg.get_child(stage_name, cfg);
             ptree res = learner2::fit(m, stagecfg);
