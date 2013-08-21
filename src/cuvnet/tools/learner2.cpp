@@ -418,9 +418,11 @@ namespace cuvnet
     ptree 
     learner2::fit(model& m, const ptree& cfg)
     {
+        std::string basepath = cfg.get("basepath", "experiments");
         std::string uuid = boost::lexical_cast<std::string>(boost::uuids::uuid(boost::uuids::random_generator()()));
-        bfs::path tmppath = bfs::path("experiments") / uuid;
+        bfs::path tmppath = bfs::path(basepath) / uuid;
         tmppath = cfg.get("path", tmppath.string());
+        boost::filesystem::create_directories(tmppath);
 
         boost::shared_ptr<gradient_descent> gd 
             = get_gradient_descent(m, cfg.get_child("gd"));
