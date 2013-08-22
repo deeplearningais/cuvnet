@@ -231,7 +231,16 @@ namespace cuvnet
              * @param cfg how to train (probably the same thing given to fit() previously)
              * @param result the result of fit(), or the best result of crossvalidation_fit
              */
-            ptree continue_learning_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result);
+            virtual ptree continue_learning_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result);
+
+            /**
+             * Retrain a model, eg on TRAINVAL instead of on TRAIN, using early-stopping values recorded from eg cross-validation.
+             *
+             * @param m the model to be learned further.
+             * @param cfg how to train (probably the same thing given to fit() previously)
+             * @param result the result of fit(), or the best result of crossvalidation_fit, with per-stage results
+             */
+            virtual ptree learn_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result);
 
             /**
              * Overload this to switch to a different mode on the dataset.
@@ -294,6 +303,11 @@ namespace cuvnet
         multistage_dataset(const std::string& path, const std::string& dataset,
                 const std::string& stage,
                 std::vector<boost::shared_ptr<ParameterInput> > inputs);
+
+        multistage_dataset(
+                const std::vector<std::vector<host_matrix> >& traindata,
+                const std::vector<std::vector<host_matrix> >& valdata
+                );
         void load_batch(unsigned int epoch, unsigned int batch);
         unsigned int n_batches()const;
     };
@@ -359,6 +373,15 @@ namespace cuvnet
              * @return 1 by default
              */
             virtual unsigned int _n_batches(unsigned int batchsize);
+
+            /**
+             * Retrain a model, eg on TRAINVAL instead of on TRAIN, using early-stopping values recorded from eg cross-validation.
+             *
+             * @param m the model to be learned further.
+             * @param cfg how to train (probably the same thing given to fit() previously)
+             * @param result the result of fit(), or the best result of crossvalidation_fit, with per-stage results
+             */
+            ptree learn_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result);
     };
 }
 
