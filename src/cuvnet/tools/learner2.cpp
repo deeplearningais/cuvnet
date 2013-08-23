@@ -410,10 +410,11 @@ namespace cuvnet
 
         // retrain on all, training + validation, if required.
         if(cfg.get("xval.retrain_all", false)){
+            log4cxx::NDC ndc("retrain_all");
             float current_loss = ba::mean(s_valperf);
             float prev_loss = cfg.get("xval.retrain_all_thresh", INT_MAX);
             if(current_loss < prev_loss){
-                LOG4CXX_WARN(g_log_xval2, "crossvalidator2: retrain on TRAINVAL, current_loss:"<<current_loss<<", prev_loss:"<<prev_loss);
+                LOG4CXX_WARN(g_log_xval2, "retrain on TRAINVAL, current_loss:"<<current_loss<<", prev_loss:"<<prev_loss);
                 m.reset_params();
                 ptree cfg2 = cfg;
                 cfg2.put("train_dataset", (int)CM_TRAINALL); // required for multi-stage learning
@@ -424,7 +425,7 @@ namespace cuvnet
                 result.put_child("xval.retrain_all.training", tres);
                 result.put_child("xval.retrain_all.test", pres);
             }else{
-                LOG4CXX_WARN(g_log_xval2, "crossvalidator2: NO retrain on TRAINVAL, current_loss:"<<current_loss<<", prev_loss:"<<prev_loss);
+                LOG4CXX_WARN(g_log_xval2, "NO retrain on TRAINVAL, current_loss:"<<current_loss<<", prev_loss:"<<prev_loss);
             }
         }
 
