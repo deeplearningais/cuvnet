@@ -378,7 +378,7 @@ namespace cuvnet
         std::vector<ptree> foldres;
         std::string measure_path = cfg.get("xval.measure_path", "gd.early_stopper.best_perf");
         for(unsigned int split = 0; split < n_splits; split ++){
-            LOG4CXX_WARN(g_log_xval2, "fitting split:"<<split);
+            log4cxx::NDC ndc("split_"+boost::lexical_cast<std::string>(split));
             m.reset_params();
             lrn._switch_dataset(CM_TRAIN, split);
             ptree res = lrn.fit(m, cfg);
