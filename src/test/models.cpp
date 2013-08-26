@@ -172,8 +172,10 @@ BOOST_AUTO_TEST_CASE(xval_learn){
     boost::shared_ptr<ParameterInput> tgt = input(cuv::extents[bs][2]);
     cuv::fill_rnd_uniform(inp->data());
     cuv::fill_rnd_uniform(tgt->data());
-    cuvnet::models::linear_regression lr(inp, tgt);
     
+    boost::shared_ptr<cuvnet::models::linear_regression> lr
+    	= boost::make_shared<cuvnet::models::linear_regression>(inp, tgt);
+
     using boost::property_tree::ptree;
     ptree pt;
     pt.put("fit.gd.learnrate", 0.1f);
@@ -187,7 +189,7 @@ BOOST_AUTO_TEST_CASE(xval_learn){
     pt.put("fit.early_stopper.watch", "loss"); // or cerr
     pt.put("fit.monitor.verbose", true);
 
-    crossvalidator2 cval(1);
+    crossvalidator2 cval;
     learner2 lrn;
     ptree result1 = cval.fit(lrn, lr, pt.get_child("fit"));
     //ptree result2 = lrn.continue_learning_until_previous_loss_reached(lr, pt.get_child("fit"), result1.get_child("xval.best_fold"));

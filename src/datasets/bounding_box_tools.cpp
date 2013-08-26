@@ -35,7 +35,7 @@ namespace cuvnet { namespace bbtools {
     image::~image(){
         delete porig;
     }
-    image::image(const image&){/* private */}
+    image::image(const image&):porig(NULL){/* private */}
     image& image::operator=(const image&){ /* private */ return *this; }
 
     void image::transpose(){
@@ -255,7 +255,7 @@ namespace cuvnet { namespace bbtools {
             if(objfilt && !objfilt->filter(*this, orig_o)) 
                 continue;
             object o = object_relative_to_subimg(orig_o);
-            assert(n_classes > o.klass);
+            assert(n_classes > (int)o.klass);
             bboxes[o.klass].push_back(o.bb);
             //bboxes[0].push_back(o.bb); // only one class for now....
         }

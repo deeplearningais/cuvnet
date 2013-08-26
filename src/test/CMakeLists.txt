@@ -10,9 +10,11 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBOOST_TEST_DYN_LINK")
 set(PROJECT_TEST_NAME ${PROJECT_NAME_STR}_test)
 include_directories(${CMAKE_BINARY_DIR}/src)
 
+find_package(CUDA)
+
 file(GLOB TEST_SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 add_executable(${PROJECT_TEST_NAME} ${TEST_SRC_FILES})
-target_link_libraries(${PROJECT_TEST_NAME}  ${GTEST_BOTH_LIBRARIES} cuvnet cuv tp_theano jpeg ${Boost_LIBRARIES} pthread )
+target_link_libraries(${PROJECT_TEST_NAME}  ${GTEST_BOTH_LIBRARIES} cuvnet cuv tp_theano jpeg ${Boost_LIBRARIES} pthread ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
 
 FIND_PACKAGE( PythonLibs )
 if ( PYTHONLIBS_FOUND )
