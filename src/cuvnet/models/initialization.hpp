@@ -1,5 +1,6 @@
 #ifndef __CUVNET__MODEL_INIT_HPP__
 #     define __CUVNET__MODEL_INIT_HPP__
+#include <boost/format.hpp>
 #include <boost/shared_ptr.hpp>
 
 namespace cuvnet
@@ -14,6 +15,26 @@ namespace cuvnet
          * @param act_func_tanh if false, assume logistic activation function
          */
         void initialize_dense_glorot_bengio(boost::shared_ptr<ParameterInput> p, bool act_func_tanh=true);
+
+        /**
+         * load a filter bank into a weight matrix.
+         *
+         * @param file the filename to load filter bank from, with a %d in place of the filter size
+         * @param w the weight matrix to load weights to
+         * @param J the number of scales in the filter bank
+         * @param C the number of angles in the filter bank
+         * @param full if true, process all inputs with complete filter bank.
+         *             Otherwise, process each input with the corresponding scale in the filterbank.
+         *             Assuming the image has been downsampled in between, this
+         *             corresponds to the "next octave".
+         * @param ones if true, only put a 1 in positions where the filterbank
+         *             would end up, creating a mask that can be used to censor
+         *             weight updates
+         * @param neg if true, use combination of positive and negative filters to create
+         *             (high-level texture) edge filters
+         */
+        void initialize_alexconv_scattering_transform(boost::format fmt, boost::shared_ptr<ParameterInput> _w, unsigned int n_inputs, unsigned int J, unsigned int C, bool full, bool ones, bool neg);
+
 
         /**
          * initializes weights as in Glorot & Bengio, Version for Alex' convolution routines.
@@ -59,5 +80,6 @@ namespace cuvnet
                 boost::shared_ptr<ParameterInput> b = boost::shared_ptr<ParameterInput>());
     }
 }
+
 
 #endif /* __CUVNET__MODEL_INIT_HPP__ */
