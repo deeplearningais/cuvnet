@@ -1,12 +1,12 @@
 #include <boost/test/unit_test.hpp>
 //#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
 #include <cuvnet/ops.hpp>
 #include <cuvnet/tools/gradient_descent.hpp>
 #include <cuvnet/tools/monitor.hpp>
 #include <cuvnet/tools/learner2.hpp>
 #include <cuvnet/models/mlp.hpp>
 #include <cuvnet/models/linear_regression.hpp>
-
 
 
 
@@ -147,6 +147,7 @@ BOOST_AUTO_TEST_CASE(learn_multistage){
     cuv::fill_rnd_uniform(inp->data());
     cuv::fill_rnd_uniform(tgt->data());
     multistage_testmodel mstm(inp, tgt);
+    mstm.reset_params();
     
     using boost::property_tree::ptree;
     ptree pt;
@@ -163,6 +164,11 @@ BOOST_AUTO_TEST_CASE(learn_multistage){
 
     multistage_learner lrn;
     ptree result1 = lrn.fit(mstm, pt.get_child("fit"));
+    boost::property_tree::write_json(std::cout, result1);
+    int epochs0 = result1.get<int>("stage_results.stage_0.gd.result_epoch");
+    int epochs1 = result1.get<int>("stage_results.stage_1.gd.result_epoch");
+    BOOST_CHECK_GT(epochs0, 0);
+    BOOST_CHECK_GT(epochs1, 0);
 }
 
 BOOST_AUTO_TEST_CASE(xval_learn){
