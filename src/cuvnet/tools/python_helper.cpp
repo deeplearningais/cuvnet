@@ -310,11 +310,11 @@ namespace cuvnet
 
             export_module();
             object main_namespace = main_module.attr("__dict__");
-            object ignored = exec(
-                    "import visualization\n"
-                    "visualization.valid_shape_info = valid_shape_info\n"
-                    "visualization.get_valid_shape_info = get_valid_shape_info\n",
-                    main_namespace);
+            //object ignored = exec(
+            //        "import visualization\n"
+            //        "visualization.valid_shape_info = valid_shape_info\n"
+            //        "visualization.get_valid_shape_info = get_valid_shape_info\n",
+            //        main_namespace);
         }catch(const boost::python::error_already_set&){
             std::string perror_str = parse_python_exception();
             throw std::runtime_error("python failure in export_ops: " + perror_str);
