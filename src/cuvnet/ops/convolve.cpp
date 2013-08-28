@@ -634,7 +634,6 @@ namespace cuvnet
         
         unsigned int size = m_kernel.shape(0);
         m_kernel_reverse.resize(cuv::extents[size]);
-        m_kernel_reverse = 0.f;
         for (unsigned int i = 0; i < size; ++i)
         {
             m_kernel_reverse(i) = m_kernel(size - 1 - i);
@@ -702,7 +701,6 @@ namespace cuvnet
         
         unsigned int size = m_kernel.shape(0);
         m_kernel_reverse.resize(cuv::extents[size]);
-        m_kernel_reverse = 0.f;
         for (unsigned int i = 0; i < size; ++i)
         {
             m_kernel_reverse(i) = m_kernel(size - 1 - i);

@@ -309,7 +309,6 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_kernel;
-                        ar & m_kernel_reverse;
                         ar & m_dim;
                     }
         };
@@ -355,7 +354,6 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_kernel;
-                        ar & m_kernel_reverse;
                     }
         };
 
