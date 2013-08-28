@@ -277,6 +277,7 @@ namespace cuvnet
             private:
                 //matrix m_kernel;
                 cuv::tensor<float,cuv::host_memory_space> m_kernel;
+                cuv::tensor<float,cuv::host_memory_space> m_kernel_reverse;
                 unsigned int m_dim;
             public:
                 SeparableFilter1d() :Op(1,1){} ///< for serialization.
@@ -308,6 +309,7 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_kernel;
+                        ar & m_kernel_reverse;
                         ar & m_dim;
                     }
         };
@@ -328,6 +330,7 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
             private:
                 matrix m_kernel;
+                matrix m_kernel_reverse;
             public:
                 SeparableFilter() :Op(1,1){} ///< for serialization.
                 /**
@@ -352,6 +355,7 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_kernel;
+                        ar & m_kernel_reverse;
                     }
         };
 

@@ -601,19 +601,19 @@ namespace cuvnet
         result_t::element_type& r0 = *m_results[0];
         if(p0.can_overwrite_directly()){
             if (m_dim == 0)
-                convolutionRows(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_kernel);
+                convolutionRows(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_kernel_reverse);
             else if(m_dim == 1)
-                convolutionColumns(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_kernel);
+                convolutionColumns(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_kernel_reverse);
             else 
-                convolutionDepth(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_kernel);
+                convolutionDepth(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_kernel_reverse);
         }else{
             value_ptr v(new value_type(p0.shape));
             if (m_dim == 0)
-                convolutionRows(*v, r0.delta.cdata(), m_kernel);
+                convolutionRows(*v, r0.delta.cdata(), m_kernel_reverse);
             else if(m_dim == 1)
-                convolutionColumns(*v, r0.delta.cdata(), m_kernel);
+                convolutionColumns(*v, r0.delta.cdata(), m_kernel_reverse);
             else
-                convolutionDepth(*v, r0.delta.cdata(), m_kernel);
+                convolutionDepth(*v, r0.delta.cdata(), m_kernel_reverse);
 
             p0.push(v);
         }
@@ -626,18 +626,19 @@ namespace cuvnet
          * images    (numFilters, imgPixY, imgPixX, numImages)
          * dst:      (numFilters, imgPixY, imgPixX, numImages)
          */
-        //assert(m_params[0]->shape.size()==4);
+        cuvAssert(m_params[0]->shape.size()<4);
+        cuvAssert(m_kernel.shape(0) > 2);
+        cuvAssert(m_kernel.ndim() == 1);
+        cuvAssert(m_dim != 1);
         m_results[0]->shape = m_params[0]->shape;
         
-        bool symmetric = true; 
-        bool end = m_kernel.size() - 1;
-        for(int i = 0; i < end / 2; i++){
-            if(m_kernel(i) != m_kernel(end-i)){
-                symmetric = false;
-                break;
-            }
+        unsigned int size = m_kernel.shape(0);
+        m_kernel_reverse.resize(cuv::extents[size]);
+        m_kernel_reverse = 0.f;
+        for (unsigned int i = 0; i < size; ++i)
+        {
+            m_kernel_reverse(i) = m_kernel(size - 1 - i);
         }
-        assert(symmetric);
     }
 
 
@@ -676,16 +677,16 @@ namespace cuvnet
         if(p0.can_overwrite_directly()){
             value_type v(p0.shape);
             cuv::alex_conv::gaussian_blur(v, r0.delta.cdata(), m_kernel, true);
-            cuv::alex_conv::gaussian_blur(*p0.overwrite_or_add_value(), v, m_kernel, false);
+            cuv::alex_conv::gaussian_blur(*p0.overwrite_or_add_value(), v, m_kernel_reverse, false);
         }else if(p0.can_add_directly()){
             value_type v(p0.shape);
-            cuv::alex_conv::gaussian_blur(v, r0.delta.cdata(), m_kernel, true);
-            cuv::alex_conv::gaussian_blur(*p0.overwrite_or_add_value(), v, m_kernel, false, 1.f, 1.f);
+            cuv::alex_conv::gaussian_blur(v, r0.delta.cdata(), m_kernel_reverse, true);
+            cuv::alex_conv::gaussian_blur(*p0.overwrite_or_add_value(), v, m_kernel_reverse, false, 1.f, 1.f);
         }else{
             // try to overwrite r0.delta
             value_type v(p0.shape);
-            cuv::alex_conv::gaussian_blur(v, r0.delta.cdata(), m_kernel, true);
-            cuv::alex_conv::gaussian_blur(r0.delta.data(), v, m_kernel, false);
+            cuv::alex_conv::gaussian_blur(v, r0.delta.cdata(), m_kernel_reverse, true);
+            cuv::alex_conv::gaussian_blur(r0.delta.data(), v, m_kernel_reverse, false);
             p0.push(r0.delta);
         }
         r0.delta.reset();
@@ -696,18 +697,16 @@ namespace cuvnet
          * images    (numFilters, imgPixY, imgPixX, numImages)
          * dst:      (numFilters, imgPixY, imgPixX, numImages)
          */
-        assert(m_params[0]->shape.size()==4);
+        cuvAssert(m_params[0]->shape.size()==4);
         m_results[0]->shape = m_params[0]->shape;
         
-        bool symmetric = true; 
-        bool end = m_kernel.size() - 1;
-        for(int i = 0; i < end / 2; i++){
-            if(m_kernel(i) != m_kernel(end-i)){
-                symmetric = false;
-                break;
-            }
+        unsigned int size = m_kernel.shape(0);
+        m_kernel_reverse.resize(cuv::extents[size]);
+        m_kernel_reverse = 0.f;
+        for (unsigned int i = 0; i < size; ++i)
+        {
+            m_kernel_reverse(i) = m_kernel(size - 1 - i);
         }
-        assert(symmetric);
     }
 
 

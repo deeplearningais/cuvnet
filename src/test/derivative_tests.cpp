@@ -718,18 +718,21 @@ BOOST_AUTO_TEST_CASE(derivative_test_sep_conv1d){
 
     using namespace cuv::alex_conv;
     unsigned int nImgChan = 5;      // must be divisible by nGroups
-    unsigned int nImgPixY  = 8;
     unsigned int nImgPixX  = 8;
-    unsigned int nImg     = 1;
+    unsigned int nImg     = 5;
 
-    cuv::tensor<float,cuv::host_memory_space> kernel(2*2+1);
-    kernel = 1.f;
+    cuv::tensor<float,cuv::host_memory_space> kernel(3);
+    kernel(0) = 0;
+    kernel(1) = -1;
+    kernel(2) = 1;
+
     {
-        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixX][nImg]);
         for (unsigned int i = 0; i < 3; i++)
         {
-            ptr_t func		               = boost::make_shared<SeparableFilter1d>(inp0->result(), kernel, i);
-            derivative_tester(*func);
+                ptr_t func		               = boost::make_shared<SeparableFilter1d>(inp0->result(), kernel, i);
+                derivative_tester(*func);
+                std::cout << " derivative test done for sep_conv_1d for dim " << i << std::endl;/* cursor */
         }
 
     }
