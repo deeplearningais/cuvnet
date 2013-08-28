@@ -1160,10 +1160,10 @@ namespace cuvnet
         result_t::element_type& r0 = *m_results[0];
         if(r0.can_overwrite_directly()){
             value_ptr& v = r0.overwrite_or_add_value();
-            tuplewise_op(*v, p0.value.cdata(), m_dim, m_subspace_size, m_to);
+            tuplewise_op(*v, p0.value.cdata(), m_dim, m_subspace_size, m_to, m_epsilon);
         }else{
             value_ptr v(new value_type(r0.shape));
-            tuplewise_op(*v, p0.value.cdata(), m_dim, m_subspace_size, m_to);
+            tuplewise_op(*v, p0.value.cdata(), m_dim, m_subspace_size, m_to, m_epsilon);
             r0.push(v);
         }
     }
@@ -1174,13 +1174,13 @@ namespace cuvnet
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
         if(p0.can_overwrite_directly()){
-            tuplewise_op_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_dim, m_subspace_size, m_to);
+            tuplewise_op_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_dim, m_subspace_size, m_to, m_epsilon);
         }else{
             value_ptr ptr = p0.value;
             p0.value.reset();       // try to overwrite input activations
             const matrix& oldvalue = ptr.cdata();
             value_type& v = ptr.data_onlyshape();
-            tuplewise_op_grad(v, oldvalue, r0.delta.cdata(), m_dim, m_subspace_size, m_to);
+            tuplewise_op_grad(v, oldvalue, r0.delta.cdata(), m_dim, m_subspace_size, m_to, m_epsilon);
             p0.push(ptr);
         }
         p0.value.reset();

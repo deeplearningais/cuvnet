@@ -649,7 +649,7 @@ namespace cuvnet
      *
      * Expressed in numpy style, this calculates:
      * 
-     * f(X) = sqrt(X[::2, ...] ** 2 + X[1::2, ...] ** 2)
+     * f(X) = sqrt(X[::2, ...] ** 2 + X[1::2, ...] ** 2 + epsilon)
      *
      * @ingroup Ops
      */
@@ -663,6 +663,7 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
                 unsigned int m_dim;
                 unsigned int m_subspace_size;
+                float m_epsilon;
                 cuv::alex_conv::tuplewise_op_functor m_to;
             private:
             public:
@@ -671,10 +672,11 @@ namespace cuvnet
                  * ctor.
                  * @param images the input images
                  */
-                Tuplewise_op(result_t& images, unsigned int dim, unsigned int subspace_size, cuv::alex_conv::tuplewise_op_functor to)
+                Tuplewise_op(result_t& images, unsigned int dim, unsigned int subspace_size, cuv::alex_conv::tuplewise_op_functor to, float epsilon)
                     :Op(1,1),
                     m_dim(dim),
                     m_subspace_size(subspace_size),
+                    m_epsilon(epsilon),
                     m_to(to)
                 {
                     add_param(0,images);
@@ -688,7 +690,7 @@ namespace cuvnet
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
-                        ar & boost::serialization::base_object<Op>(*this) & m_dim & m_subspace_size & m_to;
+                        ar & boost::serialization::base_object<Op>(*this) & m_dim & m_subspace_size & m_to & m_epsilon;
                     }
         };
 
