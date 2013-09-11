@@ -377,7 +377,6 @@ namespace cuvnet
         unsigned int best_split = 0;
         bfs::path bestfile;
         ptree best_result;
-        std::vector<ptree> foldres;
         std::string measure_path = cfg.get("xval.measure_path", "gd.early_stopper.best_perf");
         for(unsigned int split = 0; split < n_splits; split ++){
             log4cxx::NDC ndc("split_"+boost::lexical_cast<std::string>(split));
@@ -398,7 +397,6 @@ namespace cuvnet
 
 
             // record fold result
-            foldres.push_back(res);
             result.add_child("xval.folds.fold_" + boost::lexical_cast<std::string>(split), res);
             s_valperf(res.get<float>(measure_path)); 
             s_testperf(pres.get<float>("cerr_mean")); 
