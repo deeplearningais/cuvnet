@@ -7,7 +7,8 @@
 #include <boost/format.hpp>
 
 #include <cuv.hpp>
-#include <cuv/libs/cimg/cuv_cimg.hpp>
+//#include <cuv/libs/cimg/cuv_cimg.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include "image_queue.hpp"
 
 namespace{
@@ -15,6 +16,24 @@ namespace{
 }
 
 namespace cuvnet { namespace image_datasets {
+
+    void dstack_mat2tens(cuv::tensor<float, cuv::host_memory_space>& tens,
+            const std::vector<cv::Mat>& src){
+        assert(src.size() >= 1);
+        int d = src.size();
+        int h = src.front().rows;
+        int w = src.front().cols;
+
+        tens.resize(cuv::extents[d][h][w]);
+        for (int i = 0; i < d; ++i)
+        {
+            cuv::tensor<unsigned char, cuv::host_memory_space> wrapped(cuv::extents[h][w], src[i].data);
+            cuv::tensor<float, cuv::host_memory_space> view = cuv::tensor_view<float, cuv::host_memory_space>(tens, cuv::indices[i][cuv::index_range()][cuv::index_range()]);
+            cuv::convert(view, wrapped);
+            //cv::Mat wrapped(w, h, CV_32F, &tens(i, 0, 0), CV_AUTOSTEP);
+            //src[i].convertTo(wrapped, CV_32F);
+        }
+    }
 
     void image_dataset::read_meta_info(std::vector<bbtools::image_meta_info>& dest, const std::string& filename){
         std::ifstream ifs(filename.c_str());
@@ -83,22 +102,21 @@ namespace cuvnet { namespace image_datasets {
         si.constrain_to_orig(true).extend_to_square();
         si.crop_with_padding().scale_larger_dim(m_pattern_size);
 
-        cimg_library::CImg<unsigned char>& img = *si.pcut;
+        cv::Mat& img = *si.pcut;
         if(m_grayscale)
-            img = img.channel(0)*0.299 + img.channel(1)*0.587 + img.channel(2)*0.114;
-        cuvAssert(img.width() == (int)m_pattern_size);
-        cuvAssert(img.height() == (int)m_pattern_size);
+            //img = img.channel(0)*0.299 + img.channel(1)*0.587 + img.channel(2)*0.114;
+            cvtColor(img,img,CV_RGB2GRAY);
+        cuvAssert(img.size.p[0] == (int)m_pattern_size);
+        cuvAssert(img.size.p[1] == (int)m_pattern_size);
 
         int final_size = (m_pattern_size - m_output_properties->crop_h) / m_output_properties->scale_h;
 
-        cimg_library::CImg<unsigned char> tch(final_size, final_size, m_n_classes);
-        cimg_library::CImg<unsigned char> ign(final_size, final_size, m_n_classes);
+        std::vector<cv::Mat> tch_vec;
+        std::vector<cv::Mat> ign_vec;
 
         pattern* pat_ptr = new pattern;
         pattern& pat = *pat_ptr;
 
-        tch.fill(0);
-        ign.fill(1);
         //si.mark_objects(1, 255, 0.1f, &tch, &pat.bboxes);
 
         {
@@ -106,6 +124,9 @@ namespace cuvnet { namespace image_datasets {
             float color = 255.f;
             const output_properties& op = *m_output_properties;
             for(unsigned int map=0; map != pat.bboxes.size(); map++){
+                cv::Mat tch = cv::Mat::zeros(final_size, final_size, CV_8U);
+                cv::Mat ign = cv::Mat::ones(final_size, final_size, CV_8U);
+
                 BOOST_FOREACH(const bbtools::rectangle& s, pat.bboxes[map]){ // TODO only one map
                     bbtools::rectangle r = s.scale(0.5f);
                     op.transform(r.xmin, r.ymin);
@@ -116,20 +137,23 @@ namespace cuvnet { namespace image_datasets {
                     r.xmax = std::min(final_size-1, std::max(0, r.xmax));
                     //tch.draw_rectangle(r.xmin, r.ymin,0,0, 
                             //r.xmax, r.ymax, tch.depth()-1, tch.spectrum()-1, color);
-                    tch.draw_rectangle(r.xmin, r.ymin,map,0, 
-                            r.xmax, r.ymax, map, tch.spectrum()-1, color);
-
-                    unsigned char clr = 0;
-                    ign.draw_rectangle(r.xmin-1, r.ymin-1, r.xmax+1, r.ymax+1, &clr, 1.f, ~0U);
+                    cv::rectangle(tch, cv::Point(r.xmin, r.ymin), 
+                            cv::Point(r.xmax, r.ymax), cv::Scalar(color), CV_FILLED);
+                    cv::rectangle(ign, cv::Point(r.xmin-1, r.ymin-1), 
+                            cv::Point(r.xmax+1, r.ymax+1), cv::Scalar(0), CV_FILLED);
+                    //ign.draw_rectangle(r.xmin-1, r.ymin-1, r.xmax+1, r.ymax+1, &clr, 1.f, ~0U);
                     //ign.draw_rectangle(r.xmin+0, r.ymin+0, r.xmax+0, r.ymax+0, &clr, 1.f, ~0U);
                     //ign.draw_rectangle(r.xmin+1, r.ymin+1, r.xmax-1, r.ymax-1, &clr, 1.f, ~0U);
                 }
+                si.fill_padding(0, &ign, *m_output_properties);
+                tch_vec.push_back(tch);
+                ign_vec.push_back(ign);
             }
         }
         
         //si.mark_objects(0, 255, 0.1f, &ign);
         //si.mark_objects(0, 255, 1, &img);
-        si.fill_padding(0, &ign, *m_output_properties);
+
 
         //tch.crop(final_start, final_start, tch.width()-final_start-1, tch.height()-final_start-1, false);
         //ign.crop(final_start, final_start, ign.width()-final_start-1, ign.height()-final_start-1, false);
@@ -139,11 +163,15 @@ namespace cuvnet { namespace image_datasets {
         //pat.meta_info = *meta;
         int n_dim = m_grayscale ? 1 : 3;
         pat.img.resize(cuv::extents[n_dim][m_pattern_size][m_pattern_size]);
-        pat.tch.resize(cuv::extents[tch.depth()][tch.height()][tch.width()]);
-        pat.ign.resize(cuv::extents[ign.depth()][ign.height()][ign.width()]);
-        cuv::convert(pat.img, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[n_dim][m_pattern_size][m_pattern_size] , img.data()));
-        cuv::convert(pat.tch, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[tch.depth()][tch.height()][tch.width()], tch.data()));
-        cuv::convert(pat.ign, cuv::tensor<unsigned char,cuv::host_memory_space>(cuv::extents[ign.depth()][ign.height()][ign.width()], ign.data()));
+        pat.tch.resize(cuv::extents[tch_vec.size()][final_size][final_size]);
+        pat.ign.resize(cuv::extents[ign_vec.size()][final_size][final_size]);
+
+        std::vector<cv::Mat> img_vec;
+        cv::split(img, img_vec);
+
+        dstack_mat2tens(pat.img, img_vec);
+        dstack_mat2tens(pat.tch, tch_vec);
+        dstack_mat2tens(pat.ign, ign_vec);
 
         pat.img /= 255.f; 
         pat.img -= 0.5f;

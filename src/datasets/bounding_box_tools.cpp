@@ -1,9 +1,12 @@
 #include <log4cxx/logger.h>
 #include <boost/foreach.hpp>
 #include "bounding_box_tools.hpp"
-#include <cuv/libs/cimg/cuv_cimg.hpp>
-#define cimg_use_jpeg
-#include <CImg.h>
+//#include <cuv/libs/cimg/cuv_cimg.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+//#define cimg_use_jpeg
+//#include <CImg.h>
 
 namespace{
     log4cxx::LoggerPtr g_log = log4cxx::Logger::getLogger("bounding_box_tools");
@@ -29,8 +32,8 @@ namespace cuvnet { namespace bbtools {
     }
 
     image::image(const std::string& fn){
-        using namespace cimg_library;
-        porig = new CImg<unsigned char>(fn.c_str());
+        using namespace cv;
+        porig = new Mat(imread(fn.c_str()));
     }
     image::~image(){
         delete porig;
@@ -39,7 +42,7 @@ namespace cuvnet { namespace bbtools {
     image& image::operator=(const image&){ /* private */ return *this; }
 
     void image::transpose(){
-        porig->transpose();
+        cv::transpose(*porig, *porig);
         BOOST_FOREACH(object& o, meta.objects){
             std::swap(o.bb.xmin, o.bb.ymin);
             std::swap(o.bb.xmax, o.bb.ymax);
@@ -63,8 +66,8 @@ namespace cuvnet { namespace bbtools {
     {
         pos.xmin = 0;
         pos.ymin = 0;
-        pos.xmax = original_img.porig->width();
-        pos.ymax = original_img.porig->height();
+        pos.xmax = original_img.porig->cols;
+        pos.ymax = original_img.porig->rows;
     }
     bool sub_image::has_objects(){
         bool found = false;
@@ -80,7 +83,7 @@ namespace cuvnet { namespace bbtools {
 
     sub_image& sub_image::constrain_to_orig(bool clip){
         int w = pos.xmax - pos.xmin +1;
-        int ow = original_img.porig->width();
+        int ow = original_img.porig->cols;
         if(w > ow){
             if(!clip)
                 throw std::runtime_error("constrain_to_orig: subimage_width > original_width");
@@ -88,7 +91,7 @@ namespace cuvnet { namespace bbtools {
             pos.xmax = pos.xmin + w -1;
         }
         int h = pos.ymax - pos.ymin+1;
-        int oh = original_img.porig->height();
+        int oh = original_img.porig->rows;
         if(h > oh){
             if(!clip)
                 throw std::runtime_error("constrain_to_orig: subimage_height > original_height");
@@ -106,12 +109,12 @@ namespace cuvnet { namespace bbtools {
             pos.ymax += dbot;
         }
         {   // right border
-            int d = std::max(0,pos.xmax - original_img.porig->width() + 1);
+            int d = std::max(0,pos.xmax - original_img.porig->cols + 1);
             pos.xmin -= d;
             pos.xmax -= d;
         }
         {   // top border
-            int d = std::max(0,pos.ymax - original_img.porig->height() + 1);
+            int d = std::max(0,pos.ymax - original_img.porig->rows + 1);
             pos.ymin -= d;
             pos.ymax -= d;
         }
@@ -120,17 +123,21 @@ namespace cuvnet { namespace bbtools {
     sub_image& sub_image::crop(){
         if(pcut)
             delete pcut;
-        if(pos.xmin < 0 || pos.ymin < 0 || pos.xmax >= original_img.porig->width() || pos.ymax >= original_img.porig->height())
+        if(pos.xmin < 0 || pos.ymin < 0 || pos.xmax >= original_img.porig->cols || pos.ymax >= original_img.porig->rows)
             throw std::runtime_error("sub_image: cannot call `crop()' on image smaller than subimage. Use square, etc.");
-        pcut = new cimg_library::CImg<unsigned char>(original_img.porig->get_crop(pos.xmin, pos.ymin, pos.xmax, pos.ymax, false));
+        pcut = new cv::Mat((*original_img.porig)(cv::Range(pos.xmin, pos.xmax), cv::Range(pos.ymin, pos.ymax)));
         return *this;
     }
 
     sub_image& sub_image::show(const std::string name){
         if(!pcut)
             throw std::runtime_error("sub_image: cannot show, call crop() first");
-        cimg_library::CImgDisplay main_disp(*pcut, name.c_str());
-        main_disp.wait();
+        cv::namedWindow(name, CV_WINDOW_AUTOSIZE);
+        cv::imshow(name, *pcut);
+        while( true ){
+            char c = cv::waitKey(500);
+            if( (char)c == 27 ) { break; }
+        }
         return *this;
     }
     sub_image& sub_image::extend_to_square(){
@@ -149,24 +156,25 @@ namespace cuvnet { namespace bbtools {
         return *this;
     }
 
-    sub_image& sub_image::remove_padding(cimg_library::CImg<unsigned char>* img){
+    sub_image& sub_image::remove_padding(cv::Mat* img){
         if(img == NULL) {
             if(!pcut)
                 throw std::runtime_error("remove_padding: image argument NULL and no cropped subimage available!");
             img = pcut;
         }
-        float scale_w = (pos.xmax-pos.xmin+1) / (float)(img->width());
-        float scale_h = (pos.ymax-pos.ymin+1) / (float)(img->height());
+        float scale_w = (pos.xmax-pos.xmin+1) / (float)(img->cols);
+        float scale_h = (pos.ymax-pos.ymin+1) / (float)(img->rows);
 
         int dbot   = -std::min(0, pos.ymin);
         int dleft  = -std::min(0, pos.xmin);
-        int dright = -std::min(0, -pos.xmax + original_img.porig->width() - 1);
-        int dtop   = -std::min(0, -pos.ymax + original_img.porig->height() - 1);
+        int dright = -std::min(0, -pos.xmax + original_img.porig->cols - 1);
+        int dtop   = -std::min(0, -pos.ymax + original_img.porig->rows - 1);
 
-        cimg_library::CImg<unsigned char>& dst = *img;
+        cv::Mat& dst = *img;
 
-        dst.crop(dleft/scale_w+1, dbot/scale_h+1,
-                img->width()-dright/scale_w-1, img->height()-dtop/scale_h-1, false);
+        dst = dst(
+                cv::Range(dleft/scale_w+1, img->cols-dright/scale_w),
+                cv::Range(dbot/scale_h+1, img->rows-dtop/scale_h)); // TODO: removed -1 for both coordinates when switching to opencv
 
         int new_w = (pos.xmax-pos.xmin) - dleft - dright;
         int new_h = (pos.ymax-pos.ymin) - dbot - dtop;
@@ -179,61 +187,67 @@ namespace cuvnet { namespace bbtools {
         
         return *this;
     }
-    sub_image& sub_image::fill_padding(int color, cimg_library::CImg<unsigned char>* img, const coordinate_transformer& ct){
+    sub_image& sub_image::fill_padding(int color, cv::Mat* img, const coordinate_transformer& ct){
         if(img == NULL) {
             if(!pcut)
                 throw std::runtime_error("fill_padding: image argument NULL and no cropped subimage available!");
             img = pcut;
         }
-        cimg_library::CImg<unsigned char>& dst = *img;
+        cv::Mat& dst = *img;
         int dbot   = -std::min(0, pos.ymin) * scale_fact + 0.5f;
         int dleft  = -std::min(0, pos.xmin) * scale_fact + 0.5f;
-        int dright = (-pos.xmin + (original_img.porig->width() - 1)) * scale_fact + 0.5f;
-        int dtop   = (-pos.ymin + (original_img.porig->height() - 1)) * scale_fact + 0.5f;
+        int dright = (-pos.xmin + (original_img.porig->cols - 1)) * scale_fact + 0.5f;
+        int dtop   = (-pos.ymin + (original_img.porig->rows - 1)) * scale_fact + 0.5f;
 
         ct.transform(dleft, dbot);
         ct.transform(dright, dtop);
 
         if(dleft > 0)
-            dst.draw_rectangle(0,0,0,0,  dleft, dst.height()-1, dst.depth()-1, dst.spectrum()-1, color);
-        if(dright < dst.width())
-            dst.draw_rectangle(dright,0,0,0,  dst.width()-1, dst.height()-1, dst.depth()-1, dst.spectrum()-1, color);
+            cv::rectangle(dst, cv::Point(0,0), cv::Point(dleft, dst.rows-1), cv::Scalar(color), CV_FILLED);
+            //dst.draw_rectangle(0,0,0,0,  dleft, dst.rows-1, dst.depth()-1, dst.spectrum()-1, color);
+        if(dright < dst.cols)
+            cv::rectangle(dst, cv::Point(dright,0), cv::Point(dst.cols-1, dst.rows-1), cv::Scalar(color), CV_FILLED);
+            //dst.draw_rectangle(dright,0,0,0,  dst.cols-1, dst.rows-1, dst.depth()-1, dst.spectrum()-1, color);
         if(dbot > 0)
-            dst.draw_rectangle(0,0,0,0,  dst.width()-1, dbot-1, dst.depth()-1, dst.spectrum()-1, color);
-        if(dtop < dst.height())
-            dst.draw_rectangle(0,dtop,0,0,  dst.width()-1, dst.height()-1, dst.depth()-1, dst.spectrum()-1, color);
+            cv::rectangle(dst, cv::Point(0,0), cv::Point(dst.cols-1, dbot-1), cv::Scalar(color), CV_FILLED);
+            //dst.draw_rectangle(0,0,0,0,  dst.cols-1, dbot-1, dst.depth()-1, dst.spectrum()-1, color);
+        if(dtop < dst.rows)
+            cv::rectangle(dst, cv::Point(0,dtop), cv::Point(dst.cols-1, dst.rows-1), cv::Scalar(color), CV_FILLED);
+            //dst.draw_rectangle(0,dtop,0,0,  dst.cols-1, dst.rows-1, dst.depth()-1, dst.spectrum()-1, color);
         
         return *this;
     }
     sub_image& sub_image::crop_with_padding(int border){
         int dbot   = std::max(0, -pos.ymin);
         int dleft  = std::max(0, -pos.xmin);
-        int dright = std::max(0, pos.xmax - original_img.porig->width() + 1);
-        int dtop   = std::max(0, pos.ymax - original_img.porig->height() + 1);
+        int dright = std::max(0, pos.xmax - original_img.porig->cols + 1);
+        int dtop   = std::max(0, pos.ymax - original_img.porig->rows + 1);
 
         if(!dbot && !dleft && !dright && !dtop){
             crop();
             return *this;
         }
-        cimg_library::CImg<unsigned char> dst = *original_img.porig;
+        cv::Mat dst = original_img.porig->clone();
 
         // enlarge original image
         int dh = std::max(dbot,dtop);
         int dw = std::max(dright,dleft);
-        int new_h = original_img.porig->height() + 2*dh;
-        int new_w = original_img.porig->width() + 2*dw;
-        dst.resize(new_w, new_h, -100, -100, 0, border, 0.5f, 0.5f);
+        int new_h = original_img.porig->rows + 2*dh;
+        int new_w = original_img.porig->cols + 2*dw;
+        cv::Scalar value;
+        cv::copyMakeBorder( dst, dst, dh, dh, dw, dw, cv::BORDER_REPLICATE, value );
+        cv::resize(dst, dst, cv::Size(new_w, new_h), 0.5, 0.5);
 
         //const unsigned char white[] = {255,255,255};
         //const unsigned char red[] = {255,0,0};
         //dst.draw_rectangle(pos.xmin, pos.ymin, pos.xmax, pos.ymax, white, 1.f, ~0U);
         //dst.draw_rectangle(pos.xmin+dw, pos.ymin+dh, pos.xmax+dw, pos.ymax+dh, red, 1.f, ~0U);
 
-        dst.crop(pos.xmin+dw, pos.ymin+dh, pos.xmax+dw, pos.ymax+dh, false);
+        dst = dst(cv::Range(pos.xmin+dw, pos.xmax+dw), cv::Range(pos.ymin+dh, pos.ymax+dh));
 
         if(pcut)
             delete pcut;
-        pcut = new cimg_library::CImg<unsigned char>(dst);
+        pcut = new cv::Mat(dst);
 
         return *this;
     }
@@ -241,8 +255,13 @@ namespace cuvnet { namespace bbtools {
         if(!pcut)
             throw std::runtime_error("cut first, then call scale_height!");
 
-        scale_fact = size / (float)std::max(pcut->width(), pcut->height());
-        pcut->resize(size, size, -100, -100, 3, 2, 0.5f, 0.5f);
+        scale_fact = size / (float)std::max(pcut->cols, pcut->rows);
+        if(scale_fact < 1.f) {
+            // blur for better subsampling quality
+            cv::blur(*pcut, *pcut, cv::Size(1.f/scale_fact, 1.f/scale_fact), cv::Point(-1,-1), cv::BORDER_REFLECT_101);
+        }
+        cv::resize(*pcut, *pcut, cv::Size(size, size), 0.5f, 0.5f);
+        //pcut->resize(size, size, -100, -100, 3, 2, 0.5f, 0.5f);
         return *this;
     }
 
@@ -263,7 +282,7 @@ namespace cuvnet { namespace bbtools {
     }
     
     sub_image& 
-    sub_image::mark_objects(int type, unsigned char color, float scale, cimg_library::CImg<unsigned char>* img, std::vector<std::vector<bbtools::rectangle> >* bboxes){
+    sub_image::mark_objects(int type, unsigned char color, float scale, cv::Mat* img, std::vector<std::vector<bbtools::rectangle> >* bboxes){
         if(!img){
             if(!pcut)
                 throw std::runtime_error("mark_objects: supply image or crop first!");
@@ -272,7 +291,7 @@ namespace cuvnet { namespace bbtools {
         const std::vector<object>& objs = original_img.meta.objects;
         const unsigned char clr[] = {color,color,color};
         if(type==2)
-            img->fill(0);
+            img->setTo(0);
         if(bboxes)
             bboxes->resize(img->depth());
         BOOST_FOREACH(const object& orig_o, objs){
@@ -284,25 +303,31 @@ namespace cuvnet { namespace bbtools {
                 (*bboxes)[0].push_back(o.bb); // only one class for now....
             }
             if(type==0){
-                img->draw_rectangle(o.bb.xmin, o.bb.ymin, o.bb.xmax, o.bb.ymax, clr, 1.f, ~0U);
-            }else if(type == 1){
-                img->draw_rectangle(o.bb.xmin, o.bb.ymin,0,0, o.bb.xmax, o.bb.ymax, img->depth()-1, img->spectrum()-1, color);
-            }else if(type == 2){
-                const float cx = (o.bb.xmax+o.bb.xmin)/2.f;
-                const float cy = (o.bb.ymax+o.bb.ymin)/2.f;
-                float w  = o.bb.xmax - o.bb.xmin + 1;
-                float h  = o.bb.ymax - o.bb.ymin + 1;
-                w *= scale;
-                h *= scale;
-                w *= w; // square std-dev
-                h *= h; // square std-dev
-                cimg_forXY(*img,dx,dy) {
-                    float mahalanobis_dist = sqrt(
-                            (dx-cx)*(dx-cx)/w +
-                            (dy-cy)*(dy-cy)/h);
-                    (*img)(dx,dy) = std::max((*img)(dx,dy), (unsigned char) (255*exp(-0.5*mahalanobis_dist)));
-                }
+                cv::rectangle(*img, cv::Point(o.bb.xmin, o.bb.ymin), cv::Point(o.bb.xmax, o.bb.ymax), cv::Scalar(color, color, color), CV_FILLED); 
+                //img->draw_rectangle(o.bb.xmin, o.bb.ymin, o.bb.xmax, o.bb.ymax, clr, 1.f, ~0U);
+            }else{
+                cuvAssert(false);
             }
+            /*
+             *else if(type == 1){
+             *    img->draw_rectangle(o.bb.xmin, o.bb.ymin,0,0, o.bb.xmax, o.bb.ymax, img->depth()-1, img->spectrum()-1, color);
+             *}else if(type == 2){
+             *    const float cx = (o.bb.xmax+o.bb.xmin)/2.f;
+             *    const float cy = (o.bb.ymax+o.bb.ymin)/2.f;
+             *    float w  = o.bb.xmax - o.bb.xmin + 1;
+             *    float h  = o.bb.ymax - o.bb.ymin + 1;
+             *    w *= scale;
+             *    h *= scale;
+             *    w *= w; // square std-dev
+             *    h *= h; // square std-dev
+             *    cimg_forXY(*img,dx,dy) {
+             *        float mahalanobis_dist = sqrt(
+             *                (dx-cx)*(dx-cx)/w +
+             *                (dy-cy)*(dy-cy)/h);
+             *        (*img)(dx,dy) = std::max((*img)(dx,dy), (unsigned char) (255*exp(-0.5*mahalanobis_dist)));
+             *    }
+             *}
+             */
         }
         return *this;
     }
