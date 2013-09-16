@@ -422,17 +422,13 @@ void determine_exec_order::determine_fprop_list(Op* o, int o_res, const std::vec
 }
 
 
-bool is_null(Op* o){
-    return o == NULL;
-}
 
 void swiper::init()
 {
     Op& op = *m_op;
 
     // clean paramlist from non-derivable parameters
-    int count = count_if(m_paramlist.begin(), m_paramlist.end(), is_null);
-    assert(count == 0);
+    assert(count_if(m_paramlist.begin(), m_paramlist.end(), std::logical_not<bool>()) == 0);
 
     m_paramlist.erase(
             std::remove_if(m_paramlist.begin(), m_paramlist.end(), 
