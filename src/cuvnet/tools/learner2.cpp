@@ -181,6 +181,7 @@ namespace cuvnet
             boost::shared_ptr<gradient_descent> gd =
                 boost::make_shared<rprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
+            gd->set_update_every(0);
             return gd;
         }else if(typ == "momentum"){
             LOG4CXX_WARN(g_log_learner2, "Creating Momentum GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", momentum: "<< initial_momentum << ")");
@@ -445,7 +446,7 @@ namespace cuvnet
         }else {
             gd.before_batch.connect(boost::bind(&learner2::_load_batch, this, &m, _1, _2));
             gd.current_batch_num = boost::bind(&learner2::_n_batches, this, batch_size);
-            gd.minibatch_learning(1, INT_MAX, 1, false); // don't shuffle
+            gd.minibatch_learning(1, INT_MAX, false); // don't shuffle
         }
         ptree result;
         result.put("cerr_mean", mon->mean("cerr"));
@@ -699,7 +700,7 @@ namespace cuvnet
             }else {
                 gd.before_batch.connect(boost::bind(&learner2::_load_batch, this, &m, _1, _2));
                 gd.current_batch_num = boost::bind(&learner2::_n_batches, this, batch_size);
-                gd.minibatch_learning(1, INT_MAX, 1, false); // don't shuffle
+                gd.minibatch_learning(1, INT_MAX, false); // don't shuffle
             }
         }
 

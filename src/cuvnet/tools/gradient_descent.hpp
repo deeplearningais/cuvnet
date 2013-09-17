@@ -52,6 +52,7 @@ namespace cuvnet
             std::map<Op*,cuv::tensor<float, cuv::host_memory_space> >    m_best_perf_params; ///< copies of parameters for current best performance
             unsigned int     m_epoch_of_saved_params; ///< stores the time of the saved params
             swiper           m_swipe;    ///< does fprop and bprop for us
+            unsigned int           m_update_every;    ///< determines weather to update after each batch if set to 1, and 0 otherwise
         public:
             /// triggered before an epoch starts.
             boost::signal<void(unsigned int, unsigned int)> before_epoch;
@@ -121,7 +122,7 @@ namespace cuvnet
              *
              * \callgraph
              */
-            void minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs=3600, unsigned int update_every=1, bool randomize=true);
+            void minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs=3600,  bool randomize=true);
 
             /**
              * Does batch training.
@@ -143,6 +144,24 @@ namespace cuvnet
              */
             inline void set_epoch(unsigned int epoch){
                 m_epoch = epoch;
+            }
+
+            /**
+             * set the update every.
+             *
+             * Determines weather to update after each batch if set to 1, and 0 otherwise
+             */
+            inline void set_update_every(unsigned int update_every){
+                m_update_every = update_every;
+            }
+
+            /**
+             * get the update every.
+             *
+             * Determines weather to update after each batch if set to 1, and 0 otherwise
+             */
+            inline unsigned int get_update_every(){
+                return m_update_every;
             }
 
             /**

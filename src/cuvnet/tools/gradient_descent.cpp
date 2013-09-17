@@ -14,16 +14,16 @@ namespace cuvnet
     gradient_descent::gradient_descent(const Op::op_ptr& op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay)
         : m_result(result), m_params(params), m_learnrate(learnrate), /*m_learnrate_decay(1.f), */m_weightdecay(weightdecay)
           , m_epoch(0), m_epoch_of_saved_params(0)
-          , m_swipe(*op,result,params)
+          , m_swipe(*op,result,params), m_update_every(1)
     { 
         m_loss = op;
     }
     gradient_descent::~gradient_descent(){}
 
-    void gradient_descent::minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs, unsigned int update_every, bool randomize){
+    void gradient_descent::minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs, bool randomize){
         unsigned int n_batches = current_batch_num();
-        if(update_every==0)
-            update_every = n_batches;
+        if(m_update_every==0)
+            m_update_every = n_batches;
         std::vector<unsigned int> batchids;
         {   // prepare batch id vector
             batchids.resize(n_batches);
@@ -68,7 +68,7 @@ namespace cuvnet
                         m_swipe.bprop(); // backward pass
                         after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
 
-                        if(iter % update_every == 0) {
+                        if(iter % m_update_every == 0) {
                             before_weight_update(wups);
                             update_weights(); 
                             wups ++;
