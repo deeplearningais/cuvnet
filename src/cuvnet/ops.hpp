@@ -249,7 +249,8 @@ namespace cuvnet
 #endif
 
     /// construct a Subtensor object
-    template<std::size_t D, std::size_t E>
+    //template<std::size_t D, std::size_t E>
+    template<int D, int E>
     inline
         Op::op_ptr subtensor(Op::op_ptr img, const cuv::index_gen<D,E>& idx, bool copy) { return boost::make_shared<Subtensor>(img->result(),idx, copy); }
 
