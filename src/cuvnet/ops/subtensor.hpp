@@ -49,7 +49,6 @@ namespace cuvnet
                     for(unsigned int i=0; i<D; i++){
                         m_starts[i]  = idx.ranges_[i].get_start(0);
                         m_ends[i] = idx.ranges_[i].get_finish(std::numeric_limits<int>::min());
-                        //std::cout << " m_starts " << m_starts[i] << " m_ends " << m_ends[i] << std::endl;
                         if(idx.ranges_[i].is_degenerate()){
                             m_is_degen[i] = true;
                         }
