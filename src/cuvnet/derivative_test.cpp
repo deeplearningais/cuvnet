@@ -9,13 +9,16 @@
 
 namespace cuvnet{ namespace derivative_testing {
 
-    void ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params){
+    void ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params, bool verbose){
         { // forward pass
             using namespace cuv;
             swp.fprop();
             tensor<float,host_memory_space> r0 = out->cdata().copy();
             swp.fprop();
             tensor<float,host_memory_space> r1 = out->cdata().copy();
+
+            if(verbose)
+                std::cout << "-- Checking Results; cuv::minimum(r0):" << cuv::minimum(r0) << " cuv::maximum(r0):" << cuv::maximum(r0) << std::endl;
 
             BOOST_CHECK(equal_shape(r0,r1));
             tensor<float,host_memory_space> rdiff(r0.shape());
@@ -36,6 +39,9 @@ namespace cuvnet{ namespace derivative_testing {
             swp.bprop();
             tensor<float,host_memory_space> r1 = pi->delta().copy();
             pi->reset_delta();
+
+            if(verbose)
+                std::cout << "-- Checking Gradients of `" << pi->name() << "'; cuv::minimum(r0):" << cuv::minimum(r0) << " cuv::maximum(r0):" << cuv::maximum(r0) << std::endl;
 
             BOOST_CHECK(equal_shape(r0,r1));
             tensor<float,host_memory_space> rdiff(r0.shape());
@@ -140,7 +146,7 @@ namespace cuvnet{ namespace derivative_testing {
                 if(verbose)
                     std::cout << "  -ensuring function is stateless" << std::endl;
                 boost::shared_ptr<Op> p = op.shared_from_this();
-                ensure_no_state(out_op, swipe, derivable_params);
+                ensure_no_state(out_op, swipe, derivable_params, verbose);
             }
 
 
@@ -198,6 +204,11 @@ namespace cuvnet{ namespace derivative_testing {
                 cuv::tensor<float,cuv::host_memory_space> J_t(n_outputs, n_inputs);
                 cuv::transpose(J_t,J_h); J_h.dealloc();
                 cuv::tensor<float, cuv::host_memory_space> tmp(Jh.shape());
+                if(verbose)
+                {
+                    std::cout << "   range(Jh)[finite differences]="<<cuv::maximum(Jh)-cuv::minimum(Jh)<<std::endl;
+                    std::cout << "   range(J_t)[analytical]       ="<<cuv::maximum(J_t)-cuv::minimum(J_t)<<std::endl;
+                }
                 cuv::apply_binary_functor(tmp, J_t, Jh, cuv::BF_SUBTRACT);
                 cuv::apply_scalar_functor(tmp, cuv::SF_SQUARE);
                 double maxdiff = cuv::maximum(tmp);    // squared(!) 
@@ -205,7 +216,7 @@ namespace cuvnet{ namespace derivative_testing {
                 if(verbose)
                 {
                     std::cout << "   maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;
-                    std::cout << "   range(Jh)="<<cuv::maximum(Jh)-cuv::minimum(Jh)<<std::endl;
+                    std::cout << "   range(differences)="<<cuv::maximum(tmp)-cuv::minimum(tmp)<<std::endl;
                 }
                 if(maxdiff>prec_){
                     std::cout << "   maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;
