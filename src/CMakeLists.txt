@@ -40,6 +40,7 @@ ELSE(USE_THEANO_WRAPPERS)
 ENDIF(USE_THEANO_WRAPPERS)
 
 FIND_PACKAGE( tbb )
+FIND_PACKAGE( OpenCV REQUIRED )
 
 FILE(GLOB CUVNET_OPS_SRC cuvnet/ops/*.cpp)
 
@@ -96,7 +97,7 @@ endif( PYTHONLIBS_FOUND )
 
 add_library(cuvnet SHARED ${CUVNET_SRC})
 
-TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx cuv tp_theano ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} )
+TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx cuv tp_theano ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} ${OpenCV_LIBS})
 
 #add_subdirectory(cuvnet)
 #add_subdirectory(third_party)
