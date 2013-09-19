@@ -121,11 +121,10 @@ namespace cuvnet { namespace image_datasets {
 
         {
             pat.bboxes = si.get_objects(m_n_classes);
-            float color = 255.f;
             const output_properties& op = *m_output_properties;
             for(unsigned int map=0; map != pat.bboxes.size(); map++){
                 cv::Mat tch = cv::Mat::zeros(final_size, final_size, CV_8U);
-                cv::Mat ign = cv::Mat::ones(final_size, final_size, CV_8U);
+                cv::Mat ign = cv::Mat::zeros(final_size, final_size, CV_8U);
 
                 BOOST_FOREACH(const bbtools::rectangle& s, pat.bboxes[map]){ // TODO only one map
                     bbtools::rectangle r = s.scale(0.5f);
@@ -138,9 +137,9 @@ namespace cuvnet { namespace image_datasets {
                     //tch.draw_rectangle(r.xmin, r.ymin,0,0, 
                             //r.xmax, r.ymax, tch.depth()-1, tch.spectrum()-1, color);
                     cv::rectangle(tch, cv::Point(r.xmin, r.ymin), 
-                            cv::Point(r.xmax, r.ymax), cv::Scalar(color), CV_FILLED);
+                            cv::Point(r.xmax, r.ymax), cv::Scalar(1u), CV_FILLED);
                     cv::rectangle(ign, cv::Point(r.xmin-1, r.ymin-1), 
-                            cv::Point(r.xmax+1, r.ymax+1), cv::Scalar(0), CV_FILLED);
+                            cv::Point(r.xmax+1, r.ymax+1), cv::Scalar(1u), CV_FILLED);
                     //ign.draw_rectangle(r.xmin-1, r.ymin-1, r.xmax+1, r.ymax+1, &clr, 1.f, ~0U);
                     //ign.draw_rectangle(r.xmin+0, r.ymin+0, r.xmax+0, r.ymax+0, &clr, 1.f, ~0U);
                     //ign.draw_rectangle(r.xmin+1, r.ymin+1, r.xmax-1, r.ymax-1, &clr, 1.f, ~0U);
@@ -175,9 +174,9 @@ namespace cuvnet { namespace image_datasets {
 
         pat.img /= 255.f; 
         pat.img -= 0.5f;
-        pat.ign /= 255.f;
+        //pat.ign /= 255.f;
 
-        pat.tch /= 255.f; // in [0, 1]
+        //pat.tch /= 255.f; // in [0, 1]
 
         //static int cnt = 0;
         //img.save_jpeg((boost::format("/tmp/ii/loaded_%d.jpg")%cnt++).str().c_str());
