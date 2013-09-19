@@ -289,7 +289,6 @@ namespace cuvnet { namespace bbtools {
             img = pcut;
         }
         const std::vector<object>& objs = original_img.meta.objects;
-        const unsigned char clr[] = {color,color,color};
         if(type==2)
             img->setTo(0);
         if(bboxes)
