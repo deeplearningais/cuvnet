@@ -609,7 +609,7 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
        unsigned int nImg     = 4;
 
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg], "inputs");
-       ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 0, sub_size, to);
+       ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 0, sub_size, to, 0.0001f);
 
        fill_with_permuted_sequence(inp0->data());
        if(reinit)
@@ -629,7 +629,7 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
         unsigned int nImg     = 4;
 
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgPixY][nImgPixX][nImg][nImgChan], "inputs");
-        ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 3, sub_size, to);
+        ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 3, sub_size, to, 0.0001f);
 
        if(reinit)
            derivative_tester(*func);
@@ -644,7 +644,7 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
         unsigned int nImg     = 8;
 
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan], "inputs");
-        ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 1, sub_size, to);
+        ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 1, sub_size, to, 0.0001f);
 
         fill_with_permuted_sequence(inp0->data());
        if(reinit)
