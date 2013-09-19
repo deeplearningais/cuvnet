@@ -279,7 +279,7 @@ namespace cuvnet
 
             // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
-            cuv::libs::opt::rmsprop(*inp->data_ptr().ptr(),delta,m_sq_grad_sum[i],m_learnrate,m_delta,m_weightdecay,m_l1penalty,m_grad_avg_const);
+            cuv::libs::opt::rmsprop(*inp->data_ptr().ptr(),delta,m_sq_grad_sum[i],m_learnrate * inp->get_learnrate_factor(),m_delta,m_weightdecay * inp->get_weight_decay_factor(),m_l1penalty,m_grad_avg_const);
 
             inp->reset_delta();
         }
