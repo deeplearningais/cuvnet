@@ -126,6 +126,7 @@ namespace cuvnet { namespace image_datasets {
                 cv::Mat tch = cv::Mat::zeros(final_size, final_size, CV_8U);
                 cv::Mat ign = cv::Mat::zeros(final_size, final_size, CV_8U);
 
+                unsigned int obj_cnt = 0;
                 BOOST_FOREACH(const bbtools::rectangle& s, pat.bboxes[map]){ // TODO only one map
                     bbtools::rectangle r = s.scale(0.5f);
                     op.transform(r.xmin, r.ymin);
@@ -143,6 +144,13 @@ namespace cuvnet { namespace image_datasets {
                     //ign.draw_rectangle(r.xmin-1, r.ymin-1, r.xmax+1, r.ymax+1, &clr, 1.f, ~0U);
                     //ign.draw_rectangle(r.xmin+0, r.ymin+0, r.xmax+0, r.ymax+0, &clr, 1.f, ~0U);
                     //ign.draw_rectangle(r.xmin+1, r.ymin+1, r.xmax-1, r.ymax-1, &clr, 1.f, ~0U);
+                    obj_cnt ++;
+                }
+                if(!obj_cnt){
+                    // no objects were found for this map in the ground truth,
+                    // so we can assume that none exist. We set the ignore mask
+                    // for the entire map to 1.
+                    ign = cv::Scalar(1u);
                 }
                 si.fill_padding(0, &ign, *m_output_properties);
                 tch_vec.push_back(tch);
