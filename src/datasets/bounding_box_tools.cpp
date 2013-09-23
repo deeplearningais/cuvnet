@@ -125,7 +125,7 @@ namespace cuvnet { namespace bbtools {
             delete pcut;
         if(pos.xmin < 0 || pos.ymin < 0 || pos.xmax >= original_img.porig->cols || pos.ymax >= original_img.porig->rows)
             throw std::runtime_error("sub_image: cannot call `crop()' on image smaller than subimage. Use square, etc.");
-        pcut = new cv::Mat((*original_img.porig)(cv::Range(pos.xmin, pos.xmax), cv::Range(pos.ymin, pos.ymax)));
+        pcut = new cv::Mat((*original_img.porig)(cv::Range(pos.ymin, pos.ymax), cv::Range(pos.xmin, pos.xmax)));
         return *this;
     }
 
@@ -173,8 +173,8 @@ namespace cuvnet { namespace bbtools {
         cv::Mat& dst = *img;
 
         dst = dst(
-                cv::Range(dleft/scale_w+1, img->cols-dright/scale_w),
-                cv::Range(dbot/scale_h+1, img->rows-dtop/scale_h)); // TODO: removed -1 for both coordinates when switching to opencv
+                cv::Range(dbot/scale_h+1, img->rows-dtop/scale_h),
+                cv::Range(dleft/scale_w+1, img->cols-dright/scale_w)); // TODO: removed -1 for both coordinates when switching to opencv
 
         int new_w = (pos.xmax-pos.xmin) - dleft - dright;
         int new_h = (pos.ymax-pos.ymin) - dbot - dtop;
@@ -243,7 +243,7 @@ namespace cuvnet { namespace bbtools {
         //dst.draw_rectangle(pos.xmin, pos.ymin, pos.xmax, pos.ymax, white, 1.f, ~0U);
         //dst.draw_rectangle(pos.xmin+dw, pos.ymin+dh, pos.xmax+dw, pos.ymax+dh, red, 1.f, ~0U);
 
-        dst = dst(cv::Range(pos.xmin+dw, pos.xmax+dw), cv::Range(pos.ymin+dh, pos.ymax+dh));
+        dst = dst(cv::Range(pos.ymin+dh, pos.ymax+dh), cv::Range(pos.xmin+dw, pos.xmax+dw));
 
         if(pcut)
             delete pcut;
