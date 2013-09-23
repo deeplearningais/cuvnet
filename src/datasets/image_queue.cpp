@@ -96,8 +96,20 @@ namespace cuvnet { namespace image_datasets {
         //LOG4CXX_INFO(m_log, "processing file `"<<m_meta->filename<<"'");
         bbtools::image bbimg(m_meta->filename);
         bbimg.meta = *m_meta;
-        
-        bbtools::sub_image si(bbimg);
+
+        bbtools::rectangle r;
+        {
+            bool object_found = false;
+            BOOST_FOREACH(const bbtools::object& o, m_meta->objects){
+                r = o.bb;
+                object_found = true;
+                break;
+            }
+            cuvAssert(object_found);
+        }
+        float scale = 1.8 + 0.4 * drand48();
+        bbtools::sub_image si(bbimg, r.scale(2.2f));
+        //bbtools::sub_image si(bbimg);
 
         si.constrain_to_orig(true).extend_to_square();
         si.crop_with_padding().scale_larger_dim(m_pattern_size);
