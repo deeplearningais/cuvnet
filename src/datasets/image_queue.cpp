@@ -139,7 +139,7 @@ namespace cuvnet { namespace image_datasets {
                 cv::Mat ign = cv::Mat::zeros(final_size, final_size, CV_8U);
 
                 unsigned int obj_cnt = 0;
-                BOOST_FOREACH(const bbtools::rectangle& s, pat.bboxes[map]){ // TODO only one map
+                BOOST_FOREACH(const bbtools::rectangle& s, pat.bboxes[map]){
                     bbtools::rectangle r = s.scale(0.5f);
                     op.transform(r.xmin, r.ymin);
                     op.transform(r.xmax, r.ymax);
