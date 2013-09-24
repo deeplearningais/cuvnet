@@ -147,15 +147,10 @@ namespace cuvnet { namespace image_datasets {
                     r.xmin = std::min(final_size-1, std::max(0, r.xmin));
                     r.ymax = std::min(final_size-1, std::max(0, r.ymax));
                     r.xmax = std::min(final_size-1, std::max(0, r.xmax));
-                    //tch.draw_rectangle(r.xmin, r.ymin,0,0, 
-                            //r.xmax, r.ymax, tch.depth()-1, tch.spectrum()-1, color);
                     cv::rectangle(tch, cv::Point(r.xmin, r.ymin), 
                             cv::Point(r.xmax, r.ymax), cv::Scalar(1u), CV_FILLED);
                     cv::rectangle(ign, cv::Point(r.xmin-1, r.ymin-1), 
                             cv::Point(r.xmax+1, r.ymax+1), cv::Scalar(1u), CV_FILLED);
-                    //ign.draw_rectangle(r.xmin-1, r.ymin-1, r.xmax+1, r.ymax+1, &clr, 1.f, ~0U);
-                    //ign.draw_rectangle(r.xmin+0, r.ymin+0, r.xmax+0, r.ymax+0, &clr, 1.f, ~0U);
-                    //ign.draw_rectangle(r.xmin+1, r.ymin+1, r.xmax-1, r.ymax-1, &clr, 1.f, ~0U);
                     obj_cnt ++;
                 }
                 if(!obj_cnt){
