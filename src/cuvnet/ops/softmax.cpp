@@ -448,7 +448,7 @@ namespace cuvnet
             reduce_to_row(m_minus_logaddexp,p0.value.cdata(),RF_LOGADDEXP,-1.f);
             reduce_to_row(v, p0.value.cdata()*p1.value.cdata(), RF_ADD);
             apply_binary_functor(v,m_minus_logaddexp,BF_AXPBY, -1.f,-1.f);
-        }else if(m_axis==1){
+        }else{
             reduce_to_col(m_minus_logaddexp,p0.value.cdata(),RF_LOGADDEXP,-1.f);
             reduce_to_col(v, p0.value.cdata()*p1.value.cdata(), RF_ADD);
             apply_binary_functor(v,m_minus_logaddexp,BF_AXPBY, -1.f,-1.f);
@@ -483,8 +483,8 @@ namespace cuvnet
 
         if(!m_softmaxed){
             // we have not calculated softmax in fprop
-            if(m_axis==0) matrix_plus_row(*p0.value,m_minus_logaddexp);
-            else          matrix_plus_col(*p0.value,m_minus_logaddexp);
+            // TODO axis=0 was plus row
+            matrix_op_vec(*p0.value, *p0.value, m_minus_logaddexp, 1 - m_axis, BF_ADD);
             apply_scalar_functor(*p0.value, SF_EXP);
         }
 
@@ -493,18 +493,18 @@ namespace cuvnet
             value_type red(p0.shape[1-m_axis]);
             if(m_axis==0) reduce_to_row(red,prod,RF_ADD,-1.f);
             else          reduce_to_col(red,prod,RF_ADD,-1.f);
-            if(m_axis==0) matrix_plus_row(*r1.delta,red);
-            else          matrix_plus_col(*r1.delta,red);
+
+            // TODO axis=0 was plus row
+            matrix_op_vec(*r1.delta, *r1.delta, red, 1 - m_axis, BF_ADD);
             *r1.delta *= *p0.value;
         }
 
         if(r0.need_result){
             // now bprop the the above minus p1 times delta.
             *p0.value -= p1.value.cdata();
-            if(m_axis==0)
-                matrix_times_row(*p0.value, r0.delta.cdata());
-            else
-                matrix_times_col(*p0.value, r0.delta.cdata());
+
+            // TODO axis=0 was times row
+            matrix_op_vec(*p0.value, *p0.value, r0.delta.cdata(), 1 - m_axis, BF_MULT);
         }
 
         if(r1.need_result && r0.need_result){
@@ -522,6 +522,8 @@ namespace cuvnet
 
     void MultinomialLogisticLoss::_determine_shapes(){
         assert(m_params[0]->shape == m_params[1]->shape);
+        cuvAssert(m_axis == 0 ||
+                m_axis == m_params[0]->shape.size() - 1);
         std::vector<unsigned int> src = m_params[0]->shape;
         m_results[0]->shape.resize(src.size()-1);
 

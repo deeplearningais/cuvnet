@@ -276,7 +276,6 @@ namespace cuvnet
                     :Op(2,2)
                     ,m_axis(axis)
                 {
-                    assert(m_axis==0 || m_axis==1);
                     add_param(0,p0);
                     add_param(1,p1);
                 }
