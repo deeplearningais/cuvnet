@@ -116,6 +116,8 @@ namespace cuvnet
                 void forget();
 
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
+                /// @return the name of this input
+                inline const std::string& name()const{ return m_name; }
             private:
                 std::string    m_name;
                 friend class boost::serialization::access;

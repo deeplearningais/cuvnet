@@ -130,6 +130,11 @@ namespace cuvnet
 
         return f.evaluate();
     }
+    matrix evaluate_delta_sink(Op& loss, Op& o, int param){
+
+        cuvnet::delta_function f(loss.shared_from_this(), o.shared_from_this(), 0, param, "click");
+        return f.evaluate();
+    }
     matrix evaluate_sink(Sink& o, boost::python::list l){
         cuvnet::function f(o.param(0)->param_uses[0]->get_op(), 0, "click");
         
@@ -227,6 +232,24 @@ namespace cuvnet
                         return_value_policy<copy_const_reference>()))
             .def("evaluate", &evaluate_sink, (arg("additional_res")=boost::python::list()))
             ;
+        class_<DeltaSink, boost::shared_ptr<DeltaSink>, bases<Op>, boost::noncopyable>("DeltaSink", no_init)
+            .add_property("cdata",
+                    make_function(
+                        &DeltaSink::cdata,
+                        return_internal_reference<>()))
+            .add_property("name",
+                    make_function(
+                        (const std::string& (DeltaSink::*)()const)
+                        &DeltaSink::name,
+                        return_value_policy<copy_const_reference>()))
+            ;
+
+        class_<delta_function, boost::shared_ptr<delta_function>, boost::noncopyable>
+            ("delta_function",init<boost::shared_ptr<Op>, boost::shared_ptr<Op>, int, int, const std::string&>())
+                .def("evaluate", &delta_function::evaluate,
+                        return_internal_reference<>())
+                .def("forget", &delta_function::forget)
+        ;
 
         class_<ParameterInput, boost::shared_ptr<ParameterInput>, bases<Op>, boost::noncopyable >("ParameterInput", no_init)
             .def("__init__", make_constructor(&create_param_input_with_list))
