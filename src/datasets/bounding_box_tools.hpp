@@ -187,7 +187,15 @@ namespace cuvnet
              */
             sub_image& mark_objects(int type=0, unsigned char color=255, float scale=1.f, cv::Mat* img1=NULL, std::vector<std::vector<bbtools::rectangle> >* bboxes=NULL);
 
-            std::vector<std::vector<rectangle> > get_objects(int n_classes)const;
+            /**
+             * Scale object bounding boxes relative to their center, then 
+             * describe them relative to the subimage and return them as a vector
+             * of rectangle-vectors, one vector for every object class.
+             *
+             * @param n_classes the total number of classes in the dataset
+             * @param scale how much to scale objects (around their center)
+             */
+            std::vector<std::vector<rectangle> > get_objects(int n_classes, float scale=1.f)const;
 
             /**
              * scale a cropped sub_image such that larger dimension is a fixed given size.

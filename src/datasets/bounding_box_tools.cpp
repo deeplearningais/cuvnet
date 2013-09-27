@@ -266,7 +266,7 @@ namespace cuvnet { namespace bbtools {
     }
 
     std::vector<std::vector<rectangle> > 
-    sub_image::get_objects(int n_classes)const{
+    sub_image::get_objects(int n_classes, float scale)const{
         std::vector<std::vector<rectangle> > bboxes;
         const std::vector<object>& objs = original_img.meta.objects;
         bboxes.resize(n_classes);
@@ -274,6 +274,7 @@ namespace cuvnet { namespace bbtools {
             if(objfilt && !objfilt->filter(*this, orig_o)) 
                 continue;
             object o = object_relative_to_subimg(orig_o);
+            o.bb = o.bb.scale(scale);
             assert(n_classes > (int)o.klass);
             bboxes[o.klass].push_back(o.bb);
             //bboxes[0].push_back(o.bb); // only one class for now....

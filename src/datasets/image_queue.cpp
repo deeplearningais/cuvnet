@@ -108,7 +108,7 @@ namespace cuvnet { namespace image_datasets {
             cuvAssert(object_found);
         }
         float scale = 1.8 + 0.4 * drand48();
-        bbtools::sub_image si(bbimg, r.scale(2.2f));
+        bbtools::sub_image si(bbimg, r.scale(scale));
         //bbtools::sub_image si(bbimg);
 
         si.constrain_to_orig(true).extend_to_square();
@@ -132,7 +132,7 @@ namespace cuvnet { namespace image_datasets {
         //si.mark_objects(1, 255, 0.1f, &tch, &pat.bboxes);
 
         {
-            pat.bboxes = si.get_objects(m_n_classes);
+            pat.bboxes = si.get_objects(m_n_classes, 0.5f);
             const output_properties& op = *m_output_properties;
             for(unsigned int map=0; map != pat.bboxes.size(); map++){
                 cv::Mat tch = cv::Mat::zeros(final_size, final_size, CV_8U);
@@ -140,17 +140,32 @@ namespace cuvnet { namespace image_datasets {
 
                 unsigned int obj_cnt = 0;
                 BOOST_FOREACH(const bbtools::rectangle& s, pat.bboxes[map]){
-                    bbtools::rectangle r = s.scale(0.5f);
+                    bbtools::rectangle r = s;
                     op.transform(r.xmin, r.ymin);
                     op.transform(r.xmax, r.ymax);
                     r.ymin = std::min(final_size-1, std::max(0, r.ymin));
                     r.xmin = std::min(final_size-1, std::max(0, r.xmin));
                     r.ymax = std::min(final_size-1, std::max(0, r.ymax));
                     r.xmax = std::min(final_size-1, std::max(0, r.xmax));
+
+#if 0
                     cv::rectangle(tch, cv::Point(r.xmin, r.ymin), 
                             cv::Point(r.xmax, r.ymax), cv::Scalar(1u), CV_FILLED);
                     cv::rectangle(ign, cv::Point(r.xmin-1, r.ymin-1), 
                             cv::Point(r.xmax+1, r.ymax+1), cv::Scalar(1u), CV_FILLED);
+#else
+                    // draw a positive rectangle in the teacher, and negative surroundings
+                    // The ignore mask gets a positive region as large as the surroundings.
+
+                    float w4 = ((r.xmax - r.xmin) - (r.xmax - r.xmin) / M_SQRT2) / 2.f; 
+                    float h4 = ((r.ymax - r.ymin) - (r.ymax - r.ymin) / M_SQRT2) / 2.f;
+                    cv::rectangle(tch, cv::Point(r.xmin + w4 + 0.5f, r.ymin + h4 + 0.5f), 
+                            cv::Point(r.xmax - w4 - 0.5f, r.ymax - h4 - 0.5f), cv::Scalar(1u), CV_FILLED);
+
+                    cv::rectangle(ign, cv::Point(r.xmin, r.ymin), 
+                            cv::Point(r.xmax, r.ymax), cv::Scalar(1u), CV_FILLED);
+#endif
+
                     obj_cnt ++;
                 }
                 if(!obj_cnt){
