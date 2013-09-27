@@ -310,25 +310,32 @@ namespace cuvnet
     inline
         Op::op_ptr squared_hinge_loss(Op::op_ptr y, Op::op_ptr y_hat){ return boost::make_shared<HingeLoss>(y->result(),y_hat->result(), true /* squared */); }
 
-    /// adds to the value of another Op's parameter
+    /**
+     * adds to the value of another Op's parameter
+     *
+     * @param dst the op whose parameter we want to add to
+     * @param src the op which we want to add
+     * @param param the index of the parameter of dst
+     * @param result the index of the result of src
+     */
     inline 
         Op::op_ptr add_to_param(Op::op_ptr dst, Op::op_ptr src, int param=0, int result=0){
             dst->param(param)->param_uses.push_back(src->result(result));
             src->result(result)->result_uses.push_back(dst->param(param));
             return dst;
         }
-    /// construct a DeltaSink object attached to a \c op_param.
-    /// it assumes that the result is only used \b once.
+    /** 
+     * construct a DeltaSink object attached to a \c op_param.
+     * 
+     * @param name a arbitrary identifier for the sink (for visualization mostly)
+     * @param x the operater whose delta we'd like to record
+     * @param param the index of the parameter of x we'd like to record
+     */
     inline
-        boost::shared_ptr<DeltaSink> delta_sink(const std::string& name, Op::op_ptr x, unsigned int res=0){ 
-            cuvAssert(x->result(res)->result_uses.size()==1);
-
-            boost::shared_ptr<Op> dst 
-                = x->result(res)->result_uses[0].lock()->get_op()->shared_from_this();
-            int param_number = x->result(res)->result_uses[0].lock()->param_number;
-
+        boost::shared_ptr<DeltaSink> 
+        delta_sink(const std::string& name, Op::op_ptr x, unsigned int param=0){ 
             boost::shared_ptr<DeltaSink> snk = boost::make_shared<DeltaSink>(name); 
-            add_to_param(dst, snk, param_number, 0);
+            add_to_param(x, snk, param, 0);
             return snk;
         }
     /// @}

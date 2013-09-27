@@ -29,7 +29,7 @@ BOOST_AUTO_TEST_CASE(deltasink){
     param_t inp = boost::make_shared<ParameterInput>(cuv::extents[2][4]);
     inp->data() = 3.f;
     ptr_t func  = boost::make_shared<Pow>(2.f,inp->result());
-    boost::shared_ptr<DeltaSink> ds = delta_sink("pow_delta", inp); // monitor the delta 
+    boost::shared_ptr<DeltaSink> ds = delta_sink("pow_delta", func); // monitor the delta 
 
     swiper s(*func, 0, boost::assign::list_of<Op*>(inp.get()));
     s.fprop();
