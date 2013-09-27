@@ -13,6 +13,9 @@
 #include <cuvnet/ops.hpp>
 
 #include <boost/test/unit_test.hpp>
+#ifndef GTEST_INCLUDE_GTEST_GTEST_H_
+#define EXPECT_NEAR(X,Y,D) BOOST_REQUIRE_LT(((X)-(Y))*((X)-(Y)), ((D)*(D)))
+#endif
 
 using namespace cuvnet;
 using std::printf;
