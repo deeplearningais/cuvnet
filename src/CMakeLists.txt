@@ -15,6 +15,7 @@ INCLUDE_DIRECTORIES(/usr/local/cuda/include)
 #INCLUDE_DIRECTORIES(/usr/local/cuv/include)
 
 FIND_PACKAGE( LAPACK )
+FIND_PACKAGE( CUDA )
 LINK_DIRECTORIES( ${LAPACK_LIBRARIES} )
 
 FIND_PACKAGE( PythonLibs )
@@ -97,7 +98,7 @@ endif( PYTHONLIBS_FOUND )
 
 add_library(cuvnet SHARED ${CUVNET_SRC})
 
-TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx cuv tp_theano ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} ${OpenCV_LIBS})
+TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx cuv tp_theano ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES}  ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
 
 #add_subdirectory(cuvnet)
 #add_subdirectory(third_party)
