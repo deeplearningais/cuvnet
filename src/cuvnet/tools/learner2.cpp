@@ -23,6 +23,7 @@
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 
+#include <cuvnet/common.hpp>
 #include "learner2.hpp"
 
 namespace bfs = boost::filesystem;
@@ -56,11 +57,11 @@ namespace boost {
     namespace archive {
         namespace detail {
             template<>
-                bool oserializer<class binary_oarchive, class matrix >::tracking(const unsigned int f /* flags */) const {
+                bool oserializer<class binary_oarchive, typename cuvnet::matrix >::tracking(const unsigned int f /* flags */) const {
                     return !(f & no_tracking);
                 }
             template<>
-                bool oserializer<class binary_oarchive, class host_matrix >::tracking(const unsigned int f /* flags */) const {
+                bool oserializer<class binary_oarchive, typename cuvnet::host_matrix >::tracking(const unsigned int f /* flags */) const {
                     return !(f & no_tracking);
                 }
         }}}
