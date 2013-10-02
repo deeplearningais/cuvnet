@@ -164,7 +164,7 @@ namespace cuvnet
                 m_loss = loss;
                 m_op   = op;
                 m_sink = delta_sink(name, op, param);
-                m_swiper.reset(new swiper(*m_op, result, std::vector<Op*>(1, m_sink.get())));
+                m_swiper.reset(new swiper(*m_loss, result, std::vector<Op*>(1, m_sink.get())));
             }
             
             /**
@@ -173,6 +173,7 @@ namespace cuvnet
              * @return the value returned by the function
              */
             const matrix& evaluate(){
+                repair_swiper();
                 m_swiper->fprop();
                 m_swiper->bprop();
                 return m_sink->cdata();
