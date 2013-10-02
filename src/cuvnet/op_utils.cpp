@@ -422,6 +422,23 @@ void determine_exec_order::determine_fprop_list(Op* o, int o_res, const std::vec
 }
 
 
+/**
+ * @return true if the op is a ParameterInput and cannot be derived.
+ */
+static bool invalid_parameter(Op* op){
+    bool is_deltasink = dynamic_cast<DeltaSink*>(op);
+    if(is_deltasink)
+        return false;
+
+    ParameterInput* p = dynamic_cast<ParameterInput*>(op);
+    if(p)
+        return !p->derivable();
+
+    // don't know what to do with this op!
+    cuvAssert(false);
+    return true;
+}
+
 
 void swiper::init()
 {
@@ -432,10 +449,7 @@ void swiper::init()
 
     m_paramlist.erase(
             std::remove_if(m_paramlist.begin(), m_paramlist.end(), 
-                std::not1( // not [  cast_to_input(op)->derivable()   ]
-                    __gnu_cxx::compose1(
-                        std::mem_fun( &ParameterInput::derivable ),
-                        ptr_caster<Op,ParameterInput>()))),
+                invalid_parameter),
             m_paramlist.end());
 
     m_topo.init(&op, m_result, m_other_funcs, m_paramlist);
