@@ -18,7 +18,7 @@ namespace{
 namespace cuvnet { namespace image_datasets {
 
     void dstack_mat2tens(cuv::tensor<float, cuv::host_memory_space>& tens,
-            const std::vector<cv::Mat>& src){
+            const std::vector<cv::Mat>& src, bool reverse=false){
         assert(src.size() >= 1);
         int d = src.size();
         int h = src.front().rows;
@@ -27,7 +27,8 @@ namespace cuvnet { namespace image_datasets {
         tens.resize(cuv::extents[d][h][w]);
         for (int i = 0; i < d; ++i)
         {
-            cuv::tensor<unsigned char, cuv::host_memory_space> wrapped(cuv::extents[h][w], src[i].data);
+            int other = reverse ? d-1-i : i;
+            cuv::tensor<unsigned char, cuv::host_memory_space> wrapped(cuv::extents[h][w], src[other].data);
             cuv::tensor<float, cuv::host_memory_space> view = cuv::tensor_view<float, cuv::host_memory_space>(tens, cuv::indices[i][cuv::index_range()][cuv::index_range()]);
             cuv::convert(view, wrapped);
             //cv::Mat wrapped(w, h, CV_32F, &tens(i, 0, 0), CV_AUTOSTEP);
@@ -198,7 +199,7 @@ namespace cuvnet { namespace image_datasets {
         std::vector<cv::Mat> img_vec;
         cv::split(img, img_vec);
 
-        dstack_mat2tens(pat.img, img_vec);
+        dstack_mat2tens(pat.img, img_vec, true); // reverse rgb here
         dstack_mat2tens(pat.tch, tch_vec);
         dstack_mat2tens(pat.ign, ign_vec);
 
