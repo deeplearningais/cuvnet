@@ -15,6 +15,34 @@ namespace{
     log4cxx::LoggerPtr g_log = log4cxx::Logger::getLogger("image_datasets");
 }
 
+void mixColors(cv::Mat &imData, cv::Mat&rgbMixData, bool unmix=false)
+{
+    using namespace cv;
+    Size tempSize;
+    uint32_t channels;
+
+    // assume image is BGR
+    float rgbmix[] = {
+        0.333333, 0.333333, 0.33333,   // (R+G+B) / 3
+        0.00000, -1.000, 1.000000,     // R-G
+        1.00, -0.5, -0.5};              // B - (R+G)/2
+    if(unmix){
+        // Unmixing:
+        // [[r=(-2*x3+3*x2+6*x1) / 6, g=(-2*x3-3*x2+6*x1)/6, b=(2*x3+3*x1)/3]]
+    }
+    Mat rgbMixMat(3, 3, CV_32F, rgbmix);
+
+    Mat flatImage = imData.reshape(1, imData.rows*imData.cols);
+    Mat flatFloatImage;
+    flatImage.convertTo(flatFloatImage, CV_32F);
+
+    Mat mixedImage = flatFloatImage * rgbMixMat;
+
+    rgbMixData = mixedImage.reshape(3, imData.rows); 
+
+
+}
+
 namespace cuvnet { namespace image_datasets {
 
     void dstack_mat2tens(cuv::tensor<float, cuv::host_memory_space>& tens,
@@ -28,7 +56,8 @@ namespace cuvnet { namespace image_datasets {
         for (int i = 0; i < d; ++i)
         {
             int other = reverse ? d-1-i : i;
-            cuv::tensor<unsigned char, cuv::host_memory_space> wrapped(cuv::extents[h][w], src[other].data);
+            typedef unsigned char src_dtype;
+            cuv::tensor<src_dtype, cuv::host_memory_space> wrapped(cuv::extents[h][w], (src_dtype*) src[other].data);
             cuv::tensor<float, cuv::host_memory_space> view = cuv::tensor_view<float, cuv::host_memory_space>(tens, cuv::indices[i][cuv::index_range()][cuv::index_range()]);
             cuv::convert(view, wrapped);
             //cv::Mat wrapped(w, h, CV_32F, &tens(i, 0, 0), CV_AUTOSTEP);
