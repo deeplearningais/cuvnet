@@ -495,12 +495,18 @@ namespace cuvnet
         boost::shared_ptr<schedules::hyperparam_schedule> momentum_schedule =
             get_momentum_schedule(*gd, max_epochs, cfg.get_child("momentum_schedule", ptree()));
 
-        boost::optional<float> target_loss = 
-            cfg.get_optional<float>("target_loss");
+        bool mls_active = cfg.get("min_loss_stopper.active",false);
+        boost::optional<float> target_loss;
+        if(mls_active)
+        { 
+            target_loss = cfg.get_optional<float>("min_loss_stopper.target_loss");
+        }
+        
         boost::shared_ptr<stop_when_target_loss_reached> swtlr;
-        if(target_loss)
+        if(target_loss){
             swtlr.reset(new stop_when_target_loss_reached(*gd, *mon, *target_loss));
-
+            LOG4CXX_WARN(g_log_learner2,  "Setting up Min Loss Stopper (active:" << mls_active << ", target_loss:" << target_loss << ")");
+        }
         this->before_learning(&m, *gd, es.get());
         if(batch_size < 0){
             _load_batch(&m, 0, 0);
