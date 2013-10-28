@@ -1071,6 +1071,15 @@ namespace cuvnet
                 }
                 p0.value.reset();
                 m_result.reset();
+            }else if(m_pooltype == PT_SUM){
+                if(p0.can_overwrite_directly()){
+                    local_sum_pool_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex);
+                }else{
+                    value_ptr ptr(new value_type(p0.shape));
+                    value_type& v = *ptr;
+                    local_sum_pool_grad(v, p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex);
+                    p0.push(ptr);
+                }
             }
         }else{
             // number of maps was not a multiple of 16 --> we need to pad the data.
@@ -1084,6 +1093,8 @@ namespace cuvnet
 
             if(m_pooltype == PT_AVG){
                 local_avg_pool_grad(tmp_p0delta, tmp_r0delta, m_subsx,0,m_stridex);
+            }else if(m_pooltype == PT_SUM){
+            	local_sum_pool_grad(tmp_p0delta, tmp_r0delta, m_subsx,0,m_stridex);
             }else if(m_pooltype == PT_MAX){
                 // pad input
                 value_type tmp_p0value(extents[nFiltTmp][p0.shape[1]][p0.shape[2]][p0.shape[3]]);
