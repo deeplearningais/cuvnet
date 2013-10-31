@@ -14,6 +14,7 @@
 #include <cuvnet/ops/output.hpp>
 #include <cuvnet/ops/pow.hpp>
 #include <cuvnet/ops/prod.hpp>
+#include <cuvnet/tools/gradient_descent.hpp>
 
 #include <boost/test/unit_test.hpp>
 
@@ -144,6 +145,25 @@ BOOST_AUTO_TEST_CASE(destruction){
 	BOOST_CHECK(!pow_cpy.lock());
 }
 
+BOOST_AUTO_TEST_CASE(refcounting){
+
+    typedef boost::shared_ptr<Op> ptr_t;
+    typedef boost::shared_ptr<Sink> sink_t;
+
+    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[10][20], "input");
+    ptr_t pow_2                     = boost::make_shared<Pow>(2,inp->result());
+
+    std::vector<Op*> params;
+    BOOST_CHECK_EQUAL(pow_2.use_count(), 1);
+
+    {
+        //gradient_descent gd(pow_2, 0, params);
+        swiper swp(*pow_2, 0, params);
+    }
+
+    BOOST_CHECK_EQUAL(inp.use_count(), 2);
+    BOOST_CHECK_EQUAL(pow_2.use_count(), 1);
+}
 BOOST_AUTO_TEST_CASE(multi_output_swiper){
     typedef boost::shared_ptr<Op> ptr_t;
     typedef boost::shared_ptr<Sink> sink_t;
