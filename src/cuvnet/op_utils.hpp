@@ -556,15 +556,7 @@ namespace cuvnet
         /**
          * clean up temp vars.
          */
-        ~swiper(){
-            if(m_cleanup_temp_vars){
-                cleanup_temp_vars_visitor ctvv;
-                m_op->visit(ctvv,true);
-            }
-
-            reset_needed_flags rnf;
-            m_op->visit(rnf); 
-        }
+        ~swiper();
         /**
          * does recursive forward pass on op.
          */

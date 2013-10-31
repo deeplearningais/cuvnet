@@ -439,7 +439,15 @@ static bool invalid_parameter(Op* op){
     return true;
 }
 
+swiper::~swiper(){
+    if(m_cleanup_temp_vars){
+	cleanup_temp_vars_visitor ctvv;
+	m_op->visit(ctvv,true);
+    }
 
+    reset_needed_flags rnf;
+    m_op->visit(rnf); 
+}
 void swiper::init()
 {
     Op& op = *m_op;
