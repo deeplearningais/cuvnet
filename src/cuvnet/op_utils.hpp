@@ -401,8 +401,17 @@ namespace cuvnet
                 o->param(i)->need_derivative = false;
             for(unsigned int i=0;i<o->get_n_results();i++)
             {
-                o->result(i)->need_result = false;
-                o->result(i)->get_op()->need_result(false);
+		boost::shared_ptr<detail::op_result<Op::value_type> > res 
+                    = o->result(i);
+                res->need_result = false;
+                res->get_op()->need_result(false);
+
+		// HACK: reference counting of functionoutputs is wrong if the
+		// result points back to them. 
+		// i.e. loss.use_count() is 2, and therefore it will not be
+		// destroyed, if loss.result points back to loss.
+		if(res->result_uses.size() == 0)
+		    res->op.reset();
             }
         }
     };
