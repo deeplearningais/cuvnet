@@ -26,6 +26,7 @@ namespace cuvnet
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
             private:
+                unsigned int m_axis;
 
             public:
                 ClassificationLoss():Op(2,1){} ///< for serialization
@@ -33,12 +34,15 @@ namespace cuvnet
                  * ctor.
                  * @param p0 estimator
                  * @param p1 teacher
+                 * @param axis axis to use as labels (allowed only the first or last)
                  */
-                ClassificationLoss(result_t& p0, result_t& p1)
-                    :Op(2,1){
+                ClassificationLoss(result_t& p0, result_t& p1, unsigned int axis = 0)
+                    :Op(2,1)
+                    ,m_axis(axis)
+                {
                          add_param(0,p0);
                          add_param(1,p1);
-                     }
+                }
 
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
 
