@@ -441,18 +441,43 @@ namespace cuvnet
         result_t::element_type& r1 = *this->result(1);
         assert(r0.need_result || r1.need_result);
 
-        m_minus_logaddexp.resize(extents[p0.shape[1-m_axis]]);
-        value_ptr ptr(new value_type(p0.shape[1-m_axis]));
+        //int other_axis = m_axis == 0 ? 1 : 0;
+
+        unsigned int dim_other_axes;
+        value_ptr ptr0(new value_type(p0.value.cdata()));
+        value_ptr ptr1(new value_type(p1.value.cdata()));
+        value_type& v0 = *ptr0;
+        value_type& v1 = *ptr1;
+        if (m_axis==0) {
+            dim_other_axes = std::accumulate(p0.shape.rbegin(), --p0.shape.rend(), (unsigned int) 1, std::multiplies<unsigned int>());
+            v0.reshape(p0.shape.front(), dim_other_axes);
+            v1.reshape(p1.shape.front(), dim_other_axes);
+        }else{
+            dim_other_axes = std::accumulate(p0.shape.begin(), --p0.shape.end(), 1, std::multiplies<int>());
+            v0.reshape(dim_other_axes, p0.shape.back());
+            v1.reshape(dim_other_axes, p1.shape.back());
+        }
+
+        //m_minus_logaddexp.resize(extents[p0.shape[other_axis]]);
+        m_minus_logaddexp.resize(extents[dim_other_axes]);
+        //value_ptr ptr(new value_type(p0.shape[other_axis]));
+        value_ptr ptr(new value_type(dim_other_axes));
         value_type& v = *ptr;
+
         if(m_axis==0){
-            reduce_to_row(m_minus_logaddexp,p0.value.cdata(),RF_LOGADDEXP,-1.f);
-            reduce_to_row(v, p0.value.cdata()*p1.value.cdata(), RF_ADD);
+            //reduce_to_row(m_minus_logaddexp,p0.value.cdata(),RF_LOGADDEXP,-1.f);
+            //reduce_to_row(v, p0.value.cdata()*p1.value.cdata(), RF_ADD);
+            reduce_to_row(m_minus_logaddexp, v0, RF_LOGADDEXP,-1.f);
+            reduce_to_row(v, v0 * v1, RF_ADD);
             apply_binary_functor(v,m_minus_logaddexp,BF_AXPBY, -1.f,-1.f);
         }else{
-            reduce_to_col(m_minus_logaddexp,p0.value.cdata(),RF_LOGADDEXP,-1.f);
-            reduce_to_col(v, p0.value.cdata()*p1.value.cdata(), RF_ADD);
+            //reduce_to_col(m_minus_logaddexp,p0.value.cdata(),RF_LOGADDEXP,-1.f);
+            //reduce_to_col(v, p0.value.cdata()*p1.value.cdata(), RF_ADD);
+            reduce_to_col(m_minus_logaddexp, v0, RF_LOGADDEXP,-1.f);
+            reduce_to_col(v, v0 * v1, RF_ADD);
             apply_binary_functor(v,m_minus_logaddexp,BF_AXPBY, -1.f,-1.f);
         }
+        v.reshape(r0.shape);
         r0.push(ptr);
 
         if(r1.need_result){
@@ -481,21 +506,39 @@ namespace cuvnet
         assert( p0.need_derivative);
         assert(!p1.need_derivative); // cannot do that currently. Why should we? :)
 
+        //int other_axis = m_axis == 0 ? p0.shape.size() - 1 : 0;
+        int other_axis = m_axis == 0 ? 1 : 0;
+
+        unsigned int dim_other_axes;
+        value_ptr ptr0(new value_type(p0.value.cdata()));
+        value_ptr ptr1(new value_type(p1.value.cdata()));
+        value_type& v0 = *ptr0;
+        value_type& v1 = *ptr1;
+        if (m_axis==0) {
+            dim_other_axes = std::accumulate(p0.shape.rbegin(), --p0.shape.rend(), (unsigned int) 1, std::multiplies<int>());
+            v0.reshape(p0.shape.front(), dim_other_axes);
+            v1.reshape(p1.shape.front(), dim_other_axes);
+        }else{
+            dim_other_axes = std::accumulate(p0.shape.begin(), --p0.shape.end(), 1, std::multiplies<int>());
+            v0.reshape(dim_other_axes, p0.shape.back());
+            v1.reshape(dim_other_axes, p1.shape.back());
+        }
+
         if(!m_softmaxed){
             // we have not calculated softmax in fprop
             // TODO axis=0 was plus row
-            matrix_op_vec(*p0.value, *p0.value, m_minus_logaddexp, 1 - m_axis, BF_ADD);
+            matrix_op_vec(*p0.value, *p0.value, m_minus_logaddexp, other_axis, BF_ADD);
             apply_scalar_functor(*p0.value, SF_EXP);
         }
 
         if(r1.need_result){
             value_type prod = p0.value.cdata() * r1.delta.cdata();
-            value_type red(p0.shape[1-m_axis]);
+            value_type red(p0.shape[other_axis]);
             if(m_axis==0) reduce_to_row(red,prod,RF_ADD,-1.f);
             else          reduce_to_col(red,prod,RF_ADD,-1.f);
 
             // TODO axis=0 was plus row
-            matrix_op_vec(*r1.delta, *r1.delta, red, 1 - m_axis, BF_ADD);
+            matrix_op_vec(*r1.delta, *r1.delta, red, other_axis, BF_ADD);
             *r1.delta *= *p0.value;
         }
 
@@ -504,7 +547,7 @@ namespace cuvnet
             *p0.value -= p1.value.cdata();
 
             // TODO axis=0 was times row
-            matrix_op_vec(*p0.value, *p0.value, r0.delta.cdata(), 1 - m_axis, BF_MULT);
+            matrix_op_vec(*p0.value, *p0.value, r0.delta.cdata(), other_axis, BF_MULT);
         }
 
         if(r1.need_result && r0.need_result){
