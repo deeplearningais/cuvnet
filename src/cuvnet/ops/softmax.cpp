@@ -442,18 +442,16 @@ namespace cuvnet
         assert(r0.need_result || r1.need_result);
 
         unsigned int dim_other_axes;
-        value_ptr ptr0(new value_type(p0.value.cdata()));
-        value_ptr ptr1(new value_type(p1.value.cdata()));
-        value_type& v0 = *ptr0;
-        value_type& v1 = *ptr1;
+        value_type v0 = p0.value.cdata();
+        value_type v1 = p1.value.cdata();
         if (m_axis==0) {
-            dim_other_axes = std::accumulate(p0.shape.rbegin(), --p0.shape.rend(), (unsigned int) 1, std::multiplies<unsigned int>());
-            v0.reshape(p0.shape.front(), dim_other_axes);
-            v1.reshape(p1.shape.front(), dim_other_axes);
+            dim_other_axes = v0.size() / v0.shape(0);
+            v0.reshape(v0.shape(0), dim_other_axes);
+            v1.reshape(v1.shape(0), dim_other_axes);
         }else{
-            dim_other_axes = std::accumulate(p0.shape.begin(), --p0.shape.end(), 1, std::multiplies<int>());
-            v0.reshape(dim_other_axes, p0.shape.back());
-            v1.reshape(dim_other_axes, p1.shape.back());
+            dim_other_axes = v0.size() / v0.shape(v0.ndim()-1);
+            v0.reshape(dim_other_axes, v0.shape(v0.ndim()-1));
+            v1.reshape(dim_other_axes, v0.shape(v0.ndim()-1));
         }
 
         m_minus_logaddexp.resize(extents[dim_other_axes]);
@@ -474,8 +472,10 @@ namespace cuvnet
 
         if(r1.need_result){
             // calculate softmax of inputs if anybody wants them
-            if(m_axis==0) matrix_plus_row(*p0.value,m_minus_logaddexp);
-            else          matrix_plus_col(*p0.value,m_minus_logaddexp);
+            //if(m_axis==0) matrix_plus_row(*p0.value,m_minus_logaddexp);
+            if(m_axis==0) matrix_plus_row(v0,m_minus_logaddexp);
+            //else          matrix_plus_col(*p0.value,m_minus_logaddexp);
+            else          matrix_plus_col(v0,m_minus_logaddexp);
             apply_scalar_functor(*p0.value, SF_EXP);
             r1.push(p0.value);
             m_softmaxed = true;
@@ -501,10 +501,8 @@ namespace cuvnet
         int other_axis = m_axis == 0 ? 1 : 0;
         
         unsigned int dim_other_axes;
-        value_ptr ptr0(new value_type(p0.value.cdata()));
-        value_ptr ptr1(new value_type(p1.value.cdata()));
-        value_type& v0 = *ptr0;
-        value_type& v1 = *ptr1;
+        value_type v0 = p0.value.cdata();
+        value_type v1 = p1.value.cdata();
         if (m_axis==0) {
             dim_other_axes = std::accumulate(p0.shape.rbegin(), --p0.shape.rend(), 1, std::multiplies<unsigned int>());
             v0.reshape(p0.shape.front(), dim_other_axes);
@@ -514,9 +512,10 @@ namespace cuvnet
             v0.reshape(dim_other_axes, p0.shape.back());
             v1.reshape(dim_other_axes, p1.shape.back());
         }
-        unsigned int r0size = std::accumulate(r0.shape.begin(), r0.shape.end(), 1, std::multiplies<unsigned int>());
-        value_type& vd0 = *(new value_type(r0.delta.cdata()));
-        vd0.reshape(cuv::extents[r0size]);
+        //unsigned int r0size = std::accumulate(r0.shape.begin(), r0.shape.end(), 1, std::multiplies<unsigned int>());
+        //value_type& vd0 = *(new value_type(r0.delta.cdata()));
+        value_type vd0 = r0.delta.cdata();
+        vd0.reshape(cuv::extents[vd0.size()]);
 
         if(!m_softmaxed){
             // we have not calculated softmax in fprop
