@@ -212,6 +212,10 @@ namespace cuvnet
     /// construct a Tuplewise_op object
     inline
         Op::op_ptr tuplewise_op(Op::op_ptr img, unsigned int dim, unsigned int sub_size=2, cuv::alex_conv::tuplewise_op_functor to = cuv::alex_conv::TO_NORM, float epsilon=0.f) { return boost::make_shared<Tuplewise_op>(img->result(), dim, sub_size, to, epsilon); }
+    /// construct a weighted_subTensor_op object
+    inline
+        Op::op_ptr weighted_subTensor_op(Op::op_ptr img, Op::op_ptr m_W, unsigned int dim, unsigned int size, unsigned int sub_size=2, cuv::alex_conv::weighted_subTensor_op_functor to = cuv::alex_conv::TO_LOGWADDEXP) { return boost::make_shared<Weighted_SubTensor_op>(img->result(), m_W->result(), dim, sub_size, size, to); }
+
     /// construct a Convolve object
     inline
         Op::op_ptr convolve(Op::op_ptr img, Op::op_ptr flt, bool padding, int padding_size, int stride, int ngroups, int partialSum=4) { return boost::make_shared<Convolve>(img->result(),flt->result(), padding, padding_size, stride, ngroups, partialSum); }
@@ -263,7 +267,6 @@ namespace cuvnet
     template<std::size_t D>
     inline
         Op::op_ptr reshape(Op::op_ptr img, const cuv::extent_gen<D>& eg) { return boost::make_shared<Reshape>(img->result(),eg); }
-
 
 #ifndef NO_THEANO_WRAPPERS
     /// construct a ShuffleDim object
@@ -397,5 +400,6 @@ namespace cuvnet
     /// write statistics to log whenever fprop/bprop is called
     inline
         Op::op_ptr printer(const std::string& l, Op::op_ptr x, bool fprop=true, bool bprop=true){ return boost::make_shared<Printer>(l,x->result(), fprop, bprop); }
+
 }
 #endif /* __OPS_HPP__ */

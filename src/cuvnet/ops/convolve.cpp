@@ -1310,4 +1310,59 @@ namespace cuvnet
             throw std::runtime_error("unknown tuplewise op");
     }
 
+    /************************************************************************
+     * Weighted_SubTensor_op
+     * ***********************************************************************/
+
+    void Weighted_SubTensor_op::_determine_shapes(){
+        cuvAssert(m_params[0]->shape.size() > 1);
+        cuvAssert(m_params[0]->shape.size() > m_dim);
+        cuvAssert(m_params[0]->shape[m_dim] % m_subspace_size == 0);
+        cuvAssert(m_params[0]->shape[dim] == m_params[1]->shape[0]);
+        cuvAssert(m_params[1]->shape[1] == m_subspace_size);
+
+
+        std::vector<unsigned int> dst = m_params[0]->shape;
+        dst[m_dim] = m_size;
+        m_results[0]->shape = dst;
+    }
+
+    void Weighted_SubTensor_op::fprop(){
+        using namespace cuv;
+        using namespace cuv::alex_conv;
+        param_t::element_type&  p0 = *m_params[0];
+        param_t::element_type&  p1 = *m_params[1];
+        result_t::element_type& r0 = *m_results[0];
+        if(r0.can_overwrite_directly()){
+            value_ptr& v = r0.overwrite_or_add_value();
+            cuv::weighted_subTensor_op(*v, p0.value.cdata(), p1.value.cdata(), m_dim, m_subspace_size, m_size, m_stride, m_to);
+        }else{
+            value_ptr v(new value_type(r0.shape));
+            cuv::weighted_subTensor_op(*v, p0.value.cdata(), p1.value.cdata(), m_dim, m_subspace_size, m_size, m_stride, m_to);
+            r0.push(v);
+        }
+    }
+
+    void Weighted_SubTensor_op::bprop(){
+        using namespace cuv;
+        using namespace cuv::alex_conv;
+        param_t::element_type&  p0 = *m_params[0];
+        param_t::element_type&  p1 = *m_params[0];
+        result_t::element_type& r0 = *m_results[0];
+        if(p0.can_overwrite_directly()){
+        	// vorsicht, p1 nicht überall includetr
+//        	cuv::weighted_subTensor_op_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_dim, m_subspace_size, m_size, m_stride, m_to);
+        }else{
+            value_ptr ptr = p0.value;
+            p0.value.reset();       // try to overwrite input activations
+            const matrix& oldvalue = ptr.cdata();
+            value_type& v = ptr.data_onlyshape();
+//            cuv::weighted_subTensor_op_grad(v, oldvalue, r0.delta.cdata(), m_dim, m_subspace_size, m_size, m_stride, m_to);
+            p0.push(ptr);
+        }
+        p0.value.reset();
+        p1.value.reset();
+        r0.delta.reset();
+    }
+
 }
