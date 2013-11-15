@@ -1,7 +1,6 @@
 #include <cuvnet/ops.hpp>
 #include "initialization.hpp"
 #include <cuvnet/op_utils.hpp>
-#include <cuvnet/ops.hpp>
 #include "mlp.hpp"
 
 namespace cuvnet

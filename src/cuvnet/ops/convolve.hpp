@@ -715,6 +715,60 @@ namespace cuvnet
                     }
         };
 
+        /**
+         * Calculate the weighted SUM out of consecutive elements in the input.
+         *
+         * Expressed in numpy style, this calculates:
+         *
+         * f(X) = (W[::2]* X[::2, ...] + W[1::2]* X[1::2, ...] )
+         *
+         * @ingroup Ops
+         */
+        class Weighted_SubTensor_op
+            : public Op{
+                public:
+                    typedef Op::value_type    value_type;
+                    typedef Op::op_ptr        op_ptr;
+                    typedef Op::value_ptr     value_ptr;
+                    typedef Op::param_t       param_t;
+                    typedef Op::result_t      result_t;
+                    unsigned int m_dim;
+                    unsigned int m_size;
+                    unsigned int m_subspace_size;
+                    unsigned int m_stride;
+                    cuv::alex_conv::weighted_subTensor_op_functor m_to;
+                private:
+                public:
+                    Weighted_SubTensor_op() :Op(2,1){} ///< for serialization
+                    /**
+                     * ctor.
+                     * @param images the input images
+                     */
+                    Weighted_SubTensor_op(result_t& images, result_t& m_W, unsigned int dim, unsigned int size, unsigned int subspace_size, cuv::alex_conv::weighted_subTensor_op_functor to)
+                        :Op(2,1),
+                        m_dim(dim),
+                        m_subspace_size(subspace_size),
+                        m_size(size),
+                        m_to(to),
+                        m_stride(size/m_params[0]->shape[dim])
+                    {
+                        add_param(0,images);
+                        add_param(1,m_W);
+                    }
+
+                    void fprop();
+                    void bprop();
+
+                    void _determine_shapes();
+
+                private:
+                    friend class boost::serialization::access;
+                    template<class Archive>
+                        void serialize(Archive& ar, const unsigned int version){
+                            ar & boost::serialization::base_object<Op>(*this) & m_dim & m_subspace_size & m_size & m_to & m_stride;
+                        }
+            };
+
 }
 BOOST_CLASS_VERSION(cuvnet::Convolve, 1)
 #endif /* __OP_CONVOLVE_HPP__ */
