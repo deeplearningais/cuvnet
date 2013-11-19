@@ -13,23 +13,23 @@ namespace cuvnet
         param_t::element_type&  p1 = *m_params[1];
         result_t::element_type& r0 = *m_results[0];
 
-        //const value_type& inp0 = p0.value.cdata();           // original
-        //const value_type& inp1 = p1.value.cdata();           // original
-        value_type& inp0 = p0.value.data();           // original
-        value_type& inp1 = p1.value.data();           // original
+        value_type inp0 = p0.value.cdata();
+        value_type inp1 = p1.value.cdata();
 
         std::vector<unsigned int> org_shape = p0.shape;
         unsigned int dim_other_axes;
         unsigned int batch_size;
         if(m_axis == 0) { 
-            dim_other_axes = std::accumulate(p0.shape.begin(), --p0.shape.end(), 1, std::multiplies<unsigned int>());
-            inp0.reshape(dim_other_axes, p0.shape.back());
-            inp1.reshape(dim_other_axes, p0.shape.back());
+            //dim_other_axes = std::accumulate(p0.shape.begin(), --p0.shape.end(), 1, std::multiplies<unsigned int>());
+            dim_other_axes = inp0.size() / inp0.shape(inp0.ndim()-1);
+            inp0.reshape(dim_other_axes, inp0.shape(ndim()-1));
+            inp1.reshape(dim_other_axes, inp0.shape(ndim()-1));
             batch_size = inp0.shape(0);
         } else {
             dim_other_axes = std::accumulate(p0.shape.rbegin(), --p0.shape.rend(), 1, std::multiplies<unsigned int>());
-            inp0.reshape(p0.shape.front(), dim_other_axes);
-            inp1.reshape(p0.shape.front(), dim_other_axes);
+            dim_other_axes = inp0.size() / inp0.shape(0);
+            inp0.reshape(inp0.shape(0), dim_other_axes);
+            inp1.reshape(inp0.shape(0), dim_other_axes);
             batch_size = inp0.shape(1);
         }
 
@@ -50,9 +50,6 @@ namespace cuvnet
         *res = n_wrong/(float)batch_size;
 
         r0.push(res);
-
-        inp0.reshape(org_shape);
-        inp1.reshape(org_shape);
 
         p0.value.reset(); // forget it
         p1.value.reset(); // forget it
