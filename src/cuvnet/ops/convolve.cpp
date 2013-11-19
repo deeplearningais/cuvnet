@@ -1070,11 +1070,11 @@ namespace cuvnet
                 m_result.reset();
             }else if(m_pooltype == PT_SUM){
                 if(p0.can_overwrite_directly()){
-                    local_sum_pool_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex);
+                    local_sum_pool_grad(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_subsx,0,m_stridex);
                 }else{
                     value_ptr ptr(new value_type(p0.shape));
                     value_type& v = *ptr;
-                    local_sum_pool_grad(v, p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex);
+                    local_sum_pool_grad(v, r0.delta.cdata(), m_subsx,0,m_stridex);
                     p0.push(ptr);
                 }
             }
@@ -1311,55 +1311,85 @@ namespace cuvnet
      * Weighted_SubTensor_op
      * ***********************************************************************/
 
-    void Weighted_SubTensor_op::_determine_shapes(){
+    void Weighted_Sub_Tensor_op::_determine_shapes(){
         cuvAssert(m_params[0]->shape.size() > 1);
-        cuvAssert(m_params[0]->shape.size() > m_dim);
-        cuvAssert(m_params[0]->shape[m_dim] % m_subspace_size == 0);
-        cuvAssert(m_params[0]->shape[dim] == m_params[1]->shape[0]);
+        cuvAssert(m_params[0]->shape.size() > 0);
+    
+	//check shape of weight tensor
+	cuvAssert(m_params[1]->shape[0] == m_size);
         cuvAssert(m_params[1]->shape[1] == m_subspace_size);
-
-
+	
         std::vector<unsigned int> dst = m_params[0]->shape;
-        dst[m_dim] = m_size;
+        dst[0] = m_size;
         m_results[0]->shape = dst;
     }
 
-    void Weighted_SubTensor_op::fprop(){
+    void Weighted_Sub_Tensor_op::fprop(){
         using namespace cuv;
         using namespace cuv::alex_conv;
         param_t::element_type&  p0 = *m_params[0];
         param_t::element_type&  p1 = *m_params[1];
         result_t::element_type& r0 = *m_results[0];
-        if(r0.can_overwrite_directly()){
-            value_ptr& v = r0.overwrite_or_add_value();
-            cuv::weighted_subTensor_op(*v, p0.value.cdata(), p1.value.cdata(), m_dim, m_subspace_size, m_size, m_stride, m_to);
+
+        //save max Index for backprop if we use a max function
+        if ((m_to == cuv::alex_conv::TO_WMAX) || (m_to == cuv::alex_conv::TO_WMAX_logspace)){
+        		cow_ptr< char_matrix > m(new char_matrix(r0.shape));
+        		m_max_idx  = m;
+
+            if(r0.can_overwrite_directly()){
+                value_ptr& v = r0.overwrite_or_add_value();
+                weighted_sub_tensor_op(*v, *m_max_idx, p0.value.cdata(), p1.value.cdata(), m_size, m_stride, m_subspace_size, m_to, m_eps);
+            }else{
+                value_ptr v(new value_type(r0.shape));
+                weighted_sub_tensor_op(*v, *m_max_idx, p0.value.cdata(), p1.value.cdata(), m_size, m_stride, m_subspace_size, m_to, m_eps);
+                r0.push(v);
+            }
         }else{
-            value_ptr v(new value_type(r0.shape));
-            cuv::weighted_subTensor_op(*v, p0.value.cdata(), p1.value.cdata(), m_dim, m_subspace_size, m_size, m_stride, m_to);
-            r0.push(v);
+			if(r0.can_overwrite_directly()){
+				value_ptr& v = r0.overwrite_or_add_value();
+				weighted_sub_tensor_op(*v, *m_max_idx, p0.value.cdata(), p1.value.cdata(), m_size, m_stride, m_subspace_size, m_to, m_eps);
+				m_lae = v;
+			}else{
+				value_ptr v(new value_type(r0.shape));
+				weighted_sub_tensor_op(*v, *m_max_idx, p0.value.cdata(), p1.value.cdata(), m_size, m_stride, m_subspace_size, m_to, m_eps);
+				m_lae = v;
+				r0.push(v);
+			}
         }
     }
 
-    void Weighted_SubTensor_op::bprop(){
+    void Weighted_Sub_Tensor_op::bprop(){
         using namespace cuv;
         using namespace cuv::alex_conv;
-        param_t::element_type&  p0 = *m_params[0];
         param_t::element_type&  p1 = *m_params[0];
+        param_t::element_type&  p2 = *m_params[1];
         result_t::element_type& r0 = *m_results[0];
-        if(p0.can_overwrite_directly()){
-        	// vorsicht, p1 nicht überall includetr
-//        	cuv::weighted_subTensor_op_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_dim, m_subspace_size, m_size, m_stride, m_to);
-        }else{
-            value_ptr ptr = p0.value;
-            p0.value.reset();       // try to overwrite input activations
-            const matrix& oldvalue = ptr.cdata();
-            value_type& v = ptr.data_onlyshape();
-//            cuv::weighted_subTensor_op_grad(v, oldvalue, r0.delta.cdata(), m_dim, m_subspace_size, m_size, m_stride, m_to);
-            p0.push(ptr);
-        }
-        p0.value.reset();
-        p1.value.reset();
-        r0.delta.reset();
+
+			if (p1.need_derivative || p2.need_derivative){
+				if(p1.can_overwrite_directly() || p1.can_add_directly()){
+				  if (p2.can_overwrite_directly() || p2.can_add_directly()){
+				 weighted_sub_tensor_op_grad(*p1.overwrite_or_add_value(), *p2.overwrite_or_add_value(), p1.value.cdata(), r0.delta.cdata(), p2.value.cdata(), m_lae.cdata(), m_max_idx.cdata(), p1.need_derivative, p2.need_derivative, m_size, m_stride, m_subspace_size, m_to, m_eps);
+				  }else{
+						  value_ptr ptr(new value_type(p2.shape));
+					 weighted_sub_tensor_op_grad(*p1.overwrite_or_add_value(), *ptr, p1.value.cdata(), r0.delta.cdata(), p2.value.cdata(), m_lae.cdata(), m_max_idx.cdata(), p1.need_derivative, p2.need_derivative, m_size, m_stride, m_subspace_size, m_to, m_eps);
+					  p2.push(ptr);
+				}
+					   }else{
+						   value_ptr ptr(new value_type(p1.shape));
+						   if (p2.can_overwrite_directly() || p2.can_add_directly()){
+					weighted_sub_tensor_op_grad(*ptr, *p2.overwrite_or_add_value(), p1.value.cdata(), r0.delta.cdata(), p2.value.cdata(), m_lae.cdata(), m_max_idx.cdata(), p1.need_derivative, p2.need_derivative, m_size, m_stride, m_subspace_size, m_to, m_eps);
+				   } else{
+							 value_ptr ptr2(new value_type(p2.shape));
+					weighted_sub_tensor_op_grad(*ptr, *ptr2, p1.value.cdata(), r0.delta.cdata(), p2.value.cdata(), m_lae.cdata(), m_max_idx.cdata(), p1.need_derivative, p2.need_derivative, m_size, m_stride, m_subspace_size, m_to, m_eps);
+					p2.push(ptr2);
+				  }
+				p1.push(ptr);
+					   }
+				p1.value.reset();
+				p2.value.reset();
+				r0.delta.reset();
+				}
+
     }
 
 }

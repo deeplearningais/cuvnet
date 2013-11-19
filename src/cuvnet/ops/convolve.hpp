@@ -724,7 +724,7 @@ namespace cuvnet
          *
          * @ingroup Ops
          */
-        class Weighted_SubTensor_op
+        class Weighted_Sub_Tensor_op
             : public Op{
                 public:
                     typedef Op::value_type    value_type;
@@ -732,28 +732,42 @@ namespace cuvnet
                     typedef Op::value_ptr     value_ptr;
                     typedef Op::param_t       param_t;
                     typedef Op::result_t      result_t;
-                    unsigned int m_dim;
+
+                    // for profiling host / dev
+                    typedef cuv::tensor<unsigned char,cuv::dev_memory_space> char_matrix;
                     unsigned int m_size;
                     unsigned int m_subspace_size;
                     unsigned int m_stride;
-                    cuv::alex_conv::weighted_subTensor_op_functor m_to;
+                    cow_ptr<char_matrix>  m_max_idx;
+                    value_ptr 	 m_lae;
+                    cuv::alex_conv::weighted_sub_tensor_op_functor m_to;
+                    float m_eps;
                 private:
                 public:
-                    Weighted_SubTensor_op() :Op(2,1){} ///< for serialization
+                    Weighted_Sub_Tensor_op() :Op(2,1){} ///< for serialization
                     /**
                      * ctor.
                      * @param images the input images
                      */
-                    Weighted_SubTensor_op(result_t& images, result_t& m_W, unsigned int dim, unsigned int size, unsigned int subspace_size, cuv::alex_conv::weighted_subTensor_op_functor to)
+                    Weighted_Sub_Tensor_op(result_t& images, result_t& m_W, unsigned int size, unsigned int stride, unsigned int subspace_size, cuv::alex_conv::weighted_sub_tensor_op_functor to, float eps)
                         :Op(2,1),
-                        m_dim(dim),
-                        m_subspace_size(subspace_size),
                         m_size(size),
+                        m_subspace_size(subspace_size),
+                        m_stride(stride),
                         m_to(to),
-                        m_stride(size/m_params[0]->shape[dim])
+                        m_eps(eps)
                     {
                         add_param(0,images);
                         add_param(1,m_W);
+
+                        using namespace cuv;
+                       	//generate dummy tensor ( empty ) to avoid null pointer exceptions
+                		value_ptr z(new value_type(0));
+                		m_lae = z;
+                    	//generate dummy tensor ( empty ) to avoid null pointer exceptions
+                    	cow_ptr<char_matrix> m(new char_matrix(0));
+                    	m_max_idx = m;
+
                     }
 
                     void fprop();
@@ -765,7 +779,7 @@ namespace cuvnet
                     friend class boost::serialization::access;
                     template<class Archive>
                         void serialize(Archive& ar, const unsigned int version){
-                            ar & boost::serialization::base_object<Op>(*this) & m_dim & m_subspace_size & m_size & m_to & m_stride;
+                            ar & boost::serialization::base_object<Op>(*this) & m_subspace_size & m_size & m_to & m_stride & m_eps;
                         }
             };
 
