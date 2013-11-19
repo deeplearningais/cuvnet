@@ -512,17 +512,12 @@ namespace cuvnet
             v0.reshape(dim_other_axes, p0.shape.back());
             v1.reshape(dim_other_axes, p1.shape.back());
         }
-        //unsigned int r0size = std::accumulate(r0.shape.begin(), r0.shape.end(), 1, std::multiplies<unsigned int>());
-        //value_type& vd0 = *(new value_type(r0.delta.cdata()));
         value_type vd0 = r0.delta.cdata();
         vd0.reshape(cuv::extents[vd0.size()]);
 
         if(!m_softmaxed){
             // we have not calculated softmax in fprop
-            // TODO axis=0 was plus row
-            //matrix_op_vec(*p0.value, *p0.value, m_minus_logaddexp, other_axis, BF_ADD);
             matrix_op_vec(v0, v0, m_minus_logaddexp, other_axis, BF_ADD);
-            //apply_scalar_functor(*p0.value, SF_EXP);
             apply_scalar_functor(v0, SF_EXP);
         }
 
@@ -531,19 +526,14 @@ namespace cuvnet
             value_type red(p0.shape[other_axis]);
             if(m_axis==0) reduce_to_row(red,prod,RF_ADD,-1.f);
             else          reduce_to_col(red,prod,RF_ADD,-1.f);
-
-            // TODO axis=0 was plus row
+            
             matrix_op_vec(*r1.delta, *r1.delta, red, other_axis, BF_ADD);
             *r1.delta *= *p0.value;
         }
 
         if(r0.need_result){
             // now bprop the the above minus p1 times delta.
-            //*p0.value -= p1.value.cdata();
             v0 -= v1;
-
-            // TODO axis=0 was times row
-            //matrix_op_vec(*p0.value, *p0.value, r0.delta.cdata(), other_axis, BF_MULT);
             matrix_op_vec(v0, v0, vd0, other_axis, BF_MULT);
         }
 
