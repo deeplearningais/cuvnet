@@ -46,7 +46,7 @@ namespace cuvnet{ namespace derivative_testing {
             if(verbose)
                 std::cout << "-- Checking Gradients of `" << pi->name() << "'; cuv::minimum(r0):" << cuv::minimum(r0) << " cuv::maximum(r0):" << cuv::maximum(r0) << std::endl;
 
-            BOOST_CHECK(equal_shape(r0,r1));
+	    BOOST_CHECK(equal_shape(r0,r1));
             tensor<float,host_memory_space> rdiff(r0.shape());
             apply_binary_functor(rdiff, r0, r1, BF_SUBTRACT);
             apply_scalar_functor(rdiff, SF_ABS);
