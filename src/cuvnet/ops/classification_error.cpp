@@ -20,13 +20,11 @@ namespace cuvnet
         unsigned int dim_other_axes;
         unsigned int batch_size;
         if(m_axis == 0) { 
-            //dim_other_axes = std::accumulate(p0.shape.begin(), --p0.shape.end(), 1, std::multiplies<unsigned int>());
             dim_other_axes = inp0.size() / inp0.shape(inp0.ndim()-1);
-            inp0.reshape(dim_other_axes, inp0.shape(ndim()-1));
-            inp1.reshape(dim_other_axes, inp0.shape(ndim()-1));
+            inp0.reshape(dim_other_axes, inp0.shape(inp0.ndim()-1));
+            inp1.reshape(dim_other_axes, inp0.shape(inp0.ndim()-1));
             batch_size = inp0.shape(0);
         } else {
-            dim_other_axes = std::accumulate(p0.shape.rbegin(), --p0.shape.rend(), 1, std::multiplies<unsigned int>());
             dim_other_axes = inp0.size() / inp0.shape(0);
             inp0.reshape(inp0.shape(0), dim_other_axes);
             inp1.reshape(inp0.shape(0), dim_other_axes);
