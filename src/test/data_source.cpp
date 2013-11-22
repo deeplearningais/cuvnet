@@ -80,6 +80,7 @@ BOOST_AUTO_TEST_CASE( image_loading_and_queueing ){
 
 BOOST_AUTO_TEST_CASE( loadsave ){
     using namespace cuvnet::bbtools;
+    bool have_gui = getenv("DISPLAY") && strlen(getenv("DISPLAY"));
     image img("bbtools.jpg");
 
     object o;
@@ -109,7 +110,8 @@ BOOST_AUTO_TEST_CASE( loadsave ){
     img.meta.objects.push_back(o);
     {
         sub_image si(img, o.bb);
-        si.crop().show("deer");
+        if(have_gui)
+            si.crop().show("deer");
     }
 
     rectangle too_large; // original image is 640x480 transposed
@@ -125,39 +127,46 @@ BOOST_AUTO_TEST_CASE( loadsave ){
         sub_image si(img, too_large);
         BOOST_CHECK_THROW(si.constrain_to_orig(false), std::runtime_error);
         BOOST_CHECK_NO_THROW(si.constrain_to_orig(true));
-        si.crop().show("whole image, no objects marked"); // whole image!?
+        if(have_gui)
+            si.crop().show("whole image, no objects marked"); // whole image!?
     }
 
     {
         sub_image si(img, too_large);
         BOOST_CHECK_THROW(si.constrain_to_orig(false), std::runtime_error);
         BOOST_CHECK_NO_THROW(si.constrain_to_orig(true).constrain_to_orig(true).extend_to_square());
-        si.crop_with_padding().mark_objects().show("whole image with padding"); // whole image with padding!?
+        if(have_gui)
+            si.crop_with_padding().mark_objects().show("whole image with padding"); // whole image with padding!?
     }
     {   // mark type
         sub_image si(img, too_large);
         si.constrain_to_orig(true).crop_with_padding();
         si.mark_objects(2,255,0.1);
-        si.show("objects marked w/ blobs"); 
+        if(have_gui)
+            si.show("objects marked w/ blobs"); 
     }
 
     {
         sub_image si(img, img.meta.objects.back().bb);
         si.extend_to_square();
         BOOST_CHECK_EQUAL(si.pos.xmax-si.pos.xmin, si.pos.ymax-si.pos.ymin);
-        si.crop().show("squared deer"); 
-        si.scale_larger_dim(256).mark_objects().show("squared deer, 256x256"); 
+        if(have_gui)
+            si.crop().show("squared deer"); 
+        if(have_gui)
+            si.scale_larger_dim(256).mark_objects().show("squared deer, 256x256"); 
     }
 
     {   // keeping track of margins (1): setting margins to a fixed value.
         sub_image si(img, too_large);
         si.extend_to_square();
-        si.crop_with_padding().scale_larger_dim(172).fill_padding(128).mark_objects().show("whole image with margin set to gray"); 
+        if(have_gui)
+            si.crop_with_padding().scale_larger_dim(172).fill_padding(128).mark_objects().show("whole image with margin set to gray"); 
     }
     {   // keeping track of margins (2): removing margins which are not part of the image
         sub_image si(img, too_large);
         si.extend_to_square();
-        si.crop_with_padding().scale_larger_dim(800).fill_padding(128).remove_padding().mark_objects().show("Padding removed"); 
+        if(have_gui)
+            si.crop_with_padding().scale_larger_dim(800).fill_padding(128).remove_padding().mark_objects().show("Padding removed"); 
     }
 }
 

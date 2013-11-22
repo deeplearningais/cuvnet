@@ -23,5 +23,5 @@ endif( PYTHONLIBS_FOUND )
 
 add_subdirectory(data)
 
-add_test(btest ${PROJECT_TEST_NAME})
+add_test(btest ${PROJECT_TEST_NAME} --log_format=XML --log_sink=results.xml --log_level=all --report_level=no)
 
