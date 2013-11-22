@@ -26,6 +26,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --std=c++0x -Wall")
 SET(CPACK_DEBIAN_PACKAGE_DEPENDS    "libboost-dev (>= 1.40.0), cuv" )
 INCLUDE(CPack)
 
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/third_party/boost-numeric-bindings)
+
 FIND_PACKAGE(Doxygen)
 IF(DOXYGEN_FOUND)
 	CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/doc/Doxyfile.in ${CMAKE_BINARY_DIR}/docs/Doxyfile)
