@@ -85,6 +85,10 @@ SET(CUVNET_SRC
     ${CUVNET_OPS_SRC}
     )
 
+INSTALL(DIRECTORY ./
+    DESTINATION include/cuvnet
+    FILES_MATCHING PATTERN "*.hpp"
+    )
 
 if ( PYTHONLIBS_FOUND )
     include_directories( ${PYTHON_INCLUDE_DIRS} )
@@ -104,3 +108,8 @@ TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx cuv tp_theano ${OpenCV_LIBS
 #add_subdirectory(third_party)
 add_subdirectory(example EXCLUDE_FROM_ALL)
 add_subdirectory(test EXCLUDE_FROM_ALL)
+
+INSTALL(TARGETS cuvnet
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib)
