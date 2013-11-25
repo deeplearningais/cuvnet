@@ -235,7 +235,7 @@ namespace cuvnet { namespace bbtools {
         int new_h = original_img.porig->rows + 2*dh;
         int new_w = original_img.porig->cols + 2*dw;
         cv::Scalar value;
-        cv::copyMakeBorder( dst, dst, dh, dh, dw, dw, cv::BORDER_REPLICATE, value );
+        cv::copyMakeBorder( dst, dst, dh, dh, dw, dw, cv::BORDER_REFLECT_101, value );
         cv::resize(dst, dst, cv::Size(new_w, new_h), 0.5, 0.5);
 
         //const unsigned char white[] = {255,255,255};
@@ -302,12 +302,12 @@ namespace cuvnet { namespace bbtools {
                 //(*bboxes)[o.klass].push_back(o.bb);
                 (*bboxes)[0].push_back(o.bb); // only one class for now....
             }
-            if(type==0){
+            //if(type==0){
                 cv::rectangle(*img, cv::Point(o.bb.xmin, o.bb.ymin), cv::Point(o.bb.xmax, o.bb.ymax), cv::Scalar(color, color, color), CV_FILLED); 
                 //img->draw_rectangle(o.bb.xmin, o.bb.ymin, o.bb.xmax, o.bb.ymax, clr, 1.f, ~0U);
-            }else{
-                cuvAssert(false);
-            }
+            //}else{
+            //    cuvAssert(false);
+            //}
             /*
              *else if(type == 1){
              *    img->draw_rectangle(o.bb.xmin, o.bb.ymin,0,0, o.bb.xmax, o.bb.ymax, img->depth()-1, img->spectrum()-1, color);
