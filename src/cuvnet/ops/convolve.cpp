@@ -623,13 +623,13 @@ namespace cuvnet
 
     void SeparableFilter1d::_determine_shapes(){
         /*
-         * images    (numFilters, imgPixY, imgPixX, numImages)
-         * dst:      (numFilters, imgPixY, imgPixX, numImages)
+         * images    (numFilters, imgPixX, numImages)
+         * dst:      (numFilters, imgPixX, numImages)
          */
         cuvAssert(m_params[0]->shape.size()<4);
         cuvAssert(m_kernel.shape(0) > 2);
         cuvAssert(m_kernel.ndim() == 1);
-        cuvAssert(m_dim != 1);
+        cuvAssert(m_dim != 1); // seems to be broken in cuv
         m_results[0]->shape = m_params[0]->shape;
         
         unsigned int size = m_kernel.shape(0);
