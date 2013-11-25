@@ -110,8 +110,9 @@ BOOST_AUTO_TEST_CASE( loadsave ){
     img.meta.objects.push_back(o);
     {
         sub_image si(img, o.bb);
+        si.crop();
         if(have_gui)
-            si.crop().show("deer");
+            si.show("deer");
     }
 
     rectangle too_large; // original image is 640x480 transposed
@@ -127,8 +128,9 @@ BOOST_AUTO_TEST_CASE( loadsave ){
         sub_image si(img, too_large);
         BOOST_CHECK_THROW(si.constrain_to_orig(false), std::runtime_error);
         BOOST_CHECK_NO_THROW(si.constrain_to_orig(true));
+        si.crop();
         if(have_gui)
-            si.crop().show("whole image, no objects marked"); // whole image!?
+            si.show("whole image, no objects marked"); // whole image!?
     }
 
     {
@@ -150,8 +152,9 @@ BOOST_AUTO_TEST_CASE( loadsave ){
         sub_image si(img, img.meta.objects.back().bb);
         si.extend_to_square();
         BOOST_CHECK_EQUAL(si.pos.xmax-si.pos.xmin, si.pos.ymax-si.pos.ymin);
+        si.crop();
         if(have_gui)
-            si.crop().show("squared deer"); 
+            si.show("squared deer"); 
         if(have_gui)
             si.scale_larger_dim(256).mark_objects().show("squared deer, 256x256"); 
     }
