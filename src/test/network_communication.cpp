@@ -123,27 +123,30 @@ struct optimizer{
         using cuvnet::Noiser;
         boost::shared_ptr<cuvnet::ParameterInput> inp1(new cuvnet::ParameterInput(cuv::extents[5][6]));
         boost::shared_ptr<cuvnet::ParameterInput> inp2(new cuvnet::ParameterInput(cuv::extents[5][6]));
-        boost::shared_ptr<Noiser> noisy_inp1 = boost::dynamic_pointer_cast<Noiser>(cuvnet::add_rnd_normal(inp1, 2.0f));
-        op_ptr loss = cuvnet::mean(cuvnet::pow(noisy_inp1-inp2, 2.f));
+        cuv::fill_rnd_uniform(inp1->data());
+
+        // input 1 is just noise, this is our parameter vector.
+        // we will try to get to some target value stored in inp2:
+        inp2->data() = 0.5f;
+
+        // but we cannot see inp2 directly, we only see its noisy version
+
+        boost::shared_ptr<Noiser> noisy_inp2 = boost::dynamic_pointer_cast<Noiser>(cuvnet::add_rnd_normal(inp2, 2.0f));
+        op_ptr loss = cuvnet::mean(cuvnet::pow(noisy_inp2-inp1, 2.f));
         cuvnet::function f(loss,0);
 
-        {   // plain GD
-            cuv::fill_rnd_uniform(inp1->data());
-            cuv::fill_rnd_uniform(inp2->data());
-            //inp1->data() = 0.25f;
-            //inp2->data() = 0.5f;
+        {   
             std::vector<cuvnet::Op*> params;
             params.push_back(inp1.get());
-            noisy_inp1->set_active(false);
-            std::cout << "plain GD: before optimization: " << f.evaluate()[0] << std::endl;
-
-            noisy_inp1->set_active(true);
+            noisy_inp2->set_active(false);
+            std::cout << "async GD: before optimization: " << f.evaluate()[0] << std::endl;
+            noisy_inp2->set_active(true);
             cuvnet::gradient_descent gd(loss,0,params, 0.1f);
-            gd.batch_learning(500, INT_MAX);
-            noisy_inp1->set_active(false);
 
-            std::cout << "plain GD: after optimization: " << f.evaluate()[0] << std::endl;
-            BOOST_CHECK_SMALL(lossval = f.evaluate()[0], 0.02f);
+            gd.batch_learning(500, INT_MAX);
+            noisy_inp2->set_active(false);
+            std::cout << "plain GD: after optimization: " << (lossval = f.evaluate()[0]) << std::endl;
+            BOOST_CHECK_SMALL((float)f.evaluate()[0], 0.02f);
         }
     }
 
@@ -151,20 +154,24 @@ struct optimizer{
         using cuvnet::Noiser;
         boost::shared_ptr<cuvnet::ParameterInput> inp1(new cuvnet::ParameterInput(cuv::extents[5][6],"inp1"));
         boost::shared_ptr<cuvnet::ParameterInput> inp2(new cuvnet::ParameterInput(cuv::extents[5][6],"inp2"));
-        boost::shared_ptr<Noiser> noisy_inp1 = boost::dynamic_pointer_cast<Noiser>(cuvnet::add_rnd_normal(inp1, 2.0f));
-        op_ptr loss = cuvnet::mean(cuvnet::pow(noisy_inp1-inp2, 2.f));
+        cuv::fill_rnd_uniform(inp1->data());
+
+        // input 1 is just noise, this is our parameter vector.
+        // we will try to get to some target value stored in inp2:
+        inp2->data() = 0.5f;
+
+        // but we cannot see inp2 directly, we only see its noisy version
+
+        boost::shared_ptr<Noiser> noisy_inp2 = boost::dynamic_pointer_cast<Noiser>(cuvnet::add_rnd_normal(inp2, 2.0f));
+        op_ptr loss = cuvnet::mean(cuvnet::pow(noisy_inp2-inp1, 2.f));
         cuvnet::function f(loss,0);
 
         {   
-            cuv::fill_rnd_uniform(inp1->data());
-            //inp1->data() = 0.25f;
-            //cuv::fill_rnd_uniform(inp2->data()); // 'teacher' should be same for all instances
-            inp2->data() = 0.5f;
             std::vector<cuvnet::Op*> params;
             params.push_back(inp1.get());
-            noisy_inp1->set_active(false);
+            noisy_inp2->set_active(false);
             std::cout << "async GD: before optimization: " << f.evaluate()[0] << std::endl;
-            noisy_inp1->set_active(true);
+            noisy_inp2->set_active(true);
             cuvnet::diff_recording_gradient_descent<cuvnet::gradient_descent> gd(loss,0,params, 0.1f);
 
             using namespace cuvnet::network_communication;
@@ -175,7 +182,7 @@ struct optimizer{
             gd.after_epoch.connect(boost::bind(sleeper)); // artificially slow down to allow server to catch up
 
             gd.batch_learning(500, INT_MAX);
-            noisy_inp1->set_active(false);
+            noisy_inp2->set_active(false);
             std::cout << "async GD: after optimization: " << (lossval = f.evaluate()[0]) << std::endl;
             BOOST_CHECK_SMALL((float)f.evaluate()[0], 0.02f);
         }
