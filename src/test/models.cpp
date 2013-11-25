@@ -9,6 +9,7 @@
 #include <cuvnet/models/linear_regression.hpp>
 
 
+BOOST_CLASS_EXPORT(cuvnet::models::linear_regression);
 
 BOOST_AUTO_TEST_SUITE( t_mlp )
     BOOST_AUTO_TEST_CASE(initialize){

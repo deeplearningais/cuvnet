@@ -399,7 +399,13 @@ namespace cuvnet
             // record fold result
             result.add_child("xval.folds.fold_" + boost::lexical_cast<std::string>(split), res);
             s_valperf(res.get<float>(measure_path)); 
-            s_testperf(pres.get<float>("cerr_mean")); 
+
+            boost::optional<float> predict_loss 
+                = pres.get_optional<float>("cerr_mean");
+            if(predict_loss)
+                s_testperf(*predict_loss); 
+            else
+                s_testperf(pres.get<float>("loss_mean")); 
             // TODO stop evaluating if too bad in comparison with current best?
         }
         result.put("xval.val_mean", ba::mean(s_valperf));
@@ -448,8 +454,13 @@ namespace cuvnet
             gd.minibatch_learning(1, INT_MAX, false); // don't shuffle
         }
         ptree result;
-        result.put("cerr_mean", mon->mean("cerr"));
-        result.put("cerr_var", mon->var("cerr"));
+        if(mon->has("cerr")){
+            result.put("cerr_mean", mon->mean("cerr"));
+            result.put("cerr_var", mon->var("cerr"));
+        }else{
+            result.put("loss_mean", mon->mean("loss"));
+            result.put("loss_var", mon->var("loss"));
+        }
         return result;
     }
 
