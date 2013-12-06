@@ -223,6 +223,26 @@ namespace cuvnet
         return es;
     }
 
+    boost::shared_ptr<convergence_checker>
+    learner2::get_convergence_checker(gradient_descent& gd, monitor& mon, const ptree& cfg){
+        boost::shared_ptr<convergence_checker> cc;
+        bool active = cfg.get("active", true);
+        if (!active)
+            return cc;
+        std::string watch = cfg.get("watch", "cerr");
+        float thresh = cfg.get("thresh", 0.995);
+        int min_wups = cfg.get("min_wups", 10);
+        float patience_inc_fact = cfg.get("patience_inc_fact", 1.2);
+        LOG4CXX_WARN(g_log_learner2, "Setting up Convergence Checker ("
+                <<  "watch: " << watch
+                << " thresh: " << thresh
+                << " min_wups: " << min_wups
+                << " patience_inc_fact: " << patience_inc_fact
+                );
+        cc.reset(new convergence_checker(gd, boost::bind(&monitor::mean, &mon, watch), thresh, min_wups, patience_inc_fact));
+        return cc;
+    }
+
     boost::shared_ptr<monitor> 
     learner2::get_monitor(model& m, const ptree& cfg){
         bool verbose = cfg.get("verbose", true);
@@ -494,6 +514,12 @@ namespace cuvnet
         }else{
             mon->register_gd(*gd);
         }
+
+        boost::shared_ptr<convergence_checker> cc;
+        boost::optional<const ptree&> cc_cfg
+            = cfg.get_child_optional("convergence_checker");
+        if (cc_cfg)
+            cc = get_convergence_checker(*gd, *mon, *cc_cfg);
 
         int time_limit = cfg.get("time_limit", INT_MAX);
         int batch_size = cfg.get("batchsize", -1);
