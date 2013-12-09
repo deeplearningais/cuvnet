@@ -180,6 +180,9 @@ namespace cuvnet
     /// construct a MatTimesVec object
     inline
         Op::op_ptr mat_times_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax) { return boost::make_shared<MatTimesVec>(x->result(),v->result(), ax); }
+    /// construct a MatDivideVec object
+    inline
+        Op::op_ptr mat_divide_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax) { return boost::make_shared<MatDivideVec>(x->result(),v->result(), ax); }
     /// construct a Tuplewise_op object
     inline
         Op::op_ptr tuplewise_op(Op::op_ptr img, unsigned int dim, unsigned int sub_size=2, cuv::alex_conv::tuplewise_op_functor to = cuv::alex_conv::TO_NORM, float epsilon=0.f) { return boost::make_shared<Tuplewise_op>(img->result(), dim, sub_size, to, epsilon); }
