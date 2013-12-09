@@ -14,9 +14,9 @@ namespace cuvnet
             private:
                 typedef boost::shared_ptr<ParameterInput> input_ptr;
                 typedef boost::shared_ptr<Op> op_ptr;
-                input_ptr m_W, m_bias;
             public:
-                op_ptr m_output;
+                input_ptr m_W, m_bias;
+                op_ptr m_output, m_linear_output;
                 /**
                  * ctor.
                  * @param X input to the hidden layer

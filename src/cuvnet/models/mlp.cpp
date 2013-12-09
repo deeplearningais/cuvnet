@@ -14,12 +14,12 @@ namespace cuvnet
 
         mlp_layer::mlp_layer(mlp_layer::op_ptr X, unsigned int size){
             determine_shapes(*X);
-            m_W    = input(cuv::extents[X->result()->shape[1]][size]);
-            m_bias = input(cuv::extents[size]);
+            m_W    = input(cuv::extents[X->result()->shape[1]][size], "mlp_W");
+            m_bias = input(cuv::extents[size], "mlp_b");
 
-            m_output = tanh(
-                    mat_plus_vec(
-                        prod(X, m_W), m_bias, 1));
+            m_linear_output = mat_plus_vec(
+                        prod(X, m_W), m_bias, 1);
+            m_output = tanh(m_linear_output);
         }
         std::vector<Op*> 
         mlp_layer::get_params(){
