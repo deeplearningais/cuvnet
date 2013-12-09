@@ -260,7 +260,7 @@ namespace cuvnet
         unsigned int i=0;
         for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
             m_sq_grad_sum[i].resize(((ParameterInput*)*it)->data().shape());
-            m_sq_grad_sum[i] = 0.f;
+            m_sq_grad_sum[i] = 1.f;
         }
     }
 
