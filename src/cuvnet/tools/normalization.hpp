@@ -1,3 +1,8 @@
+#ifndef __CUVNET_TOOLS_NORMALIZATION_HPP__
+#     define __CUVNET_TOOLS_NORMALIZATION_HPP__
+#include <cuv/convolution_ops/convolution_ops.hpp>
+
+
 namespace cuvnet
 {
     /**
@@ -17,6 +22,11 @@ namespace cuvnet
         if(axis >= W.ndim())
             throw std::runtime_error("project_to_unit_ball: axis parameter is not in matrix dimensions, of which there are " + boost::lexical_cast<std::string>(W.ndim()));
 
+        if((C.ndim() == 3 || C.ndim() == 4) && (C.shape(axis) % 16 == 0))
+        {
+            cuv::alex_conv::project_to_ball(C, thresh);
+            return;
+        }
         unsigned int ax_shape = W.shape(axis);
         if(W.ndim() > 2){
             unsigned int other_shape = W.size() / ax_shape;
@@ -62,3 +72,4 @@ namespace cuvnet
             cuv::matrix_divide_row(C, ax);
     }
 }
+#endif /* __CUVNET_TOOLS_NORMALIZATION_HPP__ */
