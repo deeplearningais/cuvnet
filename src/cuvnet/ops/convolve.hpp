@@ -78,6 +78,11 @@ namespace cuvnet
                     return m_padding_start != 0;
                 }
 
+                /// change the partial_sum parameter
+                inline void set_partial_sum(int ps){
+                    m_partial_sum = ps;
+                }
+
             private:
                 friend class boost::serialization::access;
                 template<class Archive>
