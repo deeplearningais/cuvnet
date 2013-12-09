@@ -73,6 +73,7 @@ namespace cuvnet
     }
     Tracer::~Tracer(){
         m_tim.update();
+        log4cxx::MDC mdc_duration(m_msg, boost::lexical_cast<std::string>(1000.f * m_tim.perf()));
         LOG4CXX_DEBUG(m_log, 
                 "EXIT " << m_msg << 
                 " ms=" << std::setprecision(4) 
