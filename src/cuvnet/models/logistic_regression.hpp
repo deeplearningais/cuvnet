@@ -19,6 +19,8 @@ namespace cuvnet
             op_ptr m_loss, m_classloss, m_estimator;
             input_ptr m_W;
             input_ptr m_bias;
+            op_ptr m_X;
+            input_ptr m_Y;
 
 
             /// default ctor for serialization.
@@ -44,8 +46,10 @@ namespace cuvnet
                 void serialize(Archive& ar, const unsigned int version) { 
                     ar & boost::serialization::base_object<model>(*this);;
                     ar & m_loss & m_classloss & m_W & m_bias & m_estimator;
+                    ar & m_X & m_Y;
                 };
         };
+
     }
 }
 #endif /* __CUVNET_LOGREG_HPP__ */

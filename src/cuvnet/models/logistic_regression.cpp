@@ -21,10 +21,12 @@ namespace cuvnet
         logistic_regression::logistic_regression(op_ptr X, op_ptr Y, bool degenerate){
             determine_shapes(*X);
             determine_shapes(*Y);
+            m_X = X;
+            m_Y = boost::dynamic_pointer_cast<ParameterInput>(Y);
 
             if(!degenerate) {
-                m_W = input(cuv::extents[X->result()->shape[1]][Y->result()->shape[1]]);
-                m_bias = input(cuv::extents[Y->result()->shape[1]]);
+                m_W = input(cuv::extents[X->result()->shape[1]][Y->result()->shape[1]], "logreg_W");
+                m_bias = input(cuv::extents[Y->result()->shape[1]], "logreg_b");
                 m_estimator = mat_plus_vec(prod(X, m_W), m_bias, 1);
             }
             else
