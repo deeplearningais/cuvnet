@@ -36,7 +36,8 @@ namespace cuvnet
         try{
             unsigned long int t_start = time(NULL);
             for (; ; ++m_epoch) {
-                log4cxx::MDC epoch_mdc("epoch",boost::lexical_cast<std::string>(m_epoch));
+                //log4cxx::MDC epoch_mdc("epoch",boost::lexical_cast<std::string>(m_epoch));
+                TRACE1(log, "minibatch_learning_epoch", "epoch", boost::lexical_cast<std::string>(m_epoch));
 
                 // stop if time limit is exceeded
                 if(time(NULL) - t_start > n_max_secs) {
