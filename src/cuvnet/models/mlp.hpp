@@ -31,7 +31,7 @@ namespace cuvnet
                 friend class boost::serialization::access;                                                                 
                 template<class Archive>                                                                                    
                     void serialize(Archive& ar, const unsigned int version) { 
-                        ar & boost::serialization::base_object<boost::enable_shared_from_this<model> >(*this);;
+                        ar & boost::serialization::base_object<model>(*this);;
                         ar & m_output & m_W & m_bias;
                     };
         };
@@ -50,7 +50,7 @@ namespace cuvnet
                     friend class boost::serialization::access;                                                                 
                     template<class Archive>                                                                                    
                         void serialize(Archive& ar, const unsigned int version) { 
-                            ar & boost::serialization::base_object<boost::enable_shared_from_this<metamodel> >(*this);;
+                            ar & boost::serialization::base_object<metamodel>(*this);;
                             ar & m_layers & m_logreg;
                         };
             };
