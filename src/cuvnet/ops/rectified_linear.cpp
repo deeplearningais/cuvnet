@@ -45,6 +45,9 @@ namespace cuvnet
         apply_scalar_functor(*r0.delta, SF_MULT, 0.f, &m_result); // set to 0 when we cut off
         p0.push(r0.delta);
 
+        // note that the 2nd result's gradient is always zero, and does not
+        // need to be considered here.
+
         //m_result.dealloc();
         r0.delta.reset();
     }
