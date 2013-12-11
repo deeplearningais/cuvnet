@@ -10,6 +10,9 @@ namespace cuvnet
      *
      * i.e. \f$y_i = \max(0, x_i)\f$
      *
+     * The optional second output of the class is its own gradient, 
+     * i.e.  \f$y_i = 1 \text{ if $x_i>0$, else 0}\f$
+     *
      * \ingroup Ops
      */
     class RectifiedLinear
@@ -28,12 +31,13 @@ namespace cuvnet
                  * ctor.
                  * @param p0 input to apply rectification to
                  */
-                RectifiedLinear(result_t& p0):Op(1,1){
+                RectifiedLinear(result_t& p0):Op(1,2){
                     add_param(0,p0);
                 }
 
                 void fprop();
                 void bprop();
+                void determine_shape();
             private:
                 friend class boost::serialization::access;
                 template<class Archive>
