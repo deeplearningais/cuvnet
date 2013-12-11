@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cuvnet/ops/axpby.hpp>
+#include <cuvnet/ops/ones_and_zeros.hpp>
 #include <cuvnet/ops/identity.hpp>
 #include <cuvnet/ops/input.hpp>
 #include <cuvnet/ops/mat_plus_vec.hpp>
@@ -43,6 +44,15 @@ namespace cuvnet
     /// construct a Multiply object
     inline
         Op::op_ptr operator*(Op::op_ptr x, Op::op_ptr y){ return boost::make_shared<Multiply>(x->result(), y->result()); }
+    /// construct a ScalarLike object
+    inline
+        Op::op_ptr ones_like(Op::op_ptr x){ return boost::make_shared<ScalarLike>(x->result(), 1.f); }
+    /// construct a ScalarLike object
+    inline
+        Op::op_ptr zeros_like(Op::op_ptr x){ return boost::make_shared<ScalarLike>(x->result(), 0.f); }
+    /// construct a ScalarLike object
+    inline
+        Op::op_ptr scalar_like(Op::op_ptr x, float f){ return boost::make_shared<ScalarLike>(x->result(), f); }
     /// construct a Axpby object
     inline
         Op::op_ptr operator+(Op::op_ptr x, Op::op_ptr y){ return boost::make_shared<Axpby>(x->result(), y->result(), 1.f,1.f); }

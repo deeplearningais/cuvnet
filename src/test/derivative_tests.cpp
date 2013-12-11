@@ -69,6 +69,12 @@ BOOST_AUTO_TEST_CASE(derivative_test_row_select){
    derivative_tester(*result(func,0));
    derivative_tester(*result(func,1));
 }
+BOOST_AUTO_TEST_CASE(derivative_test_scalar_like){
+   typedef boost::shared_ptr<Op> ptr_t;
+   boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+   ptr_t func                     = boost::make_shared<ScalarLike>(inp->result(), 3.4f);
+   derivative_tester(*func);
+}
 BOOST_AUTO_TEST_CASE(derivative_test_pow){
    typedef boost::shared_ptr<Op> ptr_t;
    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
@@ -146,6 +152,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_rectified_linear){
     boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                    = boost::make_shared<RectifiedLinear>(inp->result());
     derivative_tester(*func);
+    derivative_tester(*func, 1);
 }
 
 BOOST_AUTO_TEST_CASE(derivative_test_multiply){
