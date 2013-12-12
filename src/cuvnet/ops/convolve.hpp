@@ -72,6 +72,7 @@ namespace cuvnet
                 void bprop();
 
                 void _determine_shapes();
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
 
                 /// @return true iff we use padding
                 inline bool is_padded()const{
@@ -555,6 +556,7 @@ namespace cuvnet
                 void bprop();
 
                 void _determine_shapes();
+                virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
 
             private:
                 friend class boost::serialization::access;

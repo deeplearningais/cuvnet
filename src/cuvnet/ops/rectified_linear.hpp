@@ -37,7 +37,7 @@ namespace cuvnet
 
                 void fprop();
                 void bprop();
-                void determine_shape();
+                void _determine_shape();
             private:
                 friend class boost::serialization::access;
                 template<class Archive>

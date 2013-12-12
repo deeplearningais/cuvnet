@@ -8,11 +8,11 @@ namespace cuvnet
             return;
         }
         if(m_axis == 0)
-            desc.label = "reduce->col";
+            desc.label = "reduce..col";
         else if(m_axis == 1)
-            desc.label = "reduce->row";
+            desc.label = "reduce..row";
         else 
-            desc.label = "reduce->" + boost::lexical_cast<std::string>(m_axis);
+            desc.label = "reduce.." + boost::lexical_cast<std::string>(m_axis);
         if(m_mean){
             desc.label += " (mean)";
         }

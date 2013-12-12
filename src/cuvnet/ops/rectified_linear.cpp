@@ -52,7 +52,7 @@ namespace cuvnet
         r0.delta.reset();
     }
 
-    void RectifiedLinear::determine_shape(){
+    void RectifiedLinear::_determine_shape(){
         param_t::element_type& p0  = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
         result_t::element_type& r1 = *m_results[1];

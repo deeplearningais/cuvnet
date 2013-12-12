@@ -2,6 +2,21 @@
 
 namespace cuvnet
 {
+    void Prod::_graphviz_node_desc(detail::graphviz_node& desc)const{
+        desc.color="chartreuse3";
+        if (m_p0t == 't' && m_p1t == 't'){
+           desc.label = "A' B'";
+        }
+        else if (m_p0t == 'n' && m_p1t == 't'){
+           desc.label = "A B'";
+        }
+        else if (m_p0t == 't' && m_p1t == 'n'){
+           desc.label = "A' B";
+        }
+        else if (m_p0t == 'n' && m_p1t == 'n'){
+           desc.label = "A B";
+        }
+    }
     void Prod::fprop(){
         using namespace cuv;
         param_t::element_type&  p0 = *m_params[0];

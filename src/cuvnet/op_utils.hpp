@@ -429,13 +429,16 @@ namespace cuvnet
         Op* m_current_op; ///< for stepping through a function, set this to the current position
         bool m_break_after_done; ///< for debugging: is set to true when NaN is found, so that learning can be stopped
         std::map<const void*, std::string> m_seen; ///< records stuff we've seen already, so we do not define nodes twice
+        std::string m_group_filter; ///< if non-empty, only print nodes with this group
+        std::ostringstream m_node_defs; ///< contains all node definitions
+        std::ostringstream m_edge_defs; ///< contains all edge definitions
         /**
          * ctor.
          * @param o stream to write to
          * @param fmo if given, contain the topological ordering in the graph for fprop. Indices will be appended to nodes in this list.
          * @param bmo if given, contain the topological ordering in the graph for bprop. Indices will be appended to nodes in this list.
          */
-        define_graphviz_node_visitor(std::ostream& o, std::vector<Op*>* fmo=NULL, std::vector<Op*>* bmo=NULL):os(o),m_current_op(NULL),m_break_after_done(false){
+        define_graphviz_node_visitor(std::ostream& o, std::vector<Op*>* fmo=NULL, std::vector<Op*>* bmo=NULL, std::string group_filter=""):os(o),m_current_op(NULL),m_break_after_done(false),m_group_filter(group_filter){
             if(fmo)
                 m_fmark_order = *fmo;
             if(bmo)

@@ -31,7 +31,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
 
 	// fill in defaults
 	detail::graphviz_node n;
-	n.shape = "box";
+	n.shape = "record";
 	n.color = "black";
     if(!o->need_result())
         n.fillcolor = "white";
@@ -86,12 +86,12 @@ void define_graphviz_node_visitor::preorder(Op* o){
 		std::vector<Op*>::iterator bit = std::find(m_bmark_order.begin(),m_bmark_order.end(),o);
 #ifndef NDEBUG
 		if(fit!=m_fmark_order.end() && bit!=m_bmark_order.end())
-			n.label += " <" + boost::lexical_cast<std::string>(std::distance(m_fmark_order.begin(),fit))
-			+ ", " + boost::lexical_cast<std::string>(std::distance(m_bmark_order.begin(),bit))+">";
+			n.label += " [" + boost::lexical_cast<std::string>(std::distance(m_fmark_order.begin(),fit))
+			+ ", " + boost::lexical_cast<std::string>(std::distance(m_bmark_order.begin(),bit))+"]";
         else if(fit!=m_fmark_order.end())
-			n.label += " <" + boost::lexical_cast<std::string>(std::distance(m_fmark_order.begin(),fit))+",>";
+			n.label += " [" + boost::lexical_cast<std::string>(std::distance(m_fmark_order.begin(),fit))+",]";
         else if(bit!=m_bmark_order.end())
-			n.label += " <," + boost::lexical_cast<std::string>(std::distance(m_bmark_order.begin(),bit))+">";
+			n.label += " [," + boost::lexical_cast<std::string>(std::distance(m_bmark_order.begin(),bit))+"]";
 #endif
 	}
     if(current_op()==o){
@@ -109,11 +109,39 @@ void define_graphviz_node_visitor::preorder(Op* o){
     // define the op-node itself
     std::string opstr = "n" + boost::lexical_cast<std::string>( o );
     std::string groupstr = n.group.size() ? "group=\"" + n.group + "\"," : "";
+    std::string paramsstr, resultsstr;
+	BOOST_FOREACH(Op::param_t& p, o->m_params){
+        paramsstr = paramsstr + "<p" + boost::lexical_cast<std::string>(p->param_number) + "> " + boost::lexical_cast<std::string>(p->param_number);
+        if(o->get_n_params()-1 != p->param_number)
+            paramsstr = paramsstr + " | ";
+    }
+    if(paramsstr.size() != 0)
+        paramsstr = "{ " + paramsstr + " } |";
+
+	BOOST_FOREACH(Op::result_t& r, o->m_results){
+        resultsstr = resultsstr + "<r" + boost::lexical_cast<std::string>(r->result_number) + "> " + boost::lexical_cast<std::string>(r->result_number);
+        if(o->get_n_results()-1 != r->result_number)
+            resultsstr = resultsstr + " | ";
+    }
+    if(resultsstr.size() != 0)
+        resultsstr = " | { " + resultsstr + " }";
+
+    if(o->get_n_results() == 1){
+        resultsstr = "";
+        n.label = "<r0> " + n.label;
+    }
     m_seen[o] = opstr;
-	os << opstr
+    if(m_group_filter.size()             // we're filtering
+            && m_group_filter != "__empty"  // for non-empty elements
+            && o->get_group() != m_group_filter) // and do not match
+        return;
+    if(m_group_filter == "__empty"  // we're filtering for empty elements
+            && o->get_group() != "") // and the element is not empty
+        return;
+	m_node_defs << opstr
 	   << " ["
 	   << " URL=\""<<type<<boost::lexical_cast<std::string>(o)<<"\","
-	   << " label=\""<<n.label<<"\","
+	   << " label=\"{" << paramsstr << "{ "<<n.label<<" } " <<  resultsstr << " }\","
 	   << groupstr
 	   << " shape=\""<<n.shape<<"\","
 	   << " style=\""<<n.style<<"\","
@@ -124,7 +152,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
 
     // define the params of op
 	BOOST_FOREACH(Op::param_t& p, o->m_params){
-        std::string pstr = opstr + "p" + boost::lexical_cast<std::string>(p->param_number);
+        std::string pstr = opstr + ":p" + boost::lexical_cast<std::string>(p->param_number);
         if(m_seen.find(p.get())==m_seen.end()){
             m_seen[p.get()] = pstr;
             std::string wd, nd = p->need_derivative ? "green" : "white";
@@ -144,42 +172,44 @@ void define_graphviz_node_visitor::preorder(Op* o){
             }
 #endif
 
-            os << pstr
-                << " [ style=filled, fillcolor="<<nd<<", fontsize=6, margin=\"0,0\", width=0.01, label=\"" << p->param_number << shape<< "\", shape=circle ] ;"<<std::endl;
+            //m_node_defs << pstr
+                //<< " [ style=filled, fillcolor="<<nd<<", fontsize=6, margin=\"0,0\", width=0.01, label=\"" << p->param_number << shape<< "\", shape=circle ] ;"<<std::endl;
+            //m_node_defs << pstr
+                //<< " [ style=filled, fillcolor="<<nd<<", fontsize=6, margin=\"0,0\", width=0.01, label=\"" << p->param_number << shape<< "\", shape=circle ] ;"<<std::endl;
             // connect to op
-            os << "edge [style=solid,dir=none,penwidth="<<wd<<",weight=100] "<<pstr<<" -> "<<opstr<<";"<<std::endl;
+            //m_edge_defs << "edge [style=solid,dir=none,penwidth="<<wd<<",weight=100] "<<pstr<<" -> "<<opstr<<";"<<std::endl;
 
             std::string vstr = define_data_ptr(p->value);
             if(vstr.size())
-                os << "edge [style=dotted,dir=none,penwidth=.5,weight=10]" << pstr << " -> "<< vstr << "; "<<std::endl;
+                m_edge_defs << "edge [style=dotted,dir=none,penwidth=.5,weight=10]" << pstr << " -> "<< vstr << "; "<<std::endl;
         }
     }
     // define the results of op
     BOOST_FOREACH(Op::result_t& r, o->m_results){
-        std::string rstr = opstr + "r" + boost::lexical_cast<std::string>(r->result_number);
+        std::string rstr = opstr + ":r" + boost::lexical_cast<std::string>(r->result_number);
         if(m_seen.find(r.get())==m_seen.end()){
             m_seen[r.get()] = rstr;
             std::string nd = r->need_result ? "gold1" : "white";
             std::string wd = boost::lexical_cast<std::string>(r->need_result ? 4.0 : 0.5);
-            os << opstr << "r"<<r->result_number
-                << " [ style=filled, fillcolor="<<nd<<", fontsize=6, margin=\"0,0\",width=0.01, label=\"" << r->result_number << "\", shape=circle ] ;"<<std::endl;
+            //m_node_defs << opstr << ":r"<<r->result_number
+                //<< " [ style=filled, fillcolor="<<nd<<", fontsize=6, margin=\"0,0\",width=0.01, label=\"" << r->result_number << "\", shape=circle ] ;"<<std::endl;
             // connect to op
-            os << "edge [style=solid,penwidth="<<wd<<",dir=none,weight=100] "<< opstr << " -> " << rstr <<";"<<std::endl;
+            //m_node_defs << "edge [style=solid,penwidth="<<wd<<",dir=none,weight=100] "<< opstr << " -> " << rstr <<";"<<std::endl;
 
             std::string vstr = define_data_ptr(r->delta);
             if(vstr.size())
-                os << "edge [style=dotted,penwidth=.5,dir=none,weight=10]" << rstr << " -> "<< vstr << "; "<<std::endl;
+                m_edge_defs << "edge [style=dotted,penwidth=.5,dir=none,weight=10]" << rstr << " -> "<< vstr << "; "<<std::endl;
 
             if(current_op()==o){
                 // create node with debug info in label
-                os << opstr << "_dbg_result"
+                m_node_defs << opstr << "_dbg_result"
                     << " [ fontsize=26, label=\"";
                 if(r->result_uses.size()>0){
                     if(r->result_uses[0].lock()->value.ptr()){
-                        os<<"Result:\\n";
+                        m_node_defs<<"Result:\\n";
                         bool has_nan = cuv::has_nan(r->result_uses[0].lock()->value.cdata());
                         bool has_inf = cuv::has_inf(r->result_uses[0].lock()->value.cdata());
-                        os  << "min: " << cuv::minimum(r->result_uses[0].lock()->value.cdata()) <<"\\n"
+                        m_node_defs  << "min: " << cuv::minimum(r->result_uses[0].lock()->value.cdata()) <<"\\n"
                             << "max: " << cuv::maximum(r->result_uses[0].lock()->value.cdata()) <<"\\n"
                             << "avg: " << cuv::mean(r->result_uses[0].lock()->value.cdata()) <<"\\n"
                             << "var: " << cuv::var(r->result_uses[0].lock()->value.cdata()) <<"\\n"
@@ -191,10 +221,10 @@ void define_graphviz_node_visitor::preorder(Op* o){
 
                     if(r->delta.ptr())
                     {
-                        os<<"Delta:\\n";
+                        m_node_defs<<"Delta:\\n";
                         bool has_nan = cuv::has_nan(r->delta.cdata());
                         bool has_inf = cuv::has_inf(r->delta.cdata());
-                        os  << "min: " << cuv::minimum(r->delta.cdata()) <<"\\n"
+                        m_node_defs  << "min: " << cuv::minimum(r->delta.cdata()) <<"\\n"
                             << "max: " << cuv::maximum(r->delta.cdata()) <<"\\n"
                             << "avg: " << cuv::mean(r->delta.cdata()) <<"\\n"
                             << "var: " << cuv::var(r->delta.cdata()) <<"\\n"
@@ -204,19 +234,12 @@ void define_graphviz_node_visitor::preorder(Op* o){
                             m_break_after_done = true;
                     }
                 }
-                os << "\" ];"<<std::endl;
-                os << "edge [style=solid,dir=none,weight=100] "<<opstr << " -> " << opstr<<"_dbg_result ;"<<std::endl;
+                m_node_defs << "\" ];"<<std::endl;
+                m_edge_defs << "edge [style=solid,dir=none,weight=100] "<<opstr << " -> " << opstr<<"_dbg_result ;"<<std::endl;
             }
         }
 
     }
-}
-void define_graphviz_node_visitor::postorder(Op* o){
-	unsigned int cnt = 0;
-    bool is_sink  = dynamic_cast<Sink*>(o);
-    Op* sink_prev = NULL;
-    if(is_sink)
-        sink_prev = o->param(0)->use(0)->get_op().get();
 
 	BOOST_FOREACH(Op::param_t& p, o->m_params){
 		BOOST_FOREACH(Op::result_t& r, p->param_uses){
@@ -225,29 +248,38 @@ void define_graphviz_node_visitor::postorder(Op* o){
                 wd = boost::lexical_cast<std::string>(o->need_result() ? 4.0 : 0.5);
             else
                 wd = boost::lexical_cast<std::string>(sink_prev->need_result() ? 4.0 : 0.5);
-			os << "edge [ "
+			m_edge_defs << "edge [ "
                << "dir=forward,"
                << "style=solid,"
                << "penwidth="<<wd<<","
                << "weight=1"
 				   //<< " headlabel=\""<<boost::lexical_cast<std::string>(cnt) << "\""
-			   <<" ]"<<std::endl;
+			   <<" ] ";
 
             // draw a line from the result of an op to the param this result is used in
-			os << "n" << boost::lexical_cast<std::string>( r->get_op().get() )
-               << "r" << r->result_number;
-			os << " -> ";
-			os << "n" << boost::lexical_cast<std::string>(  o )
-			   << "p" << p->param_number;
-			os << " ; "<<std::endl;
+			m_edge_defs << "n" << boost::lexical_cast<std::string>( r->get_op().get() )
+               << ":r" << r->result_number;
+
+            detail::graphviz_node pn, rn;
+            o->_graphviz_node_desc(pn);
+            r->get_op()->_graphviz_node_desc(rn);
+			m_edge_defs 
+                << " -> " << opstr << ":p" << p->param_number << " ; "
+                << " // pgroup=" << o->get_group() 
+                << " rgroup=" << r->get_op()->get_group() 
+                << " filter="<<m_group_filter
+                << " plabel="<< pn.label
+                << " rlabel="<< rn.label
+                <<std::endl;
             
-			//os << "n" << boost::lexical_cast<std::string>( (size_t)(r->get_op().get()) );
-			//os << " -> ";
-			//os << "n" << boost::lexical_cast<std::string>( (size_t) o );
-			//os << " ; "<<std::endl;
+			//m_edge_defs << "n" << boost::lexical_cast<std::string>( (size_t)(r->get_op().get()) );
+			//m_edge_defs << " -> ";
+			//m_edge_defs << "n" << boost::lexical_cast<std::string>( (size_t) o );
+			//m_edge_defs << " ; "<<std::endl;
 		}
-		cnt++;
 	}
+}
+void define_graphviz_node_visitor::postorder(Op* o){
 }
 
 
@@ -581,19 +613,74 @@ void swiper::check_param_existence()const{
     }
 } 
 
+struct groups_collector
+: public op_visitor_once_adaptor{
+    std::vector<std::string> m_groups;
+
+    inline void preorder(Op* o){
+        if( !o->get_group().size() ||
+                find(m_groups.begin(), m_groups.end(), o->get_group())
+                != m_groups.end())
+            return;
+        m_groups.push_back(o->get_group());
+    }
+};
+
 void cuvnet::write_graphviz(Op& op, std::ostream& os){
 	os << "digraph { "<<std::endl;
+	os << "rankdir=LR;"<<std::endl;
+#if 1
+    groups_collector gc;
+    op.visit(gc);
+    BOOST_FOREACH(std::string& g, gc.m_groups){
+        os << "subgraph "<< g <<" { "<<std::endl;
+        define_graphviz_node_visitor dgnv(os, NULL, NULL, g);
+        op.visit(dgnv,true);
+        os << "} "<<std::endl;
+    }
+    define_graphviz_node_visitor dgnv(os, NULL, NULL, "__empty");
+	op.visit(dgnv,true);
+#else
 	define_graphviz_node_visitor dgnv(os);
 	op.visit(dgnv,true);
+#endif
 	os << "}"<<std::endl;
     if(dgnv.m_break_after_done)
         exit(0);
 }
 void cuvnet::write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& fl, std::vector<Op*>& bl, Op* current){
 	os << "digraph { "<<std::endl;
+	os << "rankdir=LR;"<<std::endl;
+#if 1
+    groups_collector gc;
+    op.visit(gc, true);
+    std::ostringstream node_defs;
+    std::ostringstream edge_defs;
+    BOOST_FOREACH(std::string& g, gc.m_groups){
+        node_defs << "subgraph cluster_"<< g <<" { style=filled; color=lightgrey; label=\"" << g <<"\";"<<std::endl;
+        define_graphviz_node_visitor dgnv(os, &fl, &bl, g);
+        dgnv.current_op(current);
+        op.visit(dgnv,true);
+        node_defs << dgnv.m_node_defs.str();
+        node_defs << "} "<<std::endl;
+
+        edge_defs << dgnv.m_edge_defs.str();
+    }
+    {
+        define_graphviz_node_visitor dgnv(os, &fl, &bl, "__empty");
+        dgnv.current_op(current);
+        op.visit(dgnv,true);
+        node_defs << dgnv.m_node_defs.str();
+        edge_defs << dgnv.m_edge_defs.str();
+    }
+#else
 	define_graphviz_node_visitor dgnv(os, &fl, &bl);
     dgnv.current_op(current);
 	op.visit(dgnv,true);
+#endif
+
+    os << node_defs.str() << edge_defs.str();
+
 	os << "}"<<std::endl;
 }
 

@@ -103,6 +103,15 @@ namespace cuvnet
         m_results[0]->shape = m_params[0]->shape;
     }
 
+    void MatPlusVec::_graphviz_node_desc(detail::graphviz_node& desc)const{
+        desc.label = "M + v, ax=" + boost::lexical_cast<std::string>(m_axis);
+    }
+    void MatTimesVec::_graphviz_node_desc(detail::graphviz_node& desc)const{
+        desc.label = "M * v, ax=" + boost::lexical_cast<std::string>(m_axis);
+    }
+    void MatDivideVec::_graphviz_node_desc(detail::graphviz_node& desc)const{
+        desc.label = "M / v, ax=" + boost::lexical_cast<std::string>(m_axis);
+    }
     void MatTimesVec::fprop(){
         using namespace cuv;
         param_t::element_type&  p0 = *m_params[0];

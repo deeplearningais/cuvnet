@@ -5,10 +5,14 @@ using namespace cuvnet;
 
 namespace 
 {
+    unsigned int g_group_idx = 0;
     std::vector<std::string> g_groups;
 }
 op_group::op_group(const std::string& name, bool uniq){
-    g_groups.push_back(name + "_" + boost::lexical_cast<std::string>(rand()));
+    if(uniq)
+        g_groups.push_back(name + "_" + boost::lexical_cast<std::string>(g_group_idx++));
+    else
+        g_groups.push_back(name);
 }
 op_group::~op_group(){
     g_groups.pop_back();

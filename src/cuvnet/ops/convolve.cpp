@@ -2,6 +2,14 @@
 
 namespace cuvnet
 {
+    void Convolve::_graphviz_node_desc(detail::graphviz_node& desc)const{
+        desc.color = "chartreuse4";
+        desc.label = "Conv (" + 
+            boost::lexical_cast<std::string>(m_params[0]->shape[0]) + "/" +
+            boost::lexical_cast<std::string>(m_nGroups) + ":" +
+            boost::lexical_cast<std::string>(m_results[0]->shape[0]) + " fs" +
+            boost::lexical_cast<std::string>((int)sqrt(m_params[1]->shape[1])) + ")";
+    }
     void Convolve::fprop(){
         using namespace cuv;
         using namespace cuv::alex_conv;
@@ -1014,6 +1022,16 @@ namespace cuvnet
         p0.value.reset();
         r0.delta.reset();
         m_result.reset();
+    }
+
+    void LocalPooling::_graphviz_node_desc(detail::graphviz_node& desc)const{
+        using namespace cuv::alex_conv;
+        if(m_pooltype == PT_MAX)
+            desc.label = "Max";
+        else if(m_pooltype == PT_AVG)
+            desc.label = "Avg";
+        desc.label += "Pool (" + boost::lexical_cast<std::string>(m_subsx) + "," 
+            +                    boost::lexical_cast<std::string>(m_stridex) + ")";
     }
 
     void LocalPooling::_determine_shapes(){
