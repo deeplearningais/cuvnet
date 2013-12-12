@@ -12,6 +12,7 @@
 #include <log4cxx/logger.h>
 namespace cuvnet
 {
+    class monitor; // used in weighted_sub_tensor_op
 
     /**
      * convolve a set of images using a set of filters.
@@ -67,8 +68,8 @@ namespace cuvnet
                     ,m_nGroups(ngroups)
                     ,m_partial_sum(partial_sum)
                     ,m_padding_start(padding)
-                	,m_padding_size(padding_size)
-                	,m_stride(stride)
+                    ,m_padding_size(padding_size)
+                    ,m_stride(stride)
                 {
                     add_param(0,images);
                     add_param(1,filters);
@@ -716,11 +717,11 @@ namespace cuvnet
         };
 
         /**
-         * Calculate the weighted SUM out of consecutive elements in the input.
+         * Calculate op out of consecutive elements in the input.
          *
          * Expressed in numpy style, this calculates:
          *
-         * f(X) = (W[::2]* X[::2, ...] + W[1::2]* X[1::2, ...] )
+         * f(X) = op((W[::2]* X[::2, ...], W[1::2]* X[1::2, ...], .. )
          *
          * @ingroup Ops
          */
@@ -739,9 +740,11 @@ namespace cuvnet
                     unsigned int m_subspace_size;
                     unsigned int m_stride;
                     cow_ptr<char_matrix>  m_max_idx;
-                    value_ptr 	 m_lae;
+                    value_ptr    m_lae;
+                    boost::shared_ptr<cuvnet::monitor> m_S;     
                     cuv::alex_conv::weighted_sub_tensor_op_functor m_to;
                     float m_eps;
+                    bool m_spn;
                 private:
                 public:
                     Weighted_Sub_Tensor_op() :Op(2,1){} ///< for serialization
@@ -749,25 +752,28 @@ namespace cuvnet
                      * ctor.
                      * @param images the input images
                      */
-                    Weighted_Sub_Tensor_op(result_t& images, result_t& m_W, unsigned int size, unsigned int stride, unsigned int subspace_size, cuv::alex_conv::weighted_sub_tensor_op_functor to, float eps)
+                    Weighted_Sub_Tensor_op(result_t& images, result_t& m_W, boost::shared_ptr<cuvnet::monitor> S, unsigned int size, unsigned int stride, unsigned int subspace_size, cuv::alex_conv::weighted_sub_tensor_op_functor to, float eps, bool spn)
                         :Op(2,1),
                         m_size(size),
                         m_subspace_size(subspace_size),
                         m_stride(stride),
                         m_to(to),
-                        m_eps(eps)
+                        m_eps(eps),
+                        m_spn(spn)
                     {
                         add_param(0,images);
                         add_param(1,m_W);
 
                         using namespace cuv;
-                       	//generate dummy tensor ( empty ) to avoid null pointer exceptions
-                		value_ptr z(new value_type(0));
-                		m_lae = z;
-                    	//generate dummy tensor ( empty ) to avoid null pointer exceptions
-                    	cow_ptr<char_matrix> m(new char_matrix(0));
-                    	m_max_idx = m;
-
+                           //generate dummy tensor ( empty ) to avoid null pointer exceptions
+                        value_ptr z(new value_type(0));
+                        m_lae = z;
+                        
+                        m_S = S;
+                        
+                        //generate dummy tensor ( empty ) to avoid null pointer exceptions
+                        cow_ptr<char_matrix> m(new char_matrix(0));
+                        m_max_idx = m;                          
                     }
 
                     void fprop();
@@ -775,11 +781,15 @@ namespace cuvnet
 
                     void _determine_shapes();
 
+                    void set_S(boost::shared_ptr<cuvnet::monitor> S){
+                        m_S = S;
+                    }
+                                       
                 private:
                     friend class boost::serialization::access;
                     template<class Archive>
                         void serialize(Archive& ar, const unsigned int version){
-                            ar & boost::serialization::base_object<Op>(*this) & m_subspace_size & m_size & m_to & m_stride & m_eps;
+                            ar & boost::serialization::base_object<Op>(*this) & m_subspace_size & m_size & m_to & m_stride & m_eps & m_spn;
                         }
             };
 
