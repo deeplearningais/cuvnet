@@ -9,6 +9,12 @@
 
 namespace cuvnet
 {
+    //forward declaration of monitor
+    class monitor;
+ 
+
+    
+    // ***************************** end of forward declarations ****************
 
     /**
      * @addtogroup learning_exceptions
@@ -452,6 +458,57 @@ namespace cuvnet
         /**
          * @overload
          * updates the weights RPROP-style.
+         */
+        virtual void update_weights();
+    };
+    
+    
+    /**
+     * does spn style gradient descent
+     *
+     * also allocates and manages variables for marginalization step.
+     * The method saves the results of the SPN with labels and runs it again without labels (marginalization step).
+     * Afterwards it updates the weights with 1/(S[y,1|x]+k) * (\partial S[y,1|x])/(\partial w) - 1/(S[1,1|x]+k) * (\partial S[1,1|x])/(\partial w)
+     * @ingroup gd
+     */
+    struct spn_gradient_descent
+    : public gradient_descent
+    {
+        public:
+            typedef std::vector<Op*> paramvec_t;
+        private:
+        private:
+            typedef boost::shared_ptr<ParameterInput> input_ptr;
+            typedef boost::shared_ptr<Op> op_ptr;
+            typedef boost::shared_ptr<std::vector<bool> > inf_type_ptr;
+
+            std::vector<cuv::tensor<float,Op::value_type::memory_space_type> > m_old_dw;  /// tensor to save dS[y,1|x]/dw for morginalization step
+            input_ptr pt_Y;
+            float m_learnrate; /// learning rate
+            float m_l1decay;
+            unsigned int m_n_batches;
+            inf_type_ptr m_INFERENCE_TYPE;
+
+            void inc_n_batches(){ m_n_batches ++; }
+        public:
+            /**
+             * constructor
+             *
+             * @param op the function we want to minimize
+             * @param result which result of op to minimize
+             * @param params the parameters w.r.t. which we want to optimize op
+	         * @param k small additive konstant to keep 1/s[y,1] stable
+             * @param learnrate the initial learningrate
+             * @param weightdecay weight decay for weight updates
+             */
+        spn_gradient_descent(Op::op_ptr op, input_ptr Y, unsigned int result, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate=0.0001f, float weightdecay=0.0f);
+        void minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs, bool randomize);
+        inline void set_l1decay(float f){ m_l1decay = f; }
+
+        protected:
+        /**
+         * @overload
+         * updates the weights spn-style.
          */
         virtual void update_weights();
     };

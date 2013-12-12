@@ -210,7 +210,7 @@ namespace cuvnet
         Op::op_ptr tuplewise_op(Op::op_ptr img, unsigned int dim, unsigned int sub_size=2, cuv::alex_conv::tuplewise_op_functor to = cuv::alex_conv::TO_NORM, float epsilon=0.f) { return boost::make_shared<Tuplewise_op>(img->result(), dim, sub_size, to, epsilon); }
     /// construct a weighted_sub_tensor_op object
     inline
-        Op::op_ptr weighted_sub_tensor_op(Op::op_ptr img, Op::op_ptr m_W, unsigned int size, unsigned int stride, unsigned int sub_size=2, cuv::alex_conv::weighted_sub_tensor_op_functor to = cuv::alex_conv::TO_LOGWADDEXP, float eps = 0.f) { return boost::make_shared<Weighted_Sub_Tensor_op>(img->result(), m_W->result(), size, stride, sub_size, to, eps); }
+        boost::shared_ptr<Weighted_Sub_Tensor_op> weighted_sub_tensor_op(Op::op_ptr img, Op::op_ptr m_W, boost::shared_ptr<cuvnet::monitor> S, unsigned int size, unsigned int stride, unsigned int sub_size=2, cuv::alex_conv::weighted_sub_tensor_op_functor to = cuv::alex_conv::TO_LOGWADDEXP, float eps = 0.00001f, bool spn=false) { return boost::make_shared<Weighted_Sub_Tensor_op>(img->result(), m_W->result(), S, size, stride, sub_size, to, eps, spn); }
 
     /// construct a Convolve object
     inline

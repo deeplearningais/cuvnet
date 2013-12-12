@@ -1,6 +1,7 @@
 #include <iomanip>
 #include<boost/limits.hpp>
 #include<cuv/tensor_ops/rprop.hpp>
+#include<cuv/tensor_ops/spn_gd.hpp>
 #include "gradient_descent.hpp"
 #include <log4cxx/logger.h>
 #include <log4cxx/mdc.h>
@@ -8,6 +9,8 @@
 #include <cuv/tools/device_tools.hpp>
 #include <cuv/libs/opt/opt.hpp>
 #include <cuvnet/tools/logging.hpp>
+//#include <cuvnet/tools/monitor.hpp>
+
 
 namespace cuvnet
 {
@@ -248,6 +251,141 @@ namespace cuvnet
         }
         m_n_batches = 0;
     }
+    
+    
+    // ----------------------- spn gradient descent ------------------  
+    
+    
+    
+    void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs, bool randomize){
+        unsigned int n_batches = current_batch_num();
+        if(m_update_every==0)
+            m_update_every = n_batches;
+        std::vector<unsigned int> batchids;
+        {   // prepare batch id vector
+            batchids.resize(n_batches);
+            for(unsigned int i=0;i<n_batches;i++)
+                batchids[i] = i;
+        }
+        log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("gd"));
+        unsigned long int iter = 1;
+        unsigned long int wups = 0;
+        try{
+            unsigned long int t_start = time(NULL);
+            for (; ; ++m_epoch) {
+                log4cxx::MDC epoch_mdc("epoch",boost::lexical_cast<std::string>(m_epoch));
+
+                // stop if time limit is exceeded
+                if(time(NULL) - t_start > n_max_secs) {
+                    LOG4CXX_WARN(log, "STOP minibatch learning: Timeout ("<<(time(NULL)-t_start)<<"s)");
+                    throw timeout_stop();
+                }
+                // stop if epoch limit is exceeded
+                if(m_epoch >= n_max_epochs){
+                    if(m_learnrate != 0.f)
+                        LOG4CXX_WARN(log, "STOP minibatch learning: Max epochs");
+                    throw max_iter_stop();
+                }
+
+                if(randomize)
+                    std::random_shuffle(batchids.begin(),batchids.end());
+
+                before_epoch(m_epoch, wups); // may run early stopping
+
+                for (unsigned int  batch = 0; batch < n_batches; ++batch, ++iter) {
+
+                    before_batch(m_epoch, batchids[batch]); // should load data into inputs
+
+                    m_swipe.fprop();  // forward pass
+                    //std::cout << "free mem after fprop: " << cuv::getFreeDeviceMemory()/1024/1024 << std::endl;
+
+                    if(m_learnrate){
+                        // this is not an evaluation pass, we're actually supposed to do work ;)
+
+                        m_swipe.bprop(); // backward pass
+                        
+                        //marginalization run 
+                        //save old derivatives
+                        unsigned int i=0;
+                        for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
+                            ParameterInput* param = dynamic_cast<ParameterInput*>(*it);
+                            if(! param->derivable()) continue;
+                            Op::value_type dW = param->delta();
+
+                            //save old result
+                            m_old_dw[i] = dW.copy();
+                            param->reset_delta();
+                        }
+                        //marginalize labels
+                        fill(pt_Y->data(), 1.f);
+
+                        //calculate result of marginalization
+                        m_swipe.fprop();
+                        m_swipe.bprop();
+                        
+                        after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
+
+                        if(iter % m_update_every == 0) {
+                            before_weight_update(wups);
+                            update_weights(); 
+                            wups ++;
+                            after_weight_update(wups);
+                        }
+                    }
+                    else{
+                        after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
+                    }
+                }
+                after_epoch(m_epoch, wups); // should log error etc
+            }
+        }catch(gradient_descent_stop){
+        }
+
+        // Restore parameters.
+        // - may also restore m_epoch
+        load_best_params();    
+        //m_epoch *= n_batches; // number of batch presentations
+
+        done_learning();
+    }
+        spn_gradient_descent::spn_gradient_descent(Op::op_ptr op, input_ptr Y, unsigned int result, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate, float weightdecay)
+        :gradient_descent(op, result, params, learnrate, weightdecay), m_old_dw(params.size()), pt_Y(Y), m_learnrate(learnrate), m_l1decay(0.f)
+    {
+         m_INFERENCE_TYPE = INFERENCE_TYPE;
+         
+        unsigned int i=0;
+        for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
+            m_old_dw[i].resize(((ParameterInput*)*it)->data().shape());
+            m_old_dw[i] = (float)0;
+        }
+
+        after_batch.connect(boost::bind(&spn_gradient_descent::inc_n_batches, this));
+    }
+
+
+    void spn_gradient_descent::update_weights()
+    {
+        using namespace cuv;
+        //do gradient descent for every parameter
+        unsigned int i = 0;
+        for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
+            ParameterInput* param = dynamic_cast<ParameterInput*>(*it);
+            if(! param->derivable()) continue;
+            Op::value_type dW = param->delta();
+            if(m_n_batches > 1)
+            {
+                dW /= (float) m_n_batches;
+                m_old_dw[i] /= (float) m_n_batches;
+            }
+
+            float wd = m_weightdecay * param->get_weight_decay_factor();
+
+            spn_gd(*param->data_ptr().ptr(), dW, m_old_dw[i], m_INFERENCE_TYPE->at(i), m_learnrate, wd, m_l1decay);
+            param->reset_delta();
+        }
+        m_n_batches = 0;
+    }
+    
 
     // ------------ momentum gradient descent  ---------  \\-
     momentum_gradient_descent::momentum_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float momentum)
