@@ -639,7 +639,7 @@ struct groups_collector
 
 void cuvnet::write_graphviz(Op& op, std::ostream& os){
 	os << "digraph { "<<std::endl;
-	os << "rankdir=LR;"<<std::endl;
+	os << "rankdir=LR; concentrate=true; remincross=true; splines=ortho; ranksep=1;"<<std::endl;
 #if 1
     groups_collector gc;
     op.visit(gc);
@@ -661,7 +661,7 @@ void cuvnet::write_graphviz(Op& op, std::ostream& os){
 }
 void cuvnet::write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& fl, std::vector<Op*>& bl, Op* current){
 	os << "digraph { "<<std::endl;
-	os << "rankdir=LR;"<<std::endl;
+	os << "rankdir=LR; concentrate=true; remincross=true; splines=ortho; ranksep=1;"<<std::endl;
 #if 1
     groups_collector gc;
     op.visit(gc, true);
@@ -675,7 +675,8 @@ void cuvnet::write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& fl, std:
         node_defs << dgnv.m_node_defs.str();
         node_defs << "} "<<std::endl;
 
-        edge_defs << dgnv.m_edge_defs.str();
+        //edge_defs << "{ rank=same; " << std::endl << dgnv.m_edge_defs.str() << std::endl <<"}";
+        edge_defs << dgnv.m_edge_defs.str() << std::endl;
     }
     {
         define_graphviz_node_visitor dgnv(os, &fl, &bl, "__empty");
