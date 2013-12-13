@@ -5,12 +5,12 @@ using namespace cuvnet;
 
 namespace 
 {
-    unsigned int g_group_idx = 0;
+    std::map<std::string, int> g_group_idx;
     std::vector<std::string> g_groups;
 }
 op_group::op_group(const std::string& name, bool uniq){
     if(uniq)
-        g_groups.push_back(name + "_" + boost::lexical_cast<std::string>(g_group_idx++));
+        g_groups.push_back(name + "_" + boost::lexical_cast<std::string>(g_group_idx[name]++));
     else
         g_groups.push_back(name);
 }
