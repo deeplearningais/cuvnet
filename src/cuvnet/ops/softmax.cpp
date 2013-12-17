@@ -442,13 +442,14 @@ namespace cuvnet
         assert(r0.need_result || r1.need_result);
 
         unsigned int dim_other_axes;
-        value_type v0 = p0.value.cdata();
+        value_type v0 = p0.value.cdata();  // copy of meta info only (original data)
         value_type v1 = p1.value.cdata();
+        
         if (m_axis==0) {
             dim_other_axes = v0.size() / v0.shape(0);
             v0.reshape(v0.shape(0), dim_other_axes);
             v1.reshape(v1.shape(0), dim_other_axes);
-        }else{
+        } else {
             dim_other_axes = v0.size() / v0.shape(v0.ndim()-1);
             v0.reshape(dim_other_axes, v0.shape(v0.ndim()-1));
             v1.reshape(dim_other_axes, v0.shape(v0.ndim()-1));
@@ -472,16 +473,16 @@ namespace cuvnet
 
         if(r1.need_result){
             // calculate softmax of inputs if anybody wants them
-            //if(m_axis==0) matrix_plus_row(*p0.value,m_minus_logaddexp);
-            if(m_axis==0) matrix_plus_row(v0,m_minus_logaddexp);
-            //else          matrix_plus_col(*p0.value,m_minus_logaddexp);
-            else          matrix_plus_col(v0,m_minus_logaddexp);
-            apply_scalar_functor(*p0.value, SF_EXP);
+            value_type& v0dst = p0.value.data_onlyshape();  // like data(), but does not copy
+            v0dst.reshape(v0.shape(0), v0.shape(1));
+            matrix_op_vec(v0dst, v0, m_minus_logaddexp, m_axis == 0 ? 1 : 0, BF_ADD);
+            //apply_scalar_functor(*p0.value, SF_EXP);
+            apply_scalar_functor(v0dst, SF_EXP);
+            v0dst.reshape(r1.shape);
             r1.push(p0.value);
             m_softmaxed = true;
         }else
             m_softmaxed = false;
-
         if(!p0.need_derivative) {
             p0.value.reset();
             p1.value.reset();
@@ -497,54 +498,69 @@ namespace cuvnet
         result_t::element_type& r1 = *m_results[1];
         assert( p0.need_derivative);
         assert(!p1.need_derivative); // cannot do that currently. Why should we? :)
-
-        int other_axis = m_axis == 0 ? 1 : 0;
         
         unsigned int dim_other_axes;
         value_type v0 = p0.value.cdata();
         value_type v1 = p1.value.cdata();
         if (m_axis==0) {
-            dim_other_axes = std::accumulate(p0.shape.rbegin(), --p0.shape.rend(), 1, std::multiplies<unsigned int>());
-            v0.reshape(p0.shape.front(), dim_other_axes);
-            v1.reshape(p1.shape.front(), dim_other_axes);
+            dim_other_axes = v0.size() / v0.shape(0);
+            v0.reshape(v0.shape(0), dim_other_axes);
+            v1.reshape(v0.shape(0), dim_other_axes);
         }else{
-            dim_other_axes = std::accumulate(p0.shape.begin(), --p0.shape.end(), 1, std::multiplies<unsigned int>());
-            v0.reshape(dim_other_axes, p0.shape.back());
-            v1.reshape(dim_other_axes, p1.shape.back());
+            dim_other_axes = v0.size() / v0.shape(v0.ndim()-1);
+            v0.reshape(dim_other_axes, v0.shape(v0.ndim()-1));
+            v1.reshape(dim_other_axes, v0.shape(v0.ndim()-1));
         }
         value_type vd0 = r0.delta.cdata();
         vd0.reshape(cuv::extents[vd0.size()]);
 
+        value_type& v0dst = p0.value.data_onlyshape();
+        v0dst.reshape(v0.shape(0), v0.shape(1));
+
+        value_type& v0src = v0; // remember the current source
+
         if(!m_softmaxed){
             // we have not calculated softmax in fprop
-            matrix_op_vec(v0, v0, m_minus_logaddexp, other_axis, BF_ADD);
-            apply_scalar_functor(v0, SF_EXP);
+            matrix_op_vec(v0dst, v0src, m_minus_logaddexp, m_axis == 0 ? 1 : 0, BF_ADD);
+            apply_scalar_functor(v0dst, SF_EXP);
+            v0src = v0dst;
         }
 
         if(r1.need_result){
-            value_type prod = p0.value.cdata() * r1.delta.cdata();
-            value_type red(p0.shape[other_axis]);
+            value_type d1 = r1.delta.cdata();
+            value_type& d1dst = r1.delta.data_onlyshape();
+            d1.reshape(v0.shape(0), v0.shape(1));
+            d1dst.reshape(v0.shape(0), v0.shape(1));
+            
+            value_type prod = v0src * d1dst;
+            value_type red(v0dst.shape(m_axis == 0 ? 1 : 0));
             if(m_axis==0) reduce_to_row(red,prod,RF_ADD,-1.f);
             else          reduce_to_col(red,prod,RF_ADD,-1.f);
             
-            matrix_op_vec(*r1.delta, *r1.delta, red, other_axis, BF_ADD);
-            *r1.delta *= *p0.value;
+            matrix_op_vec(d1dst, d1, red, m_axis == 0 ? 1 : 0, BF_ADD);
+            d1dst *= v0src;
+            d1dst.reshape(r1.shape);
         }
 
         if(r0.need_result){
-            // now bprop the the above minus p1 times delta.
-            v0 -= v1;
-            matrix_op_vec(v0, v0, vd0, other_axis, BF_MULT);
+            // now bprop the above minus p1 times delta.
+            v0dst -= v1;
+            matrix_op_vec(v0dst, v0src, vd0, m_axis == 0 ? 1 : 0, BF_MULT);
         }
 
         if(r1.need_result && r0.need_result){
-            *p0.value += *r1.delta;
+            //*p0.value += *r1.delta;
+            v0dst += *r1.delta;
+            //v0dst += d1dst;
         }else if(r1.need_result){
-            *p0.value   = *r1.delta;
+            //*p0.value   = *r1.delta;
+            v0dst  = *r1.delta;
+            //v0dst  = d1dst;
         }else if(r0.need_result){
             // :-)
         }
 
+        v0dst.reshape(p0.shape);
         p0.push(p0.value);
         p0.value.reset();
         r0.delta.reset();

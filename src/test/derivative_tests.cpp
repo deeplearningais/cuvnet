@@ -458,6 +458,22 @@ BOOST_AUTO_TEST_CASE(derivative_test_mll){
         ptr_t func                     = boost::make_shared<MultinomialLogisticLoss>(inp0->result(), inp1->result(), 1);
         derivative_tester(*func);
     }
+    // higher dimensional input
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][5][4]);
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][5][5][4]);
+        inp1->set_derivable(false);
+        ptr_t func                     = boost::make_shared<MultinomialLogisticLoss>(inp0->result(), inp1->result(), 0);
+        derivative_tester(*func);
+    }
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][5][4]);
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][5][5][4]);
+        inp1->set_derivable(false);
+        ptr_t func                     = boost::make_shared<MultinomialLogisticLoss>(inp0->result(), inp1->result(), 3);
+        derivative_tester(*func);
+    }
+    
     ///// SoftMax result of MultinomialLogisticLoss
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
@@ -473,6 +489,22 @@ BOOST_AUTO_TEST_CASE(derivative_test_mll){
         ptr_t func                     = boost::make_shared<MultinomialLogisticLoss>(inp0->result(), inp1->result(), 1);
         derivative_tester(*func,1);
     }
+    // higher dimensional input
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][5][4]);
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][5][5][4]);
+        inp1->set_derivable(false);
+        ptr_t func                     = boost::make_shared<MultinomialLogisticLoss>(inp0->result(), inp1->result(), 0);
+        derivative_tester(*func,1);
+    }
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][5][4]);
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][5][5][4]);
+        inp1->set_derivable(false);
+        ptr_t func                     = boost::make_shared<MultinomialLogisticLoss>(inp0->result(), inp1->result(), 3);
+        derivative_tester(*func,1);
+    }
+
 }
 
 BOOST_AUTO_TEST_CASE(derivative_test_mat_plus_vec){
