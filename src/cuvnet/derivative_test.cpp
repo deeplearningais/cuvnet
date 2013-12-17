@@ -20,7 +20,9 @@ namespace cuvnet{ namespace derivative_testing {
             if(verbose)
                 std::cout << "-- Checking Results; cuv::minimum(r0):" << cuv::minimum(r0) << " cuv::maximum(r0):" << cuv::maximum(r0) << std::endl;
 
+            BOOST_CHECK(out->result()->shape == r0.shape()); // shape should be as advertised by determine_shapes
             BOOST_CHECK(equal_shape(r0,r1));
+
             tensor<float,host_memory_space> rdiff(r0.shape());
             apply_binary_functor(rdiff, r0, r1, BF_SUBTRACT);
             apply_scalar_functor(rdiff, SF_ABS);
@@ -33,6 +35,7 @@ namespace cuvnet{ namespace derivative_testing {
             pi->reset_delta();
             swp.fprop();
             swp.bprop();
+            BOOST_CHECK(pi->data().shape() == pi->delta().shape());
             tensor<float,host_memory_space> r0 = pi->delta().copy();
             pi->reset_delta();
             swp.fprop();
