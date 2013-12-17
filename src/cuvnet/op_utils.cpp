@@ -112,6 +112,17 @@ void define_graphviz_node_visitor::preorder(Op* o){
     std::string paramsstr, resultsstr;
 	BOOST_FOREACH(Op::param_t& p, o->m_params){
         paramsstr = paramsstr + "<p" + boost::lexical_cast<std::string>(p->param_number) + "> " + boost::lexical_cast<std::string>(p->param_number);
+#ifndef NDEBUG
+        std::string shape;
+            if(p->shape.size()){
+                shape = " (";
+                for(unsigned int i=0;i<p->shape.size();i++){
+                    shape += boost::lexical_cast<std::string>(p->shape[i]) + ((i==p->shape.size()-1) ? " " : ", ");
+                }
+                shape += ")";
+            }
+            paramsstr += shape;
+#endif
         if(o->get_n_params()-1 != p->param_number)
             paramsstr = paramsstr + " | ";
     }
