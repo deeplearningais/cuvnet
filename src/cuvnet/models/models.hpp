@@ -125,15 +125,18 @@ namespace cuvnet
         /**
          * A metamodel dispatches calls to the standard functions to all
          * submodels.
+         *
+         * @tparam Base either model or multistage_model
          */
-        struct metamodel : public model{
+        template<class Base>
+        struct metamodel : public Base {
             private:
                 typedef boost::shared_ptr<Op> op_ptr;
 
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
-                        ar & boost::serialization::base_object<model>(*this);
+                        ar & boost::serialization::base_object<Base>(*this);
                         ar & m_models;
                     }
             protected:
@@ -175,6 +178,7 @@ namespace cuvnet
 }
 BOOST_CLASS_EXPORT_KEY(cuvnet::models::model) 
 BOOST_CLASS_EXPORT_KEY(cuvnet::models::multistage_model) 
-BOOST_CLASS_EXPORT_KEY(cuvnet::models::metamodel) 
+BOOST_CLASS_EXPORT_KEY(cuvnet::models::metamodel<cuvnet::models::model>) 
+BOOST_CLASS_EXPORT_KEY(cuvnet::models::metamodel<cuvnet::models::multistage_model>) 
 
 #endif /* __CUVNET_MODELS_HPP__ */

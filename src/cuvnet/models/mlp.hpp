@@ -37,7 +37,7 @@ namespace cuvnet
         };
 
         struct mlp_classifier
-            : public metamodel{
+            : public metamodel<model>{
                 private:
                     typedef boost::shared_ptr<ParameterInput> input_ptr;
                     typedef boost::shared_ptr<Op> op_ptr;
@@ -50,7 +50,7 @@ namespace cuvnet
                     friend class boost::serialization::access;                                                                 
                     template<class Archive>                                                                                    
                         void serialize(Archive& ar, const unsigned int version) { 
-                            ar & boost::serialization::base_object<metamodel>(*this);;
+                            ar & boost::serialization::base_object<metamodel<model> >(*this);;
                             ar & m_layers & m_logreg;
                         };
             };

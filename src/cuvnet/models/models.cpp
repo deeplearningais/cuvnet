@@ -47,10 +47,12 @@ namespace cuvnet { namespace models {
      *
      ****************************************/
 
-    void metamodel::register_submodel(model& m){
+    template<class Base>
+    void metamodel<Base>::register_submodel(model& m){
         m_models.push_back(&m);
     }
-    void metamodel::reset_params(){
+    template<class Base>
+    void metamodel<Base>::reset_params(){
         // use bind2nd, since the 1st param of mem_fun is the implicit `this'
         // http://stackoverflow.com/questions/1762781/mem-fun-and-bind1st-problem
         std::for_each(
@@ -58,7 +60,8 @@ namespace cuvnet { namespace models {
                 m_models.begin(), m_models.end(), std::mem_fun(&model::reset_params));
     }
 
-    std::vector<Op*> metamodel::get_params(){
+    template<class Base>
+    std::vector<Op*> metamodel<Base>::get_params(){
         std::vector<Op*> params;
 
         for(std::vector<model*>::iterator it = m_models.begin(); it!=m_models.end(); it++){
@@ -69,7 +72,9 @@ namespace cuvnet { namespace models {
         return params;
     }
 
-    metamodel::op_ptr metamodel::loss()const{
+    template<class Base>
+    typename metamodel<Base>::op_ptr 
+    metamodel<Base>::loss()const{
         for(std::vector<model*>::const_reverse_iterator it = m_models.rbegin(); it!=m_models.rend(); it++){
             op_ptr l = (*it)->loss();
             if(l)
@@ -77,7 +82,10 @@ namespace cuvnet { namespace models {
         }
         return op_ptr();
     }
-    metamodel::op_ptr metamodel::error()const{
+
+    template<class Base>
+    typename metamodel<Base>::op_ptr 
+    metamodel<Base>::error()const{
         for(std::vector<model*>::const_reverse_iterator it = m_models.rbegin(); it!=m_models.rend(); it++){
             op_ptr l = (*it)->error();
             if(l)
@@ -85,6 +93,9 @@ namespace cuvnet { namespace models {
         }
         return op_ptr();
     }
-    metamodel::~metamodel(){}
+    template<class Base>
+    metamodel<Base>::~metamodel(){}
         
+    template class metamodel<model>;
+    template class metamodel<multistage_model>;
 } }
