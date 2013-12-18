@@ -67,6 +67,11 @@ namespace cuvnet
             /// triggered after updating weights
             boost::signal<void(unsigned int)> after_weight_update;
 
+            /// set verbosity
+            inline void set_verbosity(int verbosity){ 
+                m_swipe.set_verbosity(verbosity);
+            }
+
             /// triggered when finished with learning
             boost::signal<void()> done_learning;
 

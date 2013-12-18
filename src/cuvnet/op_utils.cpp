@@ -21,10 +21,10 @@ std::string define_graphviz_node_visitor::define_data_ptr(const Op::value_ptr& p
     if(m_seen.find(&p.cdata())!=m_seen.end())
         return m_seen[&p.cdata()];
     m_seen[&p.cdata()] = "v"+boost::lexical_cast<std::string>(&p.cdata());
-    os << m_seen[&p.cdata()] << " [ label=\"(";
+    m_node_defs << m_seen[&p.cdata()] << " [ label=\"(";
     std::vector<unsigned int> shape = p.cdata().shape();
-    std::copy(shape.begin(),shape.end(),std::ostream_iterator<unsigned int>(os,","));
-    os  << ")\" ] ; "<<std::endl;
+    std::copy(shape.begin(),shape.end(),std::ostream_iterator<unsigned int>(m_node_defs,","));
+    m_node_defs  << ")\" ] ; "<<std::endl;
     return m_seen[&p.cdata()];
 }
 void define_graphviz_node_visitor::preorder(Op* o){
@@ -69,9 +69,8 @@ void define_graphviz_node_visitor::preorder(Op* o){
             n.fillcolor = "lightcyan";
     }
 	o->_graphviz_node_desc(n);
-#ifndef NDEBUG
+    if(m_verbose)
     n.label += " " + boost::lexical_cast<std::string>(o);
-#endif
     if(o->get_label().size())
     {
         n.label = n.label + "\\n"+ o->get_label();
@@ -84,7 +83,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
 	if(m_fmark_order.size()){
 		std::vector<Op*>::iterator fit = std::find(m_fmark_order.begin(),m_fmark_order.end(),o);
 		std::vector<Op*>::iterator bit = std::find(m_bmark_order.begin(),m_bmark_order.end(),o);
-#ifndef NDEBUG
+        if(m_verbose){
 		if(fit!=m_fmark_order.end() && bit!=m_bmark_order.end())
 			n.label += " [" + boost::lexical_cast<std::string>(std::distance(m_fmark_order.begin(),fit))
 			+ ", " + boost::lexical_cast<std::string>(std::distance(m_bmark_order.begin(),bit))+"]";
@@ -92,7 +91,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
 			n.label += " [" + boost::lexical_cast<std::string>(std::distance(m_fmark_order.begin(),fit))+",]";
         else if(bit!=m_bmark_order.end())
 			n.label += " [," + boost::lexical_cast<std::string>(std::distance(m_bmark_order.begin(),bit))+"]";
-#endif
+        }
 	}
     if(current_op()==o){
         n.fillcolor = "firebrick1";
@@ -112,7 +111,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
     std::string paramsstr, resultsstr;
 	BOOST_FOREACH(Op::param_t& p, o->m_params){
         paramsstr = paramsstr + "<p" + boost::lexical_cast<std::string>(p->param_number) + "> " + boost::lexical_cast<std::string>(p->param_number);
-#ifndef NDEBUG
+        if(m_verbose){
         std::string shape;
             if(p->shape.size()){
                 shape = " (";
@@ -122,7 +121,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
                 shape += ")";
             }
             paramsstr += shape;
-#endif
+        }
         if(o->get_n_params()-1 != p->param_number)
             paramsstr = paramsstr + " | ";
     }
@@ -149,6 +148,8 @@ void define_graphviz_node_visitor::preorder(Op* o){
     if(m_group_filter == "__empty"  // we're filtering for empty elements
             && o->get_group() != "") // and the element is not empty
         return;
+    if(!o->need_result())
+        return;
 	m_node_defs << opstr
 	   << " ["
 	   << " URL=\""<<type<<boost::lexical_cast<std::string>(o)<<"\","
@@ -173,7 +174,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
                 wd = boost::lexical_cast<std::string>(sink_prev->need_result() ? 4.0 : 0.5);
 
             std::string shape;
-#ifndef NDEBUG
+            if(m_verbose)
             if(p->shape.size()){
                 shape = " (";
                 for(unsigned int i=0;i<p->shape.size();i++){
@@ -181,7 +182,6 @@ void define_graphviz_node_visitor::preorder(Op* o){
                 }
                 shape += ")";
             }
-#endif
 
             //m_node_defs << pstr
                 //<< " [ style=filled, fillcolor="<<nd<<", fontsize=6, margin=\"0,0\", width=0.01, label=\"" << p->param_number << shape<< "\", shape=circle ] ;"<<std::endl;
@@ -513,7 +513,8 @@ void swiper::init()
 
     determine_shapes(op);
 
-    dump("swiper-initial.dot");
+    if(m_verbosity>0)
+        dump("swiper-initial.dot", m_verbosity>1);
 }
 
 void swiper::set_calculate_result(){
@@ -600,7 +601,7 @@ swiper::debug(unsigned int cnt, Op* o, bool results, bool params, const char* id
         boost::filesystem::create_directories(s);
         std::ofstream os ((s+"/func.dot").c_str());
     
-        write_graphviz(*m_topo.fprop_nodelist.back(),os,m_topo.fprop_nodelist,m_topo.bprop_nodelist,o);
+        write_graphviz(*m_topo.fprop_nodelist.back(),os,m_verbosity > 1,m_topo.fprop_nodelist,m_topo.bprop_nodelist,o);
     }
 }
 
@@ -637,19 +638,21 @@ struct groups_collector
     }
 };
 
-void cuvnet::write_graphviz(Op& op, std::ostream& os){
+namespace cuvnet
+{
+void write_graphviz(Op& op, std::ostream& os, bool verbose){
 	os << "digraph { "<<std::endl;
-	os << "rankdir=LR; concentrate=true; remincross=true; splines=ortho; ranksep=1;"<<std::endl;
+	os << "rankdir=TB; concentrate=true; remincross=true; splines=ortho; ranksep=1;"<<std::endl;
 #if 1
     groups_collector gc;
     op.visit(gc);
     BOOST_FOREACH(std::string& g, gc.m_groups){
         os << "subgraph "<< g <<" { "<<std::endl;
-        define_graphviz_node_visitor dgnv(os, NULL, NULL, g);
+        define_graphviz_node_visitor dgnv(verbose, NULL, NULL, g);
         op.visit(dgnv,true);
         os << "} "<<std::endl;
     }
-    define_graphviz_node_visitor dgnv(os, NULL, NULL, "__empty");
+    define_graphviz_node_visitor dgnv(verbose, NULL, NULL, "__empty");
 	op.visit(dgnv,true);
 #else
 	define_graphviz_node_visitor dgnv(os);
@@ -659,9 +662,9 @@ void cuvnet::write_graphviz(Op& op, std::ostream& os){
     if(dgnv.m_break_after_done)
         exit(0);
 }
-void cuvnet::write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& fl, std::vector<Op*>& bl, Op* current){
+void write_graphviz(Op& op, std::ostream& os, bool verbose, std::vector<Op*>& fl, std::vector<Op*>& bl, Op* current){
 	os << "digraph { "<<std::endl;
-	os << "rankdir=LR; concentrate=true; remincross=true; splines=ortho; ranksep=1;"<<std::endl;
+	os << "rankdir=TB; concentrate=true; remincross=true; splines=ortho; ranksep=1;"<<std::endl;
 #if 1
     groups_collector gc;
     op.visit(gc, true);
@@ -669,7 +672,7 @@ void cuvnet::write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& fl, std:
     std::ostringstream edge_defs;
     BOOST_FOREACH(std::string& g, gc.m_groups){
         node_defs << "subgraph cluster_"<< g <<" { style=filled; color=lightgrey; label=\"" << g <<"\";"<<std::endl;
-        define_graphviz_node_visitor dgnv(os, &fl, &bl, g);
+        define_graphviz_node_visitor dgnv(verbose, &fl, &bl, g);
         dgnv.current_op(current);
         op.visit(dgnv,true);
         node_defs << dgnv.m_node_defs.str();
@@ -679,7 +682,7 @@ void cuvnet::write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& fl, std:
         edge_defs << dgnv.m_edge_defs.str() << std::endl;
     }
     {
-        define_graphviz_node_visitor dgnv(os, &fl, &bl, "__empty");
+        define_graphviz_node_visitor dgnv(verbose, &fl, &bl, "__empty");
         dgnv.current_op(current);
         op.visit(dgnv,true);
         node_defs << dgnv.m_node_defs.str();
@@ -696,4 +699,4 @@ void cuvnet::write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& fl, std:
 	os << "}"<<std::endl;
 }
 
-
+}

@@ -14,7 +14,7 @@ namespace cuvnet
     gradient_descent::gradient_descent(const Op::op_ptr& op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay)
         : m_result(result), m_params(params), m_learnrate(learnrate), /*m_learnrate_decay(1.f), */m_weightdecay(weightdecay)
           , m_epoch(0), m_epoch_of_saved_params(0)
-          , m_swipe(*op,result,params), m_update_every(1)
+          , m_swipe(*op,result,params,false), m_update_every(1)
     { 
         m_loss = op;
     }

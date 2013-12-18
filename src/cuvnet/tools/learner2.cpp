@@ -161,12 +161,14 @@ namespace cuvnet
         float initial_learnrate = cfg.get("learnrate", 0.01);
         float initial_momentum = cfg.get("momentum", 0.9);
         float l2decay = cfg.get("l2decay", 0.0);
+        int verbosity = cfg.get("verbosity", 0);
         unsigned int start_epoch = cfg.get("start_epoch", 0);
         if(typ == "plain"){
             LOG4CXX_WARN(g_log_learner2, "Creating Plain GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
             boost::shared_ptr<gradient_descent> gd =
                 boost::make_shared<gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
+            gd->set_verbosity(verbosity);
             return gd;
         }else if(typ == "rmsprop"){
             LOG4CXX_WARN(g_log_learner2, "Creating RMSProp GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
@@ -176,6 +178,7 @@ namespace cuvnet
             boost::shared_ptr<gradient_descent> gd =
                 boost::make_shared<rmsprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay);
             gd->set_epoch(start_epoch);
+            gd->set_verbosity(verbosity);
             return gd;
         }else if(typ == "rprop"){
             LOG4CXX_WARN(g_log_learner2, "Creating RPROP GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
@@ -183,12 +186,14 @@ namespace cuvnet
                 boost::make_shared<rprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
             gd->set_update_every(0);
+            gd->set_verbosity(verbosity);
             return gd;
         }else if(typ == "momentum"){
             LOG4CXX_WARN(g_log_learner2, "Creating Momentum GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", momentum: "<< initial_momentum << ")");
             boost::shared_ptr<gradient_descent> gd =
                 boost::make_shared<momentum_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, initial_momentum);
             gd->set_epoch(start_epoch);
+            gd->set_verbosity(verbosity);
             return gd;
         }else{
             throw std::runtime_error("unknown/not implemented gd_type: " + typ);

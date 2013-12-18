@@ -423,7 +423,7 @@ namespace cuvnet
      * @ingroup op_visitors
      */
     struct define_graphviz_node_visitor : public op_visitor_adaptor{
-        std::ostream& os; ///< the stream to write to
+        bool m_verbose;
         std::vector<Op*> m_fmark_order; ///< eg the topological ordering of the graph (fprop)
         std::vector<Op*> m_bmark_order; ///< eg the topological ordering of the graph (bprop)
         Op* m_current_op; ///< for stepping through a function, set this to the current position
@@ -434,11 +434,10 @@ namespace cuvnet
         std::ostringstream m_edge_defs; ///< contains all edge definitions
         /**
          * ctor.
-         * @param o stream to write to
          * @param fmo if given, contain the topological ordering in the graph for fprop. Indices will be appended to nodes in this list.
          * @param bmo if given, contain the topological ordering in the graph for bprop. Indices will be appended to nodes in this list.
          */
-        define_graphviz_node_visitor(std::ostream& o, std::vector<Op*>* fmo=NULL, std::vector<Op*>* bmo=NULL, std::string group_filter=""):os(o),m_current_op(NULL),m_break_after_done(false),m_group_filter(group_filter){
+        define_graphviz_node_visitor(bool verbose, std::vector<Op*>* fmo=NULL, std::vector<Op*>* bmo=NULL, std::string group_filter=""):m_verbose(verbose),m_current_op(NULL),m_break_after_done(false),m_group_filter(group_filter){
             if(fmo)
                 m_fmark_order = *fmo;
             if(bmo)
@@ -470,7 +469,7 @@ namespace cuvnet
      * @param os the stream to write to
      * @ingroup op_visitors
      */
-    void write_graphviz(Op& op, std::ostream& os);
+    void write_graphviz(Op& op, std::ostream& os, bool verbose);
     /**
      * Dump a symbolic function to a graphviz DOT file.
      * @param op the Op to be dumped
@@ -480,7 +479,7 @@ namespace cuvnet
      * @param current the current node, to be marked (useful for stepping through function evaluation).
      * @ingroup op_visitors
      */
-    void write_graphviz(Op& op, std::ostream& os, std::vector<Op*>& fmo, std::vector<Op*>& bmo, Op* current=NULL);
+    void write_graphviz(Op& op, std::ostream& os, bool verbose, std::vector<Op*>& fmo, std::vector<Op*>& bmo, Op* current=NULL);
 
     /**
      * @brief does a recursive forward/backward pass w.r.t. requested parameters.
@@ -494,6 +493,7 @@ namespace cuvnet
      */
     struct swiper{
         determine_exec_order m_topo; ///< contains exec order information for fprop/bprop
+        int m_verbosity;
 
         /**
          * Other functions that are part of the Op graph and need to
@@ -509,14 +509,24 @@ namespace cuvnet
         }
 
         /**
+         * change verbosity of dot output.
+         * @param verbosity if greater 0, dumps dot file, if greater 1, dump shapes and execution order as well
+         */
+        inline void set_verbosity(int verbosity){
+            m_verbosity = verbosity;
+        }
+
+        /**
          * constructor
          *
          * @param op      the operator to do swipes on
          * @param result  the result of the operator to optimize
          * @param paramlist the list of parameters w.r.t. which do swipes
+         * @param verbosity if greater 0, dumps dot file, if greater 1, dump shapes and execution order as well
          */
-        swiper(Op& op, int result, const param_collector_visitor::container_type& paramlist)
-            :m_op(&op),
+        swiper(Op& op, int result, const param_collector_visitor::container_type& paramlist, int verbosity=0)
+            : m_verbosity(verbosity),
+            m_op(&op),
             m_result(result),
             m_paramlist(paramlist),
             m_cleanup_temp_vars(true)
@@ -540,9 +550,9 @@ namespace cuvnet
          *
          * @param filename where to store the dot file
          */
-        void dump(const std::string& filename){
+        void dump(const std::string& filename, bool verbose){
             std::ofstream os(filename);
-            write_graphviz(*m_op, os, m_topo.fprop_nodelist, m_topo.bprop_nodelist );
+            write_graphviz(*m_op, os, verbose, m_topo.fprop_nodelist, m_topo.bprop_nodelist );
         }
 
         /**

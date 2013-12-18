@@ -148,12 +148,12 @@ namespace cuvnet
 
         return f.evaluate();
     }
-    std::string dot(Op& o){
+    std::string dot(Op& o, bool verbose){
         std::string path = boost::filesystem::unique_path("%%%%-%%%%-%%%%-%%%%.dot").string();
         
         std::ostringstream os(path.c_str());
         std::vector<Op*> v;
-        write_graphviz(o, os, v, v, &o);
+        write_graphviz(o, os, verbose, v, v, &o);
 
         return os.str();
     }
