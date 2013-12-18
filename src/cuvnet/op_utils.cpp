@@ -70,10 +70,10 @@ void define_graphviz_node_visitor::preorder(Op* o){
     }
 	o->_graphviz_node_desc(n);
     if(m_verbose)
-    n.label += " " + boost::lexical_cast<std::string>(o);
+    n.label += " } | {" + boost::lexical_cast<std::string>(o);
     if(o->get_label().size())
     {
-        n.label = n.label + "\\n"+ o->get_label();
+        n.label = n.label + " } | { "+ o->get_label();
         n.penwidth = 4.f;
     }
     if(o->get_group().size()){
