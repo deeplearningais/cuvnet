@@ -56,6 +56,10 @@ namespace cuvnet
                 case monitor::WP_FUNC_SCALAR_EPOCH_STATS:
                     func.reset(op,result,name);
                     break;
+                case monitor::WP_FULL_WEIGHT_STATS:
+                case monitor::WP_CONV_WEIGHT_STATS:
+                    // this is only done at end of epoch
+                    break;
             }
         }
         monitor::watchpoint_type         type;
@@ -143,7 +147,24 @@ namespace cuvnet
         }
 
     }
+    void update_stats(acc_t& acc, matrix& mat){
+        cuv::tensor<matrix::value_type, cuv::host_memory_space> v = mat;
+        matrix::value_type* ptr = v.ptr();
+        matrix::value_type* end = ptr + v.size();
+        for(; ptr != end; ptr++)
+            acc(*ptr);
+    }
     void monitor::after_epoch(){
+        BOOST_FOREACH(watchpoint* p, m_impl->m_watchpoints){
+            switch(p->type){
+                case WP_FULL_WEIGHT_STATS:
+                case WP_CONV_WEIGHT_STATS:
+                    update_stats(p->scalar_stats, boost::dynamic_pointer_cast<ParameterInput>(p->op)->data());
+                    break;
+                default:
+                    break;
+            }
+        }
         if(m_cv_mode == CM_TRAIN || m_cv_mode == CM_TRAINALL)
             m_epochs ++;
         if(m_verbose)
@@ -187,6 +208,9 @@ namespace cuvnet
     const matrix& monitor::operator[](const std::string& name){
         watchpoint& wp = get(name);
         switch(wp.type){
+            case WP_FULL_WEIGHT_STATS:
+            case WP_CONV_WEIGHT_STATS:
+                return boost::dynamic_pointer_cast<ParameterInput>(wp.op)->data();
             case WP_SINK:
             case WP_SCALAR_EPOCH_STATS:
                 return wp.sink->cdata();
@@ -226,7 +250,7 @@ namespace cuvnet
             m_logfile << '\t' << p.second;
         }
         BOOST_FOREACH(const watchpoint* p, m_impl->m_watchpoints){
-            if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
+            if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS || p->type == WP_FULL_WEIGHT_STATS  || p->type == WP_CONV_WEIGHT_STATS){
                 m_logfile  << '\t' <<  mean(p->name);
             }
         }
@@ -238,9 +262,11 @@ namespace cuvnet
 
         std::vector<log4cxx::MDC*> v;
         BOOST_FOREACH(const watchpoint* p, m_impl->m_watchpoints){
-            if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
-                log4cxx::MDC* mdc = new log4cxx::MDC(p->name, boost::lexical_cast<std::string>(mean(p->name)));
-                v.push_back(mdc);
+            if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS || p->type == WP_FULL_WEIGHT_STATS  || p->type == WP_CONV_WEIGHT_STATS){
+                log4cxx::MDC* mdc0 = new log4cxx::MDC(p->name + "_mean", boost::lexical_cast<std::string>(mean(p->name)));
+                v.push_back(mdc0);
+                log4cxx::MDC* mdc1 = new log4cxx::MDC(p->name + "_var", boost::lexical_cast<std::string>(var(p->name)));
+                v.push_back(mdc1);
             }
         }
         typedef std::pair<std::string, std::string> ss_t;
@@ -282,7 +308,7 @@ namespace cuvnet
             std::cout << p.first<<"="<<p.second<<" ";
         }
         BOOST_FOREACH(const watchpoint* p, m_impl->m_watchpoints){
-            if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
+            if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS || p->type == WP_FULL_WEIGHT_STATS  || p->type == WP_CONV_WEIGHT_STATS){
                 std::cout  << p->name<<"="
                     << std::left << std::setprecision(4) << mean(p->name) <<",\t"//<<" ("
                     //<< std::left << std::setprecision(4) << stddev(p->name)<<"),  "

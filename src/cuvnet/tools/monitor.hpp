@@ -35,7 +35,9 @@ namespace cuvnet
                 WP_D_SINK,                ///< simply create a sink which keeps the values 
                 WP_D_SCALAR_EPOCH_STATS, ///< keep stats over one epoch
                 WP_FUNC_SINK,                ///< a sink which needs to be evaluated first
-                WP_FUNC_SCALAR_EPOCH_STATS  ///< needs evaluation first, keeps stats over one epoch
+                WP_FUNC_SCALAR_EPOCH_STATS,  ///< needs evaluation first, keeps stats over one epoch
+                WP_FULL_WEIGHT_STATS,   ///< computes mean and variance of full weights (average over filters, only once per epoch)
+                WP_CONV_WEIGHT_STATS,   ///< computes mean and variance of convolutional weights (average over filters, only once per epoch)
             };
         private:
             /// counts the number of batches we've seen
