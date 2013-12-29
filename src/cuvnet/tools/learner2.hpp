@@ -95,6 +95,9 @@ namespace cuvnet
      * @ingroup learning
      */
     struct learner2{
+        private:
+            boost::shared_ptr<gradient_descent> m_gd;
+            boost::shared_ptr<monitor> m_mon;
         protected:
             typedef models::model model;
             typedef boost::property_tree::ptree ptree;
@@ -277,13 +280,23 @@ namespace cuvnet
             virtual void _load_batch(model* m, unsigned int epoch, unsigned int batchid);
 
             /**
+             * Return the current gradient_descent object, eg during fit().
+             */
+            inline boost::shared_ptr<gradient_descent> gd()const{ return m_gd; }
+
+            /**
+             * Return the current monitor object, eg during fit().
+             */
+            inline boost::shared_ptr<monitor> mon()const{ return m_mon; }
+
+            /**
              * (virtual) dtor.
              */
             virtual ~learner2();
     };
 
     /**
-     * Cross-validation that works together with the learner2 and model class
+     * Cross-validation that works together with the learner2 and model class.
      */
     struct crossvalidator2{
         private:

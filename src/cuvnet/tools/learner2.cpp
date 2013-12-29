@@ -464,12 +464,12 @@ namespace cuvnet
     }
 
     ptree learner2::predict(model& m, const ptree& cfg){
-        boost::shared_ptr<monitor> mon 
+        m_mon
             = get_monitor(m, cfg.get_child("monitor", ptree()));
 
         int batch_size = cfg.get("batchsize", -1);
         gradient_descent gd(m.loss(), 0, std::vector<Op*>(), 0.0, 0.0);
-        mon->register_gd(gd);
+        m_mon->register_gd(gd);
         if(batch_size < 0){
             _load_batch(&m, 0, 0);
             gd.batch_learning(1, INT_MAX);
@@ -479,12 +479,12 @@ namespace cuvnet
             gd.minibatch_learning(1, INT_MAX, false); // don't shuffle
         }
         ptree result;
-        if(mon->has("cerr")){
-            result.put("cerr_mean", mon->mean("cerr"));
-            result.put("cerr_var", mon->var("cerr"));
+        if(m_mon->has("cerr")){
+            result.put("cerr_mean", m_mon->mean("cerr"));
+            result.put("cerr_var", m_mon->var("cerr"));
         }else{
-            result.put("loss_mean", mon->mean("loss"));
-            result.put("loss_var", mon->var("loss"));
+            result.put("loss_mean", m_mon->mean("loss"));
+            result.put("loss_var", m_mon->var("loss"));
         }
         return result;
     }
@@ -498,10 +498,10 @@ namespace cuvnet
         tmppath = cfg.get("path", tmppath.string());
         boost::filesystem::create_directories(tmppath);
 
-        boost::shared_ptr<gradient_descent> gd 
+        m_gd 
             = get_gradient_descent(m, cfg.get_child("gd"));
 
-        boost::shared_ptr<monitor> mon 
+        m_mon
             = get_monitor(m, cfg.get_child("monitor", ptree()));
 
         boost::shared_ptr<early_stopper> es;
@@ -509,22 +509,22 @@ namespace cuvnet
         boost::optional<const ptree&> es_cfg 
             = cfg.get_child_optional("early_stopper");
         if(es_cfg){
-            es = get_early_stopper(*gd, *mon, *es_cfg);
+            es = get_early_stopper(*m_gd, *m_mon, *es_cfg);
             if(es) {
-                rotl.reset(new record_optimal_training_loss(*es, *mon));
-                mon->register_gd(*gd, *es);
+                rotl.reset(new record_optimal_training_loss(*es, *m_mon));
+                m_mon->register_gd(*m_gd, *es);
             }else{
-                mon->register_gd(*gd);
+                m_mon->register_gd(*m_gd);
             }
         }else{
-            mon->register_gd(*gd);
+            m_mon->register_gd(*m_gd);
         }
 
         boost::shared_ptr<convergence_checker> cc;
         boost::optional<const ptree&> cc_cfg
             = cfg.get_child_optional("convergence_checker");
         if (cc_cfg)
-            cc = get_convergence_checker(*gd, *mon, *cc_cfg);
+            cc = get_convergence_checker(*m_gd, *m_mon, *cc_cfg);
 
         int time_limit = cfg.get("time_limit", INT_MAX);
         int batch_size = cfg.get("batchsize", -1);
@@ -532,10 +532,10 @@ namespace cuvnet
         LOG4CXX_WARN(g_log_learner2, "batchsize:"<< batch_size<< ", max_epochs:"<<max_epochs<<", time_limit:"<<time_limit);
 
         boost::shared_ptr<schedules::hyperparam_schedule> learnrate_schedule =
-            get_learnrate_schedule(*gd, max_epochs, cfg.get_child("learnrate_schedule", ptree()));
+            get_learnrate_schedule(*m_gd, max_epochs, cfg.get_child("learnrate_schedule", ptree()));
 
         boost::shared_ptr<schedules::hyperparam_schedule> momentum_schedule =
-            get_momentum_schedule(*gd, max_epochs, cfg.get_child("momentum_schedule", ptree()));
+            get_momentum_schedule(*m_gd, max_epochs, cfg.get_child("momentum_schedule", ptree()));
 
         bool mls_active = cfg.get("min_loss_stopper.active",false);
         boost::optional<float> target_loss;
@@ -546,36 +546,40 @@ namespace cuvnet
         
         boost::shared_ptr<stop_when_target_loss_reached> swtlr;
         if(target_loss){
-            swtlr.reset(new stop_when_target_loss_reached(*gd, *mon, *target_loss));
+            swtlr.reset(new stop_when_target_loss_reached(*m_gd, *m_mon, *target_loss));
             LOG4CXX_WARN(g_log_learner2,  "Setting up Min Loss Stopper (active:" << mls_active << ", target_loss:" << target_loss << ")");
         }
-        this->before_learning(&m, *gd, es.get());
+        this->before_learning(&m, *m_gd, es.get());
         if(batch_size < 0){
             _load_batch(&m, 0, 0);
-            gd->batch_learning(max_epochs, time_limit);
+            m_gd->batch_learning(max_epochs, time_limit);
         }else {
-            gd->before_batch.connect(boost::bind(&learner2::_load_batch, this, &m, _1, _2));
-            gd->current_batch_num = boost::bind(&learner2::_n_batches, this, batch_size);
-            gd->minibatch_learning(max_epochs, time_limit);
+            m_gd->before_batch.connect(boost::bind(&learner2::_load_batch, this, &m, _1, _2));
+            m_gd->current_batch_num = boost::bind(&learner2::_n_batches, this, batch_size);
+            m_gd->minibatch_learning(max_epochs, time_limit);
         }
         ptree result;
-        result.put("gd.result_epoch", gd->iters());
+        result.put("gd.result_epoch", m_gd->iters());
         result.put("path", tmppath.string());
         if(learnrate_schedule)
-            result.put("gd.final_learnrate", gd->learnrate());
+            result.put("gd.final_learnrate", m_gd->learnrate());
         if(momentum_schedule)
             result.put("gd.final_momentum", 
-                    boost::dynamic_pointer_cast<momentum_gradient_descent>(gd)->momentum());
+                    boost::dynamic_pointer_cast<momentum_gradient_descent>(m_gd)->momentum());
         if(es){
             result.put("gd.early_stopper.best_perf", es->best_perf());
             if(rotl)
                 result.put("gd.early_stopper.optimal_training_error", rotl->best_training_loss);
         }else{
-            if(mon->has("loss"))
-                result.put("loss", mon->mean("loss"));
-            if(mon->has("cerr"))
-                result.put("cerr", mon->mean("cerr"));
+            if(m_mon->has("loss"))
+                result.put("loss", m_mon->mean("loss"));
+            if(m_mon->has("cerr"))
+                result.put("cerr", m_mon->mean("cerr"));
         }
+
+        // TODO continue_learning_until_previous_loss_reached would be easier
+        // if we would just not reset m_gd, and instead just run fit() again!
+        m_gd.reset();
         return result;
     }
 
