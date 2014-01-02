@@ -116,7 +116,7 @@ namespace cuvnet
             boost::shared_ptr<Op>   m_loss;  // the function to be derived
             boost::shared_ptr<Op>   m_op;    // the parameter which we derive for
             boost::shared_ptr<DeltaSink> m_sink;
-            std::auto_ptr<swiper>   m_swiper;
+            boost::scoped_ptr<swiper>   m_swiper;
         public:
 
             template<class Archive>
