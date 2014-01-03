@@ -197,7 +197,7 @@ namespace cuvnet
             .add_property("ptr", &OpWrap::this_ptr)
             .def("fprop", pure_virtual(&OpWrap::fprop))
             .def("bprop", pure_virtual(&OpWrap::bprop))
-            .def("dot", dot)
+            .def("dot", dot, (arg("op"), arg("verbose")=false))
             .def("result", &OpWrap::result, (arg("index")=0), return_value_policy<return_by_value>())
             .def("param",  &OpWrap::param, (arg("index")=0),  return_value_policy<return_by_value>())
             .def("get_parameter", 
