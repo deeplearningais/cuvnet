@@ -89,6 +89,7 @@ namespace cuvnet
     }
     monitor& monitor::add(watchpoint_type type, boost::shared_ptr<Op> op, const std::string& name, unsigned int result){
         if(op){
+            op->result(result)->need_result = true;
             m_impl->m_watchpoints.push_back(new watchpoint(type,op,name,result));
             m_impl->m_wpmap[name] = m_impl->m_watchpoints.back();
         }
