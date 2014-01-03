@@ -65,6 +65,7 @@ namespace cuvnet
             // +, -, *, /
             ar.template register_type<Axpby>();
             ar.template register_type<AddScalar>();
+            ar.template register_type<ScalarLike>();
             ar.template register_type<MultScalar>();
             ar.template register_type<SubtractFromScalar>();
             ar.template register_type<Multiply>();
