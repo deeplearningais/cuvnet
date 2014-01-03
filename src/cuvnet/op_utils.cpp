@@ -112,7 +112,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
 	BOOST_FOREACH(Op::param_t& p, o->m_params){
         paramsstr = paramsstr + "<p" + boost::lexical_cast<std::string>(p->param_number) + "> " + boost::lexical_cast<std::string>(p->param_number);
         if(m_verbose){
-        std::string shape;
+            std::string shape;
             if(p->shape.size()){
                 shape = " (";
                 for(unsigned int i=0;i<p->shape.size();i++){
@@ -130,13 +130,24 @@ void define_graphviz_node_visitor::preorder(Op* o){
 
 	BOOST_FOREACH(Op::result_t& r, o->m_results){
         resultsstr = resultsstr + "<r" + boost::lexical_cast<std::string>(r->result_number) + "> " + boost::lexical_cast<std::string>(r->result_number);
+
+        std::string shape;
+        if(r->shape.size()){
+            shape = " (";
+            for(unsigned int i=0;i<r->shape.size();i++){
+                shape += boost::lexical_cast<std::string>(r->shape[i]) + ((i==r->shape.size()-1) ? " " : ", ");
+            }
+            shape += ")";
+        }
+        resultsstr += shape;
+
         if(o->get_n_results()-1 != r->result_number)
             resultsstr = resultsstr + " | ";
     }
     if(resultsstr.size() != 0)
         resultsstr = " | { " + resultsstr + " }";
 
-    if(o->get_n_results() == 1){
+    if(!m_verbose && o->get_n_results() == 1){
         resultsstr = "";
         n.label = "<r0> " + n.label;
     }
