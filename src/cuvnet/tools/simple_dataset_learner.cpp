@@ -209,24 +209,30 @@ namespace cuvnet
     void 
         simple_dataset_learner::load_batch(model* m, unsigned int epoch, unsigned int bid){
             std::vector<Op*> inputs = m->get_inputs();
-            assert(inputs.size() == 2);
+            assert(inputs.size() == 2 || inputs.size() == 1);
 
-            ParameterInput* X = dynamic_cast<ParameterInput*>(inputs[0]);
-            ParameterInput* Y = dynamic_cast<ParameterInput*>(inputs[1]);
+            ParameterInput *X = NULL, *Y = NULL;
+
+            X = dynamic_cast<ParameterInput*>(inputs[0]);
             assert(X);
-            assert(Y);
+            if(inputs.size() == 2){
+                Y = dynamic_cast<ParameterInput*>(inputs[1]);
+                assert(Y);
+            }
 
             unsigned int bs = X->data().shape(0);
 #ifndef NDEBUG
-            unsigned int bs2 = Y->data().shape(0);
-            assert(bs == bs2);
+            if(Y){
+                unsigned int bs2 = Y->data().shape(0);
+                assert(bs == bs2);
+            }
 #endif
             bool in_early_stopping = m_current_mode == CM_VALID;
             {
                 host_matrix& data = in_early_stopping ? m_current_vdata : m_current_data;
                 X->data() = data[cuv::indices[cuv::index_range(bid*bs,(bid+1)*bs)]];
             }
-            {
+            if(Y){
                 host_matrix& labl = in_early_stopping ? m_current_vlabels : m_current_labels;
                 Y->data() = labl[cuv::indices[cuv::index_range(bid*bs,(bid+1)*bs)]];
             }
