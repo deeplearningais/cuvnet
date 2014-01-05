@@ -567,9 +567,11 @@ namespace cuvnet
     }
 
     void MultinomialLogisticLoss::_determine_shapes(){
-        assert(m_params[0]->shape == m_params[1]->shape);
-        cuvAssert(m_axis == 0 ||
-                m_axis == m_params[0]->shape.size() - 1);
+        if(m_results[0]->need_result){
+            assert(m_params[0]->shape == m_params[1]->shape);
+            cuvAssert(m_axis == 0 ||
+                    m_axis == m_params[0]->shape.size() - 1);
+        }
         std::vector<unsigned int> src = m_params[0]->shape;
         m_results[0]->shape.resize(src.size()-1);
 

@@ -58,9 +58,11 @@ namespace cuvnet
     }
 
     void ClassificationLoss::_determine_shapes(){
+        m_results[0]->shape = std::vector<unsigned int>(1,1);
+        if(!m_results[0]->need_result)
+            return;
         assert(m_params[0]->shape == m_params[1]->shape);
         cuvAssert(m_axis == 0 || m_axis == m_params[0]->shape.size() - 1);
-        m_results[0]->shape = std::vector<unsigned int>(1,1);
     }
 
 
