@@ -16,6 +16,11 @@ namespace cuvnet
           , m_epoch(0), m_epoch_of_saved_params(0)
           , m_swipe(*op,result,params,false), m_update_every(1)
     { 
+
+        // remove doublets
+        std::sort(m_params.begin(), m_params.end());
+        m_params.erase(std::unique(m_params.begin(), m_params.end()),
+                m_params.end());
         m_loss = op;
     }
     gradient_descent::~gradient_descent(){}
