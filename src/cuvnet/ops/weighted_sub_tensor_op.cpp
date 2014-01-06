@@ -66,8 +66,8 @@ namespace cuvnet{
             cuvAssert((*m_S)["S"].size() ==p1.shape[2]);
 
             if (p1.need_derivative || p2.need_derivative){
-                if(p1.can_overwrite_directly() || p1.can_add_directly()){
-                  if (p2.can_overwrite_directly() || p2.can_add_directly()){
+                if(p1.can_overwrite_directly()){
+                  if (p2.can_overwrite_directly()){
                  weighted_sub_tensor_op_grad(*p1.overwrite_or_add_value(), *p2.overwrite_or_add_value(), p1.value.cdata(), r0.delta.cdata(), p2.value.cdata(), m_lae.cdata(),  (*m_S)["S"], m_max_idx.cdata(), m_spn, p1.need_derivative, p2.need_derivative, m_size, m_stride, m_subspace_size, m_to, m_eps);
                   }else{
                           value_ptr ptr(new value_type(p2.shape));
@@ -76,7 +76,7 @@ namespace cuvnet{
                 }
                        }else{
                            value_ptr ptr(new value_type(p1.shape));
-                           if (p2.can_overwrite_directly() || p2.can_add_directly()){
+                           if (p2.can_overwrite_directly()){
                     weighted_sub_tensor_op_grad(*ptr, *p2.overwrite_or_add_value(), p1.value.cdata(), r0.delta.cdata(), p2.value.cdata(), m_lae.cdata(),  (*m_S)["S"], m_max_idx.cdata(), m_spn, p1.need_derivative, p2.need_derivative, m_size, m_stride, m_subspace_size, m_to, m_eps);
                    } else{
                              value_ptr ptr2(new value_type(p2.shape));

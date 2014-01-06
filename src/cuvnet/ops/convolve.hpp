@@ -717,7 +717,7 @@ namespace cuvnet
         };
 
         /**
-         * Calculate op out of consecutive elements in the input.
+         * Calculates op out of consecutive elements in the input.
          *
          * Expressed in numpy style, this calculates:
          *
