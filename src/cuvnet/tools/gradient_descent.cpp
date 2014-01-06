@@ -317,7 +317,8 @@ namespace cuvnet
                             param->reset_delta();
                         }
                         //marginalize labels
-                        fill(pt_Y->data(), 1.f);
+                        //TODO "SAVE" LABELS FOR COMPARISON
+                        fill(pt_Y->data(), -1.f); 
 
                         //calculate result of marginalization
                         m_swipe.fprop();
