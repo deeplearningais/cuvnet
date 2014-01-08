@@ -352,7 +352,7 @@ namespace cuvnet
         cfg2.put("min_loss_stopper.active", true);
         cfg2.put("min_loss_stopper.target_loss", result.get<float>("gd.early_stopper.optimal_training_error"));
         cfg2.put("gd.start_epoch",    result.get<unsigned int>("gd.result_epoch"));
-        cfg2.put("gd.max_epochs", 2 * result.get<unsigned int>("gd.result_epoch"));
+        cfg2.put("gd.max_epochs", 8 * result.get<unsigned int>("gd.result_epoch"));
         ptree res = fit(m, cfg2);
         return res;
     }
