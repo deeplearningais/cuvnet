@@ -29,7 +29,7 @@ namespace cuvnet
                  * @param p0 input to get shape from
                  * @param scalar constant value of the created block
                  */
-                ScalarLike(result_t& p0, float scalar):Op(1,2), m_scalar(scalar){
+                ScalarLike(result_t& p0, float scalar):Op(1,1), m_scalar(scalar){
                     add_param(0,p0);
                 }
 
