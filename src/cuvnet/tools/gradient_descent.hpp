@@ -41,6 +41,15 @@ namespace cuvnet
     struct gradient_descent{
         public:
             typedef std::vector<Op*> paramvec_t;
+            enum stop_reason_t {
+                SR_NAN,
+                SR_NO_IMPROVEMENT,
+                SR_CONVERGENCE,
+                SR_MAX_ITER,
+                SR_TIMEOUT,
+                SR_NETWORK,
+                SR_UNKNOWN,
+            };
         protected:
             Op::op_ptr       m_loss;     ///< the loss op we want to minimize
             unsigned int     m_result;   ///< the number of the result of the loss op we want to minimize
@@ -53,6 +62,7 @@ namespace cuvnet
             unsigned int     m_epoch_of_saved_params; ///< stores the time of the saved params
             swiper           m_swipe;    ///< does fprop and bprop for us
             unsigned int           m_update_every;    ///< determines weather to update after each batch if set to 1, and 0 otherwise
+            stop_reason_t    m_stop_reason; ///< explains why learning was stopped
         public:
             /// triggered before an epoch starts.
             boost::signal<void(unsigned int, unsigned int)> before_epoch;
@@ -66,6 +76,9 @@ namespace cuvnet
             boost::signal<void(unsigned int)> before_weight_update;
             /// triggered after updating weights
             boost::signal<void(unsigned int)> after_weight_update;
+
+            /// @return the reason why learning was stopped
+            inline stop_reason_t stop_reason()const{return m_stop_reason;}
 
             /// set verbosity
             inline void set_verbosity(int verbosity){ 

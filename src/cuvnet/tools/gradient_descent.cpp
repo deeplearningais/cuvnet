@@ -39,6 +39,7 @@ namespace cuvnet
         unsigned long int iter = 1;
         unsigned long int wups = 0;
         try{
+            m_stop_reason = SR_UNKNOWN;
             unsigned long int t_start = time(NULL);
             for (; ; ++m_epoch) {
                 //log4cxx::MDC epoch_mdc("epoch",boost::lexical_cast<std::string>(m_epoch));
@@ -87,7 +88,20 @@ namespace cuvnet
                 }
                 after_epoch(m_epoch, wups); // should log error etc
             }
+        }catch(arithmetic_error_stop){
+            m_stop_reason = SR_NAN;
+        }catch(no_improvement_stop){
+            m_stop_reason = SR_NO_IMPROVEMENT;
+        }catch(convergence_stop){
+            m_stop_reason = SR_CONVERGENCE;
+        }catch(max_iter_stop){
+            m_stop_reason = SR_MAX_ITER;
+        }catch(timeout_stop){
+            m_stop_reason = SR_TIMEOUT;
+        }catch(network_stop){
+            m_stop_reason = SR_NETWORK;
         }catch(gradient_descent_stop){
+            m_stop_reason = SR_UNKNOWN;
         }
 
         // Restore parameters.
@@ -100,6 +114,7 @@ namespace cuvnet
 
     void gradient_descent::batch_learning(const unsigned int n_epochs, unsigned long int n_max_secs){
         try{
+            m_stop_reason = SR_UNKNOWN;
             unsigned long int t_start = time(NULL);
             for (; m_epoch < n_epochs; ++m_epoch) {
                 if(time(NULL) - t_start > n_max_secs)
@@ -114,7 +129,20 @@ namespace cuvnet
                 after_epoch(m_epoch, m_epoch); // wups==epoch
                 //m_learnrate *= m_learnrate_decay;
             }
+        }catch(arithmetic_error_stop){
+            m_stop_reason = SR_NAN;
+        }catch(no_improvement_stop){
+            m_stop_reason = SR_NO_IMPROVEMENT;
+        }catch(convergence_stop){
+            m_stop_reason = SR_CONVERGENCE;
+        }catch(max_iter_stop){
+            m_stop_reason = SR_MAX_ITER;
+        }catch(timeout_stop){
+            m_stop_reason = SR_TIMEOUT;
+        }catch(network_stop){
+            m_stop_reason = SR_NETWORK;
         }catch(gradient_descent_stop){
+            m_stop_reason = SR_UNKNOWN;
         }
         load_best_params();
         done_learning();
@@ -243,6 +271,7 @@ namespace cuvnet
             float wd = m_weightdecay * inp->get_weight_decay_factor();
 
             cuvAssert(inp->delta().shape() == inp->data().shape());
+#if 1
 
             // this is the momentum part:
             cuv::apply_binary_functor(m_last_delta[i], inp->delta(), cuv::BF_AXPY, m_momentum);
@@ -251,6 +280,36 @@ namespace cuvnet
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
             cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), m_last_delta[i], lr, wd);
             //m_learnrate *= m_learnrate_decay;
+#else
+            // when gradient is exactly zero, assume that the unit has been dropped out
+            // then, do not apply any gradient step, not even the part due to momentum
+            cuv::tensor<unsigned char, matrix::memory_space_type> mask =
+                inp->delta() == 0.f;
+
+            matrix last_delta_copy = m_last_delta[i].copy();
+            // This is the momentum part for imagenet:
+            //cuv::apply_binary_functor(m_last_delta[i], inp->delta(), cuv::BF_AXPY, m_momentum);
+            // this is the momentum part for mnist:
+            cuv::apply_binary_functor(m_last_delta[i], inp->delta(), cuv::BF_AXPBY, m_momentum, (-1.f + m_momentum)*lr);  // lastDelta += momentum * newDelta
+
+
+            // copy back the part where inp->delta() was zero
+            cuv::apply_scalar_functor(m_last_delta[i], last_delta_copy, cuv::SF_COPY, &mask);  // lastDelta[newDelta==0] = originalLastDelta
+
+
+            // ensure that only weights are changed which had non-zero inp->delta().
+            last_delta_copy = m_last_delta[i].copy();
+            cuv::apply_scalar_functor(last_delta_copy, cuv::SF_MULT, 0.f, &mask);
+            cuvAssert(wd == 0.f); // if wd != 0, the learn_step_weight_decay
+            // function would still update the zero gradient weights!
+
+
+
+            // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
+            //       we're changing the underlying object all cow_ptrs pointing to it!!!
+            // cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), last_delta_copy, lr, wd);
+            *inp->data_ptr().ptr()  += last_delta_copy;
+#endif
             inp->reset_delta();
         }
     }

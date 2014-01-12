@@ -560,6 +560,7 @@ namespace cuvnet
         }
         ptree result;
         result.put("gd.result_epoch", m_gd->iters());
+        result.put("gd.stop_reason", (int)m_gd->stop_reason());
         result.put("path", tmppath.string());
         if(learnrate_schedule)
             result.put("gd.final_learnrate", m_gd->learnrate());
