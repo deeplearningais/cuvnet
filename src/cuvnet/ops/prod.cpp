@@ -37,7 +37,7 @@ namespace cuvnet
                     1.f,1.f);
         }else{
             // allocate new value *sigh*
-            value_ptr v(new value_type(r0.shape));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             cuv::prod(*v, 
                     p0.value.cdata(),
                     p1.value.cdata(),
@@ -76,7 +76,7 @@ namespace cuvnet
                             p1v, delta, p1t, deltat,1.f,1.f);
             }else{
                 // reallocate *sigh*
-                value_ptr v(new value_type(p0.shape));
+                value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
                 if(m_p0t=='n')
                     cuv::prod(v.data(), delta, p1v,
                             deltat, p1t,1.f,0.f);
@@ -108,7 +108,7 @@ namespace cuvnet
                             delta,p0v, deltat, p0t,1.f,1.f);
             }else{
                 // reallocate *sigh*
-                value_ptr v(new value_type(p1.shape));
+                value_ptr v(new value_type(p1.shape, value_ptr::s_allocator));
                 if(m_p1t=='n')
                     cuv::prod(v.data(),
                             p0v, delta, p0t,deltat,1.f,0.f);

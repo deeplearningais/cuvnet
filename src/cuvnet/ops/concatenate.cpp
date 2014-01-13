@@ -46,7 +46,7 @@ namespace cuvnet
             value_type part_2 = get_subtensor(v, false);
             *static_cast<view_of<value_type>::type*>(&part_2)  = p1.value.cdata();
         }else{
-            value_ptr v = value_ptr(new value_type(r0.shape)); // this safer but slower
+            value_ptr v = value_ptr(new value_type(r0.shape, value_ptr::s_allocator)); // this safer but slower
             value_type part_1 = get_subtensor(*v, true);
             *static_cast<view_of<value_type>::type*>(&part_1) = p0.value.cdata();
 
@@ -75,7 +75,7 @@ namespace cuvnet
                 const value_type& v = r0.delta.cdata();
                 v0 += get_subtensor(v, true);
             }else{
-                value_ptr v0(new value_type(p0.shape));
+                value_ptr v0(new value_type(p0.shape, value_ptr::s_allocator));
 
                 const value_type& v = r0.delta.cdata();
                 *static_cast<view_of<value_type>::type*>(&*v0) = get_subtensor(v, true);
@@ -93,7 +93,7 @@ namespace cuvnet
                 const value_type& v = r0.delta.cdata();
                 v1 += get_subtensor(v, false);
             }else{
-                value_ptr v1(new value_type(p1.shape));
+                value_ptr v1(new value_type(p1.shape, value_ptr::s_allocator));
 
                 value_type v = r0.delta.cdata();
                 *static_cast<view_of<value_type>::type*>(&*v1) = get_subtensor(v, false);

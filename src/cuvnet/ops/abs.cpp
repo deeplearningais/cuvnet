@@ -12,7 +12,7 @@ namespace cuvnet
         if(r0.can_overwrite_directly()){
             apply_scalar_functor( r0.overwrite_or_add_value().data(), inp, SF_ROBUST_ABS, m_scalar);
         }else{
-            value_ptr res(new value_type(inp.shape()));
+            value_ptr res(new value_type(inp.shape(), value_ptr::s_allocator));
             apply_scalar_functor( *res, inp, SF_ROBUST_ABS, m_scalar);
 
             r0.push(res); // 'copy' a newly created matrix
@@ -33,7 +33,7 @@ namespace cuvnet
             apply_scalar_functor(res,p0.value.cdata(),SF_DROBUST_ABS, m_scalar);
             res *= r0.delta.cdata();
         }else{
-            value_ptr res(new value_type(p0.value.cdata().shape()));
+            value_ptr res(new value_type(p0.value.cdata().shape(), value_ptr::s_allocator));
             apply_scalar_functor(*res,p0.value.cdata(),SF_DROBUST_ABS, m_scalar);
             *res *= r0.delta.cdata(); 
             p0.push(res);

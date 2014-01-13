@@ -138,7 +138,7 @@ namespace cuvnet
                  * @param init an extents object (passed on to Input)
                  */
                 template<class T>
-                    ParameterInput(const T& init):Input(init), m_data(new value_type(init)){ 
+                    ParameterInput(const T& init):Input(init), m_data(new value_type(init, value_ptr::s_allocator)){ 
                         set_derivable(true);
                     }
                 /**
@@ -146,7 +146,7 @@ namespace cuvnet
                  * @param init an extents object (passed on to Input)
                  */
                 template<class T>
-                    ParameterInput(const T& init, const std::string& name):Input(init,name), m_data(new value_type(init)){  
+                    ParameterInput(const T& init, const std::string& name):Input(init,name), m_data(new value_type(init, value_ptr::s_allocator)){  
                         set_derivable(true);
                     }
                 /**

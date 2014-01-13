@@ -12,7 +12,7 @@ namespace cuvnet
         if(r0.can_overwrite_directly()){
             cuv::transpose(*r0.overwrite_or_add_value(), inp);
         }else{
-            value_ptr p(new value_type(r0.shape));
+            value_ptr p(new value_type(r0.shape, value_ptr::s_allocator));
             cuv::transpose(*p, inp);
             r0.push(p);
         }
@@ -29,7 +29,7 @@ namespace cuvnet
         if(p0.can_overwrite_directly()){
             cuv::transpose(*p0.overwrite_or_add_value(), inp);
         }else{
-            value_ptr p(new value_type(p0.shape));
+            value_ptr p(new value_type(p0.shape, value_ptr::s_allocator));
             cuv::transpose(*p, inp);
             p0.push(p);
         }

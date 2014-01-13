@@ -27,7 +27,7 @@ namespace cuvnet
             r0.push(p0.value); // 'copy' a newly created matrix
         }
         if(r1.need_result){
-            value_ptr vp(new value_type(r1.shape));
+            value_ptr vp(new value_type(r1.shape, value_ptr::s_allocator));
             value_type& v = *vp;
             cuv::convert(v, m_result);
             r1.push(vp);

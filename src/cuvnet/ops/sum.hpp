@@ -47,7 +47,7 @@ namespace cuvnet
                  */
                 Sum(result_t& p0):Op(1,1){
                     add_param(0,p0);
-                    m_results[0]->delta           = value_ptr(new value_type(cuv::extents[1]));
+                    m_results[0]->delta           = value_ptr(new value_type(cuv::extents[1], value_ptr::s_allocator));
                     m_results[0]->delta.data()[0] = 1.f;
                     m_identity = false;
                 }
@@ -88,7 +88,7 @@ namespace cuvnet
                  */
                 Mean(result_t& p0):Op(1,1){
                     add_param(0,p0);
-                    m_results[0]->delta           = value_ptr(new value_type(cuv::extents[1]));
+                    m_results[0]->delta           = value_ptr(new value_type(cuv::extents[1], value_ptr::s_allocator));
                     m_results[0]->delta.data()[0] = 1.f;
                     m_identity = false;
                 }

@@ -77,7 +77,7 @@ namespace cuvnet
                 }
             }else{
                 // reallocate *sigh*
-                value_ptr v(new value_type(p1.shape));
+                value_ptr v(new value_type(p1.shape, value_ptr::s_allocator));
                 if(m_axis == p0.shape.size()-1)
                     reduce_to_row(*v, r0.delta.cdata(),RF_ADD, 1.f, 0.f);
                 else if(m_axis == 0)
@@ -208,7 +208,7 @@ namespace cuvnet
                 }
             }else{
                 // reallocate *sigh*
-                value_ptr v(new value_type(p1.shape));
+                value_ptr v(new value_type(p1.shape, value_ptr::s_allocator));
                 if(m_axis == p0.shape.size()-1)
                     reduce_to_row(*v, m,RF_ADD, 1.f, 0.f);
                 else if(m_axis == 0)
@@ -342,7 +342,7 @@ namespace cuvnet
                 }
             }else{
                 // reallocate *sigh*
-                value_ptr v(new value_type(p1.shape));
+                value_ptr v(new value_type(p1.shape, value_ptr::s_allocator));
                 if(m_axis == p0.shape.size()-1)
                     reduce_to_row(*v, m,RF_ADD, 1.f, 0.f);
                 else if(m_axis == 0)

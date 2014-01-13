@@ -8,7 +8,7 @@ namespace cuvnet
         result_t::element_type& r0 = *m_results[0];
 
         const value_type& inp = p0.value.cdata();
-        value_ptr res(new value_type(inp.shape()));
+        value_ptr res(new value_type(inp.shape(), value_ptr::s_allocator));
 
         if(m_scalar != 1.f)
             apply_scalar_functor( *res, inp, SF_MULT, m_scalar);

@@ -15,7 +15,7 @@ namespace cuvnet
         if(r0.can_overwrite_directly()){
             dim_shuffle_vec(r0.overwrite_or_add_value().data(), inp, m_pattern);
         }else{
-            value_ptr res(new value_type(inp.shape()));
+            value_ptr res(new value_type(inp.shape(), value_ptr::s_allocator));
             dim_shuffle_vec(*res, inp, m_pattern);
 
             r0.push(res); // 'copy' a newly created matrix
@@ -70,7 +70,7 @@ namespace cuvnet
         if(r0.can_overwrite_directly()){
             flip_dims_vec(r0.overwrite_or_add_value().data(), inp, m_pattern);
         }else{
-            value_ptr res(new value_type(inp.shape()));
+            value_ptr res(new value_type(inp.shape(), value_ptr::s_allocator));
             flip_dims_vec(*res, inp, m_pattern);
 
             r0.push(res); // 'copy' a newly created matrix

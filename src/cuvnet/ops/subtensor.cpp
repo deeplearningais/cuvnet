@@ -90,7 +90,7 @@ namespace cuvnet
             // needs cast because memory is copied instead of copying pointer
             v += r0.delta.cdata();
         }else{
-            value_ptr v(new value_type(p0.shape));
+            value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
             *v = 0.f;
             value_type w = *v;
             // needs cast because memory is copied instead of copying pointer

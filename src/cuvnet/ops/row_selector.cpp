@@ -57,7 +57,7 @@ namespace cuvnet
                     oav = 0.f; // need to set everything else to 0, since we're only setting a slice
                 }else{
                     // reallocate *sigh*
-                    value_ptr v(new value_type(p.shape));
+                    value_ptr v(new value_type(p.shape, value_ptr::s_allocator));
                     *v = 0.f;
                     p.push(v);
                 }
@@ -73,7 +73,7 @@ namespace cuvnet
                 oav[indices[m_row][index_range()]] = r.delta; // set directly
             }else{
                 // reallocate *sigh*
-                value_ptr v(new value_type(p.shape));
+                value_ptr v(new value_type(p.shape, value_ptr::s_allocator));
                 *v = 0.f;
                 (*v)[indices[m_row][index_range()]] = r.delta; // set directly
                 p.push(v);
@@ -192,7 +192,7 @@ namespace cuvnet
                     oav = 0.f; // need to set everything else to 0, since we're only setting a slice
                 }else{
                     // reallocate *sigh*
-                    value_ptr v(new value_type(p.shape));
+                    value_ptr v(new value_type(p.shape, value_ptr::s_allocator));
                     *v = 0.f;
                     p.push(v);
                 }
@@ -208,7 +208,7 @@ namespace cuvnet
                 oav[indices[index_range(m_row, m_row+nrows)][index_range()]] = r.delta; // set directly
             }else{
                 // reallocate *sigh*
-                value_ptr v(new value_type(p.shape));
+                value_ptr v(new value_type(p.shape, value_ptr::s_allocator));
                 *v = 0.f;
                 (*v)[indices[index_range(m_row, m_row+nrows)][index_range()]] = r.delta; // set directly
                 p.push(v);

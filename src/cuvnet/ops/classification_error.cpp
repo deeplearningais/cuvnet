@@ -44,7 +44,7 @@ namespace cuvnet
         a1 -= a2;
         int n_wrong = batch_size - cuv::count(a1,0);
 
-        value_ptr res(new value_type(cuv::extents[1]));
+        value_ptr res(new value_type(cuv::extents[1], value_ptr::s_allocator));
         *res = n_wrong/(float)batch_size;
 
         r0.push(res);

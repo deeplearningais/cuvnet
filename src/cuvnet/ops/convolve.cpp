@@ -27,7 +27,7 @@ namespace cuvnet
         }else{
             // reallocate *sigh*
             if(filtSizeOK){
-                value_ptr v(new value_type(r0.shape));
+                value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
                 convolve2d(*v, p0.value.cdata(), p1.value.cdata(), m_padding_start, m_stride,m_nGroups);
                 r0.push(v);
             }else{
@@ -88,21 +88,21 @@ namespace cuvnet
 
         if(!filtSizeOK){
             // create intermediate copy of deltas
-            tmp_r0delta.reset(new value_type(extents[nFiltTmp][r0.shape[1]][r0.shape[2]][r0.shape[3]]));
+            tmp_r0delta.reset(new value_type(extents[nFiltTmp][r0.shape[1]][r0.shape[2]][r0.shape[3]], value_ptr::s_allocator));
             {
                 *tmp_r0delta = 0.f;
                 (*tmp_r0delta)[indices[index_range(0,nFiltReal)][index_range()][index_range()][index_range()]] = r0.delta.cdata();
             }
 
             // create intermediate copy of weights
-            tmp_w.reset(new value_type(extents[p1.shape[0]][p1.shape[1]][nFiltTmp]));
+            tmp_w.reset(new value_type(extents[p1.shape[0]][p1.shape[1]][nFiltTmp], value_ptr::s_allocator));
             {
                 *tmp_w = 0.f;
                 (*tmp_w)[indices[index_range()][index_range()][index_range(0,nFiltReal)]] = p1.value.cdata().copy();
             }
 
             // create intermediate representation of filter derivative
-            tmp_dw.reset(new value_type(extents[p1.shape[0]][p1.shape[1]][nFiltTmp]));
+            tmp_dw.reset(new value_type(extents[p1.shape[0]][p1.shape[1]][nFiltTmp], value_ptr::s_allocator));
         }
 
         if(p1.need_derivative){
@@ -118,7 +118,7 @@ namespace cuvnet
                else if(p1.can_add_directly()){
                    d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum, 1.f,1.f);
                }else{
-                   value_ptr ptr(new value_type(p1.shape));
+                   value_ptr ptr(new value_type(p1.shape, value_ptr::s_allocator));
                    value_type& dflt = *ptr;
                    d_conv2d_dfilt(dflt,delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
                    p1.push(ptr);
@@ -323,7 +323,7 @@ namespace cuvnet
                d_convolve_d_kern(*p1.overwrite_or_add_value(),img, delta,  m_mode);
            }
            else{
-               value_ptr ptr(new value_type(p1.shape));
+               value_ptr ptr(new value_type(p1.shape, value_ptr::s_allocator));
                value_type& dflt = *ptr;
                d_convolve_d_kern(dflt,img, delta,  m_mode);
                p1.push(ptr);
@@ -380,7 +380,7 @@ namespace cuvnet
 
               }
               else{
-                  value_ptr v(new value_type(p2.shape));
+                  value_ptr v(new value_type(p2.shape, value_ptr::s_allocator));
                   value_type w(rows);
                   value_type r(r0.shape);
                   // multiplies delta with mask of ones at the border and zeros in center and summes up all
@@ -474,7 +474,7 @@ namespace cuvnet
             bed_of_nails(*r0.overwrite_or_add_value(), p0.value.cdata(), m_startx,m_stridex, 1.f,1.f);
         }else{
             // reallocate *sigh*
-            value_ptr v(new value_type(r0.shape));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             bed_of_nails(*v, p0.value.cdata(), m_startx,m_stridex);
             r0.push(v);
         }
@@ -492,7 +492,7 @@ namespace cuvnet
         }else if(p0.can_add_directly()){
             bed_of_nails_grad(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_startx,m_stridex, 1.f, 1.f);
         }else{
-            value_ptr ptr(new value_type(p0.shape));
+            value_ptr ptr(new value_type(p0.shape, value_ptr::s_allocator));
             bed_of_nails_grad(*ptr, r0.delta.cdata(), m_startx,m_stridex);
             p0.push(ptr);
         }
@@ -528,7 +528,7 @@ namespace cuvnet
             resize_bilinear(*r0.overwrite_or_add_value(), p0.value.cdata(), m_scale);
         }else{
             // reallocate *sigh*
-            value_ptr v(new value_type(r0.shape));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             resize_bilinear(*v, p0.value.cdata(), m_scale);
             r0.push(v);
         }
@@ -545,7 +545,7 @@ namespace cuvnet
         if(p0.can_overwrite_directly()){
             resize_bilinear(*p0.overwrite_or_add_value(), r0.delta.cdata(), 1.f/m_scale);
         }else{
-            value_ptr ptr(new value_type(p0.shape));
+            value_ptr ptr(new value_type(p0.shape, value_ptr::s_allocator));
             resize_bilinear(*ptr, r0.delta.cdata(), 1.f/m_scale);
             p0.push(ptr);
         }
@@ -589,7 +589,7 @@ namespace cuvnet
 
         }else{
             // try to overwrite p0
-            value_ptr v(new value_type(r0.shape));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             if (m_dim == 0)
                 convolutionRows(*v, p0.value.cdata(), m_kernel);
             else if(m_dim == 1)
@@ -615,7 +615,7 @@ namespace cuvnet
             else 
                 convolutionDepth(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_kernel_reverse);
         }else{
-            value_ptr v(new value_type(p0.shape));
+            value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
             if (m_dim == 0)
                 convolutionRows(*v, r0.delta.cdata(), m_kernel_reverse);
             else if(m_dim == 1)
@@ -738,7 +738,7 @@ namespace cuvnet
             cuv::alex_conv::response_norm_cross_map(*r0.overwrite_or_add_value(), m_denom, p0.value.cdata(), m_group_size, m_add_scale, m_pow_scale, m_blocked);
             m_orig_out = r0.overwrite_or_add_value();
         }else{
-            value_ptr v(new value_type(r0.shape));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             cuv::alex_conv::response_norm_cross_map(*v, m_denom, p0.value.cdata(), m_group_size, m_add_scale, m_pow_scale, m_blocked);
             r0.push(v);
             m_orig_out = v;
@@ -761,7 +761,7 @@ namespace cuvnet
             cuv::alex_conv::response_norm_cross_map_grad(*r0.overwrite_or_add_value(), *m_orig_out, p0.value.cdata(), r0.delta.cdata(), m_denom, m_group_size, m_add_scale, m_pow_scale, m_blocked, 1.f, 1.f);
         }else{
             // try to overwrite r0.delta
-            value_ptr v(new value_type(p0.shape));
+            value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
             cuv::alex_conv::response_norm_cross_map_grad(*v, *m_orig_out, p0.value.cdata(), r0.delta.cdata(), m_denom, m_group_size, m_blocked, m_add_scale, m_pow_scale);
             p0.push(v);
         }
@@ -805,7 +805,7 @@ namespace cuvnet
             cuv::alex_conv::response_normalization(*r0.overwrite_or_add_value(), m_denom, p0.value.cdata(), m_patch_size, m_add_scale, m_pow_scale);
             m_orig_out = r0.overwrite_or_add_value();
         }else{
-            value_ptr v(new value_type(r0.shape));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             cuv::alex_conv::response_normalization(*v, m_denom, p0.value.cdata(), m_patch_size, m_add_scale, m_pow_scale);
             r0.push(v);
             m_orig_out = v;
@@ -828,7 +828,7 @@ namespace cuvnet
             response_normalization_grad(*r0.overwrite_or_add_value(), *m_orig_out, p0.value.cdata(), r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale, 1.f, 1.f);
         }else{
             // try to overwrite r0.delta
-            value_ptr v(new value_type(p0.shape));
+            value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
             response_normalization_grad(*v, *m_orig_out, p0.value.cdata(), r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale);
             p0.push(v);
         }
@@ -869,7 +869,7 @@ namespace cuvnet
             cuv::alex_conv::contrast_normalization(*r0.overwrite_or_add_value(), m_denom, m_meandiffs, p0.value.cdata(), m_patch_size, m_add_scale, m_pow_scale);
             m_orig_out = r0.overwrite_or_add_value();
         }else{
-            value_ptr v(new value_type(r0.shape));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             cuv::alex_conv::contrast_normalization(*v, m_denom, m_meandiffs, p0.value.cdata(), m_patch_size, m_add_scale, m_pow_scale);
             r0.push(v);
             m_orig_out = v;
@@ -892,7 +892,7 @@ namespace cuvnet
             contrast_normalization_grad(*r0.overwrite_or_add_value(), *m_orig_out, m_meandiffs, r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale, 1.f, 1.f);
         }else{
             // try to overwrite r0.delta
-            value_ptr v(new value_type(p0.shape));
+            value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
             contrast_normalization_grad(*v, *m_orig_out, m_meandiffs, r0.delta.cdata(), m_denom, m_patch_size, m_add_scale, m_pow_scale);
             p0.push(v);
         }
@@ -933,7 +933,7 @@ namespace cuvnet
                 m_result = r0.overwrite_or_add_value(); // save for bprop
         }else{
             // reallocate *sigh*
-            value_ptr v(new value_type(r0.shape));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             local_pool(*v,p0.value.cdata(),
                     m_subsx, 0, m_stridex, outx, m_pooltype);
             r0.push(v);
@@ -973,7 +973,7 @@ namespace cuvnet
                 }else{
                     // try overwriting p0.
                     //value_ptr ptr = p0.value;
-                    value_ptr ptr(new value_type(p0.shape));
+                    value_ptr ptr(new value_type(p0.shape, value_ptr::s_allocator));
                     value_type& v = *ptr;
                     local_avg_pool_grad(v, r0.delta.cdata(), m_subsx,0,m_stridex);
                     p0.push(ptr);
@@ -984,7 +984,7 @@ namespace cuvnet
                 }else if(p0.can_add_directly()){
                     local_max_pool_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex, 1.f,1.f);
                 }else{
-                    value_ptr ptr(new value_type(p0.shape));
+                    value_ptr ptr(new value_type(p0.shape, value_ptr::s_allocator));
                     value_type& v = *ptr;
                     local_max_pool_grad(v, p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex);
                     p0.push(ptr);
@@ -1080,7 +1080,7 @@ namespace cuvnet
         if(r0.can_overwrite_directly()){
             reorder_for_conv(*r0.overwrite_or_add_value(), p0.value.cdata());
         }else{
-            value_ptr v(new value_type(r0.shape));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             reorder_for_conv(*v, p0.value.cdata());
             r0.push(v);
         }
@@ -1097,7 +1097,7 @@ namespace cuvnet
         if(p0.can_overwrite_directly()){
             reorder_from_conv(*p0.overwrite_or_add_value(),r0.delta.cdata());
         }else{
-            value_ptr v(new value_type(p0.shape));
+            value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
             reorder_from_conv(*v,r0.delta.cdata());
             p0.push(v);
         }
@@ -1127,7 +1127,7 @@ namespace cuvnet
         if(r0.can_overwrite_directly()){
             reorder_from_conv(*r0.overwrite_or_add_value(), p0.value.cdata());
         }else{
-            value_ptr v(new value_type(r0.shape));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             reorder_from_conv(*v, p0.value.cdata());
             r0.push(v);
         }
@@ -1144,7 +1144,7 @@ namespace cuvnet
         if(p0.can_overwrite_directly()){
             reorder_for_conv(*p0.overwrite_or_add_value(),r0.delta.cdata());
         }else{
-            value_ptr v(new value_type(p0.shape));
+            value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
             reorder_for_conv(*v,r0.delta.cdata());
             p0.push(v);
         }
@@ -1180,7 +1180,7 @@ namespace cuvnet
             value_ptr& v = r0.overwrite_or_add_value();
             tuplewise_op(*v, p0.value.cdata(), m_dim, m_subspace_size, m_to, m_epsilon);
         }else{
-            value_ptr v(new value_type(r0.shape));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             tuplewise_op(*v, p0.value.cdata(), m_dim, m_subspace_size, m_to, m_epsilon);
             r0.push(v);
         }

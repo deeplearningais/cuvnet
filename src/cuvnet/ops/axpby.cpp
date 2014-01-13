@@ -60,7 +60,7 @@ namespace cuvnet
                 }else if(p0.can_add_directly()){
                     *p0.overwrite_or_add_value() += s * m_fact_a;
                 }else{
-                    value_ptr v(new value_type(1));
+                    value_ptr v(new value_type(1, value_ptr::s_allocator));
                     v.data() = s * m_fact_a;
                     p0.push(v);
                 }
@@ -97,7 +97,7 @@ namespace cuvnet
                 }else if(p1.can_add_directly()){
                     *p1.overwrite_or_add_value() += s * m_fact_b;
                 }else{
-                    value_ptr v(new value_type(1));
+                    value_ptr v(new value_type(1, value_ptr::s_allocator));
                     v.data() = s * m_fact_b;
                     p1.push(v);
                 }

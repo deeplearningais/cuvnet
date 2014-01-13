@@ -25,7 +25,7 @@ namespace cuvnet
             (*r0.overwrite_or_add_value())[0] += sum;
         }else{
             // reallocate *sigh*
-            value_ptr v(new value_type(r0.shape));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             v.data()[0] = sum;
             r0.push(v);
         }
@@ -92,7 +92,7 @@ namespace cuvnet
             (*r0.overwrite_or_add_value())[0] += mean;
         }else{
             // reallocate *sigh*
-            value_ptr v(new value_type(r0.shape));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             v.data()[0] = mean;
             r0.push(v);
         }

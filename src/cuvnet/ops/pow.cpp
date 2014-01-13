@@ -18,7 +18,7 @@ namespace cuvnet
         result_t::element_type& r0 = *m_results[0];
 
         const value_type& inp = p0.value.cdata();
-        value_ptr res(new value_type(inp.shape()));
+        value_ptr res(new value_type(inp.shape(), value_ptr::s_allocator));
 
         apply_scalar_functor( *res,
                 inp, SF_POW, m_exponent);
@@ -36,7 +36,7 @@ namespace cuvnet
         assert(p0.need_derivative);
 
         const value_type& inp = p0.value.cdata();
-        value_ptr res(new value_type(inp.shape()));
+        value_ptr res(new value_type(inp.shape(), value_ptr::s_allocator));
         apply_scalar_functor(*res,inp,SF_DPOW, m_exponent);
         *res *= r0.delta.cdata(); // TODO: write BF_POW_TIMES functor in cuv
         r0.delta.reset();

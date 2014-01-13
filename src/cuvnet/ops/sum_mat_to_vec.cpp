@@ -79,7 +79,7 @@ namespace cuvnet
 
         }else{
             // reallocate *sigh*
-            value_ptr v(new value_type(r0.shape));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             if(m_axis == p0.shape.size()-1) cuv::reduce_to_row(*v, p0.value.cdata(), red_func, fact_new, 0.f);
             else if (m_axis == 0)           cuv::reduce_to_col(*v, p0.value.cdata(), red_func, fact_new, 0.f);
             else{
@@ -127,7 +127,7 @@ namespace cuvnet
                         *p0.overwrite_or_add_value(), 
                         r0.delta.cdata(), m_axis, BF_ADD, fact_new, 1.f);
             }else{
-                value_ptr v(new value_type(p0.shape));
+                value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
                 matrix_op_vec(
                         *v, *v, 
                         r0.delta.cdata(), m_axis, BF_2ND, fact_new, 0.f);

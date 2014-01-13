@@ -51,6 +51,7 @@ namespace cuvnet
             public:
                 /// type of the contained data -- a shared pointer!
                 typedef boost::shared_ptr<T> ref_ptr;
+                static boost::shared_ptr<cuv::allocator> s_allocator;
 
                 /// @name constructors
                 /// @{
@@ -82,7 +83,7 @@ namespace cuvnet
                 void detach_onlyshape(){
                     T* tmp = m_ptr.get();
                     if( ! (tmp==0 || m_ptr.unique())){
-                        m_ptr.reset(new T(tmp->shape()));
+                        m_ptr.reset(new T(tmp->shape(), s_allocator));
                     }
                 }
 
@@ -139,6 +140,10 @@ namespace cuvnet
                         ar & m_ptr;
                     }
         };
+
+    template<class T>
+        boost::shared_ptr<cuv::allocator>
+        cow_ptr<T>::s_allocator(new cuv::pooled_cuda_allocator("tensor_copy"));
 
         template<class T>
         std::ostream& 

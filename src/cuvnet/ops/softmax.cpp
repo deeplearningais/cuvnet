@@ -449,6 +449,7 @@ namespace cuvnet
             dim_other_axes = v0.size() / v0.shape(0);
             v0.reshape(v0.shape(0), dim_other_axes);
             v1.reshape(v1.shape(0), dim_other_axes);
+
         } else {
             dim_other_axes = v0.size() / v0.shape(v0.ndim()-1);
             v0.reshape(dim_other_axes, v0.shape(v0.ndim()-1));
@@ -456,7 +457,7 @@ namespace cuvnet
         }
 
         m_minus_logaddexp.resize(extents[dim_other_axes]);
-        value_ptr ptr(new value_type(dim_other_axes));
+        value_ptr ptr(new value_type(dim_other_axes, value_ptr::s_allocator));
         value_type& v = *ptr;
 
         if(m_axis==0){

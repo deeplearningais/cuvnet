@@ -31,7 +31,7 @@ namespace cuvnet
             v = r0.delta.cdata(); // O(1), but violates const-correctness again!
             v.reshape(p0.shape);
         }else{
-            value_ptr v(new value_type(p0.shape));
+            value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
             *v = r0.delta.cdata(); // O(1), but violates const-correctness
             v->reshape(p0.shape);
             p0.push(v);
@@ -83,7 +83,7 @@ namespace cuvnet
             v = r0.delta.cdata().copy(); // safe but slow
             v.reshape(p0.shape);
         }else{
-            value_ptr v(new value_type(p0.shape));
+            value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
             //*v = r0.delta.cdata(); // O(1), but violates const-correctness
             *v = r0.delta.cdata().copy(); // safe but slow
             v->reshape(p0.shape);
