@@ -36,7 +36,7 @@ namespace cuvnet{
                 value_ptr& v = r0.overwrite_or_add_value();
                 weighted_sub_tensor_op(*v, *m_max_idx, p0.value.cdata(), p1.value.cdata(), m_size, m_stride, m_subspace_size, m_to, m_eps);
             }else{
-                value_ptr v(new value_type(r0.shape));
+                value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
                 weighted_sub_tensor_op(*v, *m_max_idx, p0.value.cdata(), p1.value.cdata(), m_size, m_stride, m_subspace_size, m_to, m_eps);
                 r0.push(v);
             }
@@ -46,7 +46,7 @@ namespace cuvnet{
                 weighted_sub_tensor_op(*v, *m_max_idx, p0.value.cdata(), p1.value.cdata(), m_size, m_stride, m_subspace_size, m_to, m_eps);
                 m_lae = v;
             }else{
-                value_ptr v(new value_type(r0.shape));
+                value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
                 weighted_sub_tensor_op(*v, *m_max_idx, p0.value.cdata(), p1.value.cdata(), m_size, m_stride, m_subspace_size, m_to, m_eps);
                 m_lae = v;
                 r0.push(v);
@@ -70,16 +70,16 @@ namespace cuvnet{
                   if (p2.can_overwrite_directly()){
                  weighted_sub_tensor_op_grad(*p1.overwrite_or_add_value(), *p2.overwrite_or_add_value(), p1.value.cdata(), r0.delta.cdata(), p2.value.cdata(), m_lae.cdata(),  (*m_S)["S"], m_max_idx.cdata(), m_spn, p1.need_derivative, p2.need_derivative, m_size, m_stride, m_subspace_size, m_to, m_eps);
                   }else{
-                          value_ptr ptr(new value_type(p2.shape));
+                          value_ptr ptr(new value_type(p2.shape, value_ptr::s_allocator));
                      weighted_sub_tensor_op_grad(*p1.overwrite_or_add_value(), *ptr, p1.value.cdata(), r0.delta.cdata(), p2.value.cdata(), m_lae.cdata(), (*m_S)["S"], m_max_idx.cdata(), m_spn, p1.need_derivative, p2.need_derivative, m_size, m_stride, m_subspace_size, m_to, m_eps);
                       p2.push(ptr);
                 }
                        }else{
-                           value_ptr ptr(new value_type(p1.shape));
+                           value_ptr ptr(new value_type(p1.shape, value_ptr::s_allocator));
                            if (p2.can_overwrite_directly()){
                     weighted_sub_tensor_op_grad(*ptr, *p2.overwrite_or_add_value(), p1.value.cdata(), r0.delta.cdata(), p2.value.cdata(), m_lae.cdata(),  (*m_S)["S"], m_max_idx.cdata(), m_spn, p1.need_derivative, p2.need_derivative, m_size, m_stride, m_subspace_size, m_to, m_eps);
                    } else{
-                             value_ptr ptr2(new value_type(p2.shape));
+                             value_ptr ptr2(new value_type(p2.shape, value_ptr::s_allocator));
                     weighted_sub_tensor_op_grad(*ptr, *ptr2, p1.value.cdata(), r0.delta.cdata(), p2.value.cdata(), m_lae.cdata(),  (*m_S)["S"], m_max_idx.cdata(), m_spn, p1.need_derivative, p2.need_derivative, m_size, m_stride, m_subspace_size, m_to, m_eps);
                     p2.push(ptr2);
                   }

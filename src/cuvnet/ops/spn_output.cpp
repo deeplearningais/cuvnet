@@ -26,7 +26,7 @@ namespace cuvnet{
             if(r0.can_overwrite_directly()){
                 cuv::alex_conv::spn_output_op(*r0.overwrite_or_add_value(),  p0.value.cdata(), p1.value.cdata(), p2.value.cdata());
             }else{
-                value_ptr v(new value_type(r0.shape));
+                value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
                 cuv::alex_conv::spn_output_op(*v,                           p0.value.cdata(), p1.value.cdata(), p2.value.cdata());
                 r0.push(v);
             }
@@ -37,7 +37,7 @@ namespace cuvnet{
         if (can_overwrite) 
             return p->overwrite_or_add_value();
         else{
-            Op::value_ptr ptr(new value_type(p->shape));
+            Op::value_ptr ptr(new value_type(p->shape, value_ptr::s_allocator));
             return ptr; 
         }
     }
