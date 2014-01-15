@@ -135,7 +135,7 @@ namespace cuvnet{ namespace derivative_testing {
             std::vector<Op*> derivable_params;
             std::remove_copy_if(     // think of it as "copy except"
                     pcv.plist.begin(), pcv.plist.end(),
-                    std::back_inserter(derivable_params), 
+                    std::back_inserter(derivable_params),
                     std::not1( // not [  cast_to_input(op)->derivable()   ]
                         __gnu_cxx::compose1(
                             std::mem_fun( &ParameterInput::derivable ),
@@ -214,7 +214,7 @@ namespace cuvnet{ namespace derivative_testing {
                 }
                 cuv::apply_binary_functor(tmp, J_t, Jh, cuv::BF_SUBTRACT);
                 cuv::apply_scalar_functor(tmp, cuv::SF_SQUARE);
-                double maxdiff = cuv::maximum(tmp);    // squared(!) 
+                double maxdiff = cuv::maximum(tmp);    // squared(!)
                 double prec_  = prec * prec;                       // square precision, too
                 if(verbose)
                 {
@@ -232,6 +232,4 @@ namespace cuvnet{ namespace derivative_testing {
                 BOOST_CHECK_LT(maxdiff, prec_ );
             }
         }
-
-        
 } }
