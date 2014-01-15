@@ -2,6 +2,7 @@
 #     define __OP_CONVOLVE_HPP__
 
 #include <cmath>
+#include <boost/serialization/version.hpp>
 #include <cuvnet/op.hpp>
 #include <cuv/convolution_ops/convolution_ops.hpp>
 #include <cuv/libs/nlmeans/conv3d.hpp>
@@ -43,6 +44,7 @@ namespace cuvnet
                 int m_padding_start;
                 int m_padding_size;
                 int m_stride;
+                cuv::tensor<int, matrix::memory_space_type> m_indices;
             public:
                 Convolve() :Op(2,1){} ///< for serialization
 
@@ -74,6 +76,8 @@ namespace cuvnet
                 void _determine_shapes();
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
 
+                void set_random_sparse();
+
                 /// @return true iff we use padding
                 inline bool is_padded()const{
                     return m_padding_start != 0;
@@ -94,6 +98,8 @@ namespace cuvnet
                         ar & m_padding_start;
                         ar & m_padding_size;
                         ar & m_stride;
+                        if(version >= 1)
+                            ar & m_indices;
                     }
         };
 
@@ -702,4 +708,5 @@ namespace cuvnet
         };
 
 }
+BOOST_CLASS_VERSION(cuvnet::Convolve, 1)
 #endif /* __OP_CONVOLVE_HPP__ */

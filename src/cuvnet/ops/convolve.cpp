@@ -1,3 +1,4 @@
+#include <cuvnet/op_utils.hpp>
 #include "convolve.hpp"
 
 namespace cuvnet
@@ -10,6 +11,29 @@ namespace cuvnet
             boost::lexical_cast<std::string>(m_results[0]->shape[0]) + " fs" +
             boost::lexical_cast<std::string>((int)sqrt(m_params[1]->shape[1])) + ")";
     }
+    void Convolve::set_random_sparse(){
+        determine_shapes(*this);
+        int nFiltChan = m_params[1]->shape[0];
+        int nImgChan  = m_params[0]->shape[0];
+        int nGroups   = m_nGroups;
+        int oversample = nGroups * nFiltChan / nImgChan;
+
+        m_indices.resize(cuv::extents[nGroups][oversample * nImgChan]);
+        for(int i=0; i < nGroups; i++){
+            std::vector<int> v(nImgChan);
+            for (int k = 0; k < v.size(); ++k)
+                v[k] = k;
+            // we shouldn't shuffle in this test to get same result as dense connection
+            std::random_shuffle(v.begin(), v.end());
+            for (int o = 0; o < oversample; ++o)
+            {
+                for (int k = 0; k < nImgChan; ++k)
+                {
+                    m_indices(i, o*nImgChan + k) = v[k];
+                }
+            }
+        }
+    }
     void Convolve::fprop(){
         using namespace cuv;
         using namespace cuv::alex_conv;
@@ -19,16 +43,26 @@ namespace cuvnet
         cuvAssert(p0.value.cdata().is_c_contiguous());
 
         bool filtSizeOK = (r0.shape[0] % 16) == 0;
+        bool rnd = m_indices.ptr() != NULL;
 
         if(filtSizeOK && r0.can_overwrite_directly()){
-            convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_padding_start,m_stride,m_nGroups);
+            if(!rnd)
+                convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_padding_start,m_stride,m_nGroups);
+            else
+                convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_indices, m_padding_start,m_stride,m_nGroups);
         }else if(filtSizeOK && r0.can_add_directly()){
-            convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_padding_start,m_stride,m_nGroups, 1.f,1.f);
+            if(!rnd)
+                convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_padding_start,m_stride,m_nGroups, 1.f,1.f);
+            else
+                convolve2d(*r0.overwrite_or_add_value(), p0.value.cdata(), p1.value.cdata(), m_indices, m_padding_start,m_stride,m_nGroups, 1.f,1.f);
         }else{
             // reallocate *sigh*
             if(filtSizeOK){
                 value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
-                convolve2d(*v, p0.value.cdata(), p1.value.cdata(), m_padding_start, m_stride,m_nGroups);
+                if(!rnd)
+                    convolve2d(*v, p0.value.cdata(), p1.value.cdata(), m_padding_start, m_stride,m_nGroups);
+                else
+                    convolve2d(*v, p0.value.cdata(), p1.value.cdata(), m_indices, m_padding_start, m_stride,m_nGroups);
                 r0.push(v);
             }else{
                 // Alex' code has some serious restrictions; the one hurting me most
@@ -47,7 +81,10 @@ namespace cuvnet
                         indices[index_range()][index_range()][index_range(0,nFiltReal)]);
                 wview = p1.value.cdata();
 
-                convolve2d(tmp_dst, p0.value.cdata(), tmp_flt, m_padding_start, m_stride,m_nGroups);
+                if(!rnd)
+                    convolve2d(tmp_dst, p0.value.cdata(), tmp_flt, m_padding_start, m_stride,m_nGroups);
+                else
+                    convolve2d(tmp_dst, p0.value.cdata(), tmp_flt, m_indices, m_padding_start, m_stride,m_nGroups);
                 value_ptr vp(new value_type(tmp_dst[indices[index_range(0,nFiltReal)][index_range()][index_range()][index_range()]]));
                 r0.push(vp);
             }
@@ -86,6 +123,8 @@ namespace cuvnet
         boost::scoped_ptr<value_type> tmp_w;
         boost::scoped_ptr<value_type> tmp_dw;
 
+        bool rnd = m_indices.ptr() != NULL;
+
         if(!filtSizeOK){
             // create intermediate copy of deltas
             tmp_r0delta.reset(new value_type(extents[nFiltTmp][r0.shape[1]][r0.shape[2]][r0.shape[3]], value_ptr::s_allocator));
@@ -113,27 +152,45 @@ namespace cuvnet
             const value_type& img   = p0.value.cdata();
            if(filtSizeOK){
                if(p1.can_overwrite_directly()){
-                   d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
+                   if(!rnd)
+                       d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
+                   else
+                       d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_indices, m_padding_start, m_stride, m_nGroups,m_partial_sum);
                }
                else if(p1.can_add_directly()){
-                   d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum, 1.f,1.f);
+                   if(!rnd)
+                       d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum, 1.f,1.f);
+                   else
+                       d_conv2d_dfilt(*p1.overwrite_or_add_value(),delta,img, m_indices, m_padding_start, m_stride, m_nGroups,m_partial_sum, 1.f,1.f);
                }else{
                    value_ptr ptr(new value_type(p1.shape, value_ptr::s_allocator));
                    value_type& dflt = *ptr;
-                   d_conv2d_dfilt(dflt,delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
+                   if(!rnd)
+                       d_conv2d_dfilt(dflt,delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
+                   else
+                       d_conv2d_dfilt(dflt,delta,img, m_indices, m_padding_start, m_stride, m_nGroups,m_partial_sum);
                    p1.push(ptr);
                }
 
 
            }else{
                if(p1.can_overwrite_directly()){
-                   d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
+                   if(!rnd)
+                       d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
+                   else
+                       d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_indices, m_padding_start, m_stride, m_nGroups,m_partial_sum);
                }
                else if(p1.can_add_directly()){
-                   d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum, 1.f,1.f);
+                   if(!rnd)
+                       d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum, 1.f,1.f);
+                   else
+                       d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_indices, m_padding_start, m_stride, m_nGroups,m_partial_sum, 1.f,1.f);
                }else{
                    value_type& dflt = *tmp_dw;
-                   d_conv2d_dfilt(dflt,*tmp_r0delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
+                   if(!rnd)
+                       d_conv2d_dfilt(dflt,*tmp_r0delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
+                   else
+                       d_conv2d_dfilt(dflt,*tmp_r0delta,img, m_indices, m_padding_start, m_stride, m_nGroups,m_partial_sum);
                    value_ptr ptr(new value_type(dflt[indices[index_range()][index_range()][index_range(0,nFiltReal)]].copy()));
                    p1.push(ptr);
                }
@@ -147,30 +204,48 @@ namespace cuvnet
             const value_type& flt   = p1.value.cdata();
            if(filtSizeOK){
                if(p0.can_overwrite_directly()){
-                   d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_padding_start, m_stride, m_nGroups);
+                   if(!rnd)
+                       d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_padding_start, m_stride, m_nGroups);
+                   else
+                       d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_indices, m_padding_start, m_stride, m_nGroups);
                }
                else if(p0.can_add_directly()){
-                   d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_padding_start, m_stride, m_nGroups,  1.f,1.f);
+                   if(!rnd)
+                       d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_padding_start, m_stride, m_nGroups,  1.f,1.f);
+                   else
+                       d_conv2d_dimg(*p0.overwrite_or_add_value(),delta,flt, m_indices, m_padding_start, m_stride, m_nGroups,  1.f,1.f);
                }else{
                    value_ptr ptr = p0.value;
                    p0.value.reset();       // try to overwrite input activations
                    value_type& v = ptr.data_onlyshape();
-                   d_conv2d_dimg(v, delta, flt, m_padding_start,m_stride,m_nGroups);
+                   if(!rnd)
+                       d_conv2d_dimg(v, delta, flt, m_padding_start,m_stride,m_nGroups);
+                   else
+                       d_conv2d_dimg(v, delta, flt, m_indices, m_padding_start,m_stride,m_nGroups);
                    p0.push(ptr);
                }
 
 
            }else{
                if(p0.can_overwrite_directly()){
-                   d_conv2d_dimg(*p0.overwrite_or_add_value(), *tmp_r0delta, *tmp_w, m_padding_start,m_stride,m_nGroups);
+                   if(!rnd)
+                       d_conv2d_dimg(*p0.overwrite_or_add_value(), *tmp_r0delta, *tmp_w, m_padding_start,m_stride,m_nGroups);
+                   else
+                       d_conv2d_dimg(*p0.overwrite_or_add_value(), *tmp_r0delta, *tmp_w, m_indices, m_padding_start,m_stride,m_nGroups);
                }
                else if(p0.can_add_directly()){
-                   d_conv2d_dimg(*p0.overwrite_or_add_value(), *tmp_r0delta, *tmp_w, m_padding_start,m_stride,m_nGroups, 1.f, 1.f);
+                   if(!rnd)
+                       d_conv2d_dimg(*p0.overwrite_or_add_value(), *tmp_r0delta, *tmp_w, m_padding_start,m_stride,m_nGroups, 1.f, 1.f);
+                   else
+                       d_conv2d_dimg(*p0.overwrite_or_add_value(), *tmp_r0delta, *tmp_w, m_indices, m_padding_start,m_stride,m_nGroups, 1.f, 1.f);
                }else{
                    value_ptr ptr = p0.value;
                    p0.value.reset();       // try to overwrite input activations
                    value_type& v = ptr.data_onlyshape();
-                   d_conv2d_dimg(v, *tmp_r0delta, *tmp_w, m_padding_start,m_stride,m_nGroups);
+                   if(!rnd)
+                       d_conv2d_dimg(v, *tmp_r0delta, *tmp_w, m_padding_start,m_stride,m_nGroups);
+                   else
+                       d_conv2d_dimg(v, *tmp_r0delta, *tmp_w, m_indices, m_padding_start,m_stride,m_nGroups);
                    p0.push(ptr);
                }
            }
