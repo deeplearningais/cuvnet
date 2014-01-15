@@ -27,17 +27,21 @@ BOOST_AUTO_TEST_CASE(deltasink){
     typedef boost::shared_ptr<Op> ptr_t;
     typedef boost::shared_ptr<ParameterInput> param_t;
     param_t inp = boost::make_shared<ParameterInput>(cuv::extents[2][4]);
-    inp->data() = 3.f;
+    fill_rnd_uniform(inp->data());
     ptr_t func  = boost::make_shared<Pow>(2.f,inp->result());
-    boost::shared_ptr<DeltaSink> ds = delta_sink("pow_delta", func); // monitor the delta 
+    boost::shared_ptr<DeltaSink> ds = delta_sink("pow_delta", func); // monitor the delta
 
     swiper s(*func, 0, boost::assign::list_of<Op*>(inp.get()));
     s.fprop();
     s.bprop();
-    EXPECT_NEAR(ds->cdata()[0], 6.f, 0.001f);
+    for (unsigned int i = 0; i < 2*4; ++i) {
+        EXPECT_NEAR(ds->cdata()[i], 2 * inp->data()[i], 0.001f);
+    }
     s.fprop();
     s.bprop();
-    EXPECT_NEAR(ds->cdata()[0], 6.f, 0.001f); // make sure it does not add to previous value
+    for (unsigned int i = 0; i < 2*4; ++i) {
+        EXPECT_NEAR(ds->cdata()[i], 2 * inp->data()[i], 0.001f);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -79,6 +83,13 @@ BOOST_AUTO_TEST_CASE(derivative_test_pow){
    typedef boost::shared_ptr<Op> ptr_t;
    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
    ptr_t pow                     = boost::make_shared<Pow>(2,inp->result());
+
+   function f(pow, 0);
+   matrix m = f.evaluate();
+   for(unsigned int i = 0; i < inp->data().size(); i++){
+       EXPECT_NEAR(m[i], inp->data()[i] * inp->data()[i], 0.01);
+   }
+
    derivative_tester(*pow);
 }
 BOOST_AUTO_TEST_CASE(derivative_test_exp){
