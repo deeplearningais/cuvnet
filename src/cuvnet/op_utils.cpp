@@ -159,8 +159,8 @@ void define_graphviz_node_visitor::preorder(Op* o){
     if(m_group_filter == "__empty"  // we're filtering for empty elements
             && o->get_group() != "") // and the element is not empty
         return;
-    if(!o->need_result())
-        return;
+    //if(!o->need_result())
+    //    return;
 	m_node_defs << opstr
 	   << " ["
 	   << " URL=\""<<type<<boost::lexical_cast<std::string>(o)<<"\","
