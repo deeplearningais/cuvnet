@@ -2,6 +2,7 @@
 #include <fstream>
 #include <cuv.hpp>
 #include <cuvnet/common.hpp>
+#include <cuvnet/smart_ptr.hpp>
 
 #define BOOST_TEST_MODULE t_cuvnet
 //#define BOOST_TEST_MAIN
@@ -15,7 +16,7 @@
 
 std::ofstream os;
 
-struct FooEnvironment 
+struct FooEnvironment
 {
     FooEnvironment() {
         cuvnet::Logger log("test_log.xml");
@@ -30,10 +31,15 @@ struct FooEnvironment
 #endif
     }
   ~FooEnvironment(){
+      cuv::safeThreadSync();
+      //cuvnet::cow_ptr<cuvnet::matrix>::s_allocator.reset();
+      cuvnet::cow_ptr<cuvnet::matrix>::s_allocator.reset(
+              new cuv::pooled_cuda_allocator());
+          //new cuv::default_allocator());
 #ifndef NO_THEANO_WRAPPERS
-      cuv::theano_conv::finalize_cuda();
+     cuv::theano_conv::finalize_cuda();
 #endif
-  
+
   }
 };
 
