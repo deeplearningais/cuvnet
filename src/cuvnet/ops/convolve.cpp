@@ -5,7 +5,7 @@ namespace cuvnet
 {
     void Convolve::_graphviz_node_desc(detail::graphviz_node& desc)const{
         desc.color = "chartreuse4";
-        desc.label = "Conv (" + 
+        desc.label = "Conv (" +
             boost::lexical_cast<std::string>(m_params[0]->shape[0]) + "/" +
             boost::lexical_cast<std::string>(m_nGroups) + ":" +
             boost::lexical_cast<std::string>(m_results[0]->shape[0]) + " fs" +
@@ -294,15 +294,15 @@ namespace cuvnet
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
         LOG4CXX_WARN(log, "Convolving image of shape ("
-                + boost::lexical_cast<std::string>(nFilt) 
-                + " x " + boost::lexical_cast<std::string>(nImgPixY) 
-                + " x " + boost::lexical_cast<std::string>(nImgPixX) 
-                + " x " + boost::lexical_cast<std::string>(img[3]) 
+                + boost::lexical_cast<std::string>(nFilt)
+                + " x " + boost::lexical_cast<std::string>(nImgPixY)
+                + " x " + boost::lexical_cast<std::string>(nImgPixX)
+                + " x " + boost::lexical_cast<std::string>(img[3])
                 + ") to shape ("
-                + boost::lexical_cast<std::string>(nFilt) 
-                + " x " + boost::lexical_cast<std::string>(nOutPixY) 
-                + " x " + boost::lexical_cast<std::string>(nOutPixX) 
-                + " x " + boost::lexical_cast<std::string>(img[3]) 
+                + boost::lexical_cast<std::string>(nFilt)
+                + " x " + boost::lexical_cast<std::string>(nOutPixY)
+                + " x " + boost::lexical_cast<std::string>(nOutPixX)
+                + " x " + boost::lexical_cast<std::string>(img[3])
                 + ") using filters of size " + boost::lexical_cast<std::string>(nFltPixX));
 
         dst[0] = nFilt;
@@ -317,7 +317,7 @@ namespace cuvnet
 
 #ifndef NO_THEANO_WRAPPERS
     /***************************************************
-     * Convolve2dTheano 
+     * Convolve2dTheano
      ***************************************************/
 
     void Convolve2dTheano::fprop(){
@@ -334,8 +334,8 @@ namespace cuvnet
                param_t::element_type&  p2 = *m_params[2];
                value_type v(r0.shape);
                convolve_2d(v, p0.value.cdata(), p1.value.cdata(), m_mode);
-            
-               
+
+
                value_type bias = p2.value.cdata();
                bias.reshape(cuv::extents[v.shape(1) * v.shape(2) * v.shape(3)]);
 
@@ -372,7 +372,7 @@ namespace cuvnet
        {
            p0.value.reset();
            p1.value.reset();
-       }    
+       }
     }
 
 
@@ -466,7 +466,7 @@ namespace cuvnet
                   *v = w;
                   p2.push(v);
               }
-                       
+
           }
           p2.value.reset();
        }
@@ -494,13 +494,13 @@ namespace cuvnet
        unsigned int nFltPixY = flt[2];
        unsigned int nFltPixX = flt[3];
 
-       unsigned int nOutPixX = m_mode == "valid" ? nImgPixX+1-nFltPixX :  nImgPixX - 1 + nFltPixX; 
-       unsigned int nOutPixY = m_mode == "valid" ? nImgPixY+1-nFltPixY :  nImgPixY - 1 + nFltPixY; 
+       unsigned int nOutPixX = m_mode == "valid" ? nImgPixX+1-nFltPixX :  nImgPixX - 1 + nFltPixX;
+       unsigned int nOutPixY = m_mode == "valid" ? nImgPixY+1-nFltPixY :  nImgPixY - 1 + nFltPixY;
 
        if(m_use_bias){
            // create mask, which is used for delta calcualtion of bias
-           unsigned int width_x = nFltPixX-1; 
-           unsigned int width_y = nFltPixY-1; 
+           unsigned int width_x = nFltPixX-1;
+           unsigned int width_y = nFltPixY-1;
            unsigned int mask_size_x = nImgPixX + nFltPixX - 1;
            unsigned int mask_size_y = nImgPixY + nFltPixY - 1;
            value_type mask(cuv::extents[mask_size_y][mask_size_x]);
@@ -509,7 +509,7 @@ namespace cuvnet
                for (unsigned int j = 0; j < mask_size_x; ++j){
                    if (j < width_x || j >= nImgPixX || i < width_y || i >= nImgPixY)
                        mask(i,j) = 1;
-                   else 
+                   else
                        mask(i,j) = 0;
                }
            }
@@ -517,7 +517,7 @@ namespace cuvnet
            m_extended_orig.resize(cuv::extents[img[0]][nFilt][mask_size_y * mask_size_x]);
            m_extended_orig = 1.f;
            cuv::matrix_op_vec(m_extended_orig, m_extended_orig, mask, 2, cuv::BF_MULT);
-           m_extended = m_extended_orig.copy(); 
+           m_extended = m_extended_orig.copy();
            m_extended.reshape(cuv::extents[img[0]][nFilt * mask_size_y * mask_size_x]);
 
            m_extended_orig.reshape(cuv::extents[img[0]][nFilt][mask_size_y][mask_size_x]);
@@ -659,7 +659,7 @@ namespace cuvnet
                 convolutionRows(*r0.overwrite_or_add_value(), p0.value.cdata(), m_kernel);
             else if(m_dim == 1)
                 convolutionColumns(*r0.overwrite_or_add_value(), p0.value.cdata(), m_kernel);
-            else 
+            else
                 convolutionDepth(*r0.overwrite_or_add_value(), p0.value.cdata(), m_kernel);
 
         }else{
@@ -669,7 +669,7 @@ namespace cuvnet
                 convolutionRows(*v, p0.value.cdata(), m_kernel);
             else if(m_dim == 1)
                 convolutionColumns(*v, p0.value.cdata(), m_kernel);
-            else 
+            else
                 convolutionDepth(*v, p0.value.cdata(), m_kernel);
             r0.push(v);
         }
@@ -687,7 +687,7 @@ namespace cuvnet
                 convolutionRows(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_kernel_reverse);
             else if(m_dim == 1)
                 convolutionColumns(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_kernel_reverse);
-            else 
+            else
                 convolutionDepth(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_kernel_reverse);
         }else{
             value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
@@ -714,7 +714,7 @@ namespace cuvnet
         cuvAssert(m_kernel.ndim() == 1);
         cuvAssert(m_dim != 1); // seems to be broken in cuv
         m_results[0]->shape = m_params[0]->shape;
-        
+
         unsigned int size = m_kernel.shape(0);
         m_kernel_reverse.resize(cuv::extents[size]);
         for (unsigned int i = 0; i < size; ++i)
@@ -781,7 +781,7 @@ namespace cuvnet
          */
         cuvAssert(m_params[0]->shape.size()==4);
         m_results[0]->shape = m_params[0]->shape;
-        
+
         unsigned int size = m_kernel.shape(0);
         m_kernel_reverse.resize(cuv::extents[size]);
         for (unsigned int i = 0; i < size; ++i)
@@ -1064,7 +1064,7 @@ namespace cuvnet
                     local_max_pool_grad(v, p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex);
                     p0.push(ptr);
                 }
-                p0.value.reset(); 
+                p0.value.reset();
                 m_result.reset();
             }
         }else{
@@ -1105,7 +1105,7 @@ namespace cuvnet
             desc.label = "Max";
         else if(m_pooltype == PT_AVG)
             desc.label = "Avg";
-        desc.label += "Pool (" + boost::lexical_cast<std::string>(m_subsx) + "," 
+        desc.label += "Pool (" + boost::lexical_cast<std::string>(m_subsx) + ","
             +                    boost::lexical_cast<std::string>(m_stridex) + ")";
     }
 
@@ -1124,15 +1124,15 @@ namespace cuvnet
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
         LOG4CXX_WARN(log, "Pooling image of shape ("
-                +         boost::lexical_cast<std::string>(img[0]) 
-                + " x " + boost::lexical_cast<std::string>(img[1]) 
-                + " x " + boost::lexical_cast<std::string>(img[2]) 
-                + " x " + boost::lexical_cast<std::string>(img[3]) 
+                +         boost::lexical_cast<std::string>(img[0])
+                + " x " + boost::lexical_cast<std::string>(img[1])
+                + " x " + boost::lexical_cast<std::string>(img[2])
+                + " x " + boost::lexical_cast<std::string>(img[3])
                 + ") to shape ("
-                +         boost::lexical_cast<std::string>(dst[0]) 
-                + " x " + boost::lexical_cast<std::string>(dst[1]) 
-                + " x " + boost::lexical_cast<std::string>(dst[2]) 
-                + " x " + boost::lexical_cast<std::string>(dst[3]) 
+                +         boost::lexical_cast<std::string>(dst[0])
+                + " x " + boost::lexical_cast<std::string>(dst[1])
+                + " x " + boost::lexical_cast<std::string>(dst[2])
+                + " x " + boost::lexical_cast<std::string>(dst[3])
                 + ")");
 
         cuvAssert(img[1]==img[2]); // currently, cudaConv2 only supports square images for pooling
