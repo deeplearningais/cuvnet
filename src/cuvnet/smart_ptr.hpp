@@ -143,7 +143,7 @@ namespace cuvnet
 
     template<class T>
         boost::shared_ptr<cuv::allocator>
-        cow_ptr<T>::s_allocator(new cuv::pooled_cuda_allocator("tensor_copy"));
+        cow_ptr<T>::s_allocator(new cuv::pooled_cuda_allocator("cow_ptr"));
 
         template<class T>
         std::ostream& 
