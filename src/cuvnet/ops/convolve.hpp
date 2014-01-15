@@ -766,13 +766,13 @@ namespace cuvnet
 
                         using namespace cuv;
                            //generate dummy tensor ( empty ) to avoid null pointer exceptions
-                        value_ptr z(new value_type(0));
+                        value_ptr z(new value_type(0, value_ptr::s_allocator));
                         m_lae = z;
                         
                         m_S = S;
                         
                         //generate dummy tensor ( empty ) to avoid null pointer exceptions
-                        cow_ptr<char_matrix> m(new char_matrix(0));
+                        cow_ptr<char_matrix> m(new char_matrix(0, value_ptr::s_allocator));
                         m_max_idx = m;                          
                     }
 
