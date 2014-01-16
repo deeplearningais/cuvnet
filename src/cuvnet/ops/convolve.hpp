@@ -718,6 +718,7 @@ namespace cuvnet
 
         /**
          * Calculates op out of consecutive elements in the input.
+         * The input must be of shape n_maps x img_data x n_batch or of shape n_maps x img_data_X x img_data_Y x n_batch
          *
          * Expressed in numpy style, this calculates:
          *
