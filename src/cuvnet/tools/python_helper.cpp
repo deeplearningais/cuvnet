@@ -7,13 +7,31 @@
 #include <cuvnet/ops.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/tools/function.hpp>
+#include <cuvnet/tools/gradient_descent.hpp>
 #include <boost/python.hpp>
 #include <boost/python/register_ptr_to_python.hpp>
+#include <boost/python/list.hpp>
 #include "python_helper.hpp"
 
 namespace cuvnet
 {
 
+    struct gradient_descent_wrap{
+        static
+            boost::shared_ptr<gradient_descent>
+            init_wrapper(boost::shared_ptr<Op> loss,
+                    unsigned int res,
+                    boost::python::list l, float lr, float wd){
+                std::vector<Op*> params;
+                boost::python::ssize_t n = boost::python::len(l);
+                for(boost::python::ssize_t i=0;i<n;i++) {
+                    boost::python::object elem = l[i];
+                    boost::shared_ptr<Op> p = boost::python::extract<boost::shared_ptr<Op> >(elem);
+                    params.push_back(p.get());
+                }
+                return boost::make_shared<gradient_descent>(loss, res, params, lr, wd);
+            }
+    };
 
 
     // Parses the value of the active python exception
@@ -313,9 +331,24 @@ namespace cuvnet
         def("get_valid_shape_info", get_vsi_2);
         def("get_valid_shape_info", get_vsi_3);
 
-        class_<swiper>("swiper", no_init)
+        class_<swiper, boost::shared_ptr<swiper> >("swiper", no_init)
             .def("fprop", &swiper::fprop)
-            .def("bprop", &swiper::bprop)
+            .def("bprop", &swiper::bprop
+                    , boost::python::default_call_policies()
+                    , (arg("set_last_delta_to_one")=true))
+            ;
+
+        class_<gradient_descent, boost::shared_ptr<gradient_descent>, boost::noncopyable >
+            ("gradient_descent", no_init)
+            .def("__init__", make_constructor(
+                        &gradient_descent_wrap::init_wrapper
+                        , boost::python::default_call_policies()
+                        , (arg("loss"), arg("result")=0, arg("params")=boost::python::list(),
+                         arg("lr")=0.f, arg("wd")=0.f)))
+            .add_property("swiper",
+                    make_function(
+                        &gradient_descent::get_swiper,
+                        return_internal_reference<>()))
             ;
 
         class_<valid_shape_info>("valid_shape_info", init<boost::shared_ptr<Op>,boost::shared_ptr<Op> >())
