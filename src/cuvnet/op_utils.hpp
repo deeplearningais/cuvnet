@@ -734,8 +734,18 @@ namespace cuvnet
                     std::vector<unsigned int> inshape  = convp->param(0)->shape;
                     std::vector<unsigned int> outshape = convp->result(0)->shape;
                     // `valid' convolution amounts to /cropping/
-                    crop_h += inshape[1] - outshape[1];
-                    crop_w += inshape[2] - outshape[2];
+                    int oh = outshape[1] * convp->stride();
+                    int ow = outshape[2] * convp->stride();
+                    scale_h *= convp->stride();
+                    scale_w *= convp->stride();
+                    if(convp->is_padded()){
+                        // TODO assumes symmetric padding
+                        crop_h += inshape[1] - (oh+1 - convp->padding_size());
+                        crop_w += inshape[2] - (ow+1 - convp->padding_size());
+                    }else{
+                        crop_h += inshape[1] - oh+1;
+                        crop_w += inshape[2] - ow+1;
+                    }
                 }
 
                 it = it+1;
