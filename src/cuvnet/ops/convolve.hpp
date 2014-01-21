@@ -46,6 +46,9 @@ namespace cuvnet
                 int m_stride;
                 cuv::tensor<int, matrix::memory_space_type> m_indices;
             public:
+                inline int stride()const{return m_stride;}
+                inline int padding_start()const{return m_padding_start;}
+                inline int padding_size()const{return m_padding_size;}
                 Convolve() :Op(2,1){} ///< for serialization
 
                 /**
