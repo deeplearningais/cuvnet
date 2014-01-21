@@ -89,12 +89,12 @@ namespace cuvnet
      * collect all ParameterInput ops in a list.
      *
      * This is mainly used in two cases:
-     * - in testing to figure out for which objects to call a derivative test, 
+     * - in testing to figure out for which objects to call a derivative test,
      * - from python, to identify ops by name or memory address.
      *
      * @ingroup op_visitors
      */
-    struct param_collector_visitor 
+    struct param_collector_visitor
         : public op_visitor_once_adaptor{
         typedef std::vector<Op*> container_type; ///< type of container which stores found objects
         container_type     plist; ///< container which stores found objects
@@ -145,7 +145,7 @@ namespace cuvnet
                 Sink* si = dynamic_cast<Sink*>(o);
                 if(si && m_name_query == si->name())
                     plist.push_back(si);
-            }   
+            }
             else if(m_ptr_query && m_ptr_query == o)
                 plist.push_back(o);
             //else std::cout << "  --> no match: "<<boost::lexical_cast<std::string>(o)<<std::endl;
@@ -192,11 +192,11 @@ namespace cuvnet
     }
 
 
-    /** 
+    /**
      * cleanup unused data.
      * @ingroup op_visitors
      */
-    struct cleanup_temp_vars_visitor 
+    struct cleanup_temp_vars_visitor
         : public op_visitor_once_adaptor{
 
         /// @overload
@@ -239,7 +239,7 @@ namespace cuvnet
         void determine_fprop_list(Op* o, int o_res, const std::vector<std::pair<Op*, int> >& results);
 
         private:
-        bool find_in_results(Op* query, 
+        bool find_in_results(Op* query,
                 const std::vector<std::pair<Op*, int> >& other_queries,
                 Op* search_start);
     };
@@ -259,7 +259,7 @@ namespace cuvnet
         toposort_visitor(){}
         /// @overload
         inline bool discover(Op* o){
-            if(visited.find(o)!=visited.end()) 
+            if(visited.find(o)!=visited.end())
                 return false;
             visited[o] = true;
 
@@ -287,7 +287,7 @@ namespace cuvnet
      * @ingroup op_visitors
      */
     struct determine_shapes_visitor :public op_visitor_once_adaptor{
-        /** 
+        /**
          * here we mark all parameters which have been updated.
          * only if all parameters have been updated, we can update the result.
          */
@@ -388,10 +388,10 @@ namespace cuvnet
             // do not continue past Sinks---they are treated as Inputs!
             if(dynamic_cast<Sink*>(o)!=NULL)
                 return false;
-            if(visited.find(o)!=visited.end()) 
+            if(visited.find(o)!=visited.end())
                 return false;
             visited[o] = true;
-            return true; 
+            return true;
         }
         /// @overload
         inline void preorder(Op*o){
@@ -401,17 +401,17 @@ namespace cuvnet
                 o->param(i)->need_derivative = false;
             for(unsigned int i=0;i<o->get_n_results();i++)
             {
-		boost::shared_ptr<detail::op_result<Op::value_type> > res 
+                boost::shared_ptr<detail::op_result<Op::value_type> > res
                     = o->result(i);
                 res->need_result = false;
                 res->get_op()->need_result(false);
 
-		// HACK: reference counting of functionoutputs is wrong if the
-		// result points back to them. 
-		// i.e. loss.use_count() is 2, and therefore it will not be
-		// destroyed, if loss.result points back to loss.
-		if(res->result_uses.size() == 0)
-		    res->op.reset();
+                // HACK: reference counting of functionoutputs is wrong if the
+                // result points back to them.
+                // i.e. loss.use_count() is 2, and therefore it will not be
+                // destroyed, if loss.result points back to loss.
+                if(res->result_uses.size() == 0)
+                    res->op.reset();
             }
         }
     };
@@ -499,7 +499,7 @@ namespace cuvnet
          * Other functions that are part of the Op graph and need to
          * be evaluated, but not derived for.
          */
-        std::vector<std::pair<Op*,int> > m_other_funcs; 
+        std::vector<std::pair<Op*,int> > m_other_funcs;
 
         /**
          * turn cleaning up temp vars off/on
@@ -537,7 +537,7 @@ namespace cuvnet
         /**
          * add a function that needs to be evaluated, but not derived
          * for, and is part of the main Op's graph.
-         * 
+         *
          * @param op the other operator we're interested in
          * @param result the number of the result of the op we're interested in
          * @param call_init if true, call init, otherwise you have to call it yourself so that changes take effect.
@@ -617,13 +617,13 @@ namespace cuvnet
      */
     struct valid_shape_info_finished{};
 
-    /** 
+    /**
      * Determine how to transform the teacher to a a series of convolutions/pooling
      * operations given only valid convolutions.
      *
-     * - Valid convolutions decrease the size of the input. 
+     * - Valid convolutions decrease the size of the input.
      *   A teacher containing pixel-wise annotation should therefore be cropped
-     *   by a margin. 
+     *   by a margin.
      * - Pooling operations, on the other hand, change the size by a factor.
      *   A pixel-wise annotated teacher should therefore be /scaled/.
      *
@@ -675,10 +675,10 @@ namespace cuvnet
         std::map<Op*,bool> visited; ///< keeps track of what has been visited
         /// @overload
         inline bool discover(Op* o){
-            if(visited.find(o)!=visited.end()) 
+            if(visited.find(o)!=visited.end())
                 return false;
             visited[o] = true;
-            
+
             if(o == m_begin) {
                 plist.push_back(o);
                 throw valid_shape_info_finished();
