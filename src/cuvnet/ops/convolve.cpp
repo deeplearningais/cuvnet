@@ -21,7 +21,7 @@ namespace cuvnet
         m_indices.resize(cuv::extents[nGroups][oversample * nImgChan]);
         for(int i=0; i < nGroups; i++){
             std::vector<int> v(nImgChan);
-            for (int k = 0; k < v.size(); ++k)
+            for (unsigned int k = 0; k < v.size(); ++k)
                 v[k] = k;
             // we shouldn't shuffle in this test to get same result as dense connection
             std::random_shuffle(v.begin(), v.end());
