@@ -682,31 +682,23 @@ namespace cuvnet
              * @overload
              */
             virtual void update_weights(){
-                std::map<ParameterInput*,matrix> old_w;
-                for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
-                    ParameterInput* inp = (ParameterInput*) *it;
-                    old_w[inp] = inp->data().copy();
-                }
-
-                BaseGradientDescent::update_weights();
 
                 for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
                     ParameterInput* inp = (ParameterInput*) *it;
-#define UPDATE_ONLY_ON_SERVER 0
-#if UPDATE_ONLY_ON_SERVER
-                    matrix tmp = old_w[inp].copy();
-#endif
-                    cuv::apply_binary_functor(old_w[inp], inp->data(), cuv::BF_AXPBY, -1.f, 1.f);
-                    
                     std::map<Op*, storage_t>::iterator upit = m_updates.find(inp);
                     if(upit != m_updates.end())
-                        m_updates[inp] += (storage_t) old_w[inp];
+                        m_updates[inp] += (storage_t) inp->delta();
                     else
-                        m_updates[inp]  = (storage_t) old_w[inp];
+                        //m_updates.insert(std::make_pair((Op*)inp, (storage_t) inp->delta()));
+                        m_updates[inp] = inp->delta();
+#define UPDATE_ONLY_ON_SERVER 0
 #if UPDATE_ONLY_ON_SERVER
-                    inp->data() = tmp;
+                    inp->delta() = 0.f;
 #endif
                 }
+#if !UPDATE_ONLY_ON_SERVER
+                BaseGradientDescent::update_weights();
+#endif
             }
     };
 }

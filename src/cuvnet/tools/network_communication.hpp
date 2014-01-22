@@ -32,6 +32,10 @@ namespace cuvnet
          * A simple addon could be a momentum term.
          */
         struct merger{
+            /// base learnrate of merger
+            float m_learnrate;
+            merger(float learnrate)
+                :m_learnrate(learnrate){}
             std::map<std::string, htensor_t> m_merged; ///< contains merged weight vectors
             /**
              * add a previously unknown parameter to the list.
@@ -70,9 +74,10 @@ namespace cuvnet
             std::map<std::string, htensor_t> m_moments; ///< contains the per-variable momentum
             /**
              * ctor.
+             * @param learnrate base learnrate of merger
              * @param momentum the momentum to be used in weight updates
              */
-            momentum_merger(float momentum);
+            momentum_merger(float learnrate, float momentum);
             /**
              * merge a parameter update into its parameter object.
              * @param name the name of the parameter
@@ -100,10 +105,11 @@ namespace cuvnet
             //std::map<std::string, std::list<htensor_t> > m_queue; ///< contains the per-variable momentum
             /**
              * ctor.
+             * @param learnrate base learnrate of adagrad
              * @param delta numerical stabilization: \f$H=\delta I + \|g\|_2\f$
              * @param winsize how long to look back (in weight updates)
              */
-            adagrad_merger(float delta=0.01f, int winsize=INT_MAX);
+            adagrad_merger(float learnrate, float delta=0.01f, int winsize=INT_MAX);
             /**
              * merge a parameter update into its parameter object.
              * @param name the name of the parameter

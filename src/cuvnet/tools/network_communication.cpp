@@ -15,6 +15,7 @@
 #include <cuvnet/tools/gradient_descent.hpp> /* for network_stop exception */
 #include <cuv/tools/timing.hpp>
 #include <cuv/libs/opt/opt.hpp>
+#include <cuv/tensor_ops/rprop.hpp>
 #include <cuvnet/tools/logging.hpp>
 
 #include "network_communication.hpp"
@@ -41,31 +42,35 @@ namespace cuvnet { namespace network_communication {
         m_merged[name] = t;
     }
     void merger::merge(const std::string& name, const htensor_t& delta){
-        //LOG4CXX_INFO(g_log, "delta norm for "<<name<<": "<<cuv::norm1(delta));
-        m_merged[name] += delta;
+        assert(has(name));
+        cuv::learn_step_weight_decay( m_merged[name], delta, m_learnrate, 0.f);
     }
     bool merger::has(const std::string& name){
         return m_merged.find(name) != m_merged.end();
     }
     htensor_t& merger::operator[](const std::string& name){
+        assert(has(name));
         return m_merged[name];
     }
 
-    momentum_merger::momentum_merger(float momentum)
-        :m_momentum(momentum){}
+    momentum_merger::momentum_merger(float learnrate, float momentum)
+        :merger(learnrate), m_momentum(momentum){}
     void momentum_merger::add_param(const std::string& name, const htensor_t& t){
         m_merged[name] = t;
         m_moments[name] = htensor_t(t.shape());
         m_moments[name] = 0.f;
     }
     void momentum_merger::merge(const std::string& name, const htensor_t& delta){
+        assert(has(name));
+        assert(m_moments.find(name) != m_moments.end());
         htensor_t& m = m_moments[name];
         cuv::apply_binary_functor(m, delta, cuv::BF_AXPY, m_momentum);
-        m_merged[name] += m;
+        cuv::learn_step_weight_decay( m_merged[name], m, m_learnrate, 0.f);
+        //m_merged[name] += m;
     }
 
-    adagrad_merger::adagrad_merger(float delta, int winsize)
-        :m_delta(delta), m_winsize(winsize){}
+    adagrad_merger::adagrad_merger(float learnrate, float delta, int winsize)
+        :merger(learnrate), m_delta(delta), m_winsize(winsize){}
     void adagrad_merger::add_param(const std::string& name, const htensor_t& t){
         m_merged[name] = t;
         m_sq_grad_sum[name] = htensor_t(t.shape());
@@ -73,13 +78,15 @@ namespace cuvnet { namespace network_communication {
         m_count[name] = 0;
     }
     void adagrad_merger::merge(const std::string& name, const htensor_t& delta){
+        assert(has(name));
+        assert(m_sq_grad_sum.find(name) != m_sq_grad_sum.end());
         htensor_t& sqsums = m_sq_grad_sum[name];
 
         htensor_t s = delta*delta;
         sqsums += s;
 
         // assume that the learning rate was already applied to lr in the worker!
-        cuv::libs::opt::adagrad(m_merged[name], delta, sqsums, 1.f, m_delta, 0.f, 0.f);
+        cuv::libs::opt::adagrad(m_merged[name], delta, sqsums, m_learnrate, m_delta, 0.f, 0.f);
 
         if(++m_count[name] % m_winsize == 0)
         {
@@ -105,8 +112,9 @@ namespace cuvnet { namespace network_communication {
     server::server(const std::string& url, const std::string& prefix, const std::string key, merger* m){
         m_stop = false;
         m_impl.reset(new connection(url,prefix,key));
-        // TODO: (uncritical...) Leak!
-        m_merger = m ? m : new merger();
+        if(!m)
+            throw std::runtime_error("server did not get a merger!");
+        m_merger = m;
     }
     
     void server::push_merged(){
@@ -119,6 +127,7 @@ namespace cuvnet { namespace network_communication {
             
             std::ostringstream os(std::ios::binary);
             {   // serialize the contents of the merged parameter
+                assert(m_merger->has(it->first));
                 boost::archive::binary_oarchive oa(os);
                 oa << (*m_merger)[it->first];
             }
@@ -228,6 +237,8 @@ namespace cuvnet { namespace network_communication {
             if(!p->more())
                 break;
             mongo::BSONObj f = p->next();
+            if(!f.hasField("name"))
+                break;
 
             htensor_t m;
             {
@@ -415,12 +426,12 @@ namespace cuvnet { namespace network_communication {
             unsigned int, unsigned int
             ){
         ++m_cnt;
-        cuvAssert(m_push_steps > m_push_off);
+        assert(m_push_steps > m_push_off);
         if( m_cnt % m_push_steps == m_push_off){
             int idx = 0;
             BOOST_FOREACH(Op* op, m_ops){
                 ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
-                cuvAssert(inp);
+                assert(inp);
                 std::string name = m_stage + inp->name() + boost::lexical_cast<std::string>(idx);
                 htensor_t m = inp->data();
                 std::map<Op*, cuv::tensor<float, cuv::host_memory_space> >::iterator 
@@ -429,7 +440,7 @@ namespace cuvnet { namespace network_communication {
                     // push results to server
                     // we need to ensure that all updates are weighted equally here
                     // since they may incorporate more or less client updates
-                    it->second /= (float)(m_cnt-m_last_push);
+                    //it->second /= (float)(m_cnt-m_last_push);
                     m_client.put_for_merging(name, it->second, inp->data());
                     // now that results are pushed, start recording changes over
                     it->second = 0.f; 
@@ -439,12 +450,12 @@ namespace cuvnet { namespace network_communication {
             m_last_push = m_cnt;
             m_push_off = m_push_steps / 2 + drand48() * (m_push_steps/2);
         }
-        cuvAssert(m_pull_steps > m_pull_off);
+        assert(m_pull_steps > m_pull_off);
         if( m_cnt % m_pull_steps == m_pull_off){
             int idx = 0;
             BOOST_FOREACH(Op* op, m_ops){
                 ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
-                cuvAssert(inp);
+                assert(inp);
                 std::string name = m_stage + inp->name() + boost::lexical_cast<std::string>(idx);
                 try{
                     matrix m = m_client.fetch_merged(name);
