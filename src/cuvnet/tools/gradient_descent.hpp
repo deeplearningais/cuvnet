@@ -80,6 +80,9 @@ namespace cuvnet
             /// @return the reason why learning was stopped
             inline stop_reason_t stop_reason()const{return m_stop_reason;}
 
+            /// @return the params we're optimizing
+            inline const paramvec_t& params()const{return m_params;}
+
             /// set verbosity
             inline void set_verbosity(int verbosity){ 
                 m_swipe.set_verbosity(verbosity);
@@ -646,6 +649,7 @@ namespace cuvnet
             typedef cuv::host_memory_space storage_space;
             typedef cuv::tensor<float, storage_space> storage_t;
             std::map<Op*, storage_t> m_updates;
+            bool m_active;
         public:
 
             /** 
@@ -654,6 +658,7 @@ namespace cuvnet
             template<typename... Params>
                 diff_recording_gradient_descent(Params... args)
                 : BaseGradientDescent(args...)
+                , m_active(true)
                 {
                 }
 
@@ -674,6 +679,20 @@ namespace cuvnet
                 this->after_batch.connect(boost::bind(t, &m_updates, _1, _2));
             }
 
+            template<class T>
+            void set_sync_function_es(T t, early_stopper& es){
+                this->after_batch.connect(boost::bind(t, &m_updates, _1, _2));
+                es.before_early_stopping_epoch.connect(boost::bind(
+                            &diff_recording_gradient_descent<BaseGradientDescent>::set_active,
+                            this, false));
+                es.after_early_stopping_epoch.connect(boost::bind(
+                            &diff_recording_gradient_descent<BaseGradientDescent>::set_active,
+                            this, false));
+            }
+
+            inline void set_active(bool b){ m_active = b; }
+
+
         protected:
             /**
              * A wrapper of BaseGradientDescent::update_weights that records
@@ -683,6 +702,7 @@ namespace cuvnet
              */
             virtual void update_weights(){
 
+                if(m_active)
                 for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
                     ParameterInput* inp = (ParameterInput*) *it;
                     std::map<Op*, storage_t>::iterator upit = m_updates.find(inp);
