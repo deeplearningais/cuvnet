@@ -1280,4 +1280,18 @@ namespace cuvnet
         r0.delta.reset();
     }
 
+    void Tuplewise_op::_graphviz_node_desc(detail::graphviz_node& desc)const{
+        desc.label = "Tuplewise (dim=" +
+            boost::lexical_cast<std::string>(m_dim) + "/" +
+            boost::lexical_cast<std::string>(m_subspace_size) + ": ";
+        if(m_to == cuv::alex_conv::TO_NORM)
+            desc.label += "norm";
+        else if(m_to == cuv::alex_conv::TO_MAX)
+            desc.label += "max";
+        else if(m_to == cuv::alex_conv::TO_ADD_SQUARED)
+            desc.label += "addsq";
+        else
+            throw std::runtime_error("unknown tuplewise op");
+    }
+
 }
