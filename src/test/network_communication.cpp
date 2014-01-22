@@ -202,9 +202,9 @@ BOOST_AUTO_TEST_CASE( nc_gd ){
     optimizer*      clients[n_clt];
     boost::thread*  threads[n_clt];
     using cuvnet::network_communication::server;
-    //cuvnet::network_communication::adagrad_merger mrg(0.01f);
-    //cuvnet::network_communication::momentum_merger mrg(0.1f);
-    cuvnet::network_communication::merger mrg;
+    //cuvnet::network_communication::adagrad_merger mrg(.05f, 0.1f);
+    cuvnet::network_communication::momentum_merger mrg(0.05, 0.1f);
+    //cuvnet::network_communication::merger mrg(0.05f);
 
     server s(HOST,DB,KEY, &mrg);
     s.cleanup();
