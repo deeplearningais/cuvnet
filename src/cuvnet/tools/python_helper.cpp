@@ -8,6 +8,7 @@
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/tools/function.hpp>
 #include <cuvnet/tools/gradient_descent.hpp>
+#include <cuvnet/tools/normalization.hpp>
 #include <boost/python.hpp>
 #include <boost/python/register_ptr_to_python.hpp>
 #include <boost/python/list.hpp>
@@ -330,6 +331,11 @@ namespace cuvnet
         def("get_valid_shape_info", get_vsi_1);
         def("get_valid_shape_info", get_vsi_2);
         def("get_valid_shape_info", get_vsi_3);
+
+        def("project_to_mean", project_to_mean<cuv::dev_memory_space>);
+        def("project_to_mean", project_to_mean<cuv::host_memory_space>);
+        def("project_to_unit_ball", project_to_unit_ball<cuv::dev_memory_space>);
+        def("project_to_unit_ball", project_to_unit_ball<cuv::host_memory_space>);
 
         class_<swiper, boost::shared_ptr<swiper> >("swiper", no_init)
             .def("fprop", &swiper::fprop)

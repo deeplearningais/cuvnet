@@ -71,5 +71,53 @@ namespace cuvnet
         else if(axis == 0)
             cuv::matrix_divide_row(C, ax);
     }
+
+    /**
+     * force weight (-updates) to all have the same magnitude
+     *
+     * @param W weight matrix to be adjusted
+     * @param axis the axis to be adjusted
+     */
+    template<class M>
+    void project_to_mean(cuv::tensor<float, M>& W, int axis){
+        cuv::tensor<float, M> C = W;
+        if(axis < 0)
+            axis = W.ndim()-1;
+        if(W.ndim() < 2)
+            throw std::runtime_error("project_to_unit_ball: need >2-dimensional matrix, this one has " + boost::lexical_cast<std::string>(W.ndim()));
+        if(axis >= W.ndim())
+            throw std::runtime_error("project_to_unit_ball: axis parameter is not in matrix dimensions, of which there are " + boost::lexical_cast<std::string>(W.ndim()));
+
+        unsigned int ax_shape = W.shape(axis);
+        if(W.ndim() > 2){
+            unsigned int other_shape = W.size() / ax_shape;
+            if(axis == W.ndim()-1){
+                axis = 1;
+                C.reshape(cuv::extents[other_shape][ax_shape]);
+            }else if(axis == 0){
+                axis = 0;
+                C.reshape(cuv::extents[ax_shape][other_shape]);
+            }else{
+                throw std::runtime_error("project_to_unit_ball: cannot normalize intermediate (0<axis<ndim-1) axis");
+            }
+        }
+        ax_shape = C.shape(1-axis);
+        cuv::tensor<float, M> ax(ax_shape);
+        cuv::tensor<unsigned char, M> over_thresh(ax_shape);
+        if(axis == 1){
+            cuv::reduce_to_col(ax, C, cuv::RF_ADD_SQUARED);
+        }
+        else if(axis == 0){
+            cuv::reduce_to_row(ax, C, cuv::RF_ADD_SQUARED);
+        }
+        float mean_sq_norm = cuv::mean(ax);
+
+        cuv::apply_scalar_functor(ax, cuv::SF_SQRT); // ax = sqrt(ax)
+        cuv::apply_scalar_functor(ax, cuv::SF_MULT, 1.f / std::sqrt(mean_sq_norm));
+        if(axis == 1)
+            cuv::matrix_divide_col(C, ax);
+        else if(axis == 0)
+            cuv::matrix_divide_row(C, ax);
+    }
 }
 #endif /* __CUVNET_TOOLS_NORMALIZATION_HPP__ */
