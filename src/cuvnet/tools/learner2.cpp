@@ -553,7 +553,7 @@ namespace cuvnet
                     nc_cfg->get<int>("push_steps"),
                     nc_cfg->get<int>("pull_steps"),
                     0, 0,
-                    m_gd->params()
+                    m.get_params()
                     );
             if(es){
                 ((DRGD<gradient_descent>*)m_gd.get())->set_sync_function_es(boost::ref(*paramsync), boost::ref(*es));
