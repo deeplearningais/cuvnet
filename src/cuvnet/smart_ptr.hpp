@@ -141,9 +141,12 @@ namespace cuvnet
                     }
         };
 
+    boost::shared_ptr<cuv::allocator>
+        get_global_allocator();
+
     template<class T>
         boost::shared_ptr<cuv::allocator>
-        cow_ptr<T>::s_allocator(new cuv::pooled_cuda_allocator("cow_ptr"));
+        cow_ptr<T>::s_allocator(get_global_allocator());
 
         template<class T>
         std::ostream& 
