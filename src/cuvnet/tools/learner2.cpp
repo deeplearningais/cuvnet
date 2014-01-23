@@ -549,7 +549,7 @@ namespace cuvnet
                     nc_cfg->get<std::string>("key"),
                     uuid);
             paramsync = boost::make_shared<cuvnet::network_communication::param_synchronizer>(
-                    uuid, *client, 
+                    "stage", *client, 
                     nc_cfg->get<int>("push_steps"),
                     nc_cfg->get<int>("pull_steps"),
                     0, 0,
