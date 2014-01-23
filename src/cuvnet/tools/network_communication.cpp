@@ -187,7 +187,7 @@ namespace cuvnet { namespace network_communication {
             m_versions[name] = f["version"].Int();
             m_merger->add_param(name, m);
             m_need_push[name] = false;
-            LOG4CXX_WARN(g_log, "New parameter found: " << name);
+            LOG4CXX_WARN(g_log, "New parameter found: " << name << " norm: "<<cuv::norm2(m));
         }
 
     }
@@ -259,7 +259,7 @@ namespace cuvnet { namespace network_communication {
                     throw value_not_found_exception();
                 }
             }
-            //LOG4CXX_WARN(g_log, "Merging: " << name);
+            //LOG4CXX_WARN(g_log, "Merging: " << name << " norm: " << cuv::norm2(m));
             m_merger->merge(name, m);
 
             m_versions[name] ++;
@@ -351,6 +351,7 @@ namespace cuvnet { namespace network_communication {
             bob.appendBinData("content",ms.size(),mongo::BinDataGeneral,&ms[0]);
 
             // upload object to the server
+            LOG4CXX_WARN(g_log, "Uploading initial: " << s << " norm: " << cuv::norm2(current_value));
             m_impl->m_con.insert( m_impl->m_prefix + ".nc", bob.obj());
             CHECK_DB_ERR(m_impl->m_con);
         }
@@ -363,6 +364,7 @@ namespace cuvnet { namespace network_communication {
                 oa << delta;
             }
             std::string ms = os.str();
+            //LOG4CXX_WARN(g_log, "Uploading delta: " << s << " norm: " << cuv::norm2(delta));
 
             mongo::BSONObjBuilder bob;
             bob <<"key"<<m_impl->m_key
@@ -462,7 +464,7 @@ namespace cuvnet { namespace network_communication {
                 try{
                     matrix m = m_client.fetch_merged(name);
                     inp->data() = m;
-                    //LOG4CXX_INFO(g_log, m_client.id() << ": got new value for "<<name);
+                    //LOG4CXX_INFO(g_log, m_client.id() << ": got new value for "<<name << " norm: "<<cuv::norm2(m));
                 }catch(value_not_found_exception){
                 }
                 idx ++;
