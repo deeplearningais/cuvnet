@@ -524,8 +524,8 @@ void swiper::init()
 
     determine_shapes(op);
 
-    if(m_verbosity>0)
-        dump("swiper-initial.dot", m_verbosity>1);
+    //if(m_verbosity>0)
+    //    dump("swiper-initial.dot", m_verbosity>1);
 }
 
 void swiper::set_calculate_result(){

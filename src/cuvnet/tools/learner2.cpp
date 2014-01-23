@@ -515,6 +515,8 @@ namespace cuvnet
         m_gd 
             = get_gradient_descent(m, cfg.get_child("gd"));
 
+        m_gd->get_swiper().dump((tmppath / "loss.dot").string(), cfg.get("verbose", false));
+
         m_mon
             = get_monitor(m, cfg.get_child("monitor", ptree()));
 
