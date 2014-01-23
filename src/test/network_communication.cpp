@@ -179,7 +179,7 @@ struct optimizer{
             using namespace cuvnet::network_communication;
             std::string cid = "client-"+boost::lexical_cast<std::string>(i);
             client c(HOST,DB,KEY,cid);
-            param_synchronizer ps(cid, c, 1, 1, 0, 0, params);
+            param_synchronizer ps("stage", c, 1, 1, 0, 0, params);
             gd.set_sync_function(boost::ref(ps));
             gd.after_epoch.connect(boost::bind(sleeper)); // artificially slow down to allow server to catch up
 
