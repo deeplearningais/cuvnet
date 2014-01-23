@@ -730,7 +730,7 @@ namespace cuvnet
                         m_updates[inp] += (storage_t) inp->delta();
                     else
                         //m_updates.insert(std::make_pair((Op*)inp, (storage_t) inp->delta()));
-                        m_updates[inp] = inp->delta();
+                        m_updates[inp] = inp->delta().copy();
 #define UPDATE_ONLY_ON_SERVER 0
 #if UPDATE_ONLY_ON_SERVER
                     inp->delta() = 0.f;
