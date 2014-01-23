@@ -161,6 +161,7 @@ namespace cuvnet
     learner2::get_gradient_descent(model& m, const ptree& cfg){
         std::string typ = cfg.get("type", "plain");
         bool drec = cfg.get("diff_rec", false);
+        LOG4CXX_WARN(g_log_learner2, "Setting up delta recording for gradient_descent");
         float initial_learnrate = cfg.get("learnrate", 0.01);
         float initial_momentum = cfg.get("momentum", 0.9);
         float l2decay = cfg.get("l2decay", 0.0);
@@ -536,6 +537,12 @@ namespace cuvnet
         boost::shared_ptr<cuvnet::network_communication::client> client;
         boost::shared_ptr<cuvnet::network_communication::param_synchronizer> paramsync;
         if(nc_cfg){
+            LOG4CXX_WARN(g_log_learner2, "Setting up netcom " <<nc_cfg->get<std::string>("host") << "/"
+                    << nc_cfg->get<std::string>("db")<<"/"
+                    << nc_cfg->get<std::string>("key") << "("
+                    << nc_cfg->get<std::string>("push_steps") << " push, "
+                    << nc_cfg->get<std::string>("pull_steps") << " pull)"
+                    );
             client = boost::make_shared<cuvnet::network_communication::client>(
                     nc_cfg->get<std::string>("host"), 
                     nc_cfg->get<std::string>("db"),
@@ -548,15 +555,11 @@ namespace cuvnet
                     0, 0,
                     m_gd->params()
                     );
-            // this is a really, really ugly hack
-            // since we don't actually know the correct type.
-            // however, it shouldn't break anything since the setter below
-            // just accesses the after_batch event, which all gradient_descent
-            // derived types have inherited.
-            if(es)
+            if(es){
                 ((DRGD<gradient_descent>*)m_gd.get())->set_sync_function_es(boost::ref(*paramsync), boost::ref(*es));
-            else
+            }else{
                 ((DRGD<gradient_descent>*)m_gd.get())->set_sync_function(boost::ref(*paramsync));
+            }
         }
 
         boost::shared_ptr<convergence_checker> cc;

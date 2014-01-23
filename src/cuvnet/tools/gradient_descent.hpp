@@ -628,6 +628,28 @@ namespace cuvnet
 
     };
 
+    namespace detail
+    {
+        // this class is just to have member variables of
+        // diff_recording_gradient_descent before the member variables of its
+        // BaseGradientDescent, so we can use casts to
+        // diff_recording_gradient_descent<gradient_descent>
+        struct drgd_helper{
+            protected:
+                typedef cuv::host_memory_space storage_space;
+                typedef cuv::tensor<float, storage_space> storage_t;
+                std::map<Op*, storage_t> m_updates;
+                bool m_active;
+                virtual std::map<Op*, storage_t>& updates() {
+                    return m_updates;
+                }
+                virtual bool& active() {
+                    return m_active;
+                }
+                void set_active(bool b){ m_active = b; }
+        };
+    }
+
     /** 
      * An aspect that allows to store gradient updates for asynchronous gradient descent.
      *
@@ -641,25 +663,24 @@ namespace cuvnet
      */
     template<class BaseGradientDescent>
     struct diff_recording_gradient_descent
-    : public BaseGradientDescent
+    :   public detail::drgd_helper,
+        public BaseGradientDescent
     {
         public:
             typedef std::vector<Op*> paramvec_t;
-        private:
-            typedef cuv::host_memory_space storage_space;
-            typedef cuv::tensor<float, storage_space> storage_t;
-            std::map<Op*, storage_t> m_updates;
-            bool m_active;
+            using detail::drgd_helper::storage_space;
+            using detail::drgd_helper::storage_t;
+            using detail::drgd_helper::m_updates;
+            using detail::drgd_helper::m_active;
         public:
-
             /** 
              * this template constructor provides perfect forwarding for all arguments.
              */
             template<typename... Params>
                 diff_recording_gradient_descent(Params... args)
                 : BaseGradientDescent(args...)
-                , m_active(true)
                 {
+                    m_active = true;
                 }
 
             /**
@@ -676,21 +697,20 @@ namespace cuvnet
              */
             template<class T>
             void set_sync_function(T t){
-                this->after_batch.connect(boost::bind(t, &m_updates, _1, _2));
+                this->after_batch.connect(boost::bind(t, &updates(), _1, _2));
             }
 
             template<class T>
             void set_sync_function_es(T t, early_stopper& es){
-                this->after_batch.connect(boost::bind(t, &m_updates, _1, _2));
+                this->after_batch.connect(boost::bind(t, &updates(), _1, _2));
                 es.before_early_stopping_epoch.connect(boost::bind(
-                            &diff_recording_gradient_descent<BaseGradientDescent>::set_active,
+                            &detail::drgd_helper::set_active,
                             this, false));
                 es.after_early_stopping_epoch.connect(boost::bind(
-                            &diff_recording_gradient_descent<BaseGradientDescent>::set_active,
-                            this, false));
+                            &detail::drgd_helper::set_active,
+                            this, true));
             }
 
-            inline void set_active(bool b){ m_active = b; }
 
 
         protected:

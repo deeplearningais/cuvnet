@@ -257,7 +257,9 @@ namespace cuvnet { namespace network_communication {
                 if( !m_merger->has(name) ){
                     throw value_not_found_exception();
                 }
+                LOG4CXX_WARN(g_log, "New parameter found: " << name);
             }
+            //LOG4CXX_WARN(g_log, "Merging: " << name);
             m_merger->merge(name, m);
 
             m_versions[name] ++;
