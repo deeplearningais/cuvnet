@@ -726,11 +726,12 @@ namespace cuvnet
                 for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
                     ParameterInput* inp = (ParameterInput*) *it;
                     std::map<Op*, storage_t>::iterator upit = m_updates.find(inp);
-                    if(upit != m_updates.end())
-                        m_updates[inp] += (storage_t) inp->delta();
-                    else
-                        //m_updates.insert(std::make_pair((Op*)inp, (storage_t) inp->delta()));
-                        m_updates[inp] = inp->delta().copy();
+                    if(upit != m_updates.end()){
+                        cuv::apply_binary_functor(m_updates[inp], (storage_t)inp->delta(), cuv::BF_XPBY, inp->get_learnrate_factor());
+                    }else{
+                        m_updates[inp] = inp->delta();
+                        m_updates[inp] *= inp->get_learnrate_factor();
+                    }
 #define UPDATE_ONLY_ON_SERVER 0
 #if UPDATE_ONLY_ON_SERVER
                     inp->delta() = 0.f;

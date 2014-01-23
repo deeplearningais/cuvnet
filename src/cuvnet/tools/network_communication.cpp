@@ -429,7 +429,41 @@ namespace cuvnet { namespace network_communication {
             std::map<Op*, cuv::tensor<float, cuv::host_memory_space> >* updates,
             unsigned int, unsigned int
             ){
+
+        // first try to pull!
+        assert(m_pull_steps > m_pull_off);
+        if( m_cnt % m_pull_steps == m_pull_off){
+            int idx = 0;
+            BOOST_FOREACH(Op* op, m_ops){
+                ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
+                assert(inp);
+                std::string name = m_stage + inp->name() + boost::lexical_cast<std::string>(idx);
+                try{
+                    matrix m = m_client.fetch_merged(name);
+                    inp->data() = m;
+                    //LOG4CXX_INFO(g_log, m_client.id() << ": got new value for "<<name << " norm: "<<cuv::norm2(m));
+                }catch(value_not_found_exception){
+                }
+                idx ++;
+            }
+            m_pull_off = m_pull_steps / 2 + drand48() * (m_pull_steps/2);
+        }
+
         ++m_cnt;
+
+        // if this is the first time, we may have pulled new params, 
+        // don't push anything, instead delete gradients!
+        if(m_cnt == 1){
+            BOOST_FOREACH(Op* op, m_ops){
+                ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
+                assert(inp);
+                std::map<Op*, cuv::tensor<float, cuv::host_memory_space> >::iterator 
+                    it = updates->find(inp);
+                if(it != updates->end())
+                    it->second = 0.f;
+            }
+        }
+
         assert(m_push_steps > m_push_off);
         if( m_cnt % m_push_steps == m_push_off){
             int idx = 0;
@@ -453,23 +487,6 @@ namespace cuvnet { namespace network_communication {
             }
             m_last_push = m_cnt;
             m_push_off = m_push_steps / 2 + drand48() * (m_push_steps/2);
-        }
-        assert(m_pull_steps > m_pull_off);
-        if( m_cnt % m_pull_steps == m_pull_off){
-            int idx = 0;
-            BOOST_FOREACH(Op* op, m_ops){
-                ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
-                assert(inp);
-                std::string name = m_stage + inp->name() + boost::lexical_cast<std::string>(idx);
-                try{
-                    matrix m = m_client.fetch_merged(name);
-                    inp->data() = m;
-                    //LOG4CXX_INFO(g_log, m_client.id() << ": got new value for "<<name << " norm: "<<cuv::norm2(m));
-                }catch(value_not_found_exception){
-                }
-                idx ++;
-            }
-            m_pull_off = m_pull_steps / 2 + drand48() * (m_pull_steps/2);
         }
     }
         
