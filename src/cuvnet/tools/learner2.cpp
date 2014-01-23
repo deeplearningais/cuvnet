@@ -161,7 +161,9 @@ namespace cuvnet
     learner2::get_gradient_descent(model& m, const ptree& cfg){
         std::string typ = cfg.get("type", "plain");
         bool drec = cfg.get("diff_rec", false);
-        LOG4CXX_WARN(g_log_learner2, "Setting up delta recording for gradient_descent");
+        if(drec){
+            LOG4CXX_WARN(g_log_learner2, "Setting up delta recording for gradient_descent");
+        }
         float initial_learnrate = cfg.get("learnrate", 0.01);
         float initial_momentum = cfg.get("momentum", 0.9);
         float l2decay = cfg.get("l2decay", 0.0);

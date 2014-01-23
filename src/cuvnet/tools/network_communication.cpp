@@ -187,6 +187,7 @@ namespace cuvnet { namespace network_communication {
             m_versions[name] = f["version"].Int();
             m_merger->add_param(name, m);
             m_need_push[name] = false;
+            LOG4CXX_WARN(g_log, "New parameter found: " << name);
         }
 
     }
@@ -257,7 +258,6 @@ namespace cuvnet { namespace network_communication {
                 if( !m_merger->has(name) ){
                     throw value_not_found_exception();
                 }
-                LOG4CXX_WARN(g_log, "New parameter found: " << name);
             }
             //LOG4CXX_WARN(g_log, "Merging: " << name);
             m_merger->merge(name, m);
