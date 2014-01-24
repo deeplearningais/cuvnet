@@ -996,6 +996,7 @@ namespace cuvnet
     }
 
     void LocalPooling::fprop(){
+        std::cout << "pool fprop" << std::endl;
         using namespace cuv;
         using namespace cuv::alex_conv;
         param_t::element_type&  p0 = *m_params[0];
@@ -1025,6 +1026,7 @@ namespace cuvnet
         else{
             // keep p0, needed for bprop of PT_MAX
         }
+        std::cout << "fprop done" << std::endl;
     }
 
     void LocalPooling::bprop(){
