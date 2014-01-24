@@ -54,6 +54,7 @@ SET(CUVNET_SRC
 	datasets/bounding_box_tools.cpp
     datasets/dataset_reader.cpp
 
+    cuvnet/smart_ptr.cpp
     cuvnet/tools/pca.cpp
     cuvnet/tools/logging.cpp
     cuvnet/tools/monitor.cpp
