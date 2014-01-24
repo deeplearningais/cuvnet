@@ -314,6 +314,11 @@ namespace cuvnet { namespace network_communication {
 
         m_versions[s] = f["version"].Int();
 
+        // ensure that the version we're sending isn't outdated
+        // (if versions are simply counted up by some clients, then
+        // some clients (the ones that joined later) are always preferred.
+        m_delta_versions[s] = std::max(m_delta_versions[s], m_versions[s]);
+
         htensor_t m;
         {
             int len;
