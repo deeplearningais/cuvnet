@@ -24,7 +24,7 @@ namespace cuvnet
     spn_layer::spn_layer(spn_layer::op_ptr X, unsigned int size, unsigned int sub_size, int nStride, int nPoolFlt, float eps, bool hard_gradient, bool pooling, std::string name){
         op_group grp("spnlayer");
         determine_shapes(*X);
-        std::cout << "input shape: " << X->result()->shape[0] << " x " <<  X->result()->shape[1], " x " <<  X->result()->shape[2], " x " <<  X->result()->shape[3] << std::endl;
+        std::cout << "input shape: " << X->result()->shape[0] << " x " <<  X->result()->shape[1] << " x " <<  X->result()->shape[2]<<  " x " <<  X->result()->shape[3] << std::endl;
 
         using namespace cuv;
         std::string m_name("spn_layer_W_");
@@ -76,14 +76,13 @@ namespace cuvnet
     */
     spn_conv_layer::spn_conv_layer(spn_layer::op_ptr X, unsigned int size, int nStride, int nConvFlt){
         op_group grp("convlayer");
-        std::cout << "input shape: " << X->result()->shape[0] << " x " <<  X->result()->shape[1], " x " <<  X->result()->shape[2], " x " <<  X->result()->shape[3] << std::endl;
         determine_shapes(*X);
+        std::cout << "input shape: " << X->result()->shape[0] << " x " <<  X->result()->shape[1] << " x " <<  X->result()->shape[2] << " x " <<  X->result()->shape[3] << std::endl;
+
         m_W = input(cuv::extents[X->result()->shape[0] /*nFiltChannels*/][nConvFlt /*nFiltPix*/][size /*nFilt*/], "conv_W");
 
         // define output function
         m_output = log(convolve(X, exp(1.f, m_W), false /*padding*/, -1 /*padding size (not used)*/, nStride, 1  /*ngroups*/));
-        //TODO
-        //std::cout << "size_after_conv " << inY * inY1 << std::endl;
     }
 
 
@@ -113,8 +112,7 @@ namespace cuvnet
         {
             determine_shapes(*X[i]);
         }
-        std::cout << "input shape: " << X[0]->result()->shape[0] << " x " <<  X[0]->result()->shape[1], " x " <<  X[0]->result()->shape[2], " x " <<  X[0]->result()->shape[3] << std::endl;
-
+        std::cout << "input shape: " << X[0]->result()->shape[0] << " x " <<  X[0]->result()->shape[1] << " x " <<  X[0]->result()->shape[2] << " x " <<  X[0]->result()->shape[3] << std::endl;
 
         m_W   = input(cuv::extents[n_classes], "spn_output_W");
 
@@ -127,7 +125,7 @@ namespace cuvnet
         for  (unsigned int c = 0; c < X.size(); c++){ 
             conc[c] = sum_to_vec(X[c], 0);
         }   
-        
+        /*
         unsigned int c_size = X.size();
         //make sure size is a multiple of 2
         float temp_log = std::log2(c_size);
@@ -142,14 +140,14 @@ namespace cuvnet
             }
             c_size -=diff;
         }
-        //do loc style concatenation
+        //do log style concatenation
         for ( unsigned int c = c_size/2; c > 0; c /=2){
             for ( unsigned int i = 0; i < c; i++){
                 unsigned int idx = 2*i;
                 conc[i] = concatenate(conc[idx], conc[idx+1], 0 );
             }
-        }
-        m_output = spn_output_op(conc[0], m_W, Y, mon, n_classes, eps);        
+        }*/
+        m_output = spn_output_op(concatenate_n(conc, 0, n_classes), m_W, Y, mon, n_classes, eps);        
     }
 
         std::vector<Op*> spn_out_layer::get_params(){
@@ -183,9 +181,9 @@ namespace cuvnet
          unsigned int nLayer = 0;
          unsigned int width;
          if (m_conv_layer){
-            width = (inputSize / (nStrideConv * nStrideConv));
+            width = ((inputSize*inputSize) / (nStrideConv * nStrideConv));
          } else {
-            width = inputSize;
+            width = inputSize*inputSize;
         }
         
          while ( width > 1 )
@@ -201,6 +199,7 @@ namespace cuvnet
          //disjunct decomposition
          unsigned int size = nParts * std::pow((float) nStride, (int) nLayer+1);
         
+          //std::cout << "generating conv layer: " << std::endl;
           op_ptr o;
           // convolution layer
           if ( m_conv_layer){
@@ -217,6 +216,8 @@ namespace cuvnet
           std::vector<op_ptr> class_o;
           class_o.resize(nClasses);
 
+          //std::cout << "generating spn layers: " << std::endl;
+          
           // set op pointer to conv layer
           for (unsigned int i = 0; i < nClasses; i++)
           {
@@ -258,6 +259,8 @@ namespace cuvnet
               }
            }
 
+          //std::cout << "generating output layer: " << std::endl;
+           
           //std::cout << "creating output layer" << std::endl;
           // output layer
           o_layer.resize(1);
@@ -288,7 +291,7 @@ namespace cuvnet
         }
           
           unsigned int n_params = nLayer * nClasses +1;
-          std::cout << "nLayer: " << nLayer << ", nClasses: " << nClasses << std::endl;
+          //std::cout << "nLayer: " << nLayer << ", nClasses: " << nClasses << std::endl;
           if (m_conv_layer) n_params++;
           
           //set flags for hadrd / soft gradient
@@ -315,13 +318,16 @@ namespace cuvnet
           //init all params
           reset_params();
           
-          std::cout << "setting results to S" << std::endl; 
+          //std::cout << "setting results to S" << std::endl; 
           this->results = S;
           
           //generate spn gradient descent
+          //std::cout << "generating gd" << std::endl; 
           boost::shared_ptr<spn_gradient_descent> gdo(new spn_gradient_descent(o, Y, 0 /*result*/, results /*monitor*/, get_params(), Inference_type, eta, weight_decay));
+          //std::cout << "dumping dot file" << std::endl; 
           gdo->get_swiper().dump("bla.dot", true);
           this->gd = gdo;
+          //std::cout << "register gd" << std::endl; 
           S->register_gd(*gd);
     }
     

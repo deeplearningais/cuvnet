@@ -21,11 +21,13 @@ namespace cuvnet{
     }
 
     void Weighted_Sub_Tensor_op::fprop(){
+        std::cout << "arrived in weightedsto.. op" << std::endl;
         using namespace cuv;
         using namespace cuv::alex_conv;
         param_t::element_type&  p0 = *m_params[0];
         param_t::element_type&  p1 = *m_params[1];
         result_t::element_type& r0 = *m_results[0];
+
 
         //save max Index for backprop if max function is used
         if ((m_to == cuv::alex_conv::TO_WMAX) || (m_to == cuv::alex_conv::TO_WMAX_LOGSPACE)){
@@ -52,6 +54,8 @@ namespace cuvnet{
                 r0.push(v);
             }
         }
+    
+                std::cout << "done.." << std::endl;
     }
 
     void Weighted_Sub_Tensor_op::bprop(){
