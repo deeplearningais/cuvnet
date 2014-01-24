@@ -125,5 +125,109 @@ namespace cuvnet
             }
         }
     }
+/////////////////////////////////////////////////////////////////////////////// concatenate_n ////////////////////////////////////////////////////////////////
 
+    Concatenate_N::value_type Concatenate_N::get_subtensor(const value_type &v, unsigned int position){
+        unsigned int start = 0;
+        for ( unsigned int i = 0; i < position; i ++) start += m_pi_shape[i][m_dim];
+        unsigned int end = start + m_pi_shape[position][m_dim];
+
+        if(m_dim == 0)      return v[cuv::indices[cuv::index_range(start, end)]];
+        else if(m_dim == 1) return v[cuv::indices[cuv::index_range()][cuv::index_range(start, end)]];
+        else                return v[cuv::indices[cuv::index_range()][cuv::index_range()][cuv::index_range(start, end)]];
+    }
+
+    void Concatenate_N::fprop(){
+        using namespace cuv;
+        std::cout << "concatenating ALL THE INPUTS" << std::endl;
+        result_t::element_type& r0 = *m_results[0];
+
+        if(r0.can_overwrite_directly()){
+            value_type& v = *r0.overwrite_or_add_value();
+         
+            for (unsigned int i = 0; i < m_n; i++){
+                param_t::element_type&  pi = *m_params[i];
+                value_type part_i = get_subtensor(v, i);
+                *static_cast<view_of<value_type>::type*>(&part_i) = pi.value.cdata();                
+            }
+        }else{
+            value_ptr v = value_ptr(new value_type(r0.shape, value_ptr::s_allocator)); // this safer but slower
+
+            for (unsigned int i = 0; i < m_n; i++){
+                param_t::element_type&  pi = *m_params[i];
+                value_type part_i = get_subtensor(v, i);
+                *static_cast<view_of<value_type>::type*>(&part_i) = pi.value.cdata();                
+            }
+            r0.push(v);
+        }
+
+        // reset all params
+        for ( unsigned int i = 0; i < m_n; i++){
+            param_t::element_type&  pi = *m_params[i];
+            if (! pi.need_derivative) pi.value.reset();
+        }
+    }
+
+    void Concatenate_N::bprop(){
+        using namespace cuv;
+        result_t::element_type& r0 = *m_results[0];
+        
+        //assertion, we should need a derivative
+        bool need_derivative = false;
+        for ( unsigned int i = 0; i < m_n; i++){
+            param_t::element_type&  pi = *m_params[i];
+            need_derivative = (pi.need_derivative || need_derivative);
+            if ( need_derivative ) break;
+        }
+        assert(need_derivative);
+        
+        for ( unsigned int i = 0; i < m_n; i++){
+            param_t::element_type&  pi = *m_params[i];
+            if(pi.need_derivative){
+                if(pi.can_overwrite_directly()){
+                    value_type& vi = *pi.overwrite_or_add_value();
+                    const value_type& v = r0.delta.cdata();
+                    *static_cast<view_of<value_type>::type*>(&vi) = get_subtensor(v, i);
+                }else if(pi.can_add_directly()){
+                    value_type& vi = *pi.overwrite_or_add_value();
+                    const value_type& v = r0.delta.cdata();
+                    vi += get_subtensor(v, i);
+                }else{
+                    value_ptr vi(new value_type(pi.shape, value_ptr::s_allocator));
+
+                    const value_type& v = r0.delta.cdata();
+                    *static_cast<view_of<value_type>::type*>(&*vi) = get_subtensor(v, i);
+                    pi.push(vi);
+                }            
+            }
+        }
+        r0.delta.reset();
+    }
+
+    
+    void Concatenate_N::_determine_shapes(){
+        param_t&  p0 = m_params[0];
+        unsigned int size = p0->shape.size();
+        m_pi_shape.resize( m_n, std::vector<int>( size , 0) );
+        
+        for (unsigned int i = 0; i < m_params.size(); ++i)
+        {
+            param_t&  pi = m_params[i];
+            for ( unsigned int s = 0; s < size; s++){
+                m_pi_shape[i][s] = pi->shape[s];          
+            }
+        }
+        
+        m_results[0]->shape.resize(size);
+        for(unsigned int i = 0; i < size; i++){
+            if(i == m_dim){
+                m_results[0]->shape[i]  = 0;
+                for ( unsigned int s = 0; s < size; s++){
+                    m_results[0]->shape[i] += m_pi_shape[i][s];
+                }
+            }else{
+                m_results[0]->shape[i] = p0->shape[i];
+            }
+        }
+    }
 }
