@@ -8,6 +8,8 @@ namespace cuvnet
     namespace models
     {
         void logistic_regression::reset_params(){
+            //if(m_W)
+                //initialize_dense_glorot_bengio(m_W, false);
             m_W->data() = 0.f;
             if(m_bias) {
                 m_bias->data() = 0.f;
