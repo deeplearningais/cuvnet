@@ -10,7 +10,7 @@ namespace cuvnet
     {
         void mlp_layer::reset_params(){
             initialize_dense_glorot_bengio(m_W, true);
-            m_bias->data() = 0.f;
+            m_bias->data() = 0.1f;
         }
 
         mlp_layer::mlp_layer(mlp_layer::op_ptr X, unsigned int size){
