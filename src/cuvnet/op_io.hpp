@@ -9,7 +9,7 @@
 //#include <boost/serialization/shared_ptr.hpp>
 //#include <boost/serialization/weak_ptr.hpp>
 //#include <boost/serialization/vector.hpp>
-//#include <boost/serialization/export.hpp>
+#include <boost/serialization/export.hpp>
 #include <cuv/basics/io.hpp>
 #include <cuvnet/ops.hpp>
 
@@ -55,89 +55,90 @@ namespace cuvnet
     template < typename Archive > 
         void register_objects(Archive & ar) 
         { 
-            // infrastructure
-            ar.template register_type<Input>();
-            ar.template register_type<ParameterInput>();
-            ar.template register_type<Pipe>();
-            ar.template register_type<Sink>();
-            ar.template register_type<DeltaSink>();
-
-            // +, -, *, /
-            ar.template register_type<Axpby>();
-            ar.template register_type<AddScalar>();
-            ar.template register_type<ScalarLike>();
-            ar.template register_type<MultScalar>();
-            ar.template register_type<SubtractFromScalar>();
-            ar.template register_type<Multiply>();
-            ar.template register_type<Prod>();
-
-            ar.template register_type<Log>();
-            ar.template register_type<Exp>();
-            ar.template register_type<Pow>();
-
-            // reductions
-            ar.template register_type<Sum>();
-            ar.template register_type<Mean>();
-
-            // matrix-vector
-            ar.template register_type<MatPlusVec>();
-            ar.template register_type<SumMatToVec>();
-            ar.template register_type<MatTimesVec>();
-
-            // trigonometry
-            ar.template register_type<Tanh>();
-            ar.template register_type<Sin>();
-            ar.template register_type<Cos>();
-            ar.template register_type<Logistic>();
-            ar.template register_type<Atan2>();
-
-            // Loss functions
-            ar.template register_type<NegCrossEntropyOfLogistic>();
-            ar.template register_type<Softmax>();
-            ar.template register_type<MultinomialLogisticLoss>();
-            ar.template register_type<ClassificationLoss>();
-            ar.template register_type<F2Measure>();
-            ar.template register_type<EpsilonInsensitiveLoss>();
-            ar.template register_type<HingeLoss>();
-
-            // convolutions
-            ar.template register_type<Convolve>();
-            ar.template register_type<ReorderForConv>();
-            ar.template register_type<ReorderFromConv>();
-            ar.template register_type<LocalPooling>();
-            ar.template register_type<ResponseNormalization>();
-            ar.template register_type<ResponseNormalizationCrossMaps>();
-            ar.template register_type<ContrastNormalization>();
-            ar.template register_type<SeparableFilter>();
-            ar.template register_type<SeparableFilter1d>();
-            ar.template register_type<ResizeBilinear>();
-            ar.template register_type<Tuplewise_op>();
-            ar.template register_type<Subtensor>();
-            ar.template register_type<BedOfNails>();
-
-            // misc
-            ar.template register_type<Identity>();
-            ar.template register_type<Noiser>();
-            ar.template register_type<Flatten>();
-            ar.template register_type<Reshape>();
-            ar.template register_type<Abs>();
-            ar.template register_type<RowSelector>();
-            ar.template register_type<RectifiedLinear>();
-            ar.template register_type<Printer>();
-
-#ifndef NO_THEANO_WRAPPERS
-            //theano ops
-            ar.template register_type<FlipDims>();
-            ar.template register_type<ShuffleDim>();
-            ar.template register_type<Convolve2dTheano>();
-#endif
 
         } 
 }
 
 // force linking with the cpp file
-namespace dummy { struct bogus { static int bogus_method(); }; } 
-static int bogus_variable = dummy::bogus::bogus_method();
+//namespace dummy { struct bogus { static int bogus_method(); }; } 
+//static int bogus_variable = dummy::bogus::bogus_method();
+
+// infrastructure
+BOOST_CLASS_EXPORT_KEY(cuvnet::Input);
+BOOST_CLASS_EXPORT_KEY(cuvnet::ParameterInput);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Pipe);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Sink);
+BOOST_CLASS_EXPORT_KEY(cuvnet::DeltaSink);
+
+// +, -, *, /
+BOOST_CLASS_EXPORT_KEY(cuvnet::Axpby);
+BOOST_CLASS_EXPORT_KEY(cuvnet::AddScalar);
+BOOST_CLASS_EXPORT_KEY(cuvnet::ScalarLike);
+BOOST_CLASS_EXPORT_KEY(cuvnet::MultScalar);
+BOOST_CLASS_EXPORT_KEY(cuvnet::SubtractFromScalar);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Multiply);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Prod);
+
+BOOST_CLASS_EXPORT_KEY(cuvnet::Log);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Exp);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Pow);
+
+// reductions
+BOOST_CLASS_EXPORT_KEY(cuvnet::Sum);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Mean);
+
+// matrix-vector
+BOOST_CLASS_EXPORT_KEY(cuvnet::MatPlusVec);
+BOOST_CLASS_EXPORT_KEY(cuvnet::SumMatToVec);
+BOOST_CLASS_EXPORT_KEY(cuvnet::MatTimesVec);
+
+// trigonometry
+BOOST_CLASS_EXPORT_KEY(cuvnet::Tanh);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Sin);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Cos);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Logistic);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Atan2);
+
+// Loss functions
+BOOST_CLASS_EXPORT_KEY(cuvnet::NegCrossEntropyOfLogistic);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Softmax);
+BOOST_CLASS_EXPORT_KEY(cuvnet::MultinomialLogisticLoss);
+BOOST_CLASS_EXPORT_KEY(cuvnet::ClassificationLoss);
+BOOST_CLASS_EXPORT_KEY(cuvnet::F2Measure);
+BOOST_CLASS_EXPORT_KEY(cuvnet::EpsilonInsensitiveLoss);
+BOOST_CLASS_EXPORT_KEY(cuvnet::HingeLoss);
+
+// convolutions
+BOOST_CLASS_EXPORT_KEY(cuvnet::Convolve);
+BOOST_CLASS_EXPORT_KEY(cuvnet::ReorderForConv);
+BOOST_CLASS_EXPORT_KEY(cuvnet::ReorderFromConv);
+BOOST_CLASS_EXPORT_KEY(cuvnet::LocalPooling);
+BOOST_CLASS_EXPORT_KEY(cuvnet::ResponseNormalization);
+BOOST_CLASS_EXPORT_KEY(cuvnet::ResponseNormalizationCrossMaps);
+BOOST_CLASS_EXPORT_KEY(cuvnet::ContrastNormalization);
+BOOST_CLASS_EXPORT_KEY(cuvnet::SeparableFilter);
+BOOST_CLASS_EXPORT_KEY(cuvnet::SeparableFilter1d);
+BOOST_CLASS_EXPORT_KEY(cuvnet::ResizeBilinear);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Tuplewise_op);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Subtensor);
+BOOST_CLASS_EXPORT_KEY(cuvnet::BedOfNails);
+
+// misc
+BOOST_CLASS_EXPORT_KEY(cuvnet::Identity);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Noiser);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Flatten);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Reshape);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Abs);
+BOOST_CLASS_EXPORT_KEY(cuvnet::RowSelector);
+BOOST_CLASS_EXPORT_KEY(cuvnet::RectifiedLinear);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Printer);
+
+#ifndef NO_THEANO_WRAPPERS
+//theano ops
+BOOST_CLASS_EXPORT_KEY(cuvnet::FlipDims);
+BOOST_CLASS_EXPORT_KEY(cuvnet::ShuffleDim);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Convolve2dTheano);
+#endif
 
 
 #endif /* __OP_IO_HPP__ */
