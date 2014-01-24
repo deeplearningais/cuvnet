@@ -28,10 +28,10 @@ namespace cuvnet
                 virtual void reset_params();
                 virtual ~mlp_layer(){}
             private:
-                friend class boost::serialization::access;                                                                 
-                template<class Archive>                                                                                    
-                    void serialize(Archive& ar, const unsigned int version) { 
-                        ar & boost::serialization::base_object<model>(*this);;
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version) {
+                        ar & boost::serialization::base_object<model>(*this);
                         ar & m_output & m_W & m_bias;
                     };
         };
@@ -47,14 +47,16 @@ namespace cuvnet
                     mlp_classifier(input_ptr X, input_ptr Y, std::vector<unsigned int> hlsizes);
                     virtual ~mlp_classifier(){}
                 private:
-                    friend class boost::serialization::access;                                                                 
-                    template<class Archive>                                                                                    
-                        void serialize(Archive& ar, const unsigned int version) { 
+                    friend class boost::serialization::access;
+                    template<class Archive>
+                        void serialize(Archive& ar, const unsigned int version) {
                             ar & boost::serialization::base_object<metamodel<model> >(*this);;
                             ar & m_layers & m_logreg;
                         };
             };
     }
 }
+BOOST_CLASS_EXPORT_KEY(cuvnet::models::mlp_layer);
+BOOST_CLASS_EXPORT_KEY(cuvnet::models::mlp_classifier);
 
 #endif /* __CUVNET_MODELS_MLP_HPP__ */

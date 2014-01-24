@@ -99,3 +99,9 @@ namespace cuvnet { namespace models {
     template class metamodel<model>;
     template class metamodel<multistage_model>;
 } }
+
+
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::models::model);
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::models::multistage_model);
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::models::metamodel<cuvnet::models::model>);
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::models::metamodel<cuvnet::models::multistage_model>);

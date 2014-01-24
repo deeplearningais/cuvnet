@@ -46,3 +46,5 @@ namespace cuvnet
         }
     }
 }
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::models::mlp_layer);
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::models::mlp_classifier);

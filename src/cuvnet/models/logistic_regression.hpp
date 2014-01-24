@@ -52,4 +52,5 @@ namespace cuvnet
 
     }
 }
+BOOST_CLASS_EXPORT_KEY(cuvnet::models::logistic_regression) 
 #endif /* __CUVNET_LOGREG_HPP__ */

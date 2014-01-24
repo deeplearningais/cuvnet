@@ -47,3 +47,4 @@ namespace cuvnet
         }
     }
 }
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::models::logistic_regression);
