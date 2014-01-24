@@ -40,14 +40,14 @@ namespace cuvnet
                 throw std::runtime_error("project_to_unit_ball: cannot normalize intermediate (0<axis<ndim-1) axis");
             }
         }
-        ax_shape = C.shape(1-axis);
+        //ax_shape = C.shape(1-axis);
         cuv::tensor<float, M> ax(ax_shape);
         cuv::tensor<unsigned char, M> over_thresh(ax_shape);
         if(axis == 1){
-            cuv::reduce_to_col(ax, C, cuv::RF_ADD_SQUARED);
+            cuv::reduce_to_row(ax, C, cuv::RF_ADD_SQUARED);
         }
         else if(axis == 0){
-            cuv::reduce_to_row(ax, C, cuv::RF_ADD_SQUARED);
+            cuv::reduce_to_col(ax, C, cuv::RF_ADD_SQUARED);
         }
 
         cuv::apply_scalar_functor(over_thresh, ax, cuv::SF_GT, thresh * thresh);
@@ -67,9 +67,9 @@ namespace cuvnet
         cuv::apply_scalar_functor(ax, cuv::SF_MULT, 0.f, &over_thresh); // ax[!over_thresh] = 0
         cuv::apply_scalar_functor(ax, cuv::SF_ADD , 1.f, &over_thresh); // ax[!over_thresh] += 1
         if(axis == 1)
-            cuv::matrix_divide_col(C, ax);
-        else if(axis == 0)
             cuv::matrix_divide_row(C, ax);
+        else if(axis == 0)
+            cuv::matrix_divide_col(C, ax);
     }
 
     /**
@@ -101,23 +101,23 @@ namespace cuvnet
                 throw std::runtime_error("project_to_unit_ball: cannot normalize intermediate (0<axis<ndim-1) axis");
             }
         }
-        ax_shape = C.shape(1-axis);
+        //ax_shape = C.shape(1-axis);
         cuv::tensor<float, M> ax(ax_shape);
         cuv::tensor<unsigned char, M> over_thresh(ax_shape);
         if(axis == 1){
-            cuv::reduce_to_col(ax, C, cuv::RF_ADD_SQUARED);
+            cuv::reduce_to_row(ax, C, cuv::RF_ADD_SQUARED);
         }
         else if(axis == 0){
-            cuv::reduce_to_row(ax, C, cuv::RF_ADD_SQUARED);
+            cuv::reduce_to_col(ax, C, cuv::RF_ADD_SQUARED);
         }
         float mean_sq_norm = cuv::mean(ax);
 
         cuv::apply_scalar_functor(ax, cuv::SF_SQRT); // ax = sqrt(ax)
         cuv::apply_scalar_functor(ax, cuv::SF_MULT, 1.f / std::sqrt(mean_sq_norm));
         if(axis == 1)
-            cuv::matrix_divide_col(C, ax);
-        else if(axis == 0)
             cuv::matrix_divide_row(C, ax);
+        else if(axis == 0)
+            cuv::matrix_divide_col(C, ax);
     }
 }
 #endif /* __CUVNET_TOOLS_NORMALIZATION_HPP__ */
