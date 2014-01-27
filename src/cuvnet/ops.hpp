@@ -31,6 +31,8 @@
 #include <cuvnet/ops/debug.hpp>
 #include <cuvnet/ops/subtensor.hpp>
 #include <cuvnet/ops/concatenate.hpp>
+#include <cuvnet/ops/spn_output.hpp>
+#include <cuvnet/ops/sum_out_dim.hpp>
 
 #ifndef NO_THEANO_WRAPPERS
 #include <cuvnet/ops/theano_ops.hpp>
@@ -181,6 +183,12 @@ namespace cuvnet
     /// construct a SumMatToVec object
     inline
         Op::op_ptr sum_to_vec(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<SumMatToVec>(x->result(), ax ); }
+
+    /// construct a sum_out_dim object
+    inline
+        Op::op_ptr sum_out_dim(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<Sum_Out_Dim>(x->result(), ax ); }
+        
+        
     /// construct a Mean object
     inline
         Op::op_ptr mean(Op::op_ptr x)                   { return boost::make_shared<Mean>(x->result()); }
