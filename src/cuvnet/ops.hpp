@@ -274,9 +274,14 @@ namespace cuvnet
     inline
         Op::op_ptr concatenate(Op::op_ptr img1, Op::op_ptr img2, unsigned int dim) { return boost::make_shared<Concatenate>(img1->result(), img2->result(), dim); }
 
-    /// construct a Concatenate object
+    /// construct a Concatenate_n object, which concatenates n input matrices
     inline
-        Op::op_ptr concatenate_n(std::vector<Op::op_ptr> in, unsigned int dim, unsigned int n) { return boost::make_shared<Concatenate_N>( in, dim, n); }
+        Op::op_ptr concatenate_n(std::vector<Op::op_ptr> in, unsigned int dim, unsigned int n) { 
+            unsigned int size = in.size();
+            std::vector<Op::result_t> res(size);
+            for ( unsigned int i = 0; i < size; i++) res[i] = in[i]->result();
+            return boost::make_shared<Concatenate_N>( res, dim, n); 
+        }
         
         
     /// construct a Softmax object
