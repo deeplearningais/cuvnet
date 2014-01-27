@@ -694,63 +694,14 @@ namespace cuvnet
             plist.pop_back();
         }
 
-        unsigned int crop_h, crop_w;
-        unsigned int scale_h, scale_w;
+        float o2i_scale;
+        float i_margin_l, i_margin_r;
 
         /// traverse plist to determine what the cropping and scaling parameters should be.
-        void determine_shapes(){
-            // `it' points to the `output' object
-            container_type::iterator it = plist.begin();
-            determine_shapes_visitor dsv;
-            (*it)->visit(dsv);
-            std::vector<unsigned int> outshape = (*it)->result(0)->shape;
-            cuvAssert(outshape.size() == 4);
+        void determine_shapes();
 
-            crop_h  = 0; crop_w = 0;
-            scale_h = 1; scale_w = 1;
-
-            LocalPooling* poolp;
-            Convolve* convp;
-            BedOfNails* bon;
-
-            while(*it != plist.back()){
-                if((bon = dynamic_cast<BedOfNails*>(*it))){
-                    std::vector<unsigned int> inshape  = bon->param(0)->shape;
-                    std::vector<unsigned int> outshape = bon->result(0)->shape;
-                    crop_h  *= inshape[1] / outshape[1];
-                    crop_w  *= inshape[2] / outshape[2];
-                    scale_h *= inshape[1] / outshape[1];
-                    scale_w *= inshape[2] / outshape[2];
-                }
-                else if((poolp = dynamic_cast<LocalPooling*>(*it))){
-                    std::vector<unsigned int> inshape  = poolp->param(0)->shape;
-                    std::vector<unsigned int> outshape = poolp->result(0)->shape;
-                    crop_h  *= inshape[1] / outshape[1];
-                    crop_w  *= inshape[2] / outshape[2];
-                    scale_h *= inshape[1] / outshape[1];
-                    scale_w *= inshape[2] / outshape[2];
-                }
-                else if((convp = dynamic_cast<Convolve*>(*it))){
-                    std::vector<unsigned int> inshape  = convp->param(0)->shape;
-                    std::vector<unsigned int> outshape = convp->result(0)->shape;
-                    // `valid' convolution amounts to /cropping/
-                    int oh = outshape[1] * convp->stride();
-                    int ow = outshape[2] * convp->stride();
-                    scale_h *= convp->stride();
-                    scale_w *= convp->stride();
-                    if(convp->is_padded()){
-                        // TODO assumes symmetric padding
-                        crop_h += inshape[1] - (oh+1 - convp->padding_size());
-                        crop_w += inshape[2] - (ow+1 - convp->padding_size());
-                    }else{
-                        crop_h += inshape[1] - oh+1;
-                        crop_w += inshape[2] - ow+1;
-                    }
-                }
-
-                it = it+1;
-            }
-        }
+        std::pair<float, float> o2i(float y, float x)const;
+        std::pair<float, float> i2o(float y, float x)const;
     };
 }
 #endif /* __OP_UTILS_HPP__ */

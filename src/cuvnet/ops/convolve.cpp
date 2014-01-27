@@ -285,12 +285,14 @@ namespace cuvnet
         int padsize = m_padding_size;
         if(is_padded())
             padsize *= 2;
+
+#define DIVUP(x,y) (((x)+ (y) -1) / (y))
         unsigned int nOutPixX = is_padded()
-            ? ((nImgPixX+padsize-nFltPixX)/m_stride+1)
-            : ((nImgPixX-nFltPixX)/m_stride+1);
+            ? DIVUP(nImgPixX+padsize-nFltPixX, m_stride)+1
+            : DIVUP(nImgPixX        -nFltPixX, m_stride)+1;
         unsigned int nOutPixY = is_padded()
-            ? ((nImgPixY+padsize-nFltPixX)/m_stride+1)
-            : ((nImgPixY-nFltPixX)/m_stride+1);
+            ? DIVUP(nImgPixY+padsize-nFltPixX, m_stride)+1
+            : DIVUP(nImgPixY        -nFltPixX, m_stride)+1;
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
         LOG4CXX_WARN(log, "Convolving image of shape ("

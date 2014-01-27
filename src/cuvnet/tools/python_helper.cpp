@@ -358,10 +358,11 @@ namespace cuvnet
             ;
 
         class_<valid_shape_info>("valid_shape_info", init<boost::shared_ptr<Op>,boost::shared_ptr<Op> >())
-            .def_readonly("crop_h",&valid_shape_info::crop_h)
-            .def_readonly("crop_w",&valid_shape_info::crop_w)
-            .def_readonly("scale_h",&valid_shape_info::scale_h)
-            .def_readonly("scale_w",&valid_shape_info::scale_w)
+            .def_readonly("o2i_scale",&valid_shape_info::o2i_scale)
+            .def_readonly("i_margin_l",&valid_shape_info::i_margin_r)
+            .def_readonly("i_margin_r",&valid_shape_info::i_margin_r)
+            .def("o2i",&valid_shape_info::o2i)
+            .def("i2o",&valid_shape_info::i2o)
             ;
     }
     int export_ops(){

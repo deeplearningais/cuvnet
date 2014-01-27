@@ -710,4 +710,135 @@ void write_graphviz(Op& op, std::ostream& os, bool verbose, std::vector<Op*>& fl
 	os << "}"<<std::endl;
 }
 
+void valid_shape_info::determine_shapes(){
+    LocalPooling* poolp;
+    Convolve* convp;
+    BedOfNails* bon;
+
+    o2i_scale = 1.f;
+    i_margin_l = 0.f; i_margin_r = 0.f;
+    {
+        // `it' points to the `input' object
+        container_type::reverse_iterator it = plist.rbegin();
+
+        while(it != plist.rend()){
+            if((bon = dynamic_cast<BedOfNails*>(*it))){
+                std::vector<unsigned int> inshape  = bon->param(0)->shape;
+                std::vector<unsigned int> outshape = bon->result(0)->shape;
+                i_margin_l += o2i_scale * bon->startx();
+                i_margin_r += o2i_scale * ((inshape[1] - bon->startx()) 
+                        - outshape[1] * bon->stridex());
+                o2i_scale *= bon->stridex();
+            }
+            else if((poolp = dynamic_cast<LocalPooling*>(*it))){
+                std::vector<unsigned int> inshape  = poolp->param(0)->shape;
+                std::vector<unsigned int> outshape = poolp->result(0)->shape;
+                i_margin_l += 0.f;
+                i_margin_r += o2i_scale * (inshape[1]
+                        - outshape[1] * poolp->stridex());
+                o2i_scale *= poolp->stridex();
+            }
+            else if((convp = dynamic_cast<Convolve*>(*it))){
+                cuvnet::determine_shapes(*convp);
+                std::vector<unsigned int> inshape  = convp->param(0)->shape;
+                std::vector<unsigned int> outshape = convp->result(0)->shape;
+
+                int fs = std::sqrt(convp->param(1)->shape[1]);
+
+                int lmarg = fs/2 + convp->padding_start();
+
+                // left margin: fs/2 is removed from valid convolution           
+                // but this can be compensated by (negative!) padding            
+                i_margin_l += o2i_scale * lmarg;
+
+                // this is the pixel in the input over which the center of the last filter
+                int re = lmarg + outshape[1] * convp->stride();
+
+                // the margin on the right hand side might even be negative, if the last
+                // filter extends outside the image.
+                i_margin_r += o2i_scale * ((int)inshape[1] - re);
+
+                // adjust scale so that margins in the next iteration can be calculated correctly
+                o2i_scale *= convp->stride();
+
+                // to place an output in the original image, proceed as follows:
+                // 1. in the original image, extract ROI defined by margins
+                // 2. upscale output so that its size matches that ROI.
+
+            }
+
+            it = it+1;
+        }
+    }
+    /*
+     * // `it' points to the `output' object
+     *container_type::iterator it = plist.begin();
+     *determine_shapes_visitor dsv;
+     *(*it)->visit(dsv);
+     *std::vector<unsigned int> outshape = (*it)->result(0)->shape;
+     *cuvAssert(outshape.size() == 4);
+     */
+
+
+/*
+ *    while(*it != plist.back()){
+ *        if((bon = dynamic_cast<BedOfNails*>(*it))){
+ *            std::vector<unsigned int> inshape  = bon->param(0)->shape;
+ *            std::vector<unsigned int> outshape = bon->result(0)->shape;
+ *            crop_h  *= inshape[1] / outshape[1];
+ *            crop_w  *= inshape[2] / outshape[2];
+ *            scale_h *= inshape[1] / outshape[1];
+ *            scale_w *= inshape[2] / outshape[2];
+ *        }
+ *        else if((poolp = dynamic_cast<LocalPooling*>(*it))){
+ *            std::vector<unsigned int> inshape  = poolp->param(0)->shape;
+ *            std::vector<unsigned int> outshape = poolp->result(0)->shape;
+ *            crop_h  *= inshape[1] / outshape[1];
+ *            crop_w  *= inshape[2] / outshape[2];
+ *            scale_h *= inshape[1] / outshape[1];
+ *            scale_w *= inshape[2] / outshape[2];
+ *        }
+ *        else if((convp = dynamic_cast<Convolve*>(*it))){
+ *            std::vector<unsigned int> inshape  = convp->param(0)->shape;
+ *            std::vector<unsigned int> outshape = convp->result(0)->shape;
+ *            // `valid' convolution amounts to /cropping/
+ *            int oh = outshape[1] * convp->stride();
+ *            int ow = outshape[2] * convp->stride();
+ *            scale_h *= convp->stride();
+ *            scale_w *= convp->stride();
+ *            if(convp->is_padded()){
+ *                // TODO assumes symmetric padding
+ *                crop_h += inshape[1] - (oh+1 - convp->padding_size());
+ *                crop_w += inshape[2] - (ow+1 - convp->padding_size());
+ *            }else{
+ *                crop_h += inshape[1] - oh+1;
+ *                crop_w += inshape[2] - ow+1;
+ *            }
+ *        }
+ *
+ *        it = it+1;
+ *    }
+ */
+}
+
+std::pair<float, float> 
+valid_shape_info::o2i(float y, float x)const{
+    y *= o2i_scale;
+    y += i_margin_l;
+
+    x *= o2i_scale;
+    x += i_margin_l;
+    return std::make_pair(y, x);
+}
+
+std::pair<float, float> 
+valid_shape_info::i2o(float y, float x)const{
+    y -= i_margin_l;
+    y /= o2i_scale;
+
+    x -= i_margin_l;
+    x /= o2i_scale;
+    return std::make_pair(y, x);
+}
+
 }

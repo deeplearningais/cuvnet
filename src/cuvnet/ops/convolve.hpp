@@ -220,6 +220,8 @@ namespace cuvnet
                 {
                     add_param(0,images);
                 }
+                inline unsigned int startx()const{return m_startx;}
+                inline unsigned int stridex()const{return m_stridex;}
                 void fprop();
                 void bprop();
 
@@ -560,6 +562,8 @@ namespace cuvnet
                 {
                     add_param(0,images);
                 }
+                inline unsigned int subsx()const{return m_subsx;}
+                inline unsigned int stridex()const{return m_stridex;}
                 virtual void release_data();
                 void fprop();
                 void bprop();
