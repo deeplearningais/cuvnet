@@ -260,11 +260,9 @@ namespace cuvnet
         }
           
           unsigned int n_params = nLayer * nClasses +1;
-          //std::cout << "nLayer: " << nLayer << ", nClasses: " << nClasses << std::endl;
           if (m_conv_layer) n_params++;
           
           //set flags for hadrd / soft gradient
-          //std::cout << "setting up inference flags" << std::endl;
           boost::shared_ptr<std::vector<bool> > Inference_type(new std::vector<bool>(n_params)); 
           if ( m_conv_layer) Inference_type->at(0) = false; // convolution layer can not have hard inference
             for (unsigned int i = 0; i < nLayer; i++){ 
@@ -287,7 +285,6 @@ namespace cuvnet
           this->results = S;
           
           //generate spn gradient descent
-          //std::cout << "generating gd" << std::endl; 
           boost::shared_ptr<spn_gradient_descent> gdo(new spn_gradient_descent(o, Y, 0 /*result*/, results /*monitor*/, get_params(), Inference_type, eta, weight_decay));
           
           //dump dot file 
