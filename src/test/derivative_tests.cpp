@@ -1377,23 +1377,23 @@ BOOST_AUTO_TEST_CASE( sum_out_dim_test_first_dim )
             cuv::safeThreadSync();
 }
 
-
-BOOST_AUTO_TEST_CASE( sum_out_dim_test_first_dim_mean )
+BOOST_AUTO_TEST_CASE( sum_out_dim_test_last_dim )
 {  
-            unsigned int x = 3;
+            unsigned int x = 21;
             unsigned int y = 5;
             unsigned int z = 9;
-            unsigned int p = 5;
+            unsigned int p = 17;
 
             using namespace cuv;
             using namespace cuvnet;
+            typedef boost::shared_ptr<cuvnet::Concatenate_N> ptr_t;
             typedef boost::shared_ptr<Op> op_ptr;
-            
+        
             //generate all inputs and fill them with rand vals
             boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[x][y][z][p]);
             fill_rnd_uniform(inp->data());
-        
-            op_ptr op = mean(inp, 0);
+
+            op_ptr op = sum(inp, 3);
             // assumption: op has only one result
             boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op->result());
 
@@ -1411,16 +1411,16 @@ BOOST_AUTO_TEST_CASE( sum_out_dim_test_first_dim_mean )
             cuvAssert(!cuv::has_nan(out_op->cdata()));
             cuvAssert(!cuv::has_inf(out_op->cdata())); 
             
-            std::vector<unsigned int> desired_shape = {1, y, z, p};
+            std::vector<unsigned int> desired_shape = {x, y, z, 1};
             cuvAssert(out_op->cdata().shape() == desired_shape);
             
-                    for (unsigned int j = 0; j < y; j++){
-                        for (unsigned int k = 0; k < z; k++){
-                            for (unsigned int l = 0; l < p; l++){
+                    for (unsigned int j = 0; j < x; j++){
+                        for (unsigned int k = 0; k < y; k++){
+                            for (unsigned int l = 0; l < z; l++){
                                 float  a = 0; 
-                                for ( unsigned int i = 0; i < x; i++) a += inp->data()[indices[i][j][k]][l];
-                                float  b = out_op->cdata()[indices[0][j][k]][l];
-                                BOOST_CHECK_SMALL(fabs((a/(float)x) - b) , 0.0001);  
+                                for ( unsigned int i = 0; i < p; i++) a += inp->data()[indices[j][k][l]][i];
+                                float  b = out_op->cdata()[indices[j][k][l]][0];
+                                BOOST_CHECK_SMALL(fabs(a - b) , 0.0001);  
                             }
                         }
                     }
