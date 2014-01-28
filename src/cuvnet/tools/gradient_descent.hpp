@@ -496,6 +496,7 @@ namespace cuvnet
             input_ptr Y_oneOutOfN;
             op_ptr    classification_err;
             op_ptr    spn_err;
+            boost::shared_ptr<swiper>    e_swipe;
             void inc_n_batches(){ m_n_batches ++; }
         public:
             /**
