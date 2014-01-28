@@ -283,16 +283,23 @@ namespace cuvnet
          SM =             input( cuv::extents[Y->data().shape(0)], "SM" );
          classification = input( cuv::extents[Y->data().shape(0)][Y->data().shape(1)], "spn_classification" );
          Y_oneOutOfN = input( cuv::extents[Y->data().shape(0)][Y->data().shape(1)], "Y_one_out_of_n_coding" );
-         spn_err = mean_to_vec(abs(S - SM), 0);
+         spn_err = mean(cuvnet::abs(S - SM));
+
+         //generate swiper for spn_err
+         std::vector<Op*> e_params(1);
+         e_params[0] = S.get();
+         e_params[1] = SM.get();
+         boost::shared_ptr<swiper> sw (new swiper(*spn_err, 0, e_params, false));         
+         e_swipe = sw;
+         
          boost::shared_ptr<cuvnet::monitor> mon(new monitor(true));
          mon->add(monitor::WP_SINK, spn_err, "spn_err");
          mon->add(monitor::WP_SINK, classification_err, "class_err");
          this->mon = mon;
          classification_err = classification_loss (classification, Y_oneOutOfN,  1);
-
          
-        unsigned int i=0;
-        for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
+         unsigned int i=0;
+         for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
             m_old_dw[i].resize(((ParameterInput*)*it)->data().shape());
             m_old_dw[i] = (float)0;
         }
@@ -338,40 +345,47 @@ namespace cuvnet
                     std::random_shuffle(batchids.begin(),batchids.end());
 
                 before_epoch(m_epoch, wups); // may run early stopping
-
                 for (unsigned int  batch = 0; batch < n_batches; ++batch, ++iter) {
+                    std::cout << " new batch " << std::endl;
 
-                    before_batch(m_epoch, batchids[batch]); // should load data into inputs
+                    before_batch(m_epoch, batchids[batch]); // should load data into inputs // TODO
 
-                  //  save labels;
+                    //  save labels;
                     labels->data() = pt_Y->data();
-                    //marginalize labels
-                    fill(pt_Y->data(), -1.f); // set labels to saved result..
-
-                    std::cout << "fprop ( marg )" << std::endl;
-                    //marginalization run
-                    m_swipe.fprop();  // forward pass
-                    //std::cout << "free mem after fprop: " << cuv::getFreeDeviceMemory()/1024/1024 << std::endl;
-                    std::cout << "set SM->data()" << std::endl;
-                    SM->data() = (*m_results)["S"];
-                    std::cout << "bprop ( marg )" << std::endl;
-                    m_swipe.bprop(); // backward pass
                     
                     //TODO  efficiently transform labels (Y) in one out of n coding (axis = 1)
-                    std::cout << ".. transforming labels" << std::endl;
+                    unsigned int batch_size = pt_Y->result()->shape[0];
                     cuv::fill(Y_oneOutOfN->data(), 0.f);
-                    std::cout << ".. filled with 0" << std::endl;
-                    for (unsigned int b = 0; b < pt_Y->result()->shape[0]; b++)
-                        Y_oneOutOfN->data()[cuv::indices[b]][int(labels->data()[cuv::indices[b]][0])] = 1.f;
+                    for (unsigned int b = 0; b < batch_size; b++){
+                        unsigned int l = (unsigned int) pt_Y->data()[cuv::indices[b]][0];
+                        Y_oneOutOfN->data()[cuv::indices[b]][l] = 1.f;
+                    }
+                    cuv::safeThreadSync();
                     
-                    std::cout << "calculating classification error" << std::endl;
+                    //marginalize labels
+                    fill(pt_Y->data(), -1.f); // set labels to saved result..
+                    pt_Y->need_derivative( true );
+                    
+                    //marginalization run
+                    m_swipe.fprop();  // forward pass
+                    SM->data() = (*m_results)["S"];
+                    
+                    m_swipe.bprop(); // backward pass
+                    
+                    pt_Y->bprop();
                     classification->data() = pt_Y->delta();
+
+                    classification->need_result(true);
+                    Y_oneOutOfN->need_result(true);
+                    classification_err->need_result(true);
+                    
+                    classification->fprop();
+                    Y_oneOutOfN->fprop();
                     classification_err->fprop();
                     
                     if(m_learnrate){
                         // this is not an evaluation pass, we're actually supposed to do work ;)
                         
-                        std::cout << "save old deltas" << std::endl;
                         //save old derivatives
                         unsigned int i=0;
                         for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
@@ -384,19 +398,21 @@ namespace cuvnet
                             param->reset_delta();
                         }
                         
-                        std::cout << "set labels" << std::endl;
                         pt_Y->data() = labels->data();
-                        std::cout << "norm fprop" << std::endl;
                         m_swipe.fprop();
                         
                         S->data() = (*m_results)["S"];
                         //calculate spn loss
-                        std::cout << "calculate spn_loss" << std::endl;
-                        spn_err->fprop();
                         
-                        std::cout << "norm bprop" << std::endl;
                         m_swipe.bprop();
+
+                        //repair swiper
+                        e_swipe->init();
+                        e_swipe->fprop();
                         
+                        //repair m_swiper
+                        m_swipe.init();
+                       
                         after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
 
                         if(iter % m_update_every == 0) {
