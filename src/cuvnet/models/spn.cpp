@@ -116,9 +116,17 @@ namespace cuvnet
 
         //(input has shape:) nClasses[parts x nModules x nImg)
         boost::shared_ptr<cuvnet::monitor> mon(new monitor(true));
+
+        unsigned int ndim = X[0]->result()->shape.size();
+        unsigned int batch_size = X[0]->result()->shape[ndim -1];        
         
-        //TODO SUM first dim of ALL THE X ( sum mat to vec obviously does not work = /
-        m_output = spn_output_op(concatenate_n(X, 0, n_classes), m_W, Y, mon, n_classes, eps);        
+        for (unsigned int i = 0; i < X.size(); i++){
+            X[i] = sum(X[i], 0);
+        }
+
+        
+        m_root =  spn_output_op(concatenate_n(X, 0, n_classes), m_W, Y, mon, n_classes, eps);
+        m_output = reshape(m_root, cuv::extents[batch_size]);      
     }
 
         std::vector<Op*> spn_out_layer::get_params(){
@@ -186,8 +194,6 @@ namespace cuvnet
           //get op pointer for every class
           std::vector<op_ptr> class_o;
           class_o.resize(nClasses);
-
-          //std::cout << "generating spn layers: " << std::endl;
           
           // set op pointer to conv layer
           for (unsigned int i = 0; i < nClasses; i++)
@@ -205,7 +211,6 @@ namespace cuvnet
           //calculate size of new layer
           size /= nStride;
           //set up first layer after conv (no pooling here)
-          //std::cout << "creating layer  0" << std::endl;
           for (unsigned int c = 0; c < nClasses; c++)
           {
               unsigned int l = n_layer-1;
@@ -223,24 +228,18 @@ namespace cuvnet
               // for every class
               for (unsigned int c = 0; c < nClasses; c++)
               {
-                  //std::cout << "creating layer[ " << c << "][" << l << "]"  << std::endl;
                   m_layers[c][l] = spn_layer(class_o[c] /*opt ptr*/, size /*size*/ , n_sub_size, nStride, nPoolFlt, eps, hard_gradient[l], true, std::to_string((l+1) * nClasses +c));
                   register_submodel(m_layers[c][l]);
                   class_o[c] = m_layers[c][l].m_output;
               }
            }
 
-          //std::cout << "generating output layer: " << std::endl;
-           
-          //std::cout << "creating output layer" << std::endl;
           // output layer
           o_layer.resize(1);
           o_layer[0] = spn_out_layer(class_o, Y /*label*/, nClasses, eps);
           register_submodel(o_layer[0]);
           o = o_layer[0].m_output;
-          
-          //std::cout << "creating monitor" << std::endl;
-          
+                   
           //get monitor on s;
           boost::shared_ptr<cuvnet::monitor> S(new monitor(true));
           S->add(monitor::WP_SINK, o_layer[0].m_output, "S");
@@ -252,7 +251,6 @@ namespace cuvnet
           {
               for (unsigned int c = 0; c < nClasses; c++)
               {
-                 //std::cout << "setting S in layer[ " << c << "][" << l << "]"  << std::endl;
                  m_layers[c][l].set_S(S);   
              }
           }         
@@ -281,24 +279,21 @@ namespace cuvnet
                 }
             }
 
-          //std::cout << "set flag for output layer" << std::endl;
           // classes layer can not yet have hard inference ( not implemented )
           Inference_type->at(n_params-1) = false; 
-
-          //std::cout << "reset params" << std::endl;          
+ 
           //init all params
           reset_params();
-          
-          //std::cout << "setting results to S" << std::endl; 
           this->results = S;
           
           //generate spn gradient descent
           //std::cout << "generating gd" << std::endl; 
           boost::shared_ptr<spn_gradient_descent> gdo(new spn_gradient_descent(o, Y, 0 /*result*/, results /*monitor*/, get_params(), Inference_type, eta, weight_decay));
-          //std::cout << "dumping dot file" << std::endl; 
+          
+          //dump dot file 
           gdo->get_swiper().dump("bla.dot", true);
+          
           this->gd = gdo;
-          //std::cout << "register gd" << std::endl; 
           S->register_gd(*gd);
     }
     

@@ -107,7 +107,8 @@ namespace cuvnet
              typedef boost::shared_ptr<Spn_Output_Op> spn_op_ptr;
              input_ptr m_W;
          public:
-             spn_op_ptr m_output;
+             spn_op_ptr m_root;
+             op_ptr m_output;
              /**
               * ctor.
               * @param X input to the hidden layer
@@ -122,7 +123,7 @@ namespace cuvnet
              virtual ~spn_out_layer(){}
              
              void set_S(boost::shared_ptr<monitor> S){
-                m_output->set_S(S);
+                m_root->set_S(S);
               }
          private:
 
