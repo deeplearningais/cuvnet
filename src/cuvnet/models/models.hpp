@@ -155,6 +155,12 @@ namespace cuvnet
                 void deregister_submodel(model& m);
 
             public:
+                template<class T>
+                metamodel(const T& t)
+                : Base(t){};
+
+                metamodel(){};
+
                 /**
                  * reset all submodels.
                  */
