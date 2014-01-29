@@ -148,6 +148,12 @@ namespace cuvnet
                  */
                 void register_submodel(model& m);
 
+                /**
+                 * remove a submodel from the list of submodels.
+                 * @param m the submodel to be removed
+                 */
+                void deregister_submodel(model& m);
+
             public:
                 /**
                  * reset all submodels.
