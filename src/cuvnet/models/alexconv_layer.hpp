@@ -6,10 +6,11 @@
 namespace cuvnet { namespace models {
     
     namespace detail {
-        boost::shared_ptr<Op> no_op(boost::shared_ptr<Op> x){
+        inline boost::shared_ptr<Op> no_op(boost::shared_ptr<Op> x){
             return x;
         }
     }
+
     struct alexconv_layer_maker{
         typedef boost::shared_ptr<Op> op_ptr;
         typedef boost::shared_ptr<ParameterInput> input_ptr;
