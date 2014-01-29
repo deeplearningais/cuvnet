@@ -357,6 +357,11 @@ namespace cuvnet
                         return_internal_reference<>()))
             ;
 
+        class_<std::pair<float, float> >("float_pair", init<float, float>())
+            .def_readwrite("first", &std::pair<float, float>::first)
+            .def_readwrite("second", &std::pair<float, float>::second)
+            ;
+
         class_<valid_shape_info>("valid_shape_info", init<boost::shared_ptr<Op>,boost::shared_ptr<Op> >())
             .def_readonly("o2i_scale",&valid_shape_info::o2i_scale)
             .def_readonly("i_margin_l",&valid_shape_info::i_margin_r)
