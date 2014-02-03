@@ -12,17 +12,11 @@ namespace cuvnet
     namespace image_datasets
     {
         /// a fully loaded pattern.                                                                                                                                     
-        struct pattern{                                                                                                                                                 
+        struct classification_pattern{                                                                                                                                                 
             bbtools::image_meta_info meta_info;                                                                                                                         
             cuv::tensor<float,cuv::host_memory_space> img; ///< image                                                                                                   
-            cuv::tensor<float,cuv::host_memory_space> tch; ///< teacher                                                                                                 
-            cuv::tensor<float,cuv::host_memory_space> ign; ///< ignore mask                                                                                             
-
+            cuv::tensor<float,cuv::host_memory_space> tch; ///< teacher
             cuv::tensor<float,cuv::host_memory_space> result; ///< result                                                                                               
-
-            std::vector<  // one for each map
-                std::vector< // one for each object
-                    bbtools::rectangle> > bboxes;
         };       
 
 
@@ -124,30 +118,6 @@ namespace cuvnet
                 }
         };
 
-        /** 
-         * assuming the input tensors are of shape NxN, the teacher/ignore
-         * tensors are of shape MxM, where M = (N-crop)/scale.
-         * This is useful if the teacher/ignore variables are to be used in
-         * a network that performs valid convolutions (crop) and pooling
-         * (scale) operations.
-         */
-        struct output_properties
-        : public bbtools::coordinate_transformer
-        {
-            virtual void transform(int& x, int& y)const{
-                y = (y - crop_h / 2.f) / scale_h + 0.5f;
-                x = (x - crop_w / 2.f) / scale_w + 0.5f;
-            }
-            virtual void inverse_transform(int& x, int& y)const{
-                y = y * scale_h + crop_h / 2.f;
-                x = x * scale_w + crop_w / 2.f;
-            }
-            int scale_h, scale_w, crop_h, crop_w;
-            output_properties(int scale_h_, int scale_w_, int crop_h_, int crop_w_)
-                :scale_h(scale_h_), scale_w(scale_w_), crop_h(crop_h_), crop_w(crop_w_)
-            {}
-        };
-
         /**
          * Base class of methods that transform a bbtools::image_meta_info into
          * a (series of) instances of type pattern.
@@ -160,25 +130,23 @@ namespace cuvnet
          */
         class image_loader{
             protected:
-                image_queue<pattern>* m_queue;               ///< where to put loaded patterns
+                image_queue<classification_pattern>* m_queue;               ///< where to put loaded patterns
                 const bbtools::image_meta_info* m_meta;      ///< meta-infos for the image to be processed
-                const output_properties* m_output_properties; ///< how outputs should be parameterized
 
             public:
                 /**
                  * ctor.
                  * @param queue where to store patterns
                  * @param meta the meta-infos of the image to be loaded
-                 * @param op how outputs should be parameterized
                  */
-                image_loader(image_queue<pattern>* queue, const bbtools::image_meta_info* meta, const output_properties* op);
+                image_loader(image_queue<classification_pattern>* queue, const bbtools::image_meta_info* meta);
                 virtual void operator()()=0;
         };
 
         /** 
          * Loads one image into a single pattern. 
          */
-        class whole_image_loader : image_loader{
+        class sample_image_loader : image_loader{
             private:
                 bool m_grayscale;
                 unsigned int m_pattern_size;
@@ -188,17 +156,17 @@ namespace cuvnet
                 /**
                  * @param queue where to put the results
                  * @param meta the image to load
-                 * @param output_properties how the output parts of the pattern should be cropped/scaled w.r.t. the input
                  * @param pattern_size width/height of patterns
                  * @param grayscale if true, discard color information
                  * @param n_classes the number of classes that can be distinguished (=number of output maps).
                  */
-                whole_image_loader(image_queue<pattern>* queue, 
+                sample_image_loader(image_queue<classification_pattern>* queue, 
                         const bbtools::image_meta_info* meta, 
-                        const output_properties* op,
                         unsigned int pattern_size, 
                         bool grayscale,
                         unsigned int n_classes);
+                sample_image_loader(image_queue<classification_pattern>* queue, 
+                        const bbtools::image_meta_info* meta);
 
                 virtual void operator()();
         };

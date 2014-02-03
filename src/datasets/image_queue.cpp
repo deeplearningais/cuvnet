@@ -19,7 +19,7 @@ void mixColors(cv::Mat &imData, cv::Mat&rgbMixData, bool unmix=false)
 {
     using namespace cv;
     Size tempSize;
-    uint32_t channels;
+    //uint32_t channels;
 
     // assume image is BGR
     float rgbmix[] = {
@@ -103,149 +103,61 @@ namespace cuvnet { namespace image_datasets {
             std::random_shuffle(m_indices.begin(), m_indices.end());
     }
 
-    image_loader::image_loader(image_queue<pattern>* queue, const bbtools::image_meta_info* meta, const output_properties* op)
-        :m_queue(queue), m_meta(meta), m_output_properties(op){}
+    image_loader::image_loader(image_queue<classification_pattern>* queue, const bbtools::image_meta_info* meta)
+        :m_queue(queue), m_meta(meta){}
 
-    whole_image_loader::whole_image_loader(image_queue<pattern>* queue, 
+    sample_image_loader::sample_image_loader(image_queue<classification_pattern>* queue, 
             const bbtools::image_meta_info* meta, 
-            const output_properties* op,
             unsigned int pattern_size,
             bool grayscale,
             unsigned int n_classes
             )
-        : image_loader(queue, meta, op)
+        : image_loader(queue, meta)
         , m_grayscale(grayscale)
         , m_pattern_size(pattern_size)
         , m_n_classes(n_classes)
     {
-        m_log = log4cxx::Logger::getLogger("whole_image_loader");
+        m_log = log4cxx::Logger::getLogger("sample_image_loader");
         //LOG4CXX_INFO(m_log, "started: pattern_size="<<m_pattern_size<<", grayscale="<<m_grayscale);
     }
 
-    void whole_image_loader::operator()(){
-        //LOG4CXX_INFO(m_log, "processing file `"<<m_meta->filename<<"'");
+    void sample_image_loader::operator()(){
         bbtools::image bbimg(m_meta->filename);
         bbimg.meta = *m_meta;
 
-        bbtools::rectangle r;
-        {
-            bool object_found = false;
-            BOOST_FOREACH(const bbtools::object& o, m_meta->objects){
-                r = o.bb;
-                object_found = true;
-                break;
-            }
-            cuvAssert(object_found);
-        }
-        float scale = 1.8 + 0.4 * drand48();
-        bbtools::sub_image si(bbimg, r.scale(scale));
-        //bbtools::sub_image si(bbimg);
+        bbtools::sub_image si(bbimg);
 
         si.constrain_to_orig(true).extend_to_square();
         si.crop_with_padding().scale_larger_dim(m_pattern_size);
 
         cv::Mat& img = *si.pcut;
+
         if(m_grayscale)
-            //img = img.channel(0)*0.299 + img.channel(1)*0.587 + img.channel(2)*0.114;
             cvtColor(img,img,CV_RGB2GRAY);
+
         cuvAssert(img.size.p[0] == (int)m_pattern_size);
         cuvAssert(img.size.p[1] == (int)m_pattern_size);
 
-        int final_size = (m_pattern_size - m_output_properties->crop_h) / m_output_properties->scale_h;
+        classification_pattern* pat_ptr = new classification_pattern;
+        classification_pattern& pat = *pat_ptr;
 
-        std::vector<cv::Mat> tch_vec;
-        std::vector<cv::Mat> ign_vec;
-
-        pattern* pat_ptr = new pattern;
-        pattern& pat = *pat_ptr;
-
-        //si.mark_objects(1, 255, 0.1f, &tch, &pat.bboxes);
-
-        {
-            pat.bboxes = si.get_objects(m_n_classes, 0.5f);
-            const output_properties& op = *m_output_properties;
-            for(unsigned int map=0; map != pat.bboxes.size(); map++){
-                cv::Mat tch = cv::Mat::zeros(final_size, final_size, CV_8U);
-                cv::Mat ign = cv::Mat::zeros(final_size, final_size, CV_8U);
-
-                unsigned int obj_cnt = 0;
-                BOOST_FOREACH(const bbtools::rectangle& s, pat.bboxes[map]){
-                    bbtools::rectangle r = s;
-                    op.transform(r.xmin, r.ymin);
-                    op.transform(r.xmax, r.ymax);
-                    r.ymin = std::min(final_size-1, std::max(0, r.ymin));
-                    r.xmin = std::min(final_size-1, std::max(0, r.xmin));
-                    r.ymax = std::min(final_size-1, std::max(0, r.ymax));
-                    r.xmax = std::min(final_size-1, std::max(0, r.xmax));
-
-#if 0
-                    cv::rectangle(tch, cv::Point(r.xmin, r.ymin), 
-                            cv::Point(r.xmax, r.ymax), cv::Scalar(1u), CV_FILLED);
-                    cv::rectangle(ign, cv::Point(r.xmin-1, r.ymin-1), 
-                            cv::Point(r.xmax+1, r.ymax+1), cv::Scalar(1u), CV_FILLED);
-#else
-                    // draw a positive rectangle in the teacher, and negative surroundings
-                    // The ignore mask gets a positive region as large as the surroundings.
-
-                    float w4 = ((r.xmax - r.xmin) - (r.xmax - r.xmin) / M_SQRT2) / 2.f; 
-                    float h4 = ((r.ymax - r.ymin) - (r.ymax - r.ymin) / M_SQRT2) / 2.f;
-                    cv::rectangle(tch, cv::Point(r.xmin + w4 + 0.5f, r.ymin + h4 + 0.5f), 
-                            cv::Point(r.xmax - w4 - 0.5f, r.ymax - h4 - 0.5f), cv::Scalar(1u), CV_FILLED);
-
-                    cv::rectangle(ign, cv::Point(r.xmin, r.ymin), 
-                            cv::Point(r.xmax, r.ymax), cv::Scalar(1u), CV_FILLED);
-#endif
-
-                    obj_cnt ++;
-                }
-                if(!obj_cnt){
-                    // no objects were found for this map in the ground truth,
-                    // so we can assume that none exist. We set the ignore mask
-                    // for the entire map to 1.
-                    ign = cv::Scalar(1u);
-                }
-                si.fill_padding(0, &ign, *m_output_properties);
-                tch_vec.push_back(tch);
-                ign_vec.push_back(ign);
-            }
-        }
-        
-        //si.mark_objects(0, 255, 0.1f, &ign);
-        //si.mark_objects(0, 255, 1, &img);
-
-
-        //tch.crop(final_start, final_start, tch.width()-final_start-1, tch.height()-final_start-1, false);
-        //ign.crop(final_start, final_start, ign.width()-final_start-1, ign.height()-final_start-1, false);
-        //tch.resize(final_size, final_size, -100, -100, 3, 2, 0.5f, 0.5f);
-        //ign.resize(final_size, final_size, -100, -100, 3, 2, 0.5f, 0.5f);
-
-        //pat.meta_info = *meta;
         int n_dim = m_grayscale ? 1 : 3;
         pat.img.resize(cuv::extents[n_dim][m_pattern_size][m_pattern_size]);
-        pat.tch.resize(cuv::extents[tch_vec.size()][final_size][final_size]);
-        pat.ign.resize(cuv::extents[ign_vec.size()][final_size][final_size]);
 
         std::vector<cv::Mat> img_vec;
         cv::split(img, img_vec);
 
         dstack_mat2tens(pat.img, img_vec, true); // reverse rgb here
-        dstack_mat2tens(pat.tch, tch_vec);
-        dstack_mat2tens(pat.ign, ign_vec);
+        pat.tch.resize(m_n_classes);
+        pat.tch = 0.f;
+        BOOST_FOREACH(const cuvnet::bbtools::object& o, m_meta->objects){
+            pat.tch(o.klass) = 1.f;
+        }
 
         pat.img /= 255.f; 
         pat.img -= 0.5f;
-        //pat.ign /= 255.f;
-
-        //pat.tch /= 255.f; // in [0, 1]
-
-        //static int cnt = 0;
-        //img.save_jpeg((boost::format("/tmp/ii/loaded_%d.jpg")%cnt++).str().c_str());
-
-
-        //LOG4CXX_INFO(m_log, "done processing pattern, pushing to queue");
         m_queue->push(pat_ptr);
     }
-
 
     namespace detail
     {

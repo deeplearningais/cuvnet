@@ -20,15 +20,12 @@ using namespace cuvnet;
 using namespace cuvnet::image_datasets;
 
 struct image_loader_factory{
-    output_properties* m_output_properties;
+    image_loader_factory() { }
 
-    image_loader_factory(output_properties* op)
-        : m_output_properties(op) { }
-
-    whole_image_loader
-    operator()(image_queue<pattern>* q, 
+    sample_image_loader
+    operator()(image_queue<classification_pattern>* q, 
                 const bbtools::image_meta_info* meta){
-        return whole_image_loader(q, meta, m_output_properties, 128, true, 4);
+        return sample_image_loader(q, meta, 128, true, 4);
     }
 };
 
@@ -48,17 +45,16 @@ BOOST_AUTO_TEST_CASE( image_loading_and_queueing ){
 
     image_dataset ids("image_dataset.txt", false);
 
-    output_properties op(1,1,0,0);
     for (int grayscale = 0; grayscale < 2; ++grayscale)
     {
-        image_queue<pattern> q;
-        whole_image_loader ld(&q, &ids.get(0), &op, 128, grayscale, 4);
+        image_queue<classification_pattern> q;
+        sample_image_loader ld(&q, &ids.get(0), 128, grayscale, 4);
 
         ld(); // load a single image
 
         BOOST_CHECK_EQUAL(1, q.size());
 
-        std::list<pattern*> L;
+        std::list<classification_pattern*> L;
         q.pop(L, 1);
 
         unsigned int ndims = grayscale ? 1 : 3;
@@ -68,8 +64,8 @@ BOOST_AUTO_TEST_CASE( image_loading_and_queueing ){
     }
 
     // load a whole bunch of images
-    image_queue<pattern> q;
-    auto pool = make_loader_pool(2, q, ids, image_loader_factory(&op), 2, 2);
+    image_queue<classification_pattern> q;
+    auto pool = make_loader_pool(2, q, ids, image_loader_factory(), 2, 2);
 
     pool->start();
     boost::this_thread::sleep(boost::posix_time::millisec(500));
