@@ -31,14 +31,14 @@ namespace cuvnet
         class image_queue{
             private:
                 mutable boost::mutex m_mutex;
-                std::queue<PatternType*> m_queue;
+                std::queue<boost::shared_ptr<PatternType> > m_queue;
                 log4cxx::LoggerPtr m_log;
             public:
                 image_queue(){
                     m_log = log4cxx::Logger::getLogger("image_queue");
                 }
 
-                void push(PatternType* pat, bool lock=true){ 
+                void push(boost::shared_ptr<PatternType> pat, bool lock=true){ 
                     if(!lock){
                         m_queue.push(pat); 
                         return;
@@ -65,7 +65,7 @@ namespace cuvnet
                  * @param dest where to put the patterns
                  * @param n the number of patterns to get
                  */
-                void pop(std::list<PatternType*>& dest, unsigned int n)
+                void pop(std::list<boost::shared_ptr<PatternType> >& dest, unsigned int n)
                 {
                     // TODO: use boost condition_variable!                                                                                                                      
                     while(size() < n)                                                                                                                                           

@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE( image_loading_and_queueing ){
 
         BOOST_CHECK_EQUAL(1, q.size());
 
-        std::list<classification_pattern*> L;
+        std::list<boost::shared_ptr<classification_pattern> > L;
         q.pop(L, 1);
 
         unsigned int ndims = grayscale ? 1 : 3;
