@@ -496,6 +496,7 @@ namespace cuvnet
             inf_type_ptr m_INFERENCE_TYPE;
             boost::shared_ptr<monitor> m_results;
             boost::shared_ptr<monitor> mon;
+            boost::shared_ptr<monitor> mon2;            
             input_ptr labels;
             input_ptr SM;
             input_ptr S;
@@ -504,10 +505,18 @@ namespace cuvnet
             op_ptr    classification_err;
             op_ptr    spn_err;
             boost::shared_ptr<swiper>    e_swipe;
+            boost::shared_ptr<swiper>    c_swipe;
             unsigned int n_batch;
+            unsigned int batch_size;
+            unsigned int img_size;
             
-            cuv::tensor<float,cuv::host_memory_space> data;
-            cuv::tensor<float,cuv::host_memory_space> label_data;
+            std::ofstream class_out;
+            std::ofstream spn_out;
+            
+            typedef cuv::tensor<float,cuv::host_memory_space> host_data;
+            host_data data;
+            host_data label_data;
+            host_data label_coded;
             void inc_n_batches(){ m_n_batches ++; }
         public:
             /**
@@ -523,10 +532,13 @@ namespace cuvnet
         spn_gradient_descent(Op::op_ptr op,  input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate=0.0001f, float weightdecay=0.0f);
         void minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs, bool randomize);
         
-        void set_data(cuv::tensor<float,cuv::host_memory_space> & data, cuv::tensor<float,cuv::host_memory_space> & labels, unsigned int batch_size){
+        void set_data(host_data & data, host_data & labels, host_data & label_c, unsigned int batch_size, unsigned int img_size){
             this->data = data;
             this->label_data = labels;
-            n_batch = std::ceil(data.shape(0) / (float) batch_size);
+            this->batch_size = batch_size;
+            this->img_size = img_size;
+            this->label_coded = label_c;
+            n_batch = int(std::ceil(data.shape(0) / (float) batch_size));
         }
         
         inline void set_l1decay(float f){ m_l1decay = f; }
@@ -538,14 +550,22 @@ namespace cuvnet
          */
         virtual void update_weights();
         void get_batch(unsigned int epoch, unsigned int batch){
-            std::cout << "yeah, I should probably implement this" << std::endl;
             //get next batch;
-            unsigned int start = batch * n_batch;
-            unsigned int end = start + n_batch;
+            unsigned int start = batch * batch_size;
+            unsigned int end = start + batch_size;
+            boost::shared_ptr< cuv::tensor<float,cuv::dev_memory_space> > v (new cuv::tensor<float,cuv::dev_memory_space> (data[cuv::indices[cuv::index_range(start, end)]]));
+            v->reshape(cuv::extents[1][img_size][img_size][batch_size]);
+            pt_X->data() = *v;           
+
             cuv::fill(pt_Y->data(), 0.f);
-            pt_Y->data()[cuv::indices[cuv::index_range()][0]] = label_data[cuv::indices[cuv::index_range(start, end)]];
-            pt_X->data() = data[cuv::indices[cuv::index_range(start, end)][cuv::index_range()]];            
-        }
+            boost::shared_ptr< cuv::tensor<float,cuv::dev_memory_space> > l (new cuv::tensor<float,cuv::dev_memory_space> (label_data[cuv::indices[cuv::index_range(start, end)]]));
+            l->reshape(cuv::extents[batch_size][1]);
+            cuv::tensor<float,cuv::dev_memory_space> dst =pt_Y->data()[cuv::indices[cuv::index_range()][cuv::index_range(0, 1)]];
+            dst = *l;       
+            
+            boost::shared_ptr< cuv::tensor<float,cuv::dev_memory_space> > vl (new cuv::tensor<float,cuv::dev_memory_space> (label_coded[cuv::indices[cuv::index_range(start, end)]]));
+            Y_oneOutOfN->data() = *vl ;
+            }
     };
 
     /**
