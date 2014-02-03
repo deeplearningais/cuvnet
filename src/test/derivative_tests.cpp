@@ -1975,7 +1975,7 @@ cuv::safeThreadSync();
 }
 
 
-static float logAddExp_test(float t, float u){
+
         const float diff = (float)t - (float) u;
         if(diff > 0)
             return t + log1pf(expf(-diff));
