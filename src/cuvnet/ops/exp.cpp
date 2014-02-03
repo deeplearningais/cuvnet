@@ -10,10 +10,13 @@ namespace cuvnet
         const value_type& inp = p0.value.cdata();
         value_ptr res(new value_type(inp.shape(), value_ptr::s_allocator));
 
-        if(m_scalar != 1.f)
+        if(m_scalar != 1.f){
             apply_scalar_functor( *res, inp, SF_MULT, m_scalar);
-        apply_scalar_functor( *res, SF_EXP);
-
+            apply_scalar_functor( *res, SF_EXP);
+        } else {
+            apply_scalar_functor( *res, inp, SF_EXP);
+        }
+        
         r0.push(res); // 'copy' a newly created matrix
 
         p0.value.reset();       // forget params
