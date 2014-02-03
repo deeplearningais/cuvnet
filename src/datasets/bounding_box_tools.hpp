@@ -32,6 +32,9 @@ namespace cuvnet
             int ymax;
             rectangle scale(float fact)const;
             /// @}
+            rectangle(){};
+            rectangle(int ymin_, int ymax_, int xmin_, int xmax_)
+                    :xmin(xmin_), xmax(xmax_), ymin(ymin_), ymax(ymax_){}
         };
 
 
