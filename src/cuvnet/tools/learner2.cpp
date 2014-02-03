@@ -283,6 +283,10 @@ namespace cuvnet
     }
 
     void 
+    learner2::before_predict(model* m, gradient_descent&){
+    }
+
+    void 
     learner2::before_learning(model* m, gradient_descent&, cuvnet::early_stopper* es){
     }
 
@@ -483,6 +487,7 @@ namespace cuvnet
 
         int batch_size = cfg.get("batchsize", -1);
         gradient_descent gd(m.loss(), 0, std::vector<Op*>(), 0.0, 0.0);
+        this->before_predict(&m, gd);
         m_mon->register_gd(gd);
         if(batch_size < 0){
             _load_batch(&m, 0, 0);
