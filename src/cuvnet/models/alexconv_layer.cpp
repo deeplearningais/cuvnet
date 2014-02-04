@@ -35,7 +35,9 @@ namespace cuvnet { namespace models {
             m_bias    = input(cuv::extents[cfg.m_n_out], "b");
         }
 
-        op_group grp("convlayer");
+        boost::scoped_ptr<op_group> grp;
+        if (cfg.m_want_group)
+            grp.reset(new op_group("convlayer"));
 
         auto ret = convolve(m_input, m_weights, padding>=0, padding, cfg.m_stride, cfg.m_n_groups, cfg.m_partial_sum);
         determine_shapes(*ret);

@@ -42,6 +42,7 @@ namespace cuvnet { namespace models {
             ,m_scat_C(0)
             ,m_want_maxout(false)
             ,m_want_dropout(false)
+            ,m_want_group(true)
         {}
 
         inline alexconv_layer_maker& rectified_linear(){
@@ -140,6 +141,9 @@ namespace cuvnet { namespace models {
             m_want_dropout = b;
             return *this;
         }
+
+        bool m_want_group;
+        inline alexconv_layer_maker& want_group(bool b=true) { m_want_group = b; return *this;  }
     };
     struct alexconv_layer
     : public model {
