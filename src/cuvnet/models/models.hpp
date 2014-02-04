@@ -154,6 +154,11 @@ namespace cuvnet
                  */
                 void deregister_submodel(model& m);
 
+                /**
+                 * clear list of submodels.
+                 */
+                void clear_submodels();
+
             public:
                 template<class T>
                 metamodel(const T& t)

@@ -57,6 +57,12 @@ namespace cuvnet { namespace models {
         m_models.erase(std::remove(m_models.begin(), m_models.end(), &m),
                 m_models.end());
     }
+
+    template<class Base>
+    void metamodel<Base>::clear_submodels(){
+        m_models.clear();
+    }
+
     template<class Base>
     void metamodel<Base>::reset_params(){
         // use bind2nd, since the 1st param of mem_fun is the implicit `this'
