@@ -33,12 +33,11 @@ namespace cuvnet { namespace bbtools {
 
     image::image(const std::string& fn){
         using namespace cv;
-        porig = new Mat(imread(fn.c_str()));
+        porig.reset(new Mat(imread(fn.c_str())));
     }
     image::~image(){
-        delete porig;
     }
-    image::image(const image&):porig(NULL){/* private */}
+    image::image(const image&){/* private */}
     image& image::operator=(const image&){ /* private */ return *this; }
 
     void image::transpose(){
@@ -51,7 +50,6 @@ namespace cuvnet { namespace bbtools {
 
     sub_image::sub_image(const image& img, const rectangle& r)
         :original_img(img)
-        ,pcut(NULL)
         ,pos(r)
         ,objfilt(NULL)
         ,scale_fact(1.f)
@@ -60,7 +58,6 @@ namespace cuvnet { namespace bbtools {
 
     sub_image::sub_image(const image& img)
         :original_img(img)
-        ,pcut(NULL)
         ,objfilt(NULL)
         ,scale_fact(1.f)
     {
@@ -82,21 +79,23 @@ namespace cuvnet { namespace bbtools {
     }
 
     sub_image& sub_image::constrain_to_orig(bool clip){
-        int w = pos.xmax - pos.xmin +1;
+        int w = pos.xmax - pos.xmin;
         int ow = original_img.porig->cols;
         if(w > ow){
             if(!clip)
                 throw std::runtime_error("constrain_to_orig: subimage_width > original_width");
             w = ow;
-            pos.xmax = pos.xmin + w -1;
+            pos.xmin = 0;
+            pos.xmax = pos.xmin + w;
         }
-        int h = pos.ymax - pos.ymin+1;
+        int h = pos.ymax - pos.ymin;
         int oh = original_img.porig->rows;
         if(h > oh){
             if(!clip)
                 throw std::runtime_error("constrain_to_orig: subimage_height > original_height");
             h = oh;
-            pos.ymax = pos.ymin + h -1;
+            pos.ymin = 0;
+            pos.ymax = pos.ymin + h;
         }
         {   // left border
             int dleft = std::max(0,-pos.xmin);
@@ -109,23 +108,21 @@ namespace cuvnet { namespace bbtools {
             pos.ymax += dbot;
         }
         {   // right border
-            int d = std::max(0,pos.xmax - original_img.porig->cols + 1);
+            int d = std::max(0,pos.xmax - original_img.porig->cols);
             pos.xmin -= d;
             pos.xmax -= d;
         }
         {   // top border
-            int d = std::max(0,pos.ymax - original_img.porig->rows + 1);
+            int d = std::max(0,pos.ymax - original_img.porig->rows);
             pos.ymin -= d;
             pos.ymax -= d;
         }
         return *this;
     }
     sub_image& sub_image::crop(){
-        if(pcut)
-            delete pcut;
-        if(pos.xmin < 0 || pos.ymin < 0 || pos.xmax >= original_img.porig->cols || pos.ymax >= original_img.porig->rows)
+        if(pos.xmin < 0 || pos.ymin < 0 || pos.xmax > original_img.porig->cols || pos.ymax > original_img.porig->rows)
             throw std::runtime_error("sub_image: cannot call `crop()' on image smaller than subimage. Use square, etc.");
-        pcut = new cv::Mat((*original_img.porig)(cv::Range(pos.ymin, pos.ymax), cv::Range(pos.xmin, pos.xmax)));
+        pcut.reset(new cv::Mat((*original_img.porig)(cv::Range(pos.ymin, pos.ymax), cv::Range(pos.xmin, pos.xmax)).clone()));
         return *this;
     }
 
@@ -141,8 +138,11 @@ namespace cuvnet { namespace bbtools {
         return *this;
     }
     sub_image& sub_image::extend_to_square(){
-        int h = pos.ymax - pos.ymin+1;
-        int w = pos.xmax - pos.xmin+1;
+        int h = pos.ymax - pos.ymin;
+        int w = pos.xmax - pos.xmin;
+        // symmetrically extend the bounding box in both directions
+        // due to rounding in the same direction always, this has
+        // a bias towards moving up/left (by 1/2 pixel).
         if(h>w){
             float dy2 = (h-w)/2.f;
             pos.xmin = (int)( pos.xmin - dy2);
@@ -156,19 +156,19 @@ namespace cuvnet { namespace bbtools {
         return *this;
     }
 
-    sub_image& sub_image::remove_padding(cv::Mat* img){
+    sub_image& sub_image::remove_padding(boost::shared_ptr<cv::Mat> img){
         if(img == NULL) {
             if(!pcut)
                 throw std::runtime_error("remove_padding: image argument NULL and no cropped subimage available!");
             img = pcut;
         }
-        float scale_w = (pos.xmax-pos.xmin+1) / (float)(img->cols);
-        float scale_h = (pos.ymax-pos.ymin+1) / (float)(img->rows);
+        float scale_w = (pos.xmax-pos.xmin) / (float)(img->cols);
+        float scale_h = (pos.ymax-pos.ymin) / (float)(img->rows);
 
         int dbot   = -std::min(0, pos.ymin);
         int dleft  = -std::min(0, pos.xmin);
-        int dright = -std::min(0, -pos.xmax + original_img.porig->cols - 1);
-        int dtop   = -std::min(0, -pos.ymax + original_img.porig->rows - 1);
+        int dright = -std::min(0, -pos.xmax + original_img.porig->cols);
+        int dtop   = -std::min(0, -pos.ymax + original_img.porig->rows);
 
         cv::Mat& dst = *img;
 
@@ -179,15 +179,13 @@ namespace cuvnet { namespace bbtools {
         int new_w = (pos.xmax-pos.xmin) - dleft - dright;
         int new_h = (pos.ymax-pos.ymin) - dbot - dtop;
         pos.xmin += dleft;
-        pos.xmax += dleft;
         pos.ymin += dbot;
-        pos.ymax += dbot;
         pos.xmax  = pos.xmin + new_w;
         pos.ymax  = pos.ymin + new_h;
         
         return *this;
     }
-    sub_image& sub_image::fill_padding(int color, cv::Mat* img, const coordinate_transformer& ct){
+    sub_image& sub_image::fill_padding(int color, boost::shared_ptr<cv::Mat> img, const coordinate_transformer& ct){
         if(img == NULL) {
             if(!pcut)
                 throw std::runtime_error("fill_padding: image argument NULL and no cropped subimage available!");
@@ -203,16 +201,16 @@ namespace cuvnet { namespace bbtools {
         ct.transform(dright, dtop);
 
         if(dleft > 0)
-            cv::rectangle(dst, cv::Point(0,0), cv::Point(dleft, dst.rows-1), cv::Scalar(color), CV_FILLED);
+            cv::rectangle(dst, cv::Point(0,0), cv::Point(dleft, dst.rows-1), cv::Scalar(color, color, color), CV_FILLED);
             //dst.draw_rectangle(0,0,0,0,  dleft, dst.rows-1, dst.depth()-1, dst.spectrum()-1, color);
         if(dright < dst.cols)
-            cv::rectangle(dst, cv::Point(dright,0), cv::Point(dst.cols-1, dst.rows-1), cv::Scalar(color), CV_FILLED);
+            cv::rectangle(dst, cv::Point(dright,0), cv::Point(dst.cols-1, dst.rows-1), cv::Scalar(color, color, color), CV_FILLED);
             //dst.draw_rectangle(dright,0,0,0,  dst.cols-1, dst.rows-1, dst.depth()-1, dst.spectrum()-1, color);
         if(dbot > 0)
-            cv::rectangle(dst, cv::Point(0,0), cv::Point(dst.cols-1, dbot-1), cv::Scalar(color), CV_FILLED);
+            cv::rectangle(dst, cv::Point(0,0), cv::Point(dst.cols-1, dbot-1), cv::Scalar(color, color, color), CV_FILLED);
             //dst.draw_rectangle(0,0,0,0,  dst.cols-1, dbot-1, dst.depth()-1, dst.spectrum()-1, color);
         if(dtop < dst.rows)
-            cv::rectangle(dst, cv::Point(0,dtop), cv::Point(dst.cols-1, dst.rows-1), cv::Scalar(color), CV_FILLED);
+            cv::rectangle(dst, cv::Point(0,dtop), cv::Point(dst.cols-1, dst.rows-1), cv::Scalar(color, color, color), CV_FILLED);
             //dst.draw_rectangle(0,dtop,0,0,  dst.cols-1, dst.rows-1, dst.depth()-1, dst.spectrum()-1, color);
         
         return *this;
@@ -220,8 +218,8 @@ namespace cuvnet { namespace bbtools {
     sub_image& sub_image::crop_with_padding(int border){
         int dbot   = std::max(0, -pos.ymin);
         int dleft  = std::max(0, -pos.xmin);
-        int dright = std::max(0, pos.xmax - original_img.porig->cols + 1);
-        int dtop   = std::max(0, pos.ymax - original_img.porig->rows + 1);
+        int dright = std::max(0, pos.xmax - original_img.porig->cols);
+        int dtop   = std::max(0, pos.ymax - original_img.porig->rows);
 
         if(!dbot && !dleft && !dright && !dtop){
             crop();
@@ -245,9 +243,7 @@ namespace cuvnet { namespace bbtools {
 
         dst = dst(cv::Range(pos.ymin+dh, pos.ymax+dh), cv::Range(pos.xmin+dw, pos.xmax+dw));
 
-        if(pcut)
-            delete pcut;
-        pcut = new cv::Mat(dst);
+        pcut.reset(new cv::Mat(dst));
 
         return *this;
     }
@@ -283,7 +279,7 @@ namespace cuvnet { namespace bbtools {
     }
     
     sub_image& 
-    sub_image::mark_objects(int type, unsigned char color, float scale, cv::Mat* img, std::vector<std::vector<bbtools::rectangle> >* bboxes){
+    sub_image::mark_objects(int type, unsigned char color, float scale, boost::shared_ptr<cv::Mat> img, std::vector<std::vector<bbtools::rectangle> >* bboxes){
         if(!img){
             if(!pcut)
                 throw std::runtime_error("mark_objects: supply image or crop first!");
@@ -342,7 +338,6 @@ namespace cuvnet { namespace bbtools {
     }
 
     sub_image::~sub_image(){
-        delete pcut;
     }
 
     bool

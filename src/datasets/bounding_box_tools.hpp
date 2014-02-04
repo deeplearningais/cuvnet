@@ -87,7 +87,7 @@ namespace cuvnet
             /// meta information on this image.
             image_meta_info meta;
             /// if set, contains image values.
-            cv::Mat* porig;
+            boost::shared_ptr<cv::Mat> porig;
 
             /// default ctor (only for storing images in std::vector)
             image(){}
@@ -124,7 +124,7 @@ namespace cuvnet
          */
         struct sub_image{
             const image& original_img; ///< the image we're in.
-            cv::Mat* pcut; ///< if set, this caches the result of cutting the region we're representing from the original_image.
+            boost::shared_ptr<cv::Mat> pcut; ///< if set, this caches the result of cutting the region we're representing from the original_image.
             rectangle pos; ///< the position in the original image (might be larger than original image!)
             object_filter* objfilt; ///< can be used to select only some objects (eg based on class)
             float scale_fact; ///< size in `pos' is multiplied by this
@@ -188,7 +188,8 @@ namespace cuvnet
              * @param scale a parameter of the method, determines eg size of blobs
              * @param img1 the picture, if NULL use internal cropped \c pcut variable
              */
-            sub_image& mark_objects(int type=0, unsigned char color=255, float scale=1.f, cv::Mat* img1=NULL, std::vector<std::vector<bbtools::rectangle> >* bboxes=NULL);
+            sub_image& mark_objects(int type=0, unsigned char color=255, float scale=1.f, 
+                    boost::shared_ptr<cv::Mat> img1=boost::shared_ptr<cv::Mat>(), std::vector<std::vector<bbtools::rectangle> >* bboxes=NULL);
 
             /**
              * Scale object bounding boxes relative to their center, then 
@@ -212,14 +213,15 @@ namespace cuvnet
              * @param ct if given, thi
              * @throw runtime_error if neither img nor pcut available.
              */
-            sub_image& fill_padding(int color, cv::Mat* img = NULL, const coordinate_transformer& ct = coordinate_transformer());
+            sub_image& fill_padding(int color, boost::shared_ptr<cv::Mat> img = boost::shared_ptr<cv::Mat>(), 
+                    const coordinate_transformer& ct = coordinate_transformer());
 
             /**
              * cuts padding from an image, resulting only in parts that have a counterpart in the original image.
              * @param img if not given, works on internal pcut image
              * @throw runtime_error if neither img nor pcut available.
              */
-            sub_image& remove_padding(cv::Mat* img = NULL);
+            sub_image& remove_padding(boost::shared_ptr<cv::Mat> img = boost::shared_ptr<cv::Mat>());
 
             /**
              * inquire whether there are objects inside this subimage.
