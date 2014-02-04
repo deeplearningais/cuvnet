@@ -11,9 +11,7 @@ namespace cuvnet
      * \f(a,b) = \log_add_exp(a + b )$
      *
      * @ingroup Ops
-     * 
      */
-    //TODO implement binary version of logAddExp in cuvnet
     class LogAddExp
         : public Op{
             public:
@@ -26,6 +24,7 @@ namespace cuvnet
                 float m_scalar; ///< the pre-factor 
             public:
                 LogAddExp(){} ///< for serialization
+               //TODO overload function for log_add_exp(p0, p1)
                
                 /**
                  *  (Calculates log (a + exp(a))
@@ -35,7 +34,7 @@ namespace cuvnet
                  * */
                 LogAddExp(float factor, result_t& p0):Op(1,1), m_scalar(factor) {
                     add_param(0,p0);
-                }              
+                }
                 
                 void fprop();
                 void bprop();

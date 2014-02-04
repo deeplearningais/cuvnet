@@ -1975,7 +1975,7 @@ cuv::safeThreadSync();
 }
 
 
-
+static float logAddExp_test(float t, float u){
         const float diff = (float)t - (float) u;
         if(diff > 0)
             return t + log1pf(expf(-diff));
@@ -2008,6 +2008,40 @@ BOOST_AUTO_TEST_CASE(LOGADDEXP){
    BOOST_CHECK(pcv.plist.size()>0);
 
    std::vector<Op*> params(1);
+   params[0] = inp.get();
+
+  // std::cout << "swiper.fprop()" << std::endl;
+   swiper swipe(*op, 0, params);
+   swipe.fprop();
+   cuvAssert(!cuv::has_nan(out_op->cdata()));
+   cuvAssert(!cuv::has_inf(out_op->cdata()));
+
+   for (unsigned int i = 0; i < size; i++){
+       float b = out_op->cdata()[i];
+       float tmp = logAddExp_test(inp->data()[i], a);
+       BOOST_CHECK_SMALL(fabs(tmp-b) , 0.001);       
+    }
+
+    //fill delta with data 
+    Op::result_t& r = op->result(0);
+    r->delta.reset(new cuvnet::matrix(r->shape));
+    fill_rnd_uniform(r->delta.data());   
+    delta->data() = r->delta.data().copy();
+
+    //save input data..
+    
+    swipe.bprop(false );
+      for (unsigned int i = 0; i < size; i++){
+      float tmp =  expf(inp_s->data()[i]);
+      tmp /= (tmp + expf(a));
+      tmp *= delta->data()[i];
+      float b = inp->delta()[i];
+      float diff = fabs(tmp-b);
+      BOOST_CHECK_SMALL(diff , 0.001f);
+   }
+   derivative_testing::derivative_tester(*op);
+   cuv::safeThreadSync();    
+}
    params[0] = inp.get();
 
   // std::cout << "swiper.fprop()" << std::endl;
