@@ -32,6 +32,7 @@
 #include <cuvnet/ops/subtensor.hpp>
 #include <cuvnet/ops/concatenate.hpp>
 #include <cuvnet/ops/sum_out_dim.hpp>
+#include <cuvnet/ops/log_add_exp.hpp>
 
 #ifndef NO_THEANO_WRAPPERS
 #include <cuvnet/ops/theano_ops.hpp>
@@ -102,6 +103,9 @@ namespace cuvnet
     /// construct a Exp object
     inline
         Op::op_ptr exp(float f, Op::op_ptr x)           { return boost::make_shared<Exp>(f, x->result()); }
+    /// construct a logaddexp object
+    inline
+        Op::op_ptr log_add_exp(Op::op_ptr x, float f=0.f)           { return boost::make_shared<LogAddExp>(f, x->result()); }        
     /// construct a Transpose object
     inline
         Op::op_ptr transpose(Op::op_ptr x) { return boost::make_shared<Transpose>(x->result()); }

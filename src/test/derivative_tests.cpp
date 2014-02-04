@@ -1727,6 +1727,321 @@ cuv::safeThreadSync();
 }
 
 
+BOOST_AUTO_TEST_CASE( Concatenate_first_dim )
+{           
+            unsigned int z = 13;
+            unsigned int n = 3;
+            unsigned int x = 2;
+            unsigned int y = 5;
+            using namespace cuv;
+            using namespace cuvnet;
+            typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
+            typedef boost::shared_ptr<Op> op_ptr;
+            
+            std::vector< op_ptr >  input(n);       
+            boost::shared_ptr<ParameterInput> in1;
+            boost::shared_ptr<ParameterInput> in2;
+            boost::shared_ptr<ParameterInput> in3;
+            
+        //generate all inputs and fill them with rand vals
+        for ( unsigned int i = 0; i < n; i++){
+                boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[x][y][z]);
+                fill_rnd_uniform(inp->data());
+                input[i] = inp;
+                if ( i == 0 ) in1 = inp;
+                else if (i==1) in2 = inp;
+                else in3 = inp;
+        }
+        
+            op_ptr op = concatenate(input, 0);
+            // assumption: op has only one result
+        boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op->result());
+
+        // tell that we want derivative w.r.t. all params
+        param_collector_visitor pcv;
+        op->visit(pcv);
+        BOOST_CHECK(pcv.plist.size()>0);
+
+        std::vector<Op*> params(3);
+        params[0] = in1.get();
+        params[1] = in2.get();
+        params[2] = in3.get();
+        
+        swiper swipe(*op, 0, params);
+
+        swipe.fprop();
+        cuvAssert(!cuv::has_nan(out_op->cdata()));
+        cuvAssert(!cuv::has_inf(out_op->cdata()));
+        
+        
+        std::vector<unsigned int> desired_shape = {3*x, y, z};
+        cuvAssert(out_op->cdata().shape() == desired_shape);
+            for ( unsigned int i = 0; i < n; i++){
+                for (unsigned int j = 0; j < x; j++){
+                    for (unsigned int k = 0; k < y; k++){
+                        for (unsigned int l = 0; l < z; l++){
+                            float  a; 
+                            if ( i == 0)  a = in1->data()[indices[j][k]][l];
+                            if ( i == 1)  a = in2->data()[indices[j][k]][l];
+                            if ( i == 2)  a = in3->data()[indices[j][k]][l];
+                            
+                            float  b = out_op->cdata()[indices[ i*x +j][k]][l];
+                            BOOST_CHECK_SMALL(fabs(a - b) , 0.0001);  
+                        }
+                    }
+                }
+            }
+            
+        boost::shared_ptr<ParameterInput> delta = boost::make_shared<ParameterInput>(cuv::extents[3*x][y][z]);
+        cuv::fill_rnd_uniform(delta->data());
+        Op::result_t& r = op->result(0);
+        r->delta.reset(new cuvnet::matrix(r->shape));
+        r->delta.data() =  delta->data().copy();              
+        
+        swipe.bprop(false);
+            for ( unsigned int i = 0; i < n; i++){
+                for (unsigned int j = 0; j < x; j++){
+                    for (unsigned int k = 0; k < y; k++){
+                        for (unsigned int l = 0; l < z; l++){
+                            float  a; 
+                            if ( i == 0)  a = in1->delta()[indices[j][k]][l];
+                            if ( i == 1)  a = in2->delta()[indices[j][k]][l];
+                            if ( i == 2)  a = in3->delta()[indices[j][k]][l];
+
+                            float  b = delta->data()[indices[ i*x +j][k]][l];
+                            BOOST_CHECK_SMALL(fabs(a - b) , 0.0001);  
+                        }
+                    }
+                }
+            }
+            derivative_testing::derivative_tester(*op, 0, true);
+            cuv::safeThreadSync();
+}
+
+
+
+
+BOOST_AUTO_TEST_CASE( Concatenate_old_interface )
+{  
+            unsigned int n = 2;
+            unsigned int x = 2;
+            unsigned int y = 5;
+            unsigned int z = 9;
+
+            using namespace cuv;
+            using namespace cuvnet;
+            typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
+            typedef boost::shared_ptr<Op> op_ptr;
+            
+            boost::shared_ptr<ParameterInput> in1;
+            boost::shared_ptr<ParameterInput> in2;
+            
+        //generate all inputs and fill them with rand vals
+        for ( unsigned int i = 0; i < n; i++){
+                boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[x][y][z]);
+                fill_rnd_uniform(inp->data());
+                if ( i == 0 ) in1 = inp;
+                else if (i==1) in2 = inp;
+        }
+        
+            op_ptr op = concatenate(in1, in2, 0);
+            // assumption: op has only one result
+        boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op->result());
+
+        // tell that we want derivative w.r.t. all params
+        param_collector_visitor pcv;
+        op->visit(pcv);
+        BOOST_CHECK(pcv.plist.size()>0);
+
+        std::vector<Op*> params(2);
+        params[0] = in1.get();
+        params[1] = in2.get();
+        
+       // std::cout << "swiper.fprop()" << std::endl;
+        swiper swipe(*op, 0, params);
+        //    std::cout << "fprop.."<< std::endl;
+
+        swipe.fprop();
+        cuvAssert(!cuv::has_nan(out_op->cdata()));
+        cuvAssert(!cuv::has_inf(out_op->cdata()));
+        
+      //  std::cout << "checking shapes"<< std::endl;
+        std::vector<unsigned int> desired_shape = {2*x, y, z};
+        cuvAssert(out_op->cdata().shape() == desired_shape);
+      //  std::cout << "checking results"<< std::endl;
+            for ( unsigned int i = 0; i < n; i++){
+                for (unsigned int j = 0; j < x; j++){
+                    for (unsigned int k = 0; k < y; k++){
+                        for (unsigned int l = 0; l < z; l++){
+                            float  a; 
+                            if ( i == 0)  a = in1->data()[indices[j][k]][l];
+                            if ( i == 1)  a = in2->data()[indices[j][k]][l];
+                            float  b = out_op->cdata()[indices[ i*x +j][k]][l];
+                            BOOST_CHECK_SMALL(fabs(a - b) , 0.0001);  
+                        }
+                    }
+                }
+            }
+        derivative_testing::derivative_tester(*op, 0, true);
+        cuv::safeThreadSync();
+}
+
+
+
+BOOST_AUTO_TEST_CASE( Concatenate_N_last_dim )
+{  
+            unsigned int n = 3;
+            unsigned int x = 2;
+            unsigned int y = 5;
+            unsigned int z = 2;
+            unsigned int z1 = 3;
+
+            using namespace cuv;
+            using namespace cuvnet;
+            typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
+            typedef boost::shared_ptr<Op> op_ptr;
+            
+            std::vector< op_ptr >  input(n);
+            boost::shared_ptr<ParameterInput> in1 = boost::make_shared<ParameterInput>(cuv::extents[x][y][z][z1]);
+            boost::shared_ptr<ParameterInput> in2 = boost::make_shared<ParameterInput>(cuv::extents[x][y][z][z1]);
+            boost::shared_ptr<ParameterInput> in3 = boost::make_shared<ParameterInput>(cuv::extents[x][y][z][z1]);
+            fill_rnd_uniform(in1->data());
+            fill_rnd_uniform(in2->data());
+            fill_rnd_uniform(in3->data());
+            
+            input[0] = in1;
+            input[1] = in2;
+            input[2] = in3;
+            
+            op_ptr op = concatenate(input, 3);
+            // assumption: op has only one result
+        boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op->result());
+
+        // tell that we want derivative w.r.t. all params
+        param_collector_visitor pcv;
+        op->visit(pcv);
+        BOOST_CHECK(pcv.plist.size()>0);
+
+        std::vector<Op*> params(3);
+        params[0] = in1.get();
+        params[1] = in2.get();
+        params[2] = in3.get();
+        
+        swiper swipe(*op, 0, params);
+        swipe.fprop();
+        cuvAssert(!cuv::has_nan(out_op->cdata()));
+        cuvAssert(!cuv::has_inf(out_op->cdata())); 
+
+        std::vector<unsigned int> desired_shape = {x, y, z, 3*z1};
+        cuvAssert(out_op->cdata().shape() == desired_shape);        
+        
+        for ( unsigned int j = 0; j < x; j++)
+            for ( unsigned int k = 0; k < y; k++)                
+                for ( unsigned int h = 0; h < z; h++)
+                    for ( unsigned int i = 0; i < n; i++)
+                        for (unsigned int l = 0; l < z1; l++){
+                            float  a; 
+                            if ( i == 0)  a = in1->data()[indices[j][k][h]][l];
+                            if ( i == 1)  a = in2->data()[indices[j][k][h]][l];
+                            if ( i == 2)  a = in3->data()[indices[j][k][h]][l];
+                            unsigned int ind = i*z1 + l;
+                            float  b = out_op->cdata()[indices[j][k][h]][ind];
+                            BOOST_CHECK_SMALL(fabs(a - b) , 0.0001);  
+                        }
+                            
+      boost::shared_ptr<ParameterInput> delta = boost::make_shared<ParameterInput>(cuv::extents[x][y][z][3*z1]);
+        cuv::fill_rnd_uniform(delta->data());
+        Op::result_t& r = op->result(0);
+        r->delta.reset(new cuvnet::matrix(r->shape));
+        r->delta.data() =  delta->data().copy();              
+            
+       
+        swipe.bprop(false);
+        for ( unsigned int j = 0; j < x; j++)
+            for ( unsigned int k = 0; k < y; k++)                
+                for ( unsigned int h = 0; h < z; h++)
+                    for ( unsigned int i = 0; i < n; i++)
+                        for (unsigned int l = 0; l < z1; l++){
+                            float  a; 
+                            if ( i == 0)  a = in1->delta()[indices[j][k][h]][l];
+                            if ( i == 1)  a = in2->delta()[indices[j][k][h]][l];
+                            if ( i == 2)  a = in3->delta()[indices[j][k][h]][l];
+
+                            float  b = delta->data()[indices[j][k][h]][i*z1 + l];
+                            BOOST_CHECK_SMALL(fabs(a - b) , 0.0001);  
+                        }        
+            derivative_testing::derivative_tester(*op, 0, true);
+cuv::safeThreadSync();
+}
+
+
+static float logAddExp_test(float t, float u){
+        const float diff = (float)t - (float) u;
+        if(diff > 0)
+            return t + log1pf(expf(-diff));
+        else if(diff<=0)
+            return u + log1pf(expf(diff));
+        else
+            return t+u;
+}
+
+
+BOOST_AUTO_TEST_CASE(LOGADDEXP){
+   using namespace cuv;
+   using namespace cuvnet;
+   typedef boost::shared_ptr<Op> ptr_t;
+   unsigned int size = 23;
+   boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[size]);
+   boost::shared_ptr<ParameterInput>  inp_s = boost::make_shared<ParameterInput>(cuv::extents[size]);
+   boost::shared_ptr<ParameterInput>  delta = boost::make_shared<ParameterInput>(cuv::extents[size]);
+   
+   float a = 0.23f;
+   cuv::fill_rnd_uniform(inp->data());
+   inp_s->data() = inp->data().copy();
+
+   ptr_t op = log_add_exp(inp, a);
+   boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op->result());
+
+   // tell that we want derivative w.r.t. all params
+   param_collector_visitor pcv;
+   op->visit(pcv);
+   BOOST_CHECK(pcv.plist.size()>0);
+
+   std::vector<Op*> params(1);
+   params[0] = inp.get();
+
+  // std::cout << "swiper.fprop()" << std::endl;
+   swiper swipe(*op, 0, params);
+   swipe.fprop();
+   cuvAssert(!cuv::has_nan(out_op->cdata()));
+   cuvAssert(!cuv::has_inf(out_op->cdata()));
+
+   for (unsigned int i = 0; i < size; i++){
+       float b = out_op->cdata()[i];
+       float tmp = logAddExp_test(inp->data()[i], a);
+       BOOST_CHECK_SMALL(fabs(tmp-b) , 0.001);       
+    }
+
+    //fill delta with data 
+    Op::result_t& r = op->result(0);
+    r->delta.reset(new cuvnet::matrix(r->shape));
+    fill_rnd_uniform(r->delta.data());   
+    delta->data() = r->delta.data().copy();
+
+    //save input data..
+    
+    swipe.bprop(false );
+      for (unsigned int i = 0; i < size; i++){
+      float tmp =  expf(inp_s->data()[i]);
+      tmp /= (tmp + expf(a));
+      tmp *= delta->data()[i];
+      float b = inp->delta()[i];
+      float diff = fabs(tmp-b);
+      BOOST_CHECK_SMALL(diff , 0.001f);
+   }
+   derivative_testing::derivative_tester(*op);
+   cuv::safeThreadSync();    
+}
 
 #ifndef NO_THEANO_WRAPPERS
 
