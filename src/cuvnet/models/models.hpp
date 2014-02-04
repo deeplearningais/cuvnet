@@ -113,7 +113,7 @@ namespace cuvnet
                  * switch to another stage.
                  * @param stage the stage to switch to
                  */
-                void switch_stage(const stage_type& stage);
+                virtual void switch_stage(const stage_type& stage);
 
                 /**
                  * get the outputs of the currently active stage.
