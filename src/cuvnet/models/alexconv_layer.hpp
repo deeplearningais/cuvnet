@@ -42,7 +42,8 @@ namespace cuvnet { namespace models {
             ,m_scat_C(0)
             ,m_want_maxout(false)
             ,m_want_dropout(false)
-            ,m_want_group(true)
+            ,m_group_name("convlayer")
+            ,m_unique_group(true)
         {}
 
         inline alexconv_layer_maker& rectified_linear(){
@@ -142,8 +143,11 @@ namespace cuvnet { namespace models {
             return *this;
         }
 
-        bool m_want_group;
-        inline alexconv_layer_maker& want_group(bool b=true) { m_want_group = b; return *this;  }
+        std::string m_group_name;
+        inline alexconv_layer_maker& group(std::string name="") { m_group_name = name; return *this;  }
+
+        bool m_unique_group;
+        inline alexconv_layer_maker& no_unique_group() { m_unique_group = false; return *this; }
     };
     struct alexconv_layer
     : public model {

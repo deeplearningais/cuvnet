@@ -36,8 +36,8 @@ namespace cuvnet { namespace models {
         }
 
         boost::scoped_ptr<op_group> grp;
-        if (cfg.m_want_group)
-            grp.reset(new op_group("convlayer"));
+        if (!cfg.m_group_name.empty())
+            grp.reset(new op_group(cfg.m_group_name, cfg.m_unique_group));
 
         auto ret = convolve(m_input, m_weights, padding>=0, padding, cfg.m_stride, cfg.m_n_groups, cfg.m_partial_sum);
         determine_shapes(*ret);
