@@ -477,29 +477,30 @@ namespace cuvnet
         public:
             typedef std::vector<Op*> paramvec_t;
         private:
+            typedef cuv::tensor<int,Op::value_type::memory_space_type> int_value_type;
+            typedef cuv::tensor<float,Op::value_type::memory_space_type> value_type;            
             typedef boost::shared_ptr<ParameterInput> input_ptr;
             typedef boost::shared_ptr<Op> op_ptr;
             typedef boost::shared_ptr<std::vector<bool> > inf_type_ptr;
-                
+            typedef cow_ptr<value_type>                 value_ptr; 
+            typedef cow_ptr<int_value_type>             int_value_ptr; 
+            
+            int_value_ptr a1;
+            int_value_ptr a2;
             std::vector<cuv::tensor<float,Op::value_type::memory_space_type> > m_old_dw;  /// tensor to save dS[y,1|x]/dw for morginalization step
             input_ptr pt_X;
             input_ptr pt_Y;
             float m_learnrate; /// learning rate
+            bool m_rescale;
             float m_l1decay;
             unsigned int m_n_batches;
             inf_type_ptr m_INFERENCE_TYPE;
             boost::shared_ptr<monitor> m_results;
-            boost::shared_ptr<monitor> mon;
-            boost::shared_ptr<monitor> mon2;            
-            input_ptr labels;
-            input_ptr SM;
-            input_ptr S;
-            input_ptr classification;
-            input_ptr Y_oneOutOfN;
-            op_ptr    classification_err;
-            op_ptr    spn_err;
-            boost::shared_ptr<swiper>    e_swipe;
-            boost::shared_ptr<swiper>    c_swipe;
+            value_ptr labels;
+            value_ptr SM;
+            value_ptr S;
+            value_ptr classification;
+            value_ptr Y_oneOutOfN;
             unsigned int n_batch;
             unsigned int batch_size;
             unsigned int img_size;
@@ -523,7 +524,7 @@ namespace cuvnet
              * @param learnrate the initial learningrate
              * @param weightdecay weight decay for weight updates
              */
-        spn_gradient_descent(Op::op_ptr op,  input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate=0.0001f, float weightdecay=0.0f);
+        spn_gradient_descent(Op::op_ptr op,  input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate=0.001f, bool rescale_weights = false, float weightdecay=0.0f);
         void minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs, bool randomize);
         
         void set_data(host_data & data, host_data & labels, host_data & label_c, unsigned int batch_size, unsigned int img_size){
@@ -548,17 +549,22 @@ namespace cuvnet
             unsigned int start = batch * batch_size;
             unsigned int end = start + batch_size;
             boost::shared_ptr< cuv::tensor<float,cuv::dev_memory_space> > v (new cuv::tensor<float,cuv::dev_memory_space> (data[cuv::indices[cuv::index_range(start, end)]]));
+            cuvAssert(!has_nan(*v));
             v->reshape(cuv::extents[1][img_size][img_size][batch_size]);
-            pt_X->data() = *v;           
-
+            cuvAssert(!has_nan(*v));
+            pt_X->data() = *v;   
+            
             cuv::fill(pt_Y->data(), 0.f);
+            //copy data to dev memory space
             boost::shared_ptr< cuv::tensor<float,cuv::dev_memory_space> > l (new cuv::tensor<float,cuv::dev_memory_space> (label_data[cuv::indices[cuv::index_range(start, end)]]));
+
+            cuv::tensor_view<float,cuv::dev_memory_space> dst(pt_Y->data(), cuv::indices[cuv::index_range()][cuv::index_range(0,1)]);
             l->reshape(cuv::extents[batch_size][1]);
-            cuv::tensor<float,cuv::dev_memory_space> dst =pt_Y->data()[cuv::indices[cuv::index_range()][cuv::index_range(0, 1)]];
-            dst = *l;       
+            dst = *l;
             
             boost::shared_ptr< cuv::tensor<float,cuv::dev_memory_space> > vl (new cuv::tensor<float,cuv::dev_memory_space> (label_coded[cuv::indices[cuv::index_range(start, end)]]));
-            Y_oneOutOfN->data() = *vl ;
+            cuvAssert(!has_nan(*vl));            
+            *Y_oneOutOfN = *vl ;
             }
     };
 
