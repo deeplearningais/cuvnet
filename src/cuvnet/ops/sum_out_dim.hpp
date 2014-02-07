@@ -14,7 +14,7 @@ namespace cuvnet
      * @ingroup Ops
      *
      */
-    class Sum_Out_Dim
+    class SumOutDim
         : public Op{
             public:
                 typedef Op::value_type    value_type;
@@ -34,7 +34,7 @@ namespace cuvnet
                 bool m_mean;
                 bool m_squared;
             public:
-                Sum_Out_Dim() :   Op(1,1){} ///< for serialization
+                SumOutDim() :   Op(1,1){} ///< for serialization
                 /**
                  * ctor.
                  * @param mat the n-dimensional array
@@ -42,7 +42,7 @@ namespace cuvnet
                  * @param mean if true, divide by the number of entries summed over
                  * @param squared if true, sum squared elements
                  */
-                Sum_Out_Dim(result_t& mat, unsigned int axis, bool mean=false, bool squared=false)
+                SumOutDim(result_t& mat, unsigned int axis, bool mean=false, bool squared=false)
                     :   Op(1,1)
                       , m_axis(axis)
                       , m_mean(mean)
