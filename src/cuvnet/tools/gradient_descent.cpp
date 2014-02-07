@@ -11,6 +11,7 @@
 #include <cuvnet/tools/monitor.hpp>
 #include <iostream>
 #include <fstream>
+#include <cuvnet/tools/matwrite.hpp>
 namespace cuvnet
 {
     gradient_descent::gradient_descent(const Op::op_ptr& op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay)
@@ -272,43 +273,35 @@ namespace cuvnet
     
     // ----------------------- spn gradient descent ------------------  
     
-   spn_gradient_descent::spn_gradient_descent(Op::op_ptr op, input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate, float weightdecay)
-        :gradient_descent(op, result, params, learnrate, weightdecay), m_old_dw(params.size()), pt_X(X), pt_Y(Y), m_learnrate(learnrate), m_l1decay(0.f)
+   spn_gradient_descent::spn_gradient_descent(Op::op_ptr op, input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate, bool rescale_weights, float weightdecay)
+        :gradient_descent(op, result, params, learnrate, weightdecay), m_old_dw(params.size()), pt_X(X), pt_Y(Y), m_learnrate(learnrate), m_rescale(rescale_weights), m_l1decay(0.f)
     {
          m_INFERENCE_TYPE = INFERENCE_TYPE;
          m_results = results;
-        
+         
+         unsigned int nbatch = Y->data().shape(0);
+         unsigned int nclass = Y->data().shape(1);
         //generate ops 
-         labels =         input( cuv::extents[Y->data().shape(0)][Y->data().shape(1)], "labels_save" ); 
-         S =              input( cuv::extents[Y->data().shape(0)], "S" );
-         SM =             input( cuv::extents[Y->data().shape(0)], "SM" );
-         classification = input( cuv::extents[Y->data().shape(0)][Y->data().shape(1)], "spn_classification" );
-         Y_oneOutOfN = input( cuv::extents[Y->data().shape(0)][Y->data().shape(1)], "Y_one_out_of_n_coding" );
-         spn_err = mean(cuvnet::abs(S - SM));
+         value_ptr t0 ( new value_type(cuv::extents[nbatch][nclass]));
+         labels = t0;
 
-         //generate swiper for spn_err
-         std::vector<Op*> e_params(2);
-         e_params[0] = S.get();
-         e_params[1] = SM.get();
-         boost::shared_ptr<swiper> sw (new swiper(*spn_err, 0, e_params, false));         
-         e_swipe = sw;
-         
-         boost::shared_ptr<cuvnet::monitor> mon(new monitor(true));
-         mon->add(monitor::WP_SINK, spn_err, "spn_err");
-         this->mon = mon;
-                 
-         classification_err = classification_loss (classification, Y_oneOutOfN,  1);
+         value_ptr t1 ( new value_type(cuv::extents[nbatch]));
+         S = t1;
 
-         boost::shared_ptr<cuvnet::monitor> mon2(new monitor(true));
-         mon2->add(monitor::WP_SINK, classification_err, "class_err");
-         this->mon2 = mon2;
- 
-         std::vector<Op*> c_params(2);
-         c_params[0] = classification.get();
-         c_params[1] = Y_oneOutOfN.get();
+         value_ptr t2 ( new value_type(cuv::extents[nbatch]));
+         SM = t2;
+
+         value_ptr t3 ( new value_type(cuv::extents[nbatch][nclass]));
+         classification = t3;
+
+         value_ptr t4 ( new value_type(cuv::extents[nbatch][nclass]));
+         Y_oneOutOfN = t4;
+
+         int_value_ptr t5 ( new int_value_type(cuv::extents[nbatch]));
+         a1 = t5;
          
-         boost::shared_ptr<swiper> c_swiper (new swiper(*classification_err, 0, c_params, false));         
-         c_swipe = c_swiper;
+         int_value_ptr t6 ( new int_value_type(cuv::extents[nbatch]));
+         a2 = t6;
          
          unsigned int i=0;
          for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
@@ -362,15 +355,13 @@ namespace cuvnet
                     std::random_shuffle(batchids.begin(),batchids.end());
 
                 before_epoch(m_epoch, wups); // may run early stopping
-                unsigned int progress_indicator = n_batches / 10;
                 for (unsigned int  batch = 0; batch < n_batches; ++batch, ++iter) {
-                    //if ( ((batch % progress_indicator) == 0) && (batch > 0) ) std::cout << "Training at: " << batch / progress_indicator << "0 percent" << std::endl;
                     before_batch(m_epoch, batchids[batch]);
                     //TODO use signal
                     get_batch(m_epoch, batchids[batch]);
 
                     //  save labels;
-                    labels->data() = pt_Y->data();
+                    *labels = pt_Y->data().copy();
                     
                     //marginalize labels
                     fill(pt_Y->data(), -1.f); // set labels to saved result..
@@ -378,13 +369,11 @@ namespace cuvnet
                     
                     //marginalization run
                     m_swipe.fprop();  // forward pass
-                    SM->data() = (*m_results)["S"];
-                    std::cout << m_results->mean("S") << std::endl;
-                                        
+                    *SM = (*m_results)["S"].copy();
                     m_swipe.bprop(); // backward pass
                     
                     pt_Y->bprop();
-                    classification->data() = pt_Y->delta();
+                    *classification = pt_Y->delta().copy();
 
                     if(m_learnrate){
                         // this is not an evaluation pass, we're actually supposed to do work ;)
@@ -401,30 +390,30 @@ namespace cuvnet
                             param->reset_delta();
                         }
                         
-                        pt_Y->data() = labels->data();
+                        pt_Y->data() = *labels;
                         m_swipe.fprop();
-                        
-                        S->data() = (*m_results)["S"];
-                        //calculate spn loss
-                        
+                        *S = (*m_results)["S"].copy();                        
                         m_swipe.bprop();
                        
                         //calculate spn loss
-                        e_swipe->init();
-                        e_swipe->fprop();
-                        //calculate classification loss
-                        c_swipe->init();
-                        c_swipe->fprop();
+                        cuv::apply_binary_functor(*SM, *S, cuv::BF_SUBTRACT);
+                        cuv::apply_scalar_functor(*SM, *SM, cuv::SF_ABS);                             
+                        float tmp_err = cuv::mean(*SM);
+                        s_err += tmp_err;                        
+                        std::cout << "spn err: "  << tmp_err << std::endl;
                         
-                        s_err +=  mon ->mean("spn_err");
-                        c_err   +=  mon2->mean("class_err");
+                        cuv::reduce_to_col(*a1, *classification,cuv::RF_ARGMAX);
+                        cuv::reduce_to_col(*a2, *Y_oneOutOfN, cuv::RF_ARGMAX);
+                        
+                        *a1 -= *a2;
+                        int n_wrong = batch_size - cuv::count(*a1,0);
+                        tmp_err = n_wrong / (float) batch_size;
+                        c_err += tmp_err;
+                        std::cout << "classification err: "  << tmp_err << std::endl;
                         
                         // nan check
                         if ((s_err != s_err) || (c_err != c_err)) throw std::runtime_error("NAN occured -> Abort");
                         
-                        //repair m_swiper
-                        m_swipe.init();
-                       
                         after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
 
                         if(iter % m_update_every == 0) {
@@ -477,7 +466,7 @@ namespace cuvnet
 
             float wd = m_weightdecay * param->get_weight_decay_factor();
 
-            spn_gd(*param->data_ptr().ptr(), dW, m_old_dw[i], m_INFERENCE_TYPE->at(i), m_learnrate, wd, m_l1decay);
+            spn_gd(*param->data_ptr().ptr(), dW, m_old_dw[i], m_INFERENCE_TYPE->at(i), m_rescale, m_learnrate, wd, m_l1decay);
             param->reset_delta();
         }
         m_n_batches = 0;
