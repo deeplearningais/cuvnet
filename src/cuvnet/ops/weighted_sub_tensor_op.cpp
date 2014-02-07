@@ -26,8 +26,13 @@ namespace cuvnet{
         param_t::element_type&  p0 = *m_params[0];
         param_t::element_type&  p1 = *m_params[1];
         result_t::element_type& r0 = *m_results[0];
-
-
+        
+        if (false){
+            //check for nans
+            if (cuv::has_nan(p0.value.cdata())) throw std::runtime_error("ERROR, NAN in input[0] (X)");
+            if (cuv::has_nan(p1.value.cdata())) throw std::runtime_error("ERROR, NAN in input[1] (Weights)");
+        }
+        
         //save max Index for backprop if max function is used
         if ((m_to == cuv::alex_conv::TO_WMAX) || (m_to == cuv::alex_conv::TO_WMAX_LOGSPACE)){
                 cow_ptr< char_matrix > m(new char_matrix(r0.shape));
