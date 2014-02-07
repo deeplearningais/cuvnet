@@ -2,7 +2,7 @@
 
 namespace cuvnet
 {
-    void Sum_Out_Dim::_graphviz_node_desc(detail::graphviz_node& desc)const{
+    void SumOutDim::_graphviz_node_desc(detail::graphviz_node& desc)const{
 
         if(m_axis == 0)
             desc.label = "sum_out..col";
@@ -18,7 +18,7 @@ namespace cuvnet
         }
     }
 
-    void Sum_Out_Dim::fprop(){
+    void SumOutDim::fprop(){
         using namespace cuv;
 
         param_t::element_type&  p0 = *m_params[0];
@@ -62,7 +62,7 @@ namespace cuvnet
     }
 
     
-    void Sum_Out_Dim::bprop(){
+    void SumOutDim::bprop(){
         using namespace cuv;
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
@@ -125,7 +125,7 @@ namespace cuvnet
     }
 
     
-    void Sum_Out_Dim::_determine_shapes(){
+    void SumOutDim::_determine_shapes(){
         param_t::element_type&  p0 = *m_params[0];
         
         m_ndim = p0.shape.size();

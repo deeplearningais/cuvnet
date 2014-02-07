@@ -106,7 +106,8 @@ namespace cuvnet
     /// construct a logaddexp object
     inline
         Op::op_ptr log_add_exp(Op::op_ptr x, float f=0.f)           { return boost::make_shared<LogAddExp>(f, x->result()); }        
-    /// construct a Transpose object
+
+        /// construct a Transpose object
     inline
         Op::op_ptr transpose(Op::op_ptr x) { return boost::make_shared<Transpose>(x->result()); }
     /// construct a Prod object
@@ -189,9 +190,7 @@ namespace cuvnet
 
     /// construct a sum_out_dim object
     inline
-        Op::op_ptr sum_out_dim(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<Sum_Out_Dim>(x->result(), ax ); }
-        
-        
+        Op::op_ptr sum(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<SumOutDim>(x->result(), ax ); }
         Op::op_ptr mean(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<Sum_Out_Dim>(x->result(), ax, true, false ); }
 
         /// construct a Mean object
