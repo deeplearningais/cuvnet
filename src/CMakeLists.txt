@@ -79,7 +79,6 @@ SET(CUVNET_SRC
     cuvnet/models/logistic_regression.cpp
     cuvnet/models/linear_regression.cpp
     cuvnet/models/mlp.cpp
-    cuvnet/models/spn.cpp
 
     third_party/libnpy-0.5/src/npy.c
     third_party/cnpy/cnpy.cpp
