@@ -28,6 +28,7 @@ namespace cuvnet{
             }else{
                 value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
                 cuv::alex_conv::spn_output_op(*v,                           p0.value.cdata(), p1.value.cdata(), p2.value.cdata());
+                m_lae = v;
                 r0.push(v);
             }
     }
@@ -61,7 +62,7 @@ namespace cuvnet{
                 value_ptr p1_ptr = get_data_ptr(p1_old, &p1);
                 value_ptr p2_ptr = get_data_ptr(p2_old, &p2);
                 
-                spn_output_op_grad(*p0_ptr, p0.value.cdata(), *p1_ptr, *p2_ptr, p1.value.cdata(), p2.value.cdata(),  (*m_S)["S"], r0.delta.cdata(), p0.need_derivative, p1.need_derivative, p2.need_derivative, m_eps);       
+                spn_output_op_grad(*p0_ptr, p0.value.cdata(), *p1_ptr, *p2_ptr, p1.value.cdata(), p2.value.cdata(),  (*m_S)["S"], m_lae.cdata(), r0.delta.cdata(), p0.need_derivative, p1.need_derivative, p2.need_derivative, m_eps);       
 
                 if (!p0_old) p0.push(p0_ptr);
                 if (!p1_old) p1.push(p1_ptr);                   

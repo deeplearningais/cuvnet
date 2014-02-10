@@ -29,6 +29,7 @@ namespace cuvnet
                     boost::shared_ptr<cuvnet::monitor> m_S;     
                     unsigned int m_classes;
                     float m_eps;
+                    value_ptr    m_lae;
                 private:
                     inline Op::value_ptr get_data_ptr(bool can_overwritem, param_t::element_type* p);
                 public:
