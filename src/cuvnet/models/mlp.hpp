@@ -16,6 +16,7 @@ namespace cuvnet
                 typedef boost::shared_ptr<Op> op_ptr;
                 boost::function<op_ptr(op_ptr)> m_nonlinearity;
                 bool m_want_bias;
+                float m_bias_default_value;
                 bool m_want_maxout;
                 int m_maxout_N;
                 bool m_want_dropout;
@@ -30,6 +31,7 @@ namespace cuvnet
                  */
                 mlp_layer_opts()
                     :m_want_bias(true)
+                    ,m_bias_default_value(0.f)
                     ,m_want_maxout(false)
                     ,m_want_dropout(false)
                     ,m_group_name("mlplayer")
@@ -38,10 +40,11 @@ namespace cuvnet
                 }
 
                 /**
-                 * set rectified linear function as activation function
+                 * set rectified linear function as activation function and bias default to 1.
                  */
                 inline mlp_layer_opts& rectified_linear(){
                     m_nonlinearity = cuvnet::rectified_linear;
+                    m_bias_default_value = 1.f;
                     return *this;
                 }
 
@@ -74,7 +77,11 @@ namespace cuvnet
                  * Request/disable bias.
                  * @param b if true , use a bias after convolution.
                  */
-                inline mlp_layer_opts& with_bias(bool b=true){ m_want_bias = b; return *this; }
+                inline mlp_layer_opts& with_bias(bool b=true, float defaultval=0.f){ 
+                    m_want_bias = b; 
+                    m_bias_default_value = defaultval;
+                    return *this; 
+                }
 
                 /**
                  * Use maxout for this layer.
@@ -111,6 +118,7 @@ namespace cuvnet
             public:
                 input_ptr m_W, m_bias;
                 op_ptr m_output, m_linear_output;
+                float m_bias_default_value;
                 /**
                  * ctor.
                  * @param X input to the hidden layer
@@ -127,6 +135,7 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version) {
                         ar & boost::serialization::base_object<model>(*this);
                         ar & m_output & m_W & m_bias;
+                        ar & m_bias_default_value;
                     };
         };
 

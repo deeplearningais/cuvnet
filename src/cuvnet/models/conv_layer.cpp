@@ -31,6 +31,8 @@ namespace cuvnet { namespace models {
         unsigned int n_fltpix  = cfg.m_fs * cfg.m_fs;
         LOG4CXX_WARN(g_log, "n_srcmaps: "<<n_srcmaps << ", n_out: "<<cfg.m_n_out);
 
+        m_bias_default_value = cfg.m_bias_default_value;
+
         m_weights = input(cuv::extents[n_srcmaps / cfg.m_n_groups][n_fltpix][cfg.m_n_out], "W");
         if(cfg.m_want_bias){
             m_bias    = input(cuv::extents[cfg.m_n_out], "b");
@@ -143,7 +145,7 @@ namespace cuvnet { namespace models {
         //    }
         //}
         if(m_bias){
-            m_bias->data() = 0.1f;
+            m_bias->data() = m_bias_default_value;
             m_bias->set_weight_decay_factor(0.f);
         }
     }

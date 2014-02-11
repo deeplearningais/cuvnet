@@ -54,6 +54,7 @@ namespace cuvnet { namespace models {
             ,m_fs(fs)
             ,m_n_out(n_out)
             ,m_want_bias(false)
+            ,m_bias_default_value(0.f)
             ,m_scat_n_inputs(0)
             ,m_scat_J(0)
             ,m_scat_C(0)
@@ -83,6 +84,7 @@ namespace cuvnet { namespace models {
             float m_rn_alpha, m_rn_beta;
             unsigned int m_fs, m_n_out;
             bool m_want_bias;
+            float m_bias_default_value;
             int m_scat_n_inputs, m_scat_J, m_scat_C;
             bool m_want_maxout;
             int m_maxout_N;
@@ -92,10 +94,11 @@ namespace cuvnet { namespace models {
         public:
 
         /**
-         * set rectified linear function as activation function
+         * set rectified linear function as activation function and bias default value to 1
          */
         inline conv_layer_opts& rectified_linear(){
             m_nonlinearity = cuvnet::rectified_linear;
+            m_bias_default_value = 1.f;
             return *this;
         }
 
@@ -228,7 +231,11 @@ namespace cuvnet { namespace models {
          * Request/disable bias.
          * @param b if true , use a bias after convolution.
          */
-        inline conv_layer_opts& with_bias(bool b=true){ m_want_bias = b; return *this; }
+        inline conv_layer_opts& with_bias(bool b=true, float defaultvalue=0.f){ 
+            m_want_bias = b; 
+            m_bias_default_value = defaultvalue;
+            return *this; 
+        }
 
         /**
          * Set parameters for scattering transform.
@@ -291,6 +298,7 @@ namespace cuvnet { namespace models {
             bool m_verbose;
 
             float m_learnrate_factor, m_learnrate_factor_bias;
+            float m_bias_default_value;
 
             int m_scat_n_inputs, m_scat_J, m_scat_C;
 
@@ -323,10 +331,11 @@ namespace cuvnet { namespace models {
                     ar & m_weights & m_bias & m_output & m_verbose;
                     ar & m_scat_n_inputs & m_scat_J & m_scat_C;
                     ar & m_input;
-                    if(version > 0)
+                    if(version > 0){
                         ar & m_noiser;
-                    if(version > 0)
                         ar & m_output_before_pooling;
+                        ar & m_bias_default_value;
+                    }
                 }
     };
 } }
