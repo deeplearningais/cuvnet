@@ -70,7 +70,8 @@ namespace cuvnet { namespace models {
         if(cfg.m_want_maxout){
             m_output = tuplewise_op(m_output, 0, cfg.m_maxout_N, cuv::alex_conv::TO_MAX);
         }
-        m_output = cfg.m_nonlinearity(m_output);
+        if(cfg.m_nonlinearity)
+            m_output = cfg.m_nonlinearity(m_output);
 
         if(cfg.m_want_pooling){
             m_output_before_pooling = m_output;

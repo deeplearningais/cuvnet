@@ -5,12 +5,6 @@
 
 namespace cuvnet { namespace models {
     
-    namespace detail {
-        inline boost::shared_ptr<Op> no_op(boost::shared_ptr<Op> x){
-            return x;
-        }
-    }
-
     /**
      * Options for creating a convolution layer.
      *
@@ -46,7 +40,6 @@ namespace cuvnet { namespace models {
             ,m_pool_size(2)
             ,m_pool_stride(2)
             ,m_pool_type(cuv::alex_conv::PT_MAX)
-            ,m_nonlinearity(detail::no_op)
             ,m_want_contrast_norm(false)
             ,m_want_response_normalization(false)
             ,m_rn_alpha(0.5)
