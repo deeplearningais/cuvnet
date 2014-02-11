@@ -10,6 +10,9 @@
 #include <cuvnet/ops.hpp>
 #include "initialization.hpp"
 #include <cuvnet/op_utils.hpp>
+#include "/home/stud/hartman3/local/checkout/thesis_hartman3/src/npc.hpp"
+
+
 
 namespace cuvnet
 {
@@ -17,19 +20,21 @@ namespace cuvnet
     {
 
     void spn_layer::reset_params(){
-        cuv::fill(m_W->data(), 0.f);
+        cuv::fill(m_W->data(), -5.f);
         //initialize_dense_glorot_bengio(m_W, true);
     }
     
     spn_layer::spn_layer(spn_layer::op_ptr X, unsigned int size, unsigned int sub_size, int nStride, int nPoolFlt, float eps, bool hard_gradient, bool pooling, std::string name){
         op_group grp("spnlayer");
         determine_shapes(*X);
-        std::cout << "input shape: " << X->result()->shape[0] << " x " <<  X->result()->shape[1] << " x " <<  X->result()->shape[2]<<  " x " <<  X->result()->shape[3] << std::endl;
+       // std::cout << "input shape: " << X->result()->shape[0] << " x " <<  X->result()->shape[1] << " x " <<  X->result()->shape[2]<<  " x " <<  X->result()->shape[3] << std::endl;
 
         using namespace cuv;
         std::string m_name("spn_layer_W_");
         m_name.append(name);    
         m_W = input(cuv::extents[size][sub_size], m_name);
+        cuv::fill(m_W->data(), -2.f);
+
         
         boost::shared_ptr<cuvnet::monitor> mon(new monitor(true));
 
@@ -37,10 +42,10 @@ namespace cuvnet
         {
             if (hard_gradient)
             {                    
-                m_output = weighted_sub_tensor_op( local_pool(X, nPoolFlt /*mask size*/, nPoolFlt /*movement of mask*/, alex_conv::PT_SUM /*Type of Pooling*/), 
+                m_output = weighted_sub_tensor_op( local_pool(X, nPoolFlt , nPoolFlt , alex_conv::PT_SUM ), 
                                                    m_W, mon, size, nStride, sub_size, cuv::alex_conv::TO_WMAX_LOGSPACE, eps, true);       
             }else{
-                m_output = weighted_sub_tensor_op(local_pool( X, nPoolFlt /*mask size*/, nPoolFlt /*movement of mask*/, alex_conv::PT_SUM /*Type of Pooling*/), 
+                m_output = weighted_sub_tensor_op(local_pool( X, nPoolFlt , nPoolFlt, alex_conv::PT_SUM ), 
                                                   m_W, mon, size, nStride, sub_size, cuv::alex_conv::TO_LOGWADDEXP_LOGSPACE, eps, true);
             }  
             
@@ -63,30 +68,34 @@ namespace cuvnet
 ////////////////////////////////////////////////////////////////////////////////////// conv layer ////////////////////////////////////////////////////////////////////////////
 
     void spn_conv_layer::reset_params(){
-        initialize_dense_glorot_bengio(m_W, true);
-    }
+        //init or load weights
+        if ( !m_load_weights)
+            initialize_dense_glorot_bengio(m_W, true);
+      }
 
-    // Todo: checken ob X->result()->shape[0] tatsächlich nFiltChannels ist.
-    // check
-    /** First param of Convolve, the images, must have shape
-    *
-    *  nChannels x nPixels x nImages
-    */
-    spn_conv_layer::spn_conv_layer(spn_layer::op_ptr X, unsigned int size, int nStride, int nConvFlt){
+    spn_conv_layer::spn_conv_layer(spn_layer::op_ptr X, unsigned int size, int nStride, int nConvFlt, bool load_weights){
         op_group grp("convlayer");
         determine_shapes(*X);
-        std::cout << "input shape: " << X->result()->shape[0] << " x " <<  X->result()->shape[1] << " x " <<  X->result()->shape[2] << " x " <<  X->result()->shape[3] << std::endl;
-
-        m_W = input(cuv::extents[X->result()->shape[0] /*nFiltChannels*/][nConvFlt /*nFiltPix*/][size /*nFilt*/], "conv_W");
-
+       // std::cout << "input shape: " << X->result()->shape[0] << " x " <<  X->result()->shape[1] << " x " <<  X->result()->shape[2] << " x " <<  X->result()->shape[3] << std::endl;
+        m_W = input(cuv::extents[X->result()->shape[0] ][nConvFlt ][size ], "conv_W");
+        //use pre learned filter?
+        if(load_weights){
+            m_load_weights = true;
+            std::cout << "loading weights from file" << std::endl;
+            m_W->data() = load_npc<float, cuv::dev_memory_space>("/home/stud/hartman3/local/checkout/thesis_hartman3/src/filter_banks/psi_filters-7-morlet-00-s2_x_t4_asqrt2.bin");
+        } else {
+            cuv::fill_rnd_uniform(m_W->data());
+        }
+        
+        
         // define output function
-        m_output = log(convolve(X, exp(1.f, m_W), false /*padding*/, -1 /*padding size (not used)*/, nStride, 1  /*ngroups*/));
+        m_output = log(convolve(X, log_add_exp(m_W), false, -1 , nStride, 1 ));
     }
 
-
+//TODO if rein, für load params
         std::vector<Op*> spn_conv_layer::get_params(){
             std::vector<Op*> params;
-            if(m_W)    params.push_back(m_W.get());
+            params.push_back(m_W.get());
             return params;
         }
 
@@ -94,14 +103,11 @@ namespace cuvnet
 
     // todo output layer back prop step: initialize with ones
     void spn_out_layer::reset_params(){
-        cuv::fill(m_W->data(), 0.f);
+        cuv::fill(m_W->data(), -5.f);
         //initialize_dense_glorot_bengio(m_W, true);
     }
 
-    /*
-     * Output layer implements the top prod layer and the root sum layer.
-     *
-     * */
+
     spn_out_layer::spn_out_layer(std::vector<spn_layer::op_ptr> X, input_ptr Y, unsigned int n_classes, float eps)
     {
         op_group grp("out_layer");
@@ -110,9 +116,10 @@ namespace cuvnet
         {
             determine_shapes(*X[i]);
         }
-        std::cout << "input shape: " << X[0]->result()->shape[0] << " x " <<  X[0]->result()->shape[1] << " x " <<  X[0]->result()->shape[2] << " x " <<  X[0]->result()->shape[3] << std::endl;
+        //std::cout << "input shape: " << X[0]->result()->shape[0] << " x " <<  X[0]->result()->shape[1] << " x " <<  X[0]->result()->shape[2] << " x " <<  X[0]->result()->shape[3] << std::endl;
 
         m_W   = input(cuv::extents[n_classes], "spn_output_W");
+        cuv::fill(m_W->data(), 0.f);
 
         //(input has shape:) nClasses[parts x nModules x nImg)
         boost::shared_ptr<cuvnet::monitor> mon(new monitor(true));
@@ -124,7 +131,6 @@ namespace cuvnet
             X[i] = sum(X[i], 0);
         }
 
-        
         m_root =  spn_output_op(concatenate(X, 0), m_W, Y, mon, n_classes, eps);
         m_output = reshape(m_root, cuv::extents[batch_size]);      
     }
@@ -153,18 +159,15 @@ namespace cuvnet
             const int nStrideConv,
             const int nPoolFlt,
             const float weight_decay,
-            const bool conv_layer){
+            const bool load_filter,
+            const bool rescale_weights){
         
-         m_conv_layer = conv_layer;
+        std::cout << "load filter " << load_filter << std::endl;
          // calculate number of layers
          unsigned int nLayer = 0;
          unsigned int width;
-         if (m_conv_layer){
-            width = ((inputSize*inputSize) / (nStrideConv * nStrideConv));
-         } else {
-            width = inputSize*inputSize;
-        }
-        
+         width = ((inputSize*inputSize) / (nStrideConv * nStrideConv));
+
          while ( width > 1 )
          {
              nLayer++;
@@ -181,15 +184,11 @@ namespace cuvnet
           //std::cout << "generating conv layer: " << std::endl;
           op_ptr o;
           // convolution layer
-          if ( m_conv_layer){
               o = X;
             c_layer.resize(1);
-            c_layer[0] = spn_conv_layer(o, size, nStrideConv, nConvFlt);
+            c_layer[0] = spn_conv_layer(o, size, nStrideConv, nConvFlt, load_filter);
             register_submodel(c_layer[0]);
             o = c_layer[0].m_output;
-          } else {
-            o = log(X);   
-          }
           
           //get op pointer for every class
           std::vector<op_ptr> class_o;
@@ -214,7 +213,7 @@ namespace cuvnet
           for (unsigned int c = 0; c < nClasses; c++)
           {
               unsigned int l = n_layer-1;
-              m_layers[c][l] = spn_layer(class_o[c] /*opt ptr*/, size /*size*/ , n_sub_size, nStride, nPoolFlt, eps, hard_gradient[l], false, std::to_string(c));
+              m_layers[c][l] = spn_layer(class_o[c] , size  , n_sub_size, nStride, nPoolFlt, eps, hard_gradient[l], false, std::to_string(c));
               register_submodel(m_layers[c][l]);
               class_o[c] = m_layers[c][l].m_output;
           }
@@ -228,7 +227,7 @@ namespace cuvnet
               // for every class
               for (unsigned int c = 0; c < nClasses; c++)
               {
-                  m_layers[c][l] = spn_layer(class_o[c] /*opt ptr*/, size /*size*/ , n_sub_size, nStride, nPoolFlt, eps, hard_gradient[l], true, std::to_string((l+1) * nClasses +c));
+                  m_layers[c][l] = spn_layer(class_o[c] , size , n_sub_size, nStride, nPoolFlt, eps, hard_gradient[l], true, std::to_string((l+1) * nClasses +c));
                   register_submodel(m_layers[c][l]);
                   class_o[c] = m_layers[c][l].m_output;
               }
@@ -236,7 +235,7 @@ namespace cuvnet
 
           // output layer
           o_layer.resize(1);
-          o_layer[0] = spn_out_layer(class_o, Y /*label*/, nClasses, eps);
+          o_layer[0] = spn_out_layer(class_o, Y, nClasses, eps);
           register_submodel(o_layer[0]);
           o = o_layer[0].m_output;
                    
@@ -256,24 +255,18 @@ namespace cuvnet
           }         
 
           if (n_layer != hard_gradient.size()){ 
-              std::cout << "error, n_layer size wrong \n n_layer = " << n_layer << ", hard_gradient.size() = " << hard_gradient.size() << std::endl;
+              throw std::runtime_error( "error, n_layer size wrong ");
         }
           
           unsigned int n_params = nLayer * nClasses +1;
-          if (m_conv_layer) n_params++;
+          n_params++;
           
           //set flags for hadrd / soft gradient
           boost::shared_ptr<std::vector<bool> > Inference_type(new std::vector<bool>(n_params)); 
-          if ( m_conv_layer) Inference_type->at(0) = false; // convolution layer can not have hard inference
+          Inference_type->at(0) = false; // convolution layer can not have hard inference
             for (unsigned int i = 0; i < nLayer; i++){ 
-            if (m_conv_layer){
                 for (unsigned int c = 0; c < nClasses; c++){
                     Inference_type->at(i*nClasses + c + 1) = hard_gradient[i];
-                }
-            } else{
-                for (unsigned int c = 0; c < nClasses; c++){
-                    Inference_type->at(i*nClasses + c) = hard_gradient[i];
-                }                
                 }
             }
 
@@ -285,7 +278,7 @@ namespace cuvnet
           this->results = S;
           
           //generate spn gradient descent
-          boost::shared_ptr<spn_gradient_descent> gdo(new spn_gradient_descent(o, X, Y, 0 /*result*/, results /*monitor*/, get_params(), Inference_type, eta, weight_decay));
+          boost::shared_ptr<spn_gradient_descent> gdo(new spn_gradient_descent(o, X, Y, 0 , results , get_params(), Inference_type, eta, rescale_weights, weight_decay));
           
           //dump dot file 
           gdo->get_swiper().dump("bla.dot", true);
@@ -328,3 +321,7 @@ namespace cuvnet
 
     }
 }
+
+
+
+
