@@ -482,6 +482,7 @@ namespace cuvnet
             typedef boost::shared_ptr<std::vector<bool> > inf_type_ptr;
                 
             std::vector<cuv::tensor<float,Op::value_type::memory_space_type> > m_old_dw;  /// tensor to save dS[y,1|x]/dw for morginalization step
+            input_ptr pt_X;
             input_ptr pt_Y;
             float m_learnrate; /// learning rate
             float m_l1decay;
@@ -497,6 +498,10 @@ namespace cuvnet
             op_ptr    classification_err;
             op_ptr    spn_err;
             boost::shared_ptr<swiper>    e_swipe;
+            unsigned int n_batch;
+            
+            cuv::tensor<float,cuv::host_memory_space> data;
+            cuv::tensor<float,cuv::host_memory_space> label_data;
             void inc_n_batches(){ m_n_batches ++; }
         public:
             /**
@@ -509,8 +514,14 @@ namespace cuvnet
              * @param learnrate the initial learningrate
              * @param weightdecay weight decay for weight updates
              */
-        spn_gradient_descent(Op::op_ptr op, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate=0.0001f, float weightdecay=0.0f);
+        spn_gradient_descent(Op::op_ptr op,  input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate=0.0001f, float weightdecay=0.0f);
         void minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs, bool randomize);
+        
+        void set_data(cuv::tensor<float,cuv::host_memory_space> & data, cuv::tensor<float,cuv::host_memory_space> & labels, unsigned int batch_size){
+            this->data = data;
+            this->label_data = labels;
+            n_batch = std::ceil(data.shape(0) / (float) batch_size);
+        }
         
         inline void set_l1decay(float f){ m_l1decay = f; }
 
@@ -520,6 +531,15 @@ namespace cuvnet
          * updates the weights spn-style.
          */
         virtual void update_weights();
+        void get_batch(unsigned int epoch, unsigned int batch){
+            std::cout << "yeah, I should probably implement this" << std::endl;
+            //get next batch;
+            unsigned int start = batch * n_batch;
+            unsigned int end = start + n_batch;
+            cuv::fill(pt_Y->data(), 0.f);
+            pt_Y->data()[cuv::indices[cuv::index_range()][0]] = label_data[cuv::indices[cuv::index_range(start, end)]];
+            pt_X->data() = data[cuv::indices[cuv::index_range(start, end)][cuv::index_range()]];            
+        }
     };
 
     /**

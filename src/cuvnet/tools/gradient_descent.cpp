@@ -254,8 +254,8 @@ namespace cuvnet
     
     // ----------------------- spn gradient descent ------------------  
     
-   spn_gradient_descent::spn_gradient_descent(Op::op_ptr op, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate, float weightdecay)
-        :gradient_descent(op, result, params, learnrate, weightdecay), m_old_dw(params.size()), pt_Y(Y), m_learnrate(learnrate), m_l1decay(0.f)
+   spn_gradient_descent::spn_gradient_descent(Op::op_ptr op, input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate, float weightdecay)
+        :gradient_descent(op, result, params, learnrate, weightdecay), m_old_dw(params.size()), pt_X(X), pt_Y(Y), m_learnrate(learnrate), m_l1decay(0.f)
     {
          m_INFERENCE_TYPE = INFERENCE_TYPE;
          m_results = results;
@@ -292,9 +292,8 @@ namespace cuvnet
     
     
     void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs, bool randomize){
-        //unsigned int n_batches = current_batch_num();
         //TODO implement current_batch_num
-        unsigned int n_batches = 1;
+        unsigned int n_batches = n_batch;
         
         if(m_update_every==0)
             m_update_every = n_batches;
@@ -331,7 +330,9 @@ namespace cuvnet
                 for (unsigned int  batch = 0; batch < n_batches; ++batch, ++iter) {
                     std::cout << " new batch " << std::endl;
 
-                    before_batch(m_epoch, batchids[batch]); // should load data into inputs // TODO
+                    before_batch(m_epoch, batchids[batch]);
+                    //TODO use signal
+                    get_batch(m_epoch, batchids[batch]);
 
                     //  save labels;
                     labels->data() = pt_Y->data();
