@@ -134,7 +134,9 @@ namespace cuvnet
         assert((m_axis == m_ndim-1) || m_axis == 0);
 
         m_res_reshape.resize(1);
-
+        
+        if (m_mean)m_n_summed = (float)p0.shape[m_axis];
+            
         m_param_reshape.resize(2);
         m_param_reshape[0] = p0.shape[0];
         m_param_reshape[1] = p0.shape[m_ndim - 1];
