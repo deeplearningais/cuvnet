@@ -284,8 +284,10 @@ namespace cuvnet
          classification = input( cuv::extents[Y->data().shape(0)][Y->data().shape(1)], "spn_classification" );
          Y_oneOutOfN = input( cuv::extents[Y->data().shape(0)][Y->data().shape(1)], "Y_one_out_of_n_coding" );
          spn_err = mean_to_vec(abs(S - SM), 0);
-         (*m_results).add(monitor::WP_SINK, spn_err, "spn_err");
-         (*m_results).add(monitor::WP_SINK, classification_err, "class_err");
+         boost::shared_ptr<cuvnet::monitor> mon(new monitor(true));
+         mon->add(monitor::WP_SINK, spn_err, "spn_err");
+         mon->add(monitor::WP_SINK, classification_err, "class_err");
+         this->mon = mon;
          classification_err = classification_loss (classification, Y_oneOutOfN,  1);
 
          

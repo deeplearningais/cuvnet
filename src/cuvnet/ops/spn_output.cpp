@@ -22,6 +22,7 @@ namespace cuvnet{
         param_t::element_type&  p1 = *m_params[1];
         param_t::element_type&  p2 = *m_params[2];
         result_t::element_type& r0 = *m_results[0];
+        std::cout << "arrived in spn_output op" << std::endl;
 
             if(r0.can_overwrite_directly()){
                 cuv::alex_conv::spn_output_op(*r0.overwrite_or_add_value(),  p0.value.cdata(), p1.value.cdata(), p2.value.cdata());

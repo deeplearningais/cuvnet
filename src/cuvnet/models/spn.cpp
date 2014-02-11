@@ -52,8 +52,6 @@ namespace cuvnet
                     m_output = weighted_sub_tensor_op(X, m_W, mon, size, nStride, sub_size, cuv::alex_conv::TO_LOGWADDEXP_LOGSPACE, eps, true );
                  }
       }
-          //TODO
-         //std::cout << "size_after_op " << inY*inY1 << std::endl; 
     }
 
         std::vector<Op*> spn_layer::get_params(){
@@ -119,35 +117,8 @@ namespace cuvnet
         //(input has shape:) nClasses[parts x nModules x nImg)
         boost::shared_ptr<cuvnet::monitor> mon(new monitor(true));
         
-        //since we are in log space, multiplications become additions.
-        //concatenation in log style
-        std::vector<op_ptr>  conc(X.size());
-        for  (unsigned int c = 0; c < X.size(); c++){ 
-            conc[c] = sum_to_vec(X[c], 0);
-        }   
-        /*
-        unsigned int c_size = X.size();
-        //make sure size is a multiple of 2
-        float temp_log = std::log2(c_size);
-        if ( (temp_log - int(temp_log)) > 0){
-            //calculate elements which must be concatenated in advance
-            unsigned int diff = c_size - std::pow(2, int(temp_log));
-            
-            for (unsigned int c = diff; c > 0; c--){
-                unsigned int idx = c_size - (2*c);
-                unsigned int dst = c_size - (c +diff);
-                conc[dst] = concatenate(conc[idx], conc[idx + 1], 0 );
-            }
-            c_size -=diff;
-        }
-        //do log style concatenation
-        for ( unsigned int c = c_size/2; c > 0; c /=2){
-            for ( unsigned int i = 0; i < c; i++){
-                unsigned int idx = 2*i;
-                conc[i] = concatenate(conc[idx], conc[idx+1], 0 );
-            }
-        }*/
-        m_output = spn_output_op(concatenate_n(conc, 0, n_classes), m_W, Y, mon, n_classes, eps);        
+        //TODO SUM first dim of ALL THE X ( sum mat to vec obviously does not work = /
+        m_output = spn_output_op(concatenate_n(X, 0, n_classes), m_W, Y, mon, n_classes, eps);        
     }
 
         std::vector<Op*> spn_out_layer::get_params(){
