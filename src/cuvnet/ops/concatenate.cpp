@@ -129,7 +129,8 @@ namespace cuvnet
 
     Concatenate_N::value_type Concatenate_N::get_subtensor(const value_type &v, unsigned int position){
         unsigned int start = 0;
-        for ( unsigned int i = 0; i < position; i ++) start += m_pi_shape[i][m_dim];
+        for ( unsigned int i = 0; i < position; i ++) 
+            start += m_pi_shape[i][m_dim];
         unsigned int end = start + m_pi_shape[position][m_dim];
         
         if(m_dim == 0)      return v[cuv::indices[cuv::index_range(start, end)]];
