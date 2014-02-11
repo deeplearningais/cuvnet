@@ -33,6 +33,7 @@
 #include <cuvnet/ops/concatenate.hpp>
 #include <cuvnet/ops/sum_out_dim.hpp>
 #include <cuvnet/ops/log_add_exp.hpp>
+#include <cuvnet/ops/spn_output.hpp>
 
 #ifndef NO_THEANO_WRAPPERS
 #include <cuvnet/ops/theano_ops.hpp>
