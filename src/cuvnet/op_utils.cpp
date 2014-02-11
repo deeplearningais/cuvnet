@@ -728,14 +728,38 @@ void valid_shape_info::determine_shapes(){
                 i_margin_l += o2i_scale * bon->startx();
                 i_margin_r += o2i_scale * ((inshape[1] - bon->startx()) 
                         - outshape[1] * bon->stridex());
+#define VALID_SHAPE_INFO_DEBUG 0
+#if VALID_SHAPE_INFO_DEBUG
+                cuvAssert(inshape[1] == 
+                        o2i_scale * bon->startx() 
+                        + outshape[1] * bon->stridex()
+                        + o2i_scale * ((inshape[1] - bon->startx()) 
+                        - outshape[1] * bon->stridex()));
+                cuvAssert(inshape[2] == 
+                        o2i_scale * bon->startx() 
+                        + outshape[2] * bon->stridex()
+                        + o2i_scale * ((inshape[1] - bon->startx()) 
+                        - outshape[2] * bon->stridex()));
+#endif
                 o2i_scale *= bon->stridex();
             }
             else if((poolp = dynamic_cast<LocalPooling*>(*it))){
                 std::vector<unsigned int> inshape  = poolp->param(0)->shape;
                 std::vector<unsigned int> outshape = poolp->result(0)->shape;
                 i_margin_l += 0.f;
-                i_margin_r += o2i_scale * (inshape[1]
-                        - outshape[1] * poolp->stridex());
+                i_margin_r += (inshape[1] - outshape[1] * poolp->stridex());
+#if VALID_SHAPE_INFO_DEBUG
+                cuvAssert(inshape[1] == 
+                        0.f
+                        + outshape[1] * poolp->stridex()
+                        + (inshape[1]
+                        - outshape[1] * poolp->stridex()));
+                cuvAssert(inshape[2] == 
+                        0.f
+                        + outshape[2] * poolp->stridex()
+                        + (inshape[1]
+                        - outshape[1] * poolp->stridex()));
+#endif
                 o2i_scale *= poolp->stridex();
             }
             else if((convp = dynamic_cast<Convolve*>(*it))){
@@ -758,6 +782,16 @@ void valid_shape_info::determine_shapes(){
                 // filter extends outside the image.
                 i_margin_r += o2i_scale * ((int)inshape[1] - re);
 
+#if VALID_SHAPE_INFO_DEBUG
+                cuvAssert(inshape[1] == 
+                        lmarg
+                        + outshape[1] * convp->stride()
+                        + ((int)inshape[1] - re));
+                cuvAssert(inshape[2] == 
+                        lmarg
+                        + outshape[2] * convp->stride()
+                        + ((int)inshape[1] - re));
+#endif
                 // adjust scale so that margins in the next iteration can be calculated correctly
                 o2i_scale *= convp->stride();
 
