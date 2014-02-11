@@ -1,7 +1,7 @@
 #include <cuvnet/ops.hpp>
 #include <cuvnet/tools/monitor.hpp>
 #include <cuvnet/models/initialization.hpp>
-#include "alexconv_layer.hpp"
+#include "conv_layer.hpp"
 
 namespace{
     log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("layers"));
@@ -12,10 +12,11 @@ namespace cuvnet { namespace models {
     typedef boost::shared_ptr<Op> op_ptr;
     typedef boost::shared_ptr<ParameterInput> input_ptr;
 
-    alexconv_layer::alexconv_layer(const alexconv_layer_maker& cfg)
+    conv_layer::conv_layer(const conv_layer_opts& cfg)
         :m_input(cfg.m_input)
         ,m_verbose(cfg.m_verbose)
         ,m_learnrate_factor(cfg.m_learnrate_factor)
+        ,m_learnrate_factor_bias(cfg.m_learnrate_factor_bias)
         ,m_scat_n_inputs(cfg.m_scat_n_inputs)
         ,m_scat_J(cfg.m_scat_J)
         ,m_scat_C(cfg.m_scat_C)
@@ -69,8 +70,10 @@ namespace cuvnet { namespace models {
         }
         m_output = cfg.m_nonlinearity(m_output);
 
-        if(cfg.m_want_pooling)
+        if(cfg.m_want_pooling){
+            m_output_before_pooling = m_output;
             m_output = local_pool(m_output, cfg.m_pool_size, cfg.m_pool_stride, cfg.m_pool_type);
+        }
         if(cfg.m_want_contrast_norm){
             cuv::tensor<float, cuv::host_memory_space> kernel(5);
             kernel[0] = 1.f;
@@ -89,7 +92,7 @@ namespace cuvnet { namespace models {
     }
 
 
-    void alexconv_layer::register_watches(monitor& mon){
+    void conv_layer::register_watches(monitor& mon){
         if(!m_verbose)
             return;
         op_ptr m = mean(m_weights);
@@ -99,7 +102,7 @@ namespace cuvnet { namespace models {
     }
 
     std::vector<Op*>
-    alexconv_layer::get_params(){
+    conv_layer::get_params(){
         std::vector<Op*> params;
         params.push_back(m_weights.get());
         if(m_bias)
@@ -107,10 +110,10 @@ namespace cuvnet { namespace models {
         return params;
     }
 
-    void alexconv_layer::reset_params(){
+    void conv_layer::reset_params(){
     	m_weights->set_learnrate_factor(m_learnrate_factor);
         if(m_bias)
-            m_bias->set_learnrate_factor(m_learnrate_factor);
+            m_bias->set_learnrate_factor(m_learnrate_factor_bias);
 
         //initialize_alexconv_glorot_bengio(m_weights, 1, true);
         m_weights->data() = 0.f;
@@ -145,7 +148,7 @@ namespace cuvnet { namespace models {
         }
     }
 
-    alexconv_layer::~alexconv_layer(){
+    conv_layer::~conv_layer(){
     }
 } }
-BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::models::alexconv_layer)
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::models::conv_layer)
