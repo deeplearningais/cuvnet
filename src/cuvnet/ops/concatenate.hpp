@@ -77,14 +77,14 @@ namespace cuvnet
                  * @param in the input
                  * @param eg the extents after reshaping.
                  */
-                Concatenate_N(std::vector<op_ptr> & in, unsigned int dim, unsigned int n)
+                Concatenate_N(std::vector<result_t> & in, unsigned int dim, unsigned int n)
                     :Op(n,1),
                     m_dim(dim),
                     m_n(n)
                 {
                     assert(dim <=2);
                     //add all n params
-                    for ( unsigned int i = 0; i < n ; i++) add_param(i, in[i]->result());
+                    for ( unsigned int i = 0; i < n ; i++) add_param(i, in[i]);
                 }
                 void fprop();
                 void bprop();
