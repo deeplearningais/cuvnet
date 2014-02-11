@@ -1,7 +1,9 @@
 #ifndef __CUVNET_MODELS_MLP_HPP__
 #     define __CUVNET_MODELS_MLP_HPP__
 
+#include <boost/function.hpp>
 #include <cuvnet/ops/input.hpp>
+#include <cuvnet/ops.hpp>
 #include "models.hpp"
 #include "logistic_regression.hpp"
 
@@ -9,6 +11,98 @@ namespace cuvnet
 {
     namespace models
     {
+        struct mlp_layer_opts{
+            private:
+                typedef boost::shared_ptr<Op> op_ptr;
+                boost::function<op_ptr(op_ptr)> m_nonlinearity;
+                bool m_want_bias;
+                bool m_want_maxout;
+                int m_maxout_N;
+                bool m_want_dropout;
+                std::string m_group_name;
+                bool m_unique_group;
+            public:
+                friend class mlp_layer;
+                /**
+                 * ctor.
+                 * @param X input of the mlp layer
+                 * @param size number of neurons in the mlp layer
+                 */
+                mlp_layer_opts()
+                    :m_want_bias(true)
+                    ,m_want_maxout(false)
+                    ,m_want_dropout(false)
+                    ,m_group_name("mlplayer")
+                    ,m_unique_group(true)
+                {
+                }
+
+                /**
+                 * set rectified linear function as activation function
+                 */
+                inline mlp_layer_opts& rectified_linear(){
+                    m_nonlinearity = cuvnet::rectified_linear;
+                    return *this;
+                }
+
+                /**
+                 * set tanh function as activation function
+                 */
+                inline mlp_layer_opts& tanh(){
+                    m_nonlinearity = cuvnet::tanh;
+                    return *this;
+                }
+
+                /**
+                 * set logistic function as activation function
+                 */
+                inline mlp_layer_opts& logistic(){
+                    m_nonlinearity = (op_ptr (*)(op_ptr))cuvnet::logistic;
+                    return *this;
+                }
+
+                /**
+                 * Set the non-linearity.
+                 * @param func a function that takes an Op and returns an op transformed by the non-linearity.
+                 */
+                mlp_layer_opts& non_linearity(boost::function<op_ptr(op_ptr)> f){
+                    m_nonlinearity = f;
+                    return *this;
+                }
+
+                /**
+                 * Request/disable bias.
+                 * @param b if true , use a bias after convolution.
+                 */
+                inline mlp_layer_opts& with_bias(bool b=true){ m_want_bias = b; return *this; }
+
+                /**
+                 * Use maxout for this layer.
+                 * @param n the number of maps to take maximum over (non-overlapping), n==1 turns the feature off.
+                 */
+                inline mlp_layer_opts& maxout(int n){
+                    m_want_maxout = n > 1;
+                    m_maxout_N = n;
+                    return *this;
+                }
+
+                /**
+                 * Use dropout after pooling.
+                 * @param b if true, use dropout.
+                 */
+                inline mlp_layer_opts& dropout(bool b=true){
+                    m_want_dropout = b;
+                    return *this;
+                }
+
+                /**
+                 * Specify group name to be used for all ops inside the layer.
+                 * @param name the name for all conv-layer ops
+                 * @param unique if true, append a unique number to the name.
+                 */
+                inline mlp_layer_opts& group(std::string name="", bool unique=true) { m_group_name = name; return *this;  }
+        };
+
         struct mlp_layer
         : public model{
             private:
@@ -22,7 +116,7 @@ namespace cuvnet
                  * @param X input to the hidden layer
                  * @param size size of the hidden layer.
                  */
-                mlp_layer(op_ptr X, unsigned int size);
+                mlp_layer(op_ptr X, unsigned int size, mlp_layer_opts opts = mlp_layer_opts());
                 mlp_layer(){} ///< default ctor for serialization
                 virtual std::vector<Op*> get_params();
                 virtual void reset_params();
@@ -35,6 +129,7 @@ namespace cuvnet
                         ar & m_output & m_W & m_bias;
                     };
         };
+
 
         struct mlp_classifier
             : public metamodel<model>{

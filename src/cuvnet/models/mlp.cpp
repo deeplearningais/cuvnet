@@ -13,14 +13,33 @@ namespace cuvnet
             m_bias->data() = 0.1f;
         }
 
-        mlp_layer::mlp_layer(mlp_layer::op_ptr X, unsigned int size){
+        mlp_layer::mlp_layer(mlp_layer::op_ptr X, unsigned int size, mlp_layer_opts args){
             determine_shapes(*X);
-            m_W    = input(cuv::extents[X->result()->shape[1]][size], "mlp_W");
-            m_bias = input(cuv::extents[size], "mlp_b");
+            m_W    = input(cuv::extents[X->result()->shape[1]][size], args.m_group_name + "W");
 
-            m_linear_output = mat_plus_vec(
+            boost::scoped_ptr<op_group> grp;
+            if (!args.m_group_name.empty())
+                grp.reset(new op_group(args.m_group_name, args.m_unique_group));
+
+            if(args.m_want_bias){
+                m_bias = input(cuv::extents[size], args.m_group_name + "b");
+                m_linear_output = mat_plus_vec(
                         prod(X, m_W), m_bias, 1);
-            m_output = tanh(m_linear_output);
+            }else
+                m_linear_output = prod(X, m_W);
+
+            if(args.m_want_dropout)
+                m_linear_output = zero_out(m_linear_output, 0.5);
+
+            if(args.m_want_maxout)
+                m_linear_output = tuplewise_op(m_linear_output, 1, 
+                        args.m_maxout_N, cuv::alex_conv::TO_MAX);
+
+            if(args.m_nonlinearity)
+                m_output = args.m_nonlinearity(m_linear_output);
+            else
+                m_output = m_linear_output;
+
         }
         std::vector<Op*> 
         mlp_layer::get_params(){
