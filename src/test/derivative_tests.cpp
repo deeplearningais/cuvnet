@@ -1392,7 +1392,7 @@ BOOST_AUTO_TEST_CASE( sum_out_dim_test_first_dim_mean )
             boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[x][y][z][p]);
             fill_rnd_uniform(inp->data());
         
-            op_ptr op = sum(inp, 0, true);
+            op_ptr op = mean(inp, 0);
             // assumption: op has only one result
             boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op->result());
 

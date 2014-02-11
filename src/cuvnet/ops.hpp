@@ -190,8 +190,10 @@ namespace cuvnet
 
     /// construct a sum_out_dim object
     inline
-        Op::op_ptr sum(Op::op_ptr x, unsigned int ax, bool avg)   { return boost::make_shared<SumOutDim>(x->result(), ax, avg ); }
-        Op::op_ptr mean(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<Sum_Out_Dim>(x->result(), ax, true, false ); }
+        Op::op_ptr sum(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<SumOutDim>(x->result(), ax, false, false ); }
+    /// construct a sum object (python style)
+    inline
+        Op::op_ptr mean(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<SumOutDim>(x->result(), ax, true, false ); }
 
         /// construct a Mean object
     inline
