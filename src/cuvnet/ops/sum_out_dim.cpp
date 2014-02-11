@@ -35,7 +35,7 @@ namespace cuvnet
             v1.reshape(  m_res_reshape );
             
             if(m_axis == 0) cuv::reduce_to_row(v1, v0, red_func, fact_new, 0.f);
-            else                            cuv::reduce_to_col(v1, v0, red_func, fact_new, 0.f);
+            else            cuv::reduce_to_col(v1, v0, red_func, fact_new, 0.f);
                    
         } else if(r0.can_add_directly()){
             // reshape result tensor for operations
@@ -48,7 +48,7 @@ namespace cuvnet
             // reallocate *sigh*
             value_ptr v(new value_type( m_res_reshape, value_ptr::s_allocator));
             if(m_axis == 0) cuv::reduce_to_row(*v, v0, red_func, fact_new, 0.f);
-            else                            cuv::reduce_to_col(*v, v0, red_func, fact_new, 0.f);
+            else            cuv::reduce_to_col(*v, v0, red_func, fact_new, 0.f);
             v->reshape (  m_res_shape );
             r0.push(v);
         }
@@ -119,7 +119,6 @@ namespace cuvnet
                     dst,
                     dst,
                     r, axis, BF_MULT, fact_new, 0.f);
-
             p0.push(p0.value);
             p0.value.reset();
         }
