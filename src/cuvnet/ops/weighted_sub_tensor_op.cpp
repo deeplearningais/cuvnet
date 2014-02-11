@@ -66,7 +66,7 @@ namespace cuvnet{
         
         //check that S has been set if op is used for spn with soft gradient
         if ( m_spn && ((m_to != cuv::alex_conv::TO_WMAX) || (m_to != cuv::alex_conv::TO_WMAX_LOGSPACE)))
-            cuvAssert((*m_S)["S"].size() ==p1.shape[2]);
+            cuvAssert( ((*m_S)["S"].size() == p1.shape[2]) || ((*m_S)["S"].size() == p1.shape[3]) );
 
             if (p1.need_derivative || p2.need_derivative){
                 if(p1.can_overwrite_directly()){
