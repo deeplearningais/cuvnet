@@ -294,8 +294,8 @@ namespace cuvnet
 
         after_batch.connect(boost::bind(&spn_gradient_descent::inc_n_batches, this));
         
-        class_out.open ("out/spn_loss.dat");
-        spn_out.open ("out/classification_loss.dat");
+        spn_out.open ("out/spn_loss.dat");
+        class_out.open ("out/classification_loss.dat");
     }
     
     
@@ -348,14 +348,12 @@ namespace cuvnet
                     
                     //marginalize labels
                     fill(pt_Y->data(), -1.f); // set labels to saved result..
-                    pt_Y->need_derivative( true );
                     
                     //marginalization run
                     m_swipe.fprop();  // forward pass
                     *SM = (*m_results)["S"].copy();
                     m_swipe.bprop(); // backward pass
                     
-                    pt_Y->bprop();
                     *classification = pt_Y->delta().copy();
 
                     if(m_learnrate){
@@ -379,12 +377,15 @@ namespace cuvnet
                         m_swipe.bprop();
                        
                         //calculate spn loss
+                        std::cout <<std::endl << "mean(SM): " << cuv::mean(*SM) << std::endl;
+                        std::cout << "mean(S): " << cuv::mean(*S) << std::endl;
+
                         cuv::apply_binary_functor(*SM, *S, cuv::BF_SUBTRACT);
                         cuv::apply_scalar_functor(*SM, *SM, cuv::SF_ABS);                             
                         float tmp_err = cuv::mean(*SM);
                         s_err += tmp_err;                        
                         std::cout << "spn err: "  << tmp_err << std::endl;
-                        
+
                         cuv::reduce_to_col(*a1, *classification,cuv::RF_ARGMAX);
                         cuv::reduce_to_col(*a2, *Y_oneOutOfN, cuv::RF_ARGMAX);
                         
@@ -448,7 +449,6 @@ namespace cuvnet
             }
 
             float wd = m_weightdecay * param->get_weight_decay_factor();
-
             spn_gd(*param->data_ptr().ptr(), dW, m_old_dw[i], m_INFERENCE_TYPE->at(i), m_rescale, m_learnrate, wd, m_l1decay);
             param->reset_delta();
         }
