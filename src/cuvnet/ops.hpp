@@ -31,7 +31,6 @@
 #include <cuvnet/ops/debug.hpp>
 #include <cuvnet/ops/subtensor.hpp>
 #include <cuvnet/ops/concatenate.hpp>
-#include <cuvnet/ops/spn_output.hpp>
 #include <cuvnet/ops/sum_out_dim.hpp>
 
 #ifndef NO_THEANO_WRAPPERS
