@@ -20,8 +20,7 @@ namespace cuvnet{
         m_results[0]->shape = dst;
     }
 
-    void Weighted_Sub_Tensor_op::fprop(){
-        std::cout << "arrived in weightedsto.. op" << std::endl;
+    void Weighted_Sub_Tensor_op::fprop(){      
         using namespace cuv;
         using namespace cuv::alex_conv;
         param_t::element_type&  p0 = *m_params[0];

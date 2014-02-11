@@ -488,6 +488,7 @@ namespace cuvnet
             unsigned int m_n_batches;
             inf_type_ptr m_INFERENCE_TYPE;
             boost::shared_ptr<monitor> m_results;
+            boost::shared_ptr<monitor> mon;
             input_ptr labels;
             input_ptr SM;
             input_ptr S;
