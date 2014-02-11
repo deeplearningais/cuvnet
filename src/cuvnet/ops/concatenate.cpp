@@ -65,7 +65,6 @@ namespace cuvnet
         }else{
            // std:: cout << "else " << std::endl;
             value_ptr v1 = value_ptr(new value_type(r0.shape, value_ptr::s_allocator)); // this safer but slower
-            cuv::fill(*v1, 675755.f); //TODO CHECK!!
             
             value_type v = *v1;
             if (m_reshape){ 
@@ -175,6 +174,7 @@ namespace cuvnet
         m_results[0]->shape.resize(size);
         for(unsigned int i = 0; i < size; i++){
             if(i == m_dim){
+                m_results[0]->shape[i] = 0;
                 for ( unsigned int s = 0; s < m_n; s++){
                     m_results[0]->shape[i] += m_pi_shape[s][m_dim];
                 }
@@ -182,13 +182,6 @@ namespace cuvnet
                 m_results[0]->shape[i] = p0->shape[i];
             }
         }
-        
-        std::cout << " printing new shape" <<  std::endl;
-        for ( unsigned int i = 0; i < size; i++)
-            std::cout << ", " <<  m_results[0]->shape[i];
-        std::cout << std::endl;
-        std::cout << " printing new shape done" <<  std::endl;
-
         
         //calculate shape of temp tensor if dim > 3
         if ( size > 2){
@@ -220,7 +213,6 @@ namespace cuvnet
                 m_tmp_shape[1] = m_results[0]->shape[m_dim];
                 m_tmp_shape[2] = after;
             }
-             std::cout << "before: " << before << ", after: " << after << std::endl;
         } else
             m_reshape = false;
         
