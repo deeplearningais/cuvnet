@@ -129,9 +129,10 @@ namespace cuvnet
 
     Concatenate_N::value_type Concatenate_N::get_subtensor(const value_type &v, unsigned int position){
         unsigned int start = 0;
+        std::cout << "calculate start m_dim: " << m_dim << std::endl; 
         for ( unsigned int i = 0; i < position; i ++) start += m_pi_shape[i][m_dim];
         unsigned int end = start + m_pi_shape[position][m_dim];
-
+        std::cout << "return" << std::endl; 
         if(m_dim == 0)      return v[cuv::indices[cuv::index_range(start, end)]];
         else if(m_dim == 1) return v[cuv::indices[cuv::index_range()][cuv::index_range(start, end)]];
         else                return v[cuv::indices[cuv::index_range()][cuv::index_range()][cuv::index_range(start, end)]];
@@ -144,7 +145,7 @@ namespace cuvnet
 
         if(r0.can_overwrite_directly()){
             value_type& v = *r0.overwrite_or_add_value();
-         
+             std::cout << "we can overwrite" << std::endl;         
             for (unsigned int i = 0; i < m_n; i++){
                 param_t::element_type&  pi = *m_params[i];
                 value_type part_i = get_subtensor(v, i);
@@ -153,9 +154,13 @@ namespace cuvnet
         }else{
             value_ptr v = value_ptr(new value_type(r0.shape, value_ptr::s_allocator)); // this safer but slower
 
+             std::cout << "we can not overwrite =(" << std::endl;                     
             for (unsigned int i = 0; i < m_n; i++){
+                std::cout << "get param i" << std::endl;         
                 param_t::element_type&  pi = *m_params[i];
+                std::cout << "get subtensor" << std::endl;         
                 value_type part_i = get_subtensor(v, i);
+                std::cout << "copy subtensor" << std::endl;         
                 *static_cast<view_of<value_type>::type*>(&part_i) = pi.value.cdata();                
             }
             r0.push(v);
@@ -208,14 +213,18 @@ namespace cuvnet
     void Concatenate_N::_determine_shapes(){
         param_t&  p0 = m_params[0];
         unsigned int size = p0->shape.size();
+        std::cout << "p0.shape.size() " << p0->shape.size() << std::endl;
         m_pi_shape.resize( m_n, std::vector<int>( size , 0) );
         
         for (unsigned int i = 0; i < m_params.size(); ++i)
         {
             param_t&  pi = m_params[i];
+            std::cout << "i:" << i;
             for ( unsigned int s = 0; s < size; s++){
-                m_pi_shape[i][s] = pi->shape[s];          
+                m_pi_shape[i][s] = pi->shape[s];
+                std::cout << ", " << pi->shape[s];
             }
+            std::cout << std::endl;
         }
         
         m_results[0]->shape.resize(size);
