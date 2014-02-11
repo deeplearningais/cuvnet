@@ -125,7 +125,7 @@ namespace cuvnet
         }
 
         
-        m_root =  spn_output_op(concatenate_n(X, 0, n_classes), m_W, Y, mon, n_classes, eps);
+        m_root =  spn_output_op(concatenate(X, 0), m_W, Y, mon, n_classes, eps);
         m_output = reshape(m_root, cuv::extents[batch_size]);      
     }
 
@@ -285,7 +285,7 @@ namespace cuvnet
           this->results = S;
           
           //generate spn gradient descent
-          boost::shared_ptr<spn_gradient_descent> gdo(new spn_gradient_descent(o, Y, 0 /*result*/, results /*monitor*/, get_params(), Inference_type, eta, weight_decay));
+          boost::shared_ptr<spn_gradient_descent> gdo(new spn_gradient_descent(o, X, Y, 0 /*result*/, results /*monitor*/, get_params(), Inference_type, eta, weight_decay));
           
           //dump dot file 
           gdo->get_swiper().dump("bla.dot", true);
