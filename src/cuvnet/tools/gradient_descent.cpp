@@ -358,11 +358,11 @@ namespace cuvnet
                     m_swipe.bprop(); // backward pass
                     
                     //TODO  efficiently transform labels (Y) in one out of n coding (axis = 1)
-                    
                     std::cout << ".. transforming labels" << std::endl;
                     cuv::fill(Y_oneOutOfN->data(), 0.f);
+                    std::cout << ".. filled with 0" << std::endl;
                     for (unsigned int b = 0; b < pt_Y->result()->shape[0]; b++)
-                        Y_oneOutOfN->data()[cuv::indices[b]][int(pt_Y->data()[cuv::indices[b]][0])] = 1.f;
+                        Y_oneOutOfN->data()[cuv::indices[b]][int(labels->data()[cuv::indices[b]][0])] = 1.f;
                     
                     std::cout << "calculating classification error" << std::endl;
                     classification->data() = pt_Y->delta();
@@ -388,6 +388,7 @@ namespace cuvnet
                         pt_Y->data() = labels->data();
                         std::cout << "norm fprop" << std::endl;
                         m_swipe.fprop();
+                        
                         S->data() = (*m_results)["S"];
                         //calculate spn loss
                         std::cout << "calculate spn_loss" << std::endl;
