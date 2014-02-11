@@ -58,8 +58,7 @@ namespace cuvnet{
                 r0.push(v);
             }
         }
-    
-                std::cout << "done.." << std::endl;
+   
     }
 
     void Weighted_Sub_Tensor_op::bprop(){
