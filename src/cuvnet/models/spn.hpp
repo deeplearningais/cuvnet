@@ -75,6 +75,7 @@ namespace cuvnet
          typedef boost::shared_ptr<Op> op_ptr;
          input_ptr m_W;
          unsigned int nStride;
+         bool m_load_weights = false;
      public:
          op_ptr m_output;
          /**
@@ -84,7 +85,7 @@ namespace cuvnet
           * @param nStride = 1: stride in pooling layer
           * @param nConvFlt = 9: size of convolution mask in input mask (must be of size x*y, with x == y)
           */
-         spn_conv_layer(op_ptr X, unsigned int size, int nStride = 1, int nConvFlt = 9);
+         spn_conv_layer(op_ptr X, unsigned int size, int nStride = 1, int nConvFlt = 9, bool load_weights = false);
          spn_conv_layer(){} ///< default ctor for serialization
          virtual std::vector<Op*> get_params();
          virtual void reset_params();
@@ -175,7 +176,8 @@ namespace cuvnet
                                                          const int nStrideConv = 1,
                                                          const int nPoolFlt = 3,
                                                          const float weight_decay=0.f,
-                                                         const bool conv_layer = true);
+                                                         const bool load_filter = false,
+                                                         const bool rescale_weights = true);
                 virtual std::vector<Op*> get_params();
                 virtual void reset_params();
                 virtual ~spn_classifier(){}
