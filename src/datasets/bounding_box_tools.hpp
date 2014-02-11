@@ -35,6 +35,9 @@ namespace cuvnet
             rectangle(){};
             rectangle(int ymin_, int ymax_, int xmin_, int xmax_)
                     :xmin(xmin_), xmax(xmax_), ymin(ymin_), ymax(ymax_){}
+            inline int area()const{
+                return (ymax-ymin)*(xmax-xmin);
+            }
         };
 
 
@@ -213,15 +216,17 @@ namespace cuvnet
              * @param ct if given, thi
              * @throw runtime_error if neither img nor pcut available.
              */
-            sub_image& fill_padding(int color, boost::shared_ptr<cv::Mat> img = boost::shared_ptr<cv::Mat>(), 
+            sub_image& fill_padding(int color, cv::Mat* img = NULL, 
                     const coordinate_transformer& ct = coordinate_transformer());
 
             /**
              * cuts padding from an image, resulting only in parts that have a counterpart in the original image.
              * @param img if not given, works on internal pcut image
+             * @param pos if not given, works on internal pos object
              * @throw runtime_error if neither img nor pcut available.
              */
-            sub_image& remove_padding(boost::shared_ptr<cv::Mat> img = boost::shared_ptr<cv::Mat>());
+            sub_image& remove_padding(boost::shared_ptr<cv::Mat> img = boost::shared_ptr<cv::Mat>(),
+                    rectangle* pos = NULL);
 
             /**
              * inquire whether there are objects inside this subimage.

@@ -156,19 +156,23 @@ namespace cuvnet { namespace bbtools {
         return *this;
     }
 
-    sub_image& sub_image::remove_padding(boost::shared_ptr<cv::Mat> img){
-        if(img == NULL) {
+    sub_image& sub_image::remove_padding(boost::shared_ptr<cv::Mat> img, rectangle* ppos){
+        if(!img) {
             if(!pcut)
                 throw std::runtime_error("remove_padding: image argument NULL and no cropped subimage available!");
             img = pcut;
         }
-        float scale_w = (pos.xmax-pos.xmin) / (float)(img->cols);
-        float scale_h = (pos.ymax-pos.ymin) / (float)(img->rows);
+        if(!ppos){
+            ppos = &pos;
+        }
 
-        int dbot   = -std::min(0, pos.ymin);
-        int dleft  = -std::min(0, pos.xmin);
-        int dright = -std::min(0, -pos.xmax + original_img.porig->cols);
-        int dtop   = -std::min(0, -pos.ymax + original_img.porig->rows);
+        float scale_w = (ppos->xmax-ppos->xmin) / (float)(img->cols);
+        float scale_h = (ppos->ymax-ppos->ymin) / (float)(img->rows);
+
+        int dbot   = -std::min(0, ppos->ymin);
+        int dleft  = -std::min(0, ppos->xmin);
+        int dright = -std::min(0, -ppos->xmax + original_img.porig->cols);
+        int dtop   = -std::min(0, -ppos->ymax + original_img.porig->rows);
 
         cv::Mat& dst = *img;
 
@@ -176,20 +180,20 @@ namespace cuvnet { namespace bbtools {
                 cv::Range(dbot/scale_h+1, img->rows-dtop/scale_h),
                 cv::Range(dleft/scale_w+1, img->cols-dright/scale_w)); // TODO: removed -1 for both coordinates when switching to opencv
 
-        int new_w = (pos.xmax-pos.xmin) - dleft - dright;
-        int new_h = (pos.ymax-pos.ymin) - dbot - dtop;
-        pos.xmin += dleft;
-        pos.ymin += dbot;
-        pos.xmax  = pos.xmin + new_w;
-        pos.ymax  = pos.ymin + new_h;
+        int new_w = (ppos->xmax-ppos->xmin) - dleft - dright;
+        int new_h = (ppos->ymax-ppos->ymin) - dbot - dtop;
+        ppos->xmin += dleft;
+        ppos->ymin += dbot;
+        ppos->xmax  = ppos->xmin + new_w;
+        ppos->ymax  = ppos->ymin + new_h;
         
         return *this;
     }
-    sub_image& sub_image::fill_padding(int color, boost::shared_ptr<cv::Mat> img, const coordinate_transformer& ct){
+    sub_image& sub_image::fill_padding(int color, cv::Mat* img, const coordinate_transformer& ct){
         if(img == NULL) {
             if(!pcut)
                 throw std::runtime_error("fill_padding: image argument NULL and no cropped subimage available!");
-            img = pcut;
+            img = pcut.get();
         }
         cv::Mat& dst = *img;
         int dbot   = -std::min(0, pos.ymin) * scale_fact + 0.5f;
@@ -225,7 +229,7 @@ namespace cuvnet { namespace bbtools {
             crop();
             return *this;
         }
-        cv::Mat dst = original_img.porig->clone();
+        cv::Mat dst = *original_img.porig;
 
         // enlarge original image
         int dh = std::max(dbot,dtop);
