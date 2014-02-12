@@ -64,12 +64,26 @@ namespace cuvnet { namespace models {
     }
 
     template<class Base>
-    void metamodel<Base>::reset_params(){
-        // use bind2nd, since the 1st param of mem_fun is the implicit `this'
-        // http://stackoverflow.com/questions/1762781/mem-fun-and-bind1st-problem
-        std::for_each(
-                //m_models.begin(), m_models.end(), std::bind2nd(std::mem_fun(&model::reset_params), stage));
+    void
+    metamodel<Base>::reset_params(){
+        _reset_params(this);
+    }
+
+    template<class Base>
+    void
+    metamodel<Base>::_reset_params(metamodel<multistage_model>* p){
+        for(unsigned int stage = 0; stage < p->n_stages(); stage ++){
+            p->switch_stage(stage);
+            std::for_each(
                 m_models.begin(), m_models.end(), std::mem_fun(&model::reset_params));
+        }
+    }
+                
+    template<class Base>
+    void 
+    metamodel<Base>::_reset_params(model* p){
+        std::for_each(
+            m_models.begin(), m_models.end(), std::mem_fun(&model::reset_params));
     }
 
     template<class Base>

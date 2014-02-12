@@ -132,6 +132,7 @@ namespace cuvnet
         struct metamodel : public Base {
             private:
                 typedef boost::shared_ptr<Op> op_ptr;
+                typedef Base base_t;
 
                 friend class boost::serialization::access;
                 template<class Archive>
@@ -139,6 +140,10 @@ namespace cuvnet
                         ar & boost::serialization::base_object<Base>(*this);
                         ar & m_models;
                     }
+
+                void  _reset_params(metamodel<multistage_model>* p);
+                void  _reset_params(model* p);
+
             protected:
                 std::vector<model*> m_models;
 
