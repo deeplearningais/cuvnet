@@ -33,9 +33,9 @@ namespace cuvnet { namespace models {
 
         m_bias_default_value = cfg.m_bias_default_value;
 
-        m_weights = input(cuv::extents[n_srcmaps / cfg.m_n_groups][n_fltpix][cfg.m_n_out], "W");
+        m_weights = input(cuv::extents[n_srcmaps / cfg.m_n_groups][n_fltpix][cfg.m_n_out], cfg.m_group_name + "W");
         if(cfg.m_want_bias){
-            m_bias    = input(cuv::extents[cfg.m_n_out], "b");
+            m_bias    = input(cuv::extents[cfg.m_n_out], cfg.m_group_name + "b");
         }
 
         boost::scoped_ptr<op_group> grp;
@@ -54,7 +54,7 @@ namespace cuvnet { namespace models {
 
             while((partial_sum/2)*2 == partial_sum && partial_sum > 4)
                 partial_sum /= 2;
-            partial_sum = 4;
+            //partial_sum = 4;
             LOG4CXX_WARN(g_log, "Automatically determined partial_sum: " <<partial_sum);
         }
         boost::dynamic_pointer_cast<Convolve>(ret)->set_partial_sum(partial_sum);

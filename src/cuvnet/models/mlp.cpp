@@ -16,6 +16,7 @@ namespace cuvnet
         mlp_layer::mlp_layer(mlp_layer::op_ptr X, unsigned int size, mlp_layer_opts args){
             determine_shapes(*X);
             m_W    = input(cuv::extents[X->result()->shape[1]][size], args.m_group_name + "W");
+            m_W->set_learnrate_factor(args.m_learnrate_factor);
 
             boost::scoped_ptr<op_group> grp;
             if (!args.m_group_name.empty())
@@ -23,6 +24,7 @@ namespace cuvnet
 
             if(args.m_want_bias){
                 m_bias = input(cuv::extents[size], args.m_group_name + "b");
+                m_bias->set_learnrate_factor(args.m_learnrate_factor_bias);
                 m_linear_output = mat_plus_vec(
                         prod(X, m_W), m_bias, 1);
             }else

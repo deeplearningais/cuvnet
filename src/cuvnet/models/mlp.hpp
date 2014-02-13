@@ -22,6 +22,8 @@ namespace cuvnet
                 bool m_want_dropout;
                 std::string m_group_name;
                 bool m_unique_group;
+                float m_learnrate_factor;
+                float m_learnrate_factor_bias;
             public:
                 friend class mlp_layer;
                 /**
@@ -36,6 +38,8 @@ namespace cuvnet
                     ,m_want_dropout(false)
                     ,m_group_name("mlplayer")
                     ,m_unique_group(true)
+                    ,m_learnrate_factor(1.f)
+                    ,m_learnrate_factor_bias(1.f)
                 {
                 }
 
@@ -75,7 +79,7 @@ namespace cuvnet
 
                 /**
                  * Request/disable bias.
-                 * @param b if true , use a bias after convolution.
+                 * @param b if true , use a bias after weight multiplication.
                  */
                 inline mlp_layer_opts& with_bias(bool b=true, float defaultval=0.f){ 
                     m_want_bias = b; 
@@ -103,8 +107,19 @@ namespace cuvnet
                 }
 
                 /**
+                 * Set the learnrate factor for the weights.
+                 * @param fW learnrate factor for weights
+                 * @param fB learnrate factor for bias
+                 */
+                inline mlp_layer_opts& learnrate_factor(float fW, float fB=-1.f){ 
+                    m_learnrate_factor = fW;
+                    m_learnrate_factor_bias = (fB < 0) ? fW : fB;
+                    return *this;
+                }
+
+                /**
                  * Specify group name to be used for all ops inside the layer.
-                 * @param name the name for all conv-layer ops
+                 * @param name the name for all mlp-layer ops
                  * @param unique if true, append a unique number to the name.
                  */
                 inline mlp_layer_opts& group(std::string name="", bool unique=true) { m_group_name = name; return *this;  }

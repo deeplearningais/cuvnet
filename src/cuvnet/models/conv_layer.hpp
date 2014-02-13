@@ -30,6 +30,7 @@ namespace cuvnet { namespace models {
         conv_layer_opts(op_ptr inp, unsigned int fs=5, unsigned int n_out=64)
             :m_input(inp)
             ,m_learnrate_factor(1.f)
+            ,m_learnrate_factor_bias(1.f)
             ,m_random_sparse(false)
             ,m_verbose(false)
             ,m_padding(-1)
