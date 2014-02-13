@@ -2,6 +2,7 @@
 #     define __OP_RESHAPE_HPP__
 
 #include <cuvnet/op.hpp>
+#include <boost/serialization/version.hpp>
 
 namespace cuvnet
 {
@@ -35,16 +36,19 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
             private:
                 unsigned int m_outdim;
+                bool m_copy;
             public:
-                Flatten() :Op(1,1){} ///< for serialization
+                Flatten() :Op(1,1), m_copy(true){} ///< for serialization
                 /**
                  * ctor.
                  * @param in input
                  * @param number of dimensions to keep
+                 * @param copy if false, use possibly unsafe but faster operation
                  */
-                Flatten(result_t& in, unsigned int outdim=1)
-                    :Op(1,1),
-                    m_outdim(outdim)
+                Flatten(result_t& in, unsigned int outdim=1, bool copy=true)
+                    :Op(1,1)
+                    ,m_outdim(outdim)
+                    ,m_copy(copy)
                 {
                     add_param(0,in);
                 }
@@ -59,6 +63,8 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_outdim;
+                        if(version > 0)
+                            ar & m_copy;
                     }
         };
 
@@ -80,17 +86,19 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
             private:
                 std::vector<int> m_shape;
+                bool m_copy;
             public:
-                Reshape() :Op(1,1){} ///< for serialization
+                Reshape() :Op(1,1), m_copy(true){} ///< for serialization
                 /**
                  * ctor.
                  * @param in the input
                  * @param eg the extents after reshaping.
                  */
                 template<std::size_t D>
-                Reshape(result_t& in, const cuv::extent_gen<D>& eg)
-                    :Op(1,1),
-                    m_shape(D)
+                Reshape(result_t& in, const cuv::extent_gen<D>& eg, bool copy=false)
+                    :Op(1,1)
+                    ,m_shape(D)
+                    ,m_copy(copy)
                 {
                     add_param(0,in);
                     for(unsigned int i=0; i<D; i++){
@@ -108,8 +116,12 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_shape;
+                        if(version > 0)
+                            ar & m_copy;
                     }
         };
 }
+BOOST_CLASS_VERSION(cuvnet::Flatten, 1);
+BOOST_CLASS_VERSION(cuvnet::Reshape, 1);
 
 #endif /* __OP_RESHAPE_HPP__ */
