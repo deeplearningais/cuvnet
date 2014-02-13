@@ -10,7 +10,9 @@ namespace cuvnet
     {
         void mlp_layer::reset_params(){
             initialize_dense_glorot_bengio(m_W, true);
-            m_bias->data() = m_bias_default_value;
+            if(m_bias){
+                m_bias->data() = m_bias_default_value;
+            }
         }
 
         mlp_layer::mlp_layer(mlp_layer::op_ptr X, unsigned int size, mlp_layer_opts args){
@@ -47,9 +49,10 @@ namespace cuvnet
         }
         std::vector<Op*> 
         mlp_layer::get_params(){
-            std::vector<Op*> params(2);
-            params[0] = m_W.get();
-            params[1] = m_bias.get();
+            std::vector<Op*> params;
+            params.push_back(m_W.get());
+            if(m_bias)
+                params.push_back(m_bias.get());
             return params;
         }
 
