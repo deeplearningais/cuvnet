@@ -311,6 +311,9 @@ namespace cuvnet
         dst[1] = nOutPixY;
         dst[2] = nOutPixX;
         dst[3] = img[3];
+        if(m_partial_sum){
+            cuvAssert((nOutPixX * nOutPixY) % m_partial_sum == 0);
+        }
         m_results[0]->shape = dst;
     }
 

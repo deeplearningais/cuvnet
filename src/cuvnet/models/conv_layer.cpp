@@ -42,7 +42,7 @@ namespace cuvnet { namespace models {
         if (!cfg.m_group_name.empty())
             grp.reset(new op_group(cfg.m_group_name, cfg.m_unique_group));
 
-        auto ret = convolve(m_input, m_weights, padding>=0, padding, cfg.m_stride, cfg.m_n_groups, cfg.m_partial_sum);
+        auto ret = convolve(m_input, m_weights, padding>=0, padding, cfg.m_stride, cfg.m_n_groups, 0);
         determine_shapes(*ret);
         int partial_sum = cfg.m_partial_sum;
         // determine partial_sum automatically if not given
