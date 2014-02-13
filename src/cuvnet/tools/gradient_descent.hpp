@@ -510,6 +510,7 @@ namespace cuvnet
             unsigned int n_batch;
             unsigned int batch_size;
             unsigned int img_size;
+            float m_thresh;
             
             std::ofstream class_out;
             std::ofstream spn_out;
@@ -530,7 +531,7 @@ namespace cuvnet
              * @param learnrate the initial learningrate
              * @param weightdecay weight decay for weight updates
              */
-        spn_gradient_descent(Op::op_ptr op,  input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate=0.001f, bool rescale_weights = false, float weightdecay=0.0f);
+        spn_gradient_descent(Op::op_ptr op,  input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate=0.001f, bool rescale_weights = false, float thresh = 1.0, float weightdecay=0.0f);
         void minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs, bool randomize);
         
         void set_data(host_data & data, host_data & labels, host_data & label_c, unsigned int batch_size, unsigned int img_size){

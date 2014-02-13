@@ -273,8 +273,8 @@ namespace cuvnet
     
     // ----------------------- spn gradient descent ------------------  
     
-   spn_gradient_descent::spn_gradient_descent(Op::op_ptr op, input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate, bool rescale_weights, float weightdecay)
-        :gradient_descent(op, result, params, learnrate, weightdecay), m_old_dw(params.size()), pt_X(X), pt_Y(Y), m_learnrate(learnrate), m_rescale(rescale_weights), m_l1decay(0.f)
+   spn_gradient_descent::spn_gradient_descent(Op::op_ptr op, input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate, bool rescale_weights, float thresh, float weightdecay)
+        :gradient_descent(op, result, params, learnrate, weightdecay), m_old_dw(params.size()), pt_X(X), pt_Y(Y), m_learnrate(learnrate), m_rescale(rescale_weights), m_l1decay(0.f), m_thresh(thresh)
     {
          m_INFERENCE_TYPE = INFERENCE_TYPE;
          m_results = results;
@@ -408,23 +408,9 @@ namespace cuvnet
                         name.append("_");
                         name.append(std::to_string(m_epoch));
 
-                        std::string names = "S_";
-                        names.append(std::to_string(batchids[batch]));
-                        names.append("_");
-                        names.append(std::to_string(m_epoch));
-                        
-                        std::string namesm = "SM_";
-                        namesm.append(std::to_string(batchids[batch]));
-                        namesm.append("_");
-                        namesm.append(std::to_string(m_epoch));
-                        
-                        tofile(names, *S);
-                        tofile(namesm, *SM);
-                        */
-                        
-//                        tofile(name, *classification);
+                        tofile(name, *classification);
 //                        tofile("labels", *Y_oneOutOfN);
-                        
+*/                        
                         cuv::reduce_to_col(*a1, *classification,cuv::RF_ARGMAX);
                         cuv::reduce_to_col(*a2, *Y_oneOutOfN, cuv::RF_ARGMAX);
                         
@@ -488,7 +474,7 @@ namespace cuvnet
             }
 
             float wd = m_weightdecay * param->get_weight_decay_factor();
-            spn_gd(*param->data_ptr().ptr(), m_old_dw[i],  dW, m_INFERENCE_TYPE->at(i), m_rescale, m_learnrate, wd, m_l1decay);
+            spn_gd(*param->data_ptr().ptr(), m_old_dw[i],  dW, m_INFERENCE_TYPE->at(i), m_rescale, m_thresh, m_learnrate, wd, m_l1decay);
             param->reset_delta();
         }
         m_n_batches = 0;
