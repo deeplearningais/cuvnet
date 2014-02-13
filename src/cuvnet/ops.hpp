@@ -326,7 +326,11 @@ namespace cuvnet
         boost::shared_ptr<RowRangeSelector> row_range_select(Op::op_ptr p0, Op::op_ptr p1, int n_rows, int row=-1){ return boost::make_shared<RowRangeSelector>(p0->result(), p1->result(), n_rows, row); }
     /// construct a Pipe object
     inline 
-        Op::op_ptr result(Op::op_ptr p0, unsigned int result=0){ return boost::make_shared<Pipe>(p0->result(result), result); }
+        Op::op_ptr result(Op::op_ptr p0, unsigned int result=0){ 
+            if(result == 0)
+                return p0;
+            return boost::make_shared<Pipe>(p0->result(result), result); 
+        }
 
     /// construct a ClassificationLoss object
     inline
