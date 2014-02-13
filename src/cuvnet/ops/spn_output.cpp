@@ -8,7 +8,7 @@ namespace cuvnet{
         cuvAssert(m_params[0]->shape.size() > 0);
     
         //check shape of weight tensor
-        cuvAssert(m_params[1]->shape[0] == m_classes);
+        cuvAssert(m_params[1]->shape[1] == m_classes);
     
         std::vector<unsigned int> dst = m_params[0]->shape;
         dst[0] = 1;
