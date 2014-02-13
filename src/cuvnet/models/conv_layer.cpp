@@ -32,6 +32,7 @@ namespace cuvnet { namespace models {
         LOG4CXX_WARN(g_log, "n_srcmaps: "<<n_srcmaps << ", n_out: "<<cfg.m_n_out);
 
         m_bias_default_value = cfg.m_bias_default_value;
+        m_weight_default_std = cfg.m_weight_default_std;
 
         m_weights = input(cuv::extents[n_srcmaps / cfg.m_n_groups][n_fltpix][cfg.m_n_out], cfg.m_group_name + "W");
         if(cfg.m_want_bias){
@@ -120,7 +121,7 @@ namespace cuvnet { namespace models {
 
         //initialize_alexconv_glorot_bengio(m_weights, 1, true);
         m_weights->data() = 0.f;
-        cuv::add_rnd_normal(m_weights->data(), 0.015f);
+        cuv::add_rnd_normal(m_weights->data(), m_weight_default_std);
         //cuv::fill_rnd_uniform(m_weights->data());
         //m_weights->data() *= 0.02f;
         //m_weights->data() -= 0.01f;

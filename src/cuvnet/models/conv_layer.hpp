@@ -49,6 +49,7 @@ namespace cuvnet { namespace models {
             ,m_n_out(n_out)
             ,m_want_bias(false)
             ,m_bias_default_value(0.f)
+            ,m_weight_default_std(0.015f)
             ,m_scat_n_inputs(0)
             ,m_scat_J(0)
             ,m_scat_C(0)
@@ -79,6 +80,7 @@ namespace cuvnet { namespace models {
             unsigned int m_fs, m_n_out;
             bool m_want_bias;
             float m_bias_default_value;
+            float m_weight_default_std;
             int m_scat_n_inputs, m_scat_J, m_scat_C;
             bool m_want_maxout;
             int m_maxout_N;
@@ -267,6 +269,12 @@ namespace cuvnet { namespace models {
          * @param unique if true, append a unique number to the name.
          */
         inline conv_layer_opts& group(std::string name="", bool unique=true) { m_group_name = name; return *this;  }
+
+        /**
+         * When initializing weights with this standard deviation.
+         * @param std standard deviation
+         */
+        inline conv_layer_opts& weight_default_std(float std){ m_weight_default_std = std; return *this; }
     };
 
 
@@ -293,6 +301,7 @@ namespace cuvnet { namespace models {
 
             float m_learnrate_factor, m_learnrate_factor_bias;
             float m_bias_default_value;
+            float m_weight_default_std;
 
             int m_scat_n_inputs, m_scat_J, m_scat_C;
 
