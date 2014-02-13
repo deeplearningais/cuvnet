@@ -385,7 +385,29 @@ namespace cuvnet
                         float tmp_err = cuv::mean(*SM);
                         s_err += tmp_err;                        
                         std::cout << "spn err: "  << tmp_err << std::endl;
+/*
+                        std::string name = "class_";
+                        name.append(std::to_string(batchids[batch]));
+                        name.append("_");
+                        name.append(std::to_string(m_epoch));
 
+                        std::string names = "S_";
+                        names.append(std::to_string(batchids[batch]));
+                        names.append("_");
+                        names.append(std::to_string(m_epoch));
+                        
+                        std::string namesm = "SM_";
+                        namesm.append(std::to_string(batchids[batch]));
+                        namesm.append("_");
+                        namesm.append(std::to_string(m_epoch));
+                        
+                        tofile(names, *S);
+                        tofile(namesm, *SM);
+                        */
+                        
+//                        tofile(name, *classification);
+//                        tofile("labels", *Y_oneOutOfN);
+                        
                         cuv::reduce_to_col(*a1, *classification,cuv::RF_ARGMAX);
                         cuv::reduce_to_col(*a2, *Y_oneOutOfN, cuv::RF_ARGMAX);
                         
@@ -449,7 +471,7 @@ namespace cuvnet
             }
 
             float wd = m_weightdecay * param->get_weight_decay_factor();
-            spn_gd(*param->data_ptr().ptr(), dW, m_old_dw[i], m_INFERENCE_TYPE->at(i), m_rescale, m_learnrate, wd, m_l1decay);
+            spn_gd(*param->data_ptr().ptr(), m_old_dw[i],  dW, m_INFERENCE_TYPE->at(i), m_rescale, m_learnrate, wd, m_l1decay);
             param->reset_delta();
         }
         m_n_batches = 0;
