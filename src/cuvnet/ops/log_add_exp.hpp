@@ -8,7 +8,7 @@ namespace cuvnet
     /**
      * calculates the function log(a + exp(b)) in a stable way ( elementwise ).
      *
-     * \f(a,b) = \log_add_exp(a + b )$
+     * \f(a,b) = \log_add_exp(a, b )$
      *
      * @ingroup Ops
      * 
