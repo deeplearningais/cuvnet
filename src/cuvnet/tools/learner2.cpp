@@ -179,10 +179,10 @@ namespace cuvnet
             gd->set_verbosity(verbosity);
             return gd;
         }else if(typ == "rmsprop"){
-            LOG4CXX_WARN(g_log_learner2, "Creating RMSProp GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
             float delta = cfg.get("delta", 0.01f);
             float grad_avg = cfg.get("grad_avg", 0.9f);
             float l1decay = cfg.get("l1decay", 0.f);
+            LOG4CXX_WARN(g_log_learner2, "Creating RMSProp GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << "grad_avg:" << grad_avg << ")");
             boost::shared_ptr<gradient_descent> gd =
                 drec 
                 ?  boost::make_shared<DRGD<rmsprop_gradient_descent> >(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay)
@@ -206,6 +206,19 @@ namespace cuvnet
                 drec
                 ?  boost::make_shared<DRGD<momentum_gradient_descent> >(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, initial_momentum)
                 :  boost::make_shared<       momentum_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, initial_momentum);
+            gd->set_epoch(start_epoch);
+            gd->set_verbosity(verbosity);
+            return gd;
+        }else if(typ == "adagrad"){
+            float winsize = cfg.get("winsize", INT_MAX);
+            float l1_penalty = cfg.get("l1_penalty", 0.f);
+            float delta = cfg.get("delta", 0.01f);
+            LOG4CXX_WARN(g_log_learner2, "Creating AdaGrad GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", delta:"<< delta 
+                << ", winsize:" << winsize << ", l1_penalty:" << l1_penalty << ")");
+            boost::shared_ptr<gradient_descent> gd =
+                drec
+                ?  boost::make_shared<DRGD<adagrad_gradient_descent> >(m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  delta, winsize, l1_penalty)
+                :  boost::make_shared<       adagrad_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  delta, winsize, l1_penalty);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
