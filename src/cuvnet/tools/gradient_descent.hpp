@@ -28,6 +28,8 @@ namespace cuvnet
     class timeout_stop  : public gradient_descent_stop {};
     /// exception thrown when learning stopped due to a signal by a network peer.
     class network_stop  : public gradient_descent_stop {};
+    /// exception thrown when the epoch ended (usually thrown in load_batch, ie in before_batch event)
+    class epoch_end  : public gradient_descent_stop {};
     /**
      * @}
      */

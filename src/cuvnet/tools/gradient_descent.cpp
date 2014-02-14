@@ -63,8 +63,11 @@ namespace cuvnet
                 before_epoch(m_epoch, wups); // may run early stopping
 
                 for (unsigned int  batch = 0; batch < n_batches; ++batch, ++iter) {
-
-                    before_batch(m_epoch, batchids[batch]); // should load data into inputs
+                    try{
+                        before_batch(m_epoch, batchids[batch]); // should load data into inputs
+                    }catch(epoch_end){
+                        break;
+                    }
 
                     m_swipe.fprop();  // forward pass
                     //std::cout << "free mem after fprop: " << cuv::getFreeDeviceMemory()/1024/1024 << std::endl;
@@ -200,18 +203,22 @@ namespace cuvnet
     }
 
     void gradient_descent::eval_epoch(unsigned int current_epoch){
-        if(current_batch_num) {
-            unsigned int n_batches = current_batch_num();
-            for (unsigned int  batch = 0; batch < n_batches; ++batch) {
-                before_batch(current_epoch, batch);
+        try{
+            if(current_batch_num) {
+                unsigned int n_batches = current_batch_num();
+                for (unsigned int  batch = 0; batch < n_batches; ++batch) {
+                    before_batch(current_epoch, batch);
+                    m_swipe.fprop(); // fprop /only/
+                    after_batch(current_epoch, batch);
+                }
+            }else{
+                // batch learning
+                before_batch(current_epoch, 0);
                 m_swipe.fprop(); // fprop /only/
-                after_batch(current_epoch, batch);
+                after_batch(current_epoch, 0);
             }
-        }else{
-            // batch learning
-            before_batch(current_epoch, 0);
-            m_swipe.fprop(); // fprop /only/
-            after_batch(current_epoch, 0);
+        }catch (epoch_end){
+            // fine, no more data!
         }
     }
 
