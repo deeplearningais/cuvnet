@@ -66,6 +66,8 @@ namespace cuvnet
             /// that the image is only a view on the original image.
             rectangle position_in_orig;
 
+            bool flipped;   ///< whether the image is flipped horizontally
+
             /// some variables recording where the image is from
             /// @{
             /// the total number of scales at which original image is processed
@@ -105,6 +107,9 @@ namespace cuvnet
             /// rotate the image by 90 degrees (for testing)
             /// @deprecated
             void transpose();
+            
+            /// flip the image horizontally
+            void flip_lr();
 
             private:
             /// images are not to be copied
@@ -144,6 +149,12 @@ namespace cuvnet
              * @param img the original image
              */
             sub_image(const image& img);
+
+            /**
+             * crop square region from image center
+             * @param maxoffset maximum fraction of the shorter that can be cropped away
+             */
+            sub_image& crop_random_square(float frac);
 
             /**
              * crop the image from the original image.

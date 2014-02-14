@@ -48,6 +48,16 @@ namespace cuvnet { namespace bbtools {
         }
     }
 
+    void image::flip_lr(){
+        cv::flip(*porig, *porig, 1);
+        BOOST_FOREACH(object& o, meta.objects){
+            o.bb.xmin = porig->cols - o.bb.xmin;
+            o.bb.xmax = porig->cols - o.bb.xmax;
+            o.bb.ymin = porig->cols - o.bb.ymin;
+            o.bb.ymax = porig->cols - o.bb.ymax;
+        }
+    }
+
     sub_image::sub_image(const image& img, const rectangle& r)
         :original_img(img)
         ,pos(r)
@@ -76,6 +86,18 @@ namespace cuvnet { namespace bbtools {
             break;
         }
         return found;
+    }
+    sub_image& sub_image::crop_random_square(float frac){
+        int w = pos.xmax - pos.xmin;
+        int h = pos.ymax - pos.ymin;
+        int sq_size = frac * std::min(w, h);
+        int xoff = drand48() * (w - sq_size);
+        int yoff = drand48() * (h - sq_size);
+        pos.xmin += xoff;
+        pos.xmax = pos.xmin + sq_size;
+        pos.ymin += yoff;
+        pos.ymax = pos.ymin + sq_size;
+        return *this;
     }
 
     sub_image& sub_image::constrain_to_orig(bool clip){
