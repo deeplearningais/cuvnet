@@ -259,6 +259,7 @@ namespace cuvnet
    spn_gradient_descent::spn_gradient_descent(Op::op_ptr op, input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate, bool rescale_weights, float thresh, float weightdecay)
         :gradient_descent(op, result, params, learnrate, weightdecay), m_old_dw(params.size()), pt_X(X), pt_Y(Y), m_learnrate(learnrate), m_rescale(rescale_weights), m_l1decay(0.f), m_thresh(thresh)
     {
+        std::cout << "debug gd 0 " << std::endl;
          m_INFERENCE_TYPE = INFERENCE_TYPE;
          m_results = results;
          
@@ -339,6 +340,7 @@ namespace cuvnet
 
                 before_epoch(m_epoch, wups); // may run early stopping
                 for (unsigned int  batch = 0; batch < n_batches; ++batch, ++iter) {
+
                     before_batch(m_epoch, batchids[batch]);
                     //TODO use signal
                     get_batch(m_epoch, batchids[batch]);
@@ -348,12 +350,13 @@ namespace cuvnet
                     
                     //marginalize labels
                     fill(pt_Y->data(), -1.f); // set labels to saved result..
+
                     
                     //marginalization run
                     m_swipe.fprop();  // forward pass
                     *SM = (*m_results)["S"].copy();
                     m_swipe.bprop(); // backward pass
-                    
+                 
                     *classification = pt_Y->delta().copy();
 
                     if(m_learnrate){
@@ -370,10 +373,11 @@ namespace cuvnet
                             m_old_dw[i] = dW.copy();
                             param->reset_delta();
                         }
-                        
+                       
                         pt_Y->data() = *labels;
                         m_swipe.fprop();
                         *S = (*m_results)["S"].copy();                        
+
                         m_swipe.bprop();
                        
                         //calculate spn loss
@@ -385,7 +389,7 @@ namespace cuvnet
                         float tmp_err = cuv::mean(*SM);
                         s_err += tmp_err;                        
                         std::cout << "spn err: "  << tmp_err << std::endl;
-/*
+
                         std::string name = "class_";
                         name.append(std::to_string(batchids[batch]));
                         name.append("_");
@@ -393,7 +397,7 @@ namespace cuvnet
 
                         tofile(name, *classification);
 //                        tofile("labels", *Y_oneOutOfN);
-*/                        
+                        
                         cuv::reduce_to_col(*a1, *classification,cuv::RF_ARGMAX);
                         cuv::reduce_to_col(*a2, *Y_oneOutOfN, cuv::RF_ARGMAX);
                         

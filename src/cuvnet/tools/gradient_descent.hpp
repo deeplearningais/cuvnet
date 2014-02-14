@@ -6,7 +6,7 @@
 #include<cuvnet/op.hpp>
 #include<cuvnet/op_utils.hpp>
 #include<cuv/tensor_ops/tensor_ops.hpp>
-
+#include <cuvnet/tools/matwrite.hpp>
 namespace cuvnet
 {
     //forward declaration of monitor
@@ -549,11 +549,16 @@ namespace cuvnet
             //get next batch;
             unsigned int start = batch * batch_size;
             unsigned int end = start + batch_size;
-            boost::shared_ptr< cuv::tensor<float,cuv::dev_memory_space> > v (new cuv::tensor<float,cuv::dev_memory_space> (data[cuv::indices[cuv::index_range(start, end)]]));
-            cuvAssert(!has_nan(*v));
-            v->reshape(cuv::extents[1][img_size][img_size][batch_size]);
-            cuvAssert(!has_nan(*v));
-            pt_X->data() = *v;   
+            boost::shared_ptr< cuv::tensor<float,cuv::dev_memory_space> >  v (new cuv::tensor<float,cuv::dev_memory_space> (data[cuv::indices[cuv::index_range(start, end)]]));
+            cuv:: tensor<float,cuv::dev_memory_space> v_T (cuv::extents[v->shape(1)][v->shape(0)]);
+            cuv::transpose(v_T, *v);
+            
+            cuvAssert(!has_nan(v_T));
+            v_T.reshape(cuv::extents[1][img_size][img_size][batch_size]);
+            cuvAssert(!has_nan(v_T));
+            pt_X->data() = v_T;   
+            
+            tofile("dataxy", pt_X->data());
             
             cuv::fill(pt_Y->data(), 0.f);
             //copy data to dev memory space
