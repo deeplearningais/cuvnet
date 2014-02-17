@@ -4,6 +4,7 @@
 #include <queue>
 #include <boost/thread.hpp>
 #include <cuvnet/tools/logging.hpp>
+#include <cuvnet/tools/gradient_descent.hpp>
 #include <datasets/bounding_box_tools.hpp>
 
 namespace cuvnet
@@ -31,11 +32,17 @@ namespace cuvnet
         class image_queue{
             private:
                 mutable boost::mutex m_mutex;
+                int m_patterns_to_epoch_end;
                 std::queue<boost::shared_ptr<PatternType> > m_queue;
                 log4cxx::LoggerPtr m_log;
             public:
                 image_queue(){
                     m_log = log4cxx::Logger::getLogger("image_queue");
+                    m_patterns_to_epoch_end = -1;
+                }
+
+                void on_epoch_ends(){
+                    m_patterns_to_epoch_end = size();
                 }
 
                 void push(boost::shared_ptr<PatternType> pat, bool lock=true){ 
@@ -68,19 +75,22 @@ namespace cuvnet
                 void pop(std::list<boost::shared_ptr<PatternType> >& dest, unsigned int n)
                 {
                     // TODO: use boost condition_variable!                                                                                                                      
-                    while(size() < n)                                                                                                                                           
+                    while(size() < n)
                     {
                         //LOG4CXX_WARN(m_log, "queue size="<<size()<<", but requested "<<n<<" patterns-->sleeping");
-                        boost::this_thread::sleep(boost::posix_time::millisec(10));                                                                                             
+                        boost::this_thread::sleep(boost::posix_time::millisec(10));
                     }
 
-                    // TODO: when getting lock fails, loop again above!                                                                                                         
-                    //       that way, multiple clients can use the same queue                                                                                                  
+                    // TODO: when getting lock fails, loop again above!
+                    //       that way, multiple clients can use the same queue
                     boost::mutex::scoped_lock lock(m_mutex);
-                    for (unsigned int i = 0; i < n; ++i) {                                                                                                                      
-                        dest.push_back(m_queue.front());                                                                                                                  
-                        m_queue.pop();                                                                                                                                    
-                    }          
+                    for (unsigned int i = 0; i < n; ++i) {
+                        dest.push_back(m_queue.front());
+                        m_queue.pop();
+                        if(m_patterns_to_epoch_end == 0)
+                            throw epoch_end();
+                        m_patterns_to_epoch_end--;
+                    }
                 }
         };
 
@@ -93,6 +103,7 @@ namespace cuvnet
             private:
                 std::vector<bbtools::image_meta_info> m_dataset;
                 std::vector<unsigned int> m_indices;
+                bool m_shuffle;
                 void read_meta_info(std::vector<bbtools::image_meta_info>& dest, const std::string& filename);
                 log4cxx::LoggerPtr m_log;
             public:
@@ -108,6 +119,14 @@ namespace cuvnet
                  */
                 const bbtools::image_meta_info& get(unsigned int i)const{
                     return m_dataset[m_indices[i]];
+                }
+
+                /**
+                 * shuffle indices.
+                 */
+                inline void shuffle(){
+                    if(m_shuffle)
+                        std::random_shuffle(m_indices.begin(), m_indices.end());
                 }
                
                 /**
@@ -287,7 +306,10 @@ namespace cuvnet
                             {
                                 m_asio_queue.post(m_worker_factory(m_queue, &m_dataset->get(cnt)));
                                 cnt = (cnt+1) % m_dataset->size();
-                                //if(cnt == 0)
+                                if(cnt == 0){
+                                    m_dataset->shuffle();
+                                    m_asio_queue.post(boost::bind(&Queue::on_epoch_ends, m_queue));
+                                }
                                 //    LOG4CXX_INFO(g_log, "Roundtrip through dataset completed. Shuffling.");
                             }
 

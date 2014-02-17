@@ -50,6 +50,8 @@ namespace cuvnet { namespace image_datasets {
             ifs >> imi.filename;
             if(imi.filename.size() == 0)
                 break;
+            if(imi.filename[0] == '#')
+                continue;
             ifs >> n_objs;
             for (unsigned int i = 0; i < n_objs; ++i)
             {
@@ -71,8 +73,8 @@ namespace cuvnet { namespace image_datasets {
         read_meta_info(m_dataset, filename);
         for (unsigned int i = 0; i < m_dataset.size(); ++i)
             m_indices.push_back(i);
-        if(shuffle)
-            std::random_shuffle(m_indices.begin(), m_indices.end());
+        m_shuffle = shuffle;
+        this->shuffle();
     }
 
     image_loader::image_loader(image_queue<classification_pattern>* queue, const bbtools::image_meta_info* meta)
