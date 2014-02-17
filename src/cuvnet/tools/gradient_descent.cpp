@@ -276,7 +276,6 @@ namespace cuvnet
    spn_gradient_descent::spn_gradient_descent(Op::op_ptr op, input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate, bool rescale_weights, float thresh, float weightdecay)
         :gradient_descent(op, result, params, learnrate, weightdecay), m_old_dw(params.size()), pt_X(X), pt_Y(Y), m_learnrate(learnrate), m_rescale(rescale_weights), m_l1decay(0.f), m_thresh(thresh)
     {
-        std::cout << "debug gd 0 " << std::endl;
          m_INFERENCE_TYPE = INFERENCE_TYPE;
          m_results = results;
          
@@ -311,10 +310,7 @@ namespace cuvnet
         }
 
         after_batch.connect(boost::bind(&spn_gradient_descent::inc_n_batches, this));
-        
-        spn_out.open ("out/spn_loss.dat");
-        class_out.open ("out/classification_loss.dat");
-    }
+        }
     
     
     void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs, bool randomize){
@@ -412,7 +408,7 @@ namespace cuvnet
                         name.append("_");
                         name.append(std::to_string(m_epoch));
 
-                        tofile(name, *classification);
+//                        tofile(name, *classification);
 //                        tofile("labels", *Y_oneOutOfN);
                         
                         cuv::reduce_to_col(*a1, *classification,cuv::RF_ARGMAX);
@@ -441,9 +437,8 @@ namespace cuvnet
                     }
                 }
                 //logging
-                spn_out   << m_epoch << "    " << s_err/float(n_batches) << std::endl;
-                class_out << m_epoch << "    " << c_err /float(n_batches) << std::endl;
-
+                log4cxx::MDC err_spn("err_spn",boost::lexical_cast<std::string>(s_err/float(n_batches))); 
+                log4cxx::MDC err_class("err_class",boost::lexical_cast<std::string>(c_err /float(n_batches)));                
                 after_epoch(m_epoch, wups); // should log error etc
             }
 
@@ -456,8 +451,6 @@ namespace cuvnet
         //m_epoch *= n_batches; // number of batch presentations
 
         done_learning();
-        class_out.close();
-        spn_out.close();
     }
 
 
