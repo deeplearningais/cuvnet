@@ -1,7 +1,9 @@
 #ifndef __CUVNET_LOGREG_HPP__
 #     define __CUVNET_LOGREG_HPP__
 
+#include <boost/serialization/version.hpp>
 #include <cuvnet/ops/input.hpp>
+#include <cuvnet/ops/output.hpp>
 #include "models.hpp"
 
 namespace cuvnet
@@ -15,6 +17,7 @@ namespace cuvnet
 
             typedef boost::shared_ptr<Op> op_ptr;
             typedef boost::shared_ptr<ParameterInput> input_ptr;
+            typedef boost::shared_ptr<Sink> sink_ptr;
 
             op_ptr m_loss, m_classloss, m_estimator;
             input_ptr m_W;
@@ -22,6 +25,7 @@ namespace cuvnet
             op_ptr m_X;
             input_ptr m_Y;
 
+            sink_ptr m_estimator_sink;
 
             /// default ctor for serialization.
             logistic_regression(){}
@@ -47,10 +51,13 @@ namespace cuvnet
                     ar & boost::serialization::base_object<model>(*this);;
                     ar & m_loss & m_classloss & m_W & m_bias & m_estimator;
                     ar & m_X & m_Y;
+                    if(version > 0)
+                        ar & m_estimator_sink;
                 };
         };
 
     }
 }
 BOOST_CLASS_EXPORT_KEY(cuvnet::models::logistic_regression) 
+BOOST_CLASS_VERSION(cuvnet::models::logistic_regression, 1);
 #endif /* __CUVNET_LOGREG_HPP__ */

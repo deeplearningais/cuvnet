@@ -1,6 +1,7 @@
 #include <cuvnet/ops.hpp>
 #include "initialization.hpp"
 #include <cuvnet/op_utils.hpp>
+#include <cuvnet/tools/monitor.hpp>
 #include <cuvnet/ops.hpp>
 #include "mlp.hpp"
 
@@ -10,6 +11,8 @@ namespace cuvnet
     {
         void mlp_layer::reset_params(){
             initialize_dense_glorot_bengio(m_W, true);
+            //m_W->data() = 0.0f;
+            //cuv::add_rnd_normal(m_W->data(), 0.001f);
             if(m_bias){
                 m_bias->data() = m_bias_default_value;
             }
@@ -45,7 +48,24 @@ namespace cuvnet
                 m_output = m_linear_output;
 
             m_bias_default_value = args.m_bias_default_value;
+            m_verbose = args.m_verbose;
+        }
+        void mlp_layer::register_watches(monitor& mon){
+            if(!m_verbose)
+                return;
 
+            op_ptr m = mean(m_W);
+            op_ptr v = mean(square(m_W)) - square(m);
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS, v, m_W->name() + "_var");
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS, m, m_W->name() + "_mean");
+
+            op_ptr outvar = mean(var_to_vec(m_linear_output, 1));
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS,                                                                                                                                           
+                    outvar, m_W->name() + "_linout_var", 0);
+
+            op_ptr outmean = mean(mean_to_vec(m_linear_output, 1));
+            mon.add(monitor::WP_SCALAR_EPOCH_STATS,                                                                                                                                           
+                    outmean, m_W->name() + "_linout_mean", 0);
         }
         std::vector<Op*> 
         mlp_layer::get_params(){

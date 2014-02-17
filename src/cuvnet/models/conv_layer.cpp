@@ -65,6 +65,7 @@ namespace cuvnet { namespace models {
             ret = mat_plus_vec(ret, m_bias, 0);
         }
         m_output = ret;
+        m_linear_output = m_output;
         if(cfg.m_want_dropout){
             m_output = m_noiser = zero_out(m_output, 0.5);
         }
@@ -74,8 +75,8 @@ namespace cuvnet { namespace models {
         if(cfg.m_nonlinearity)
             m_output = cfg.m_nonlinearity(m_output);
 
+        m_output_before_pooling = m_output;
         if(cfg.m_want_pooling){
-            m_output_before_pooling = m_output;
             m_output = local_pool(m_output, cfg.m_pool_size, cfg.m_pool_stride, cfg.m_pool_type);
         }
         if(cfg.m_want_contrast_norm){
@@ -101,8 +102,16 @@ namespace cuvnet { namespace models {
             return;
         op_ptr m = mean(m_weights);
         op_ptr v = mean(square(m_weights)) - square(m);
-        mon.add(monitor::WP_SCALAR_EPOCH_STATS, v, "W_var");
-        mon.add(monitor::WP_SCALAR_EPOCH_STATS, m, "W_mean");
+        mon.add(monitor::WP_SCALAR_EPOCH_STATS, v, m_weights->name() + "_var");
+        mon.add(monitor::WP_SCALAR_EPOCH_STATS, m, m_weights->name() + "_mean");
+
+        op_ptr outvar = mean(var_to_vec(m_linear_output, 0));
+        mon.add(monitor::WP_SCALAR_EPOCH_STATS,
+                outvar, m_weights->name() + "_linout_var", 0);
+
+        op_ptr outmean = mean(mean_to_vec(m_linear_output, 0));
+        mon.add(monitor::WP_SCALAR_EPOCH_STATS,
+                outmean, m_weights->name() + "_linout_mean", 0);
     }
 
     std::vector<Op*>

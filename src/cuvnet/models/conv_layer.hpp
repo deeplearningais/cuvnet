@@ -122,7 +122,7 @@ namespace cuvnet { namespace models {
          *
          * Verbose layers record their mean and variance.
          */
-        inline conv_layer_opts& verbose(bool b){ m_verbose = b;  return *this;}
+        inline conv_layer_opts& verbose(bool b=true){ m_verbose = b;  return *this;}
 
         /**
          * Set pooling options.
@@ -296,7 +296,7 @@ namespace cuvnet { namespace models {
 
             boost::shared_ptr<Noiser> m_noiser;
 
-            op_ptr m_output, m_output_before_pooling;
+            op_ptr m_output, m_output_before_pooling, m_linear_output;
             bool m_verbose;
 
             float m_learnrate_factor, m_learnrate_factor_bias;
@@ -339,11 +339,13 @@ namespace cuvnet { namespace models {
                         ar & m_output_before_pooling;
                         ar & m_bias_default_value;
                     }
+                    if(version > 2)
+                        ar & m_linear_output;
                 }
     };
 } }
 
 BOOST_CLASS_EXPORT_KEY(cuvnet::models::conv_layer)
-BOOST_CLASS_VERSION(cuvnet::models::conv_layer, 2);
+BOOST_CLASS_VERSION(cuvnet::models::conv_layer, 3);
 
 #endif /* __CUVNET_MODELS_ALEXCONV_LAYERS_HPP__ */

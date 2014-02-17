@@ -9,6 +9,7 @@
 
 namespace cuvnet
 {
+    class monitor;
     namespace models
     {
         struct mlp_layer_opts{
@@ -24,6 +25,7 @@ namespace cuvnet
                 bool m_unique_group;
                 float m_learnrate_factor;
                 float m_learnrate_factor_bias;
+                bool m_verbose;
             public:
                 friend class mlp_layer;
                 /**
@@ -40,7 +42,17 @@ namespace cuvnet
                     ,m_unique_group(true)
                     ,m_learnrate_factor(1.f)
                     ,m_learnrate_factor_bias(1.f)
+                    ,m_verbose(false)
                 {
+                }
+
+                /**
+                 * set verbosity (records mean, variance of weights and outputs after every epoch)
+                 * @param b verbosity
+                 */
+                inline mlp_layer_opts& verbose(bool b=true){
+                    m_verbose = b;
+                    return *this;
                 }
 
                 /**
@@ -134,6 +146,7 @@ namespace cuvnet
                 input_ptr m_W, m_bias;
                 op_ptr m_output, m_linear_output;
                 float m_bias_default_value;
+                bool m_verbose;
                 /**
                  * ctor.
                  * @param X input to the hidden layer
@@ -142,6 +155,7 @@ namespace cuvnet
                 mlp_layer(op_ptr X, unsigned int size, mlp_layer_opts opts = mlp_layer_opts());
                 mlp_layer(){} ///< default ctor for serialization
                 virtual std::vector<Op*> get_params();
+                virtual void register_watches(monitor& mon);
                 virtual void reset_params();
                 virtual ~mlp_layer(){}
             private:
@@ -151,6 +165,8 @@ namespace cuvnet
                         ar & boost::serialization::base_object<model>(*this);
                         ar & m_output & m_W & m_bias;
                         ar & m_bias_default_value;
+                        if(version > 1)
+                            ar & m_verbose;
                     };
         };
 
@@ -163,6 +179,7 @@ namespace cuvnet
                     std::vector<mlp_layer> m_layers;
                     logistic_regression m_logreg;
                 public:
+                    mlp_classifier(){} ///< default ctor for serialization
                     mlp_classifier(input_ptr X, input_ptr Y, std::vector<unsigned int> hlsizes);
                     virtual ~mlp_classifier(){}
                 private:
@@ -177,5 +194,6 @@ namespace cuvnet
 }
 BOOST_CLASS_EXPORT_KEY(cuvnet::models::mlp_layer);
 BOOST_CLASS_EXPORT_KEY(cuvnet::models::mlp_classifier);
+BOOST_CLASS_VERSION(cuvnet::models::mlp_layer, 1);
 
 #endif /* __CUVNET_MODELS_MLP_HPP__ */

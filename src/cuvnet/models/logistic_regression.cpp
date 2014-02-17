@@ -29,6 +29,7 @@ namespace cuvnet
                 m_W = input(cuv::extents[X->result()->shape[1]][Y->result()->shape[1]], "logreg_W");
                 m_bias = input(cuv::extents[Y->result()->shape[1]], "logreg_b");
                 m_estimator = mat_plus_vec(prod(X, m_W), m_bias, 1);
+                m_estimator_sink = sink("logreg_est", m_estimator);
             }
             else
                 m_estimator = X;
