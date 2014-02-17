@@ -505,10 +505,7 @@ namespace cuvnet
             unsigned int batch_size;
             unsigned int img_size;
             float m_thresh;
-            
-            std::ofstream class_out;
-            std::ofstream spn_out;
-            
+                        
             typedef cuv::tensor<float,cuv::host_memory_space> host_data;
             host_data data;
             host_data label_data;
@@ -552,13 +549,14 @@ namespace cuvnet
             boost::shared_ptr< cuv::tensor<float,cuv::dev_memory_space> >  v (new cuv::tensor<float,cuv::dev_memory_space> (data[cuv::indices[cuv::index_range(start, end)]]));
             cuv:: tensor<float,cuv::dev_memory_space> v_T (cuv::extents[v->shape(1)][v->shape(0)]);
             cuv::transpose(v_T, *v);
+            cuv::fill(v_T, (float) batch); //////////////////////AAAAAAAAAAAAARG
             
             cuvAssert(!has_nan(v_T));
             v_T.reshape(cuv::extents[1][img_size][img_size][batch_size]);
             cuvAssert(!has_nan(v_T));
             pt_X->data() = v_T;   
             
-            tofile("dataxy", pt_X->data());
+            //tofile("dataxy", pt_X->data());
             
             cuv::fill(pt_Y->data(), 0.f);
             //copy data to dev memory space
