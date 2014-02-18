@@ -66,6 +66,8 @@ namespace cuvnet
                  */
                 virtual void reset_params();
 
+                virtual void set_batchsize(unsigned int bs);
+
                 /**
                  * dtor.
                  */

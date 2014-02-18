@@ -300,6 +300,7 @@ namespace cuvnet
              * (virtual) dtor.
              */
             virtual ~learner2();
+            void register_validation_batchsize(model& m, early_stopper& es, const ptree& cfg);
     };
 
     /**

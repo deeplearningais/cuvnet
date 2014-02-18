@@ -24,6 +24,9 @@ namespace cuvnet { namespace models {
     void model::register_watches(monitor& mon){
     }
 
+    void model::set_batchsize(unsigned int bs){
+    }
+
     model::~model(){}
 
     /****************************************

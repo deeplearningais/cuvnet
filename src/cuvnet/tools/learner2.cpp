@@ -285,6 +285,19 @@ namespace cuvnet
         m.register_watches(*mon);
         return mon;
     }
+    
+    void
+    learner2::register_validation_batchsize(model& m , early_stopper& es, const ptree& cfg){
+        unsigned int bs_train = cfg.get("batchsize", -1);
+        unsigned int bs_valid = cfg.get("batchsize_valid", bs_train);
+
+        if(bs_train != bs_valid){
+            es.before_early_stopping_epoch.connect(boost::bind(&model::set_batchsize, &m, bs_valid));
+            es.before_early_stopping_epoch.connect(boost::bind(&gradient_descent::repair_swiper, m_gd));
+            es.after_early_stopping_epoch.connect(boost::bind(&model::set_batchsize, &m, bs_train));
+            es.after_early_stopping_epoch.connect(boost::bind(&gradient_descent::repair_swiper, m_gd));
+        }
+    }
 
     void 
     learner2::load_batch(model* m, unsigned int epoch, unsigned int batch){
@@ -506,6 +519,13 @@ namespace cuvnet
             _load_batch(&m, 0, 0);
             gd.batch_learning(1, INT_MAX);
         }else {
+            int batch_size_test = cfg.get("batchsize_test", batch_size);
+           
+            if(batch_size_test != batch_size){
+                m.set_batchsize(batch_size_test);
+                gd.repair_swiper();
+            }
+
             gd.before_batch.connect(boost::bind(&learner2::_load_batch, this, &m, _1, _2));
             gd.current_batch_num = boost::bind(&learner2::_n_batches, this, batch_size);
             gd.minibatch_learning(1, INT_MAX, false); // don't shuffle
