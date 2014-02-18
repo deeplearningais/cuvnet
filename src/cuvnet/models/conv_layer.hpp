@@ -22,14 +22,12 @@ namespace cuvnet { namespace models {
         /**
          * ctor.
          *
-         * Sets all default values, only real mandatory argument is the input
-         * to the convolution layer, which results in a 5x5 filter, 64
+         * Sets all default values, which results in a 5x5 filter, 64
          * output-map conv_layer with full map-to-map connectivity and no
          * further gimmicks.
          */
-        conv_layer_opts(op_ptr inp, unsigned int fs=5, unsigned int n_out=64)
-            :m_input(inp)
-            ,m_learnrate_factor(1.f)
+        conv_layer_opts()
+            :m_learnrate_factor(1.f)
             ,m_learnrate_factor_bias(1.f)
             ,m_random_sparse(false)
             ,m_verbose(false)
@@ -45,8 +43,6 @@ namespace cuvnet { namespace models {
             ,m_want_response_normalization(false)
             ,m_rn_alpha(0.5)
             ,m_rn_beta(0.5)
-            ,m_fs(fs)
-            ,m_n_out(n_out)
             ,m_want_bias(false)
             ,m_bias_default_value(0.f)
             ,m_weight_default_std(0.015f)
@@ -61,7 +57,6 @@ namespace cuvnet { namespace models {
 
         friend class conv_layer;
         private:
-            op_ptr m_input;
             float m_learnrate_factor, m_learnrate_factor_bias;
             bool m_random_sparse;
             float m_verbose;
@@ -77,7 +72,6 @@ namespace cuvnet { namespace models {
             bool m_want_response_normalization;
             int  m_rn_N;
             float m_rn_alpha, m_rn_beta;
-            unsigned int m_fs, m_n_out;
             bool m_want_bias;
             float m_bias_default_value;
             float m_weight_default_std;
@@ -88,6 +82,18 @@ namespace cuvnet { namespace models {
             std::string m_group_name;
             bool m_unique_group;
         public:
+
+        /**
+         * copy the current parameters, useful if you want to have a default parameter set.
+         *
+         * @begincode
+         * const conv_layer_opts def = conv_layer_opts().verbose();
+         * conv_layer l(inp, 7, 64, def.copy().tanh());
+         * @endcode
+         */
+        inline conv_layer_opts copy()const{
+            return *this;
+        }
 
         /**
          * set rectified linear function as activation function and bias default value to 1
@@ -210,20 +216,6 @@ namespace cuvnet { namespace models {
         inline conv_layer_opts& partial_sum(int i){ m_partial_sum = i; return *this;}
 
         /**
-         * Specify the filter size of the convolution.
-         * @note that this can also be done in the constructor.
-         * @param i edge length of filters will be (i times i)
-         */
-        inline conv_layer_opts& fs(unsigned int i){ m_fs = i; return *this;}
-
-        /**
-         * Specify number of output maps.
-         * @note that this can also be done in the constructor.
-         * @param i number of output maps
-         */
-        inline conv_layer_opts& n_out(unsigned int i){ m_n_out = i; return *this;}
-
-        /**
          * Request/disable bias.
          * @param b if true , use a bias after convolution.
          */
@@ -305,7 +297,7 @@ namespace cuvnet { namespace models {
 
             int m_scat_n_inputs, m_scat_J, m_scat_C;
 
-            conv_layer(const conv_layer_opts& cfg);
+            conv_layer(op_ptr inp, int fs, int n_maps, const conv_layer_opts& cfg = conv_layer_opts());
 
             /// empty ctor for serialization
             conv_layer():m_verbose(false){};

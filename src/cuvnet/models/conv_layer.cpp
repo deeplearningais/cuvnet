@@ -12,8 +12,8 @@ namespace cuvnet { namespace models {
     typedef boost::shared_ptr<Op> op_ptr;
     typedef boost::shared_ptr<ParameterInput> input_ptr;
 
-    conv_layer::conv_layer(const conv_layer_opts& cfg)
-        :m_input(cfg.m_input)
+    conv_layer::conv_layer(op_ptr inp, int fs, int n_out, const conv_layer_opts& cfg)
+        :m_input(inp)
         ,m_verbose(cfg.m_verbose)
         ,m_learnrate_factor(cfg.m_learnrate_factor)
         ,m_learnrate_factor_bias(cfg.m_learnrate_factor_bias)
@@ -24,19 +24,19 @@ namespace cuvnet { namespace models {
 
         int padding;
         if(cfg.m_padding >= 0) padding = cfg.m_padding;
-        else                   padding = cfg.m_fs / 2;
+        else                   padding = fs / 2;
 
         determine_shapes(*m_input);
         unsigned int n_srcmaps = m_input->result()->shape[0];
-        unsigned int n_fltpix  = cfg.m_fs * cfg.m_fs;
-        LOG4CXX_WARN(g_log, "n_srcmaps: "<<n_srcmaps << ", n_out: "<<cfg.m_n_out);
+        unsigned int n_fltpix  = fs * fs;
+        LOG4CXX_WARN(g_log, "n_srcmaps: "<<n_srcmaps << ", n_out: "<<n_out);
 
         m_bias_default_value = cfg.m_bias_default_value;
         m_weight_default_std = cfg.m_weight_default_std;
 
-        m_weights = input(cuv::extents[n_srcmaps / cfg.m_n_groups][n_fltpix][cfg.m_n_out], cfg.m_group_name + "W");
+        m_weights = input(cuv::extents[n_srcmaps / cfg.m_n_groups][n_fltpix][n_out], cfg.m_group_name + "W");
         if(cfg.m_want_bias){
-            m_bias    = input(cuv::extents[cfg.m_n_out], cfg.m_group_name + "b");
+            m_bias    = input(cuv::extents[n_out], cfg.m_group_name + "b");
         }
 
         boost::scoped_ptr<op_group> grp;
