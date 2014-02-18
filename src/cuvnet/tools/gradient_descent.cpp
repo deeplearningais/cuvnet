@@ -66,7 +66,17 @@ namespace cuvnet
                     try{
                         before_batch(m_epoch, batchids[batch]); // should load data into inputs
                     }catch(epoch_end){
-                        break;
+                        // this is a bit hacky.
+                        // during training with very large datasets, it might
+                        // be helpful to set n_batches to something rather to
+                        // observe progress within an actual epoch.
+                        // When the real epoch finishes, we might get in
+                        // trouble here, if this is the first batch (div by 0
+                        // etc)!
+                        // We take care of this by "restarting" the epoch in
+                        // this case!
+                       if(batch != 0) break;
+                       else          continue; // try again.
                     }
 
                     m_swipe.fprop();  // forward pass
@@ -203,11 +213,15 @@ namespace cuvnet
     }
 
     void gradient_descent::eval_epoch(unsigned int current_epoch){
-        try{
             if(current_batch_num) {
                 unsigned int n_batches = current_batch_num();
                 for (unsigned int  batch = 0; batch < n_batches; ++batch) {
-                    before_batch(current_epoch, batch);
+                    try{
+                        before_batch(current_epoch, batch);
+                    }catch (epoch_end){
+                        if(batch == 0) continue;
+                        else          break;
+                    }
                     m_swipe.fprop(); // fprop /only/
                     after_batch(current_epoch, batch);
                 }
@@ -217,9 +231,6 @@ namespace cuvnet
                 m_swipe.fprop(); // fprop /only/
                 after_batch(current_epoch, 0);
             }
-        }catch (epoch_end){
-            // fine, no more data!
-        }
     }
 
     rprop_gradient_descent::rprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay)
@@ -268,6 +279,7 @@ namespace cuvnet
     }
 
     void momentum_gradient_descent::update_weights(){
+        log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("momentum_gradient_descent"));
         using namespace cuv;
         unsigned int i=0;
         for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
@@ -282,6 +294,7 @@ namespace cuvnet
 
             // this is the momentum part:
             cuv::apply_binary_functor(m_last_delta[i], inp->delta(), cuv::BF_AXPY, m_momentum);
+            //LOG4CXX_WARN(log, "Delta of " << inp->name() << ": "<< cuv::norm1(inp->delta())/inp->delta().size());
 
             // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
