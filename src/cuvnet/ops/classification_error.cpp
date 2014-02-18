@@ -15,6 +15,10 @@ namespace cuvnet
 
         value_type inp0 = p0.value.cdata();
         value_type inp1 = p1.value.cdata();
+        //value_type inp2;
+
+        bool ignore = m_params.size() == 3 ? true : false;
+        //if (ignore) inp2 = m_params[2]->value.cdata();
 
         std::vector<unsigned int> org_shape = p0.shape;
         unsigned int dim_other_axes;
@@ -23,21 +27,51 @@ namespace cuvnet
             dim_other_axes = inp0.size() / inp0.shape(inp0.ndim()-1);
             inp0.reshape(dim_other_axes, inp0.shape(inp0.ndim()-1));
             inp1.reshape(dim_other_axes, inp0.shape(inp0.ndim()-1));
+            //if (ignore) inp2.reshape(dim_other_axes, inp0.shape(inp0.ndim()-1));
             batch_size = inp0.shape(0);
         } else {
             dim_other_axes = inp0.size() / inp0.shape(0);
             inp0.reshape(inp0.shape(0), dim_other_axes);
             inp1.reshape(inp0.shape(0), dim_other_axes);
+            //if (ignore) inp2.reshape(inp0.shape(0), dim_other_axes);
             batch_size = inp0.shape(1);
+        }
+
+        // Apply ignore mask if needed
+        value_type& inp0src = inp0;
+        //cuv::tensor<float,Op::value_type::memory_space_type> cf( batch_size ); 
+        cuv::tensor<float,Op::value_type::memory_space_type> cf( 1 ); 
+        if (ignore) {
+            param_t::element_type& p2 = *m_params[2];
+            value_type inp2 = p2.value.cdata();
+            if (m_axis == 0)
+                inp2.reshape(dim_other_axes, 1);
+            else
+                inp2.reshape(1, dim_other_axes);
+            value_type& inp0ign = p0.value.data_onlyshape();
+            inp0ign.reshape(inp0.shape(0), inp0.shape(1));
+
+            // apply ignore mask
+            cuv::matrix_op_vec(inp0ign, inp0, inp2, m_axis == 0 ? 0 : 1, BF_MULT);
+            inp0src = inp0ign;
+
+            // determine amount of ignored part
+            // todo
+            //for (unsigned int i = 0; i < batch_size; i++)
+                //cuv::count(inp2[cuv::indices[0]], 0);
+                //cuv::count(inp2[cuv::extents[0]], 0);
+            //cf[0] =  cuv::count(inp2, (float) 0) / (inp2.shape[0]*inp2.shape[1]);
+            int c = cuv::count(inp2, (float) 0);
+            cf[0] = c / (inp2.shape(0)*inp2.shape(1));
         }
 
         cuv::tensor<int,Op::value_type::memory_space_type> a1 ( batch_size );
         cuv::tensor<int,Op::value_type::memory_space_type> a2 ( batch_size );
         if(m_axis == 0) {
-            cuv::reduce_to_col(a1, inp0,cuv::RF_ARGMAX);
+            cuv::reduce_to_col(a1, inp0src,cuv::RF_ARGMAX);
             cuv::reduce_to_col(a2, inp1,cuv::RF_ARGMAX);
         } else {
-            cuv::reduce_to_row(a1, inp0,cuv::RF_ARGMAX);
+            cuv::reduce_to_row(a1, inp0src,cuv::RF_ARGMAX);
             cuv::reduce_to_row(a2, inp1,cuv::RF_ARGMAX);
         }
 
@@ -46,6 +80,7 @@ namespace cuvnet
 
         value_ptr res(new value_type(cuv::extents[1], value_ptr::s_allocator));
         *res = n_wrong/(float)batch_size;
+        *res /= (1 - cf[0]);
 
         r0.push(res);
 
@@ -63,6 +98,13 @@ namespace cuvnet
             return;
         assert(m_params[0]->shape == m_params[1]->shape);
         cuvAssert(m_axis == 0 || m_axis == m_params[0]->shape.size() - 1);
+
+        if (m_params.size() == 3) {
+            cuvAssert(m_params[2]->shape[m_axis] == 1);
+            for (unsigned int i = 1; i < m_params[0]->shape.size()-1; i++)
+                cuvAssert(m_params[0]->shape[i] == m_params[2]->shape[i]);
+            // todo check last remaining axis
+        }
     }
 
 

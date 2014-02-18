@@ -44,6 +44,15 @@ namespace cuvnet
                          add_param(1,p1);
                 }
 
+                ClassificationLoss(result_t& p0, result_t& p1, result_t& p2, unsigned int axis = 0)
+                    :Op(3,1)
+                    ,m_axis(axis)
+                {
+                    add_param(0,p0);
+                    add_param(1,p1);
+                    add_param(2,p2);
+                }
+
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
 
                 void fprop();

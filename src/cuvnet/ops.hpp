@@ -339,6 +339,8 @@ namespace cuvnet
     /// construct a ClassificationLoss object
     inline
         Op::op_ptr classification_loss(Op::op_ptr x, Op::op_ptr y, unsigned int axis=0){ return boost::make_shared<ClassificationLoss>(x->result(),y->result(),axis); }
+    inline
+        Op::op_ptr classification_loss(Op::op_ptr x, Op::op_ptr y, Op::op_ptr z, unsigned int axis=0){ return boost::make_shared<ClassificationLoss>(x->result(),y->result(),z->result(),axis); }
     /// construct a F2Measure object (including binary confusion matrix)
     inline
         Op::op_ptr f2_measure(Op::op_ptr tch, Op::op_ptr res, float thresh_tch, float thresh_res){ return boost::make_shared<F2Measure>(tch->result(),res->result(), thresh_tch, thresh_res); }
@@ -348,6 +350,8 @@ namespace cuvnet
     /// construct a ClassificationLoss object
     inline
         Op::op_ptr classification_loss(boost::shared_ptr<Sink> x, Op::op_ptr y, unsigned int axis=0){ return boost::make_shared<ClassificationLoss>(x->result(),y->result(), axis); }
+    inline
+        Op::op_ptr classification_loss(boost::shared_ptr<Sink> x, Op::op_ptr y, Op::op_ptr z, unsigned int axis=0){ return boost::make_shared<ClassificationLoss>(x->result(),y->result(),z->result(), axis); }
     
     /// construct a HingeLoss object
     inline
