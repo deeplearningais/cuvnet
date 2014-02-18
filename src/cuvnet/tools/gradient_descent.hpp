@@ -542,6 +542,58 @@ namespace cuvnet
 
     };
     /**
+     * does Nesterov accelerated RMSPROP gradient descent.
+     * (http://climin.readthedocs.org/en/latest/rmsprop.html)
+     *
+     * @ingroup gd
+     */
+    struct na_rmsprop_gradient_descent
+    : public gradient_descent
+    {
+        public:
+            typedef std::vector<Op*> paramvec_t;
+        private:
+            /// per-weight uptdate of the previous learning-step
+            std::vector<Op::value_type> m_oldW;
+            /// per-weight squared gradient sum
+            std::vector<Op::value_type> m_sq_grad_sum;
+            ///< per-weight learning rates
+            std::vector<Op::value_type> m_learnrates;
+            /// momentum-constant
+            float m_momentum;
+            /// gradient magnitude averaging constant (0.9 means mostly keep current average)
+            float m_grad_avg;
+            ///adaptable step rate constant (multiply lr with (1+step_adapt) if update and momentum point into the same direction or (1-step_adapt) otherwise )
+            float m_step_adapt;
+            /// numerical stabilization constant: \f$H=\delta I+\|g\|_2\f$
+            float m_delta;
+
+        public:
+            /**
+             * constructor
+             *
+             * @param op the function we want to minimize
+             * @param result which result of op to minimize
+             * @param params the parameters w.r.t. which we want to optimize op
+             * @param learnrate the initial learningrate
+             * @param weightdecay weight decay for weight updates
+             * @param momentum the momentum-constant
+             * @param grad_avg how much to stick to the old gradient magnitudes
+             * @param step_adapt adaptable step rate constant
+             * @param delta numerical stabilization constant: \f$H=\delta I+\|g\|_2\f$
+             *
+             */
+        na_rmsprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay = 0.0f, float momentum=0.5f, float grad_avg = 0.5f, float step_adapt = 0.02f, float delta=0.01f);
+
+        protected:
+        /**
+         * @overload
+         * updates the weights with momentum.
+         */
+        virtual void update_weights();
+
+    };
+    /**
      * does AdaGrad gradient descent.
      *
      * @ingroup gd

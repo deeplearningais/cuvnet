@@ -222,6 +222,15 @@ namespace cuvnet
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
+        }else if(typ == "na_rmsprop"){
+            LOG4CXX_WARN(g_log_learner2, "Creating OriginalNAG GD (initial_learnrate:"<<initial_learnrate<<", momentum:"<< initial_momentum  << ")");
+            boost::shared_ptr<gradient_descent> gd =
+                drec
+                ?  boost::make_shared<DRGD<na_rmsprop_gradient_descent> >(m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  initial_momentum, 0.9f)
+                :  boost::make_shared<       na_rmsprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  initial_momentum, 0.9f);
+            gd->set_epoch(start_epoch);
+            gd->set_verbosity(verbosity);
+            return gd;
         }else{
             throw std::runtime_error("unknown/not implemented gd_type: " + typ);
         }
