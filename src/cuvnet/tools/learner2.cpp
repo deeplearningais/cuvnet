@@ -563,6 +563,7 @@ namespace cuvnet
         if(es_cfg){
             es = get_early_stopper(*m_gd, *m_mon, *es_cfg);
             if(es) {
+                register_validation_batchsize(m, *es, cfg);
                 rotl.reset(new record_optimal_training_loss(*es, *m_mon));
                 m_mon->register_gd(*m_gd, *es);
             }else{
