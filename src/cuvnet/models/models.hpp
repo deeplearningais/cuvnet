@@ -187,6 +187,12 @@ namespace cuvnet
                 virtual op_ptr error()const;
 
                 /**
+                 * calls register_watches for all submodels.
+                 * @param mon this parameter is passed through.
+                 */
+                virtual void register_watches(monitor& mon);
+
+                /**
                  * dtor.
                  */
                 virtual ~metamodel();

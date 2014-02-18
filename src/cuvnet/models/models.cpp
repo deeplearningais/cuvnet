@@ -105,6 +105,14 @@ namespace cuvnet { namespace models {
         }
         return op_ptr();
     }
+
+    template<class Base>
+    void
+    metamodel<Base>::register_watches(monitor& mon){
+        for(std::vector<model*>::const_reverse_iterator it = m_models.rbegin(); it!=m_models.rend(); it++)
+            (*it)->register_watches(mon);
+    }
+
     template<class Base>
     metamodel<Base>::~metamodel(){}
         
