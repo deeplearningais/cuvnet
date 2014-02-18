@@ -56,6 +56,18 @@ namespace cuvnet
                 }
 
                 /**
+                 * copy the current parameters, useful if you want to have a default parameter set.
+                 *
+                 * @begincode
+                 * const mlp_layer_opts def = mlp_layer_opts().verbose();
+                 * mlp_layer l(inp, 10, def.copy().tanh());
+                 * @endcode
+                 */
+                inline mlp_layer_opts copy()const{
+                    return *this;
+                }
+
+                /**
                  * set rectified linear function as activation function and bias default to 1.
                  */
                 inline mlp_layer_opts& rectified_linear(){
