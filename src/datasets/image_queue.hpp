@@ -34,9 +34,11 @@ namespace cuvnet
                 mutable boost::mutex m_mutex;
                 int m_patterns_to_epoch_end;
                 std::queue<boost::shared_ptr<PatternType> > m_queue;
+                bool m_signal_restart;
                 log4cxx::LoggerPtr m_log;
             public:
-                image_queue(){
+                image_queue(bool signal_restart)
+                :m_signal_restart(signal_restart){
                     m_log = log4cxx::Logger::getLogger("image_queue");
                     m_patterns_to_epoch_end = -1;
                 }
@@ -87,8 +89,10 @@ namespace cuvnet
                     for (unsigned int i = 0; i < n; ++i) {
                         dest.push_back(m_queue.front());
                         m_queue.pop();
-                        if(m_patterns_to_epoch_end == 0)
-                            throw epoch_end();
+                        if(m_patterns_to_epoch_end == 0 && m_signal_restart){
+                            m_signal_restart = false;
+                           throw epoch_end();
+                        }
                         m_patterns_to_epoch_end--;
                     }
                 }
