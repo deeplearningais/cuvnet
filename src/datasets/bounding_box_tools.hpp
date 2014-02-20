@@ -67,18 +67,8 @@ namespace cuvnet
             rectangle position_in_orig;
 
             bool flipped;   ///< whether the image is flipped horizontally
-
-            /// some variables recording where the image is from
-            /// @{
-            /// the total number of scales at which original image is processed
-            unsigned int n_scales;
-            /// the total number of (sub-) images at current scale
-            unsigned int n_subimages;
-            /// a running number indicating at which scale of the original image we're processing
-            unsigned int scale_id;
-            /// a running number of images at this scale (relevant when large image is split up for processing)
-            unsigned int subimage_id;
-            /// @}
+            image_meta_info()
+                :flipped(false){}
         };
 
         /**
