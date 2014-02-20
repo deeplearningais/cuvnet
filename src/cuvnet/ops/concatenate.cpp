@@ -89,7 +89,7 @@ namespace cuvnet
         // reset all params
         for ( unsigned int i = 0; i < m_n; i++){
             param_t::element_type&  pi = *m_params[i];
-            if (! pi.need_derivative) pi.value.reset();
+            pi.value.reset();
         }
     }
 
