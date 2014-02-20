@@ -259,7 +259,6 @@ namespace cuvnet
    spn_gradient_descent::spn_gradient_descent(Op::op_ptr op, input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate, bool rescale_weights, float thresh, float weightdecay)
         :gradient_descent(op, result, params, learnrate, weightdecay), m_old_dw(params.size()), pt_X(X), pt_Y(Y), m_learnrate(learnrate), m_rescale(rescale_weights), m_l1decay(0.f), m_thresh(thresh)
     {
-        std::cout << "debug gd 0 " << std::endl;
          m_INFERENCE_TYPE = INFERENCE_TYPE;
          m_results = results;
          
