@@ -531,7 +531,7 @@ namespace cuvnet
         spn_gradient_descent(Op::op_ptr op,  input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate=0.001f, bool rescale_weights = false, float thresh = 1.0, float weightdecay=0.0f);
         void minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs, bool randomize);
         
-        void set_data(host_data & data, host_data & labels, host_data & label_c, unsigned int batch_size, unsigned int img_size){
+        void set_data(const host_data & data, const host_data & labels, const host_data & label_c, unsigned int batch_size, unsigned int img_size){
             this->data = data;
             this->label_data = labels;
             this->batch_size = batch_size;
@@ -542,20 +542,15 @@ namespace cuvnet
         
         inline void set_l1decay(float f){ m_l1decay = f; }
 
-        protected:
-        /**
-         * @overload
-         * updates the weights spn-style.
-         */
-        virtual void update_weights();
         void get_batch(unsigned int epoch, unsigned int batch){
             //get next batch;
             unsigned int start = batch * batch_size;
             unsigned int end = start + batch_size;
-            boost::shared_ptr< cuv::tensor<float,cuv::dev_memory_space> >  v (new cuv::tensor<float,cuv::dev_memory_space> (data[cuv::indices[cuv::index_range(start, end)]]));
-            cuv:: tensor<float,cuv::dev_memory_space> v_T (cuv::extents[v->shape(1)][v->shape(0)]);
-            cuv::transpose(v_T, *v);
-            cuv::fill(v_T, (float) batch); //////////////////////AAAAAAAAAAAAARG
+            
+             cuv::tensor<float,cuv::dev_memory_space>  v( data[cuv::indices[cuv::index_range(start, end)]]);
+            cuv:: tensor<float,cuv::dev_memory_space> v_T (cuv::extents[v.shape(1)][v.shape(0)]);
+            cuv::transpose(v_T, v);
+//            std::cout << "get_batch: "<< start << ", end: "<<end<< ", min: "<<cuv::minimum(v)<< ", max: "<<cuv::maximum(v)<<std::endl;
             
             cuvAssert(!has_nan(v_T));
             v_T.reshape(cuv::extents[1][img_size][img_size][batch_size]);
@@ -566,16 +561,30 @@ namespace cuvnet
             
             cuv::fill(pt_Y->data(), 0.f);
             //copy data to dev memory space
-            boost::shared_ptr< cuv::tensor<float,cuv::dev_memory_space> > l (new cuv::tensor<float,cuv::dev_memory_space> (label_data[cuv::indices[cuv::index_range(start, end)]]));
+            cuv::tensor<float,cuv::dev_memory_space> l (label_data[cuv::indices[cuv::index_range(start, end)]]);
 
-            cuv::tensor_view<float,cuv::dev_memory_space> dst(pt_Y->data(), cuv::indices[cuv::index_range()][cuv::index_range(0,1)]);
-            l->reshape(cuv::extents[batch_size][1]);
-            dst = *l;
+            cuv::tensor_view<float,cuv::dev_memory_space> dst(pt_Y->data(), cuv::indices[cuv::index_range()][cuv::index_range(0, 1)]);
+            l.reshape(cuv::extents[batch_size][1]);
+            dst = l;
             
-            boost::shared_ptr< cuv::tensor<float,cuv::dev_memory_space> > vl (new cuv::tensor<float,cuv::dev_memory_space> (label_coded[cuv::indices[cuv::index_range(start, end)]]));
-            cuvAssert(!has_nan(*vl));            
-            *Y_oneOutOfN = *vl ;
-            }
+            std::cout << "get_batch: labels "<< start << ", end: "<<end<< ", min: "<<cuv::minimum(dst)<< ", max: "<<cuv::maximum(dst)<<std::endl; 
+//             std::cout << "Y[0]: " << pt_Y->data()[cuv::indices[0]][0] << std::endl;
+//             std::cout << "Y[0]: " << pt_Y->data()[cuv::indices[0]][1] << std::endl;            
+//             std::cout << "Y[1]: " << pt_Y->data()[cuv::indices[1]][0] << std::endl;       
+//             std::cout << "Y[0]: " << pt_Y->data()[cuv::indices[1]][1] << std::endl;            
+            
+            cuv::tensor<float,cuv::dev_memory_space>  vl (label_coded[cuv::indices[cuv::index_range(start, end)]]);
+            cuvAssert(!has_nan(vl));            
+            *Y_oneOutOfN = vl ;
+            }        
+        
+        protected:
+        /**
+         * @overload
+         * updates the weights spn-style.
+         */
+        virtual void update_weights();
+
     };
 
     /**
