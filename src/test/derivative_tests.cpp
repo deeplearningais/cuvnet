@@ -1534,7 +1534,7 @@ BOOST_AUTO_TEST_CASE( Concatenate_first_dim )
                 for (unsigned int j = 0; j < x; j++){
                     for (unsigned int k = 0; k < y; k++){
                         for (unsigned int l = 0; l < z; l++){
-                            float  a; 
+                            float  a = -10000;
                             if ( i == 0)  a = in1->data()[indices[j][k]][l];
                             if ( i == 1)  a = in2->data()[indices[j][k]][l];
                             if ( i == 2)  a = in3->data()[indices[j][k]][l];
@@ -1557,7 +1557,7 @@ BOOST_AUTO_TEST_CASE( Concatenate_first_dim )
                 for (unsigned int j = 0; j < x; j++){
                     for (unsigned int k = 0; k < y; k++){
                         for (unsigned int l = 0; l < z; l++){
-                            float  a; 
+                            float  a = -10000;
                             if ( i == 0)  a = in1->delta()[indices[j][k]][l];
                             if ( i == 1)  a = in2->delta()[indices[j][k]][l];
                             if ( i == 2)  a = in3->delta()[indices[j][k]][l];
@@ -1627,7 +1627,7 @@ BOOST_AUTO_TEST_CASE( Concatenate_old_interface )
                 for (unsigned int j = 0; j < x; j++){
                     for (unsigned int k = 0; k < y; k++){
                         for (unsigned int l = 0; l < z; l++){
-                            float  a; 
+                            float  a = -10000;
                             if ( i == 0)  a = in1->data()[indices[j][k]][l];
                             if ( i == 1)  a = in2->data()[indices[j][k]][l];
                             float  b = out_op->cdata()[indices[ i*x +j][k]][l];
@@ -1694,7 +1694,7 @@ BOOST_AUTO_TEST_CASE( Concatenate_N_last_dim )
                 for ( unsigned int h = 0; h < z; h++)
                     for ( unsigned int i = 0; i < n; i++)
                         for (unsigned int l = 0; l < z1; l++){
-                            float  a; 
+                            float  a = -10000;
                             if ( i == 0)  a = in1->data()[indices[j][k][h]][l];
                             if ( i == 1)  a = in2->data()[indices[j][k][h]][l];
                             if ( i == 2)  a = in3->data()[indices[j][k][h]][l];
@@ -1716,7 +1716,7 @@ BOOST_AUTO_TEST_CASE( Concatenate_N_last_dim )
                 for ( unsigned int h = 0; h < z; h++)
                     for ( unsigned int i = 0; i < n; i++)
                         for (unsigned int l = 0; l < z1; l++){
-                            float  a; 
+                            float  a = -10000;
                             if ( i == 0)  a = in1->delta()[indices[j][k][h]][l];
                             if ( i == 1)  a = in2->delta()[indices[j][k][h]][l];
                             if ( i == 2)  a = in3->delta()[indices[j][k][h]][l];

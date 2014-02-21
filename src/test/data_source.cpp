@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE( image_loading_and_queueing ){
 
     for (int grayscale = 0; grayscale < 2; ++grayscale)
     {
-        image_queue<classification_pattern> q;
+        image_queue<classification_pattern> q(false);
         sample_image_loader ld(&q, &ids.get(0), 128, grayscale, 4);
 
         ld(); // load a single image
@@ -64,7 +64,7 @@ BOOST_AUTO_TEST_CASE( image_loading_and_queueing ){
     }
 
     // load a whole bunch of images
-    image_queue<classification_pattern> q;
+    image_queue<classification_pattern> q(false);
     auto pool = make_loader_pool(2, q, ids, image_loader_factory(), 2, 2);
 
     pool->start();
