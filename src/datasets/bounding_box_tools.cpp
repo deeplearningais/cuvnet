@@ -49,10 +49,12 @@ namespace cuvnet { namespace bbtools {
     }
 
     void image::flip_lr(){
+        meta.flipped ^= 1;
         cv::flip(*porig, *porig, 1);
         BOOST_FOREACH(object& o, meta.objects){
             o.bb.xmin = porig->cols - o.bb.xmin;
             o.bb.xmax = porig->cols - o.bb.xmax;
+            std::swap(o.bb.xmin, o.bb.xmax);
             //o.bb.ymin = porig->rows - o.bb.ymin;
             //o.bb.ymax = porig->rows - o.bb.ymax;
         }
