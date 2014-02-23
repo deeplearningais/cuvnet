@@ -50,6 +50,7 @@ namespace cuvnet
                 SR_MAX_ITER,
                 SR_TIMEOUT,
                 SR_NETWORK,
+                SR_EXTERNAL_REQUEST,
                 SR_UNKNOWN,
             };
         protected:
@@ -81,6 +82,14 @@ namespace cuvnet
 
             /// @return the reason why learning was stopped
             inline stop_reason_t stop_reason()const{return m_stop_reason;}
+
+            /** request that training should stop asap.
+             *  All events will still be executed, just the training epoch
+             *  might become much shorter.
+             *
+             *  This is used in conjunction with a signal handler, e.g. for ctrl-c pressed.
+             */
+            inline void request_stop(){ m_stop_reason = SR_EXTERNAL_REQUEST; }
 
             /// @return the params we're optimizing
             inline const paramvec_t& params()const{return m_params;}

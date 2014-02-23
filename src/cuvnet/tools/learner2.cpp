@@ -17,6 +17,7 @@
 #include <cuvnet/tools/gradient_descent.hpp>
 #include <cuvnet/tools/monitor.hpp>
 #include <cuvnet/tools/logging.hpp>
+#include <cuvnet/tools/exception_tracer.hpp>
 #include <cuvnet/tools/network_communication.hpp>
 #include <log4cxx/ndc.h>
 
@@ -645,6 +646,7 @@ namespace cuvnet
 
         m_gd->get_swiper().dump((tmppath / "loss.dot").string(), cfg.get("verbose", false));
 
+        SignalTranslator<CtrlCPressed> sigint(boost::bind(&gradient_descent::request_stop, m_gd.get()));
         if(batch_size < 0){
             _load_batch(&m, 0, 0);
             m_gd->batch_learning(max_epochs, time_limit);

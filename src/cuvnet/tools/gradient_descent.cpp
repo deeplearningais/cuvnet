@@ -41,7 +41,7 @@ namespace cuvnet
         try{
             m_stop_reason = SR_UNKNOWN;
             unsigned long int t_start = time(NULL);
-            for (; ; ++m_epoch) {
+            for (; m_stop_reason == SR_UNKNOWN; ++m_epoch) {
                 //log4cxx::MDC epoch_mdc("epoch",boost::lexical_cast<std::string>(m_epoch));
                 TRACE1(log, "minibatch_learning_epoch", "epoch", boost::lexical_cast<std::string>(m_epoch));
 
@@ -62,7 +62,7 @@ namespace cuvnet
 
                 before_epoch(m_epoch, wups); // may run early stopping
 
-                for (unsigned int  batch = 0; batch < n_batches; ++batch, ++iter) {
+                for (unsigned int  batch = 0; m_stop_reason == SR_UNKNOWN && batch < n_batches; ++batch, ++iter) {
                     try{
                         before_batch(m_epoch, batchids[batch]); // should load data into inputs
                     }catch(epoch_end){
