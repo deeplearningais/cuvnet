@@ -46,6 +46,7 @@ namespace cuvnet
             switch(type){
                 case monitor::WP_SINK:
                 case monitor::WP_SCALAR_EPOCH_STATS:
+                case monitor::WP_SINK_ONCE_STATS:
                     sink.reset(new Sink(name,op->result(result)));
                     break;
                 case monitor::WP_D_SINK:
@@ -148,7 +149,7 @@ namespace cuvnet
         }
 
     }
-    void update_stats(acc_t& acc, matrix& mat){
+    void update_stats(acc_t& acc, const matrix& mat){
         cuv::tensor<matrix::value_type, cuv::host_memory_space> v = mat;
         matrix::value_type* ptr = v.ptr();
         matrix::value_type* end = ptr + v.size();
@@ -161,6 +162,9 @@ namespace cuvnet
                 case WP_FULL_WEIGHT_STATS:
                 case WP_CONV_WEIGHT_STATS:
                     update_stats(p->scalar_stats, boost::dynamic_pointer_cast<ParameterInput>(p->op)->data());
+                    break;
+                case WP_SINK_ONCE_STATS:
+                    update_stats(p->scalar_stats, p->sink->cdata());
                     break;
                 default:
                     break;
@@ -213,6 +217,7 @@ namespace cuvnet
             case WP_CONV_WEIGHT_STATS:
                 return boost::dynamic_pointer_cast<ParameterInput>(wp.op)->data();
             case WP_SINK:
+            case WP_SINK_ONCE_STATS:
             case WP_SCALAR_EPOCH_STATS:
                 return wp.sink->cdata();
             case WP_D_SINK:

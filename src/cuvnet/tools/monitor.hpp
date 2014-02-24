@@ -38,6 +38,7 @@ namespace cuvnet
                 WP_FUNC_SCALAR_EPOCH_STATS,  ///< needs evaluation first, keeps stats over one epoch
                 WP_FULL_WEIGHT_STATS,   ///< computes mean and variance of full weights (average over filters, only once per epoch)
                 WP_CONV_WEIGHT_STATS,   ///< computes mean and variance of convolutional weights (average over filters, only once per epoch)
+                WP_SINK_ONCE_STATS,   ///< evaluated only once for last batch in epoch
             };
         private:
             /// counts the number of batches we've seen

@@ -54,18 +54,10 @@ namespace cuvnet
             if(!m_verbose)
                 return;
 
-            op_ptr m = mean(m_W);
-            op_ptr v = mean(square(m_W)) - square(m);
-            mon.add(monitor::WP_SCALAR_EPOCH_STATS, v, m_W->name() + "_var");
-            mon.add(monitor::WP_SCALAR_EPOCH_STATS, m, m_W->name() + "_mean");
+            mon.add(monitor::WP_FULL_WEIGHT_STATS, m_W, m_W->name());
 
-            op_ptr outvar = mean(var_to_vec(m_linear_output, 1));
-            mon.add(monitor::WP_SCALAR_EPOCH_STATS,                                                                                                                                           
-                    outvar, m_W->name() + "_linout_var", 0);
-
-            op_ptr outmean = mean(mean_to_vec(m_linear_output, 1));
-            mon.add(monitor::WP_SCALAR_EPOCH_STATS,                                                                                                                                           
-                    outmean, m_W->name() + "_linout_mean", 0);
+            mon.add(monitor::WP_SINK_ONCE_STATS,                                                                                                                                           
+                    m_linear_output, m_W->name() + "_linout", 0);
         }
         std::vector<Op*> 
         mlp_layer::get_params(){

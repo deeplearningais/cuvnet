@@ -100,18 +100,11 @@ namespace cuvnet { namespace models {
     void conv_layer::register_watches(monitor& mon){
         if(!m_verbose)
             return;
-        op_ptr m = mean(m_weights);
-        op_ptr v = mean(square(m_weights)) - square(m);
-        mon.add(monitor::WP_SCALAR_EPOCH_STATS, v, m_weights->name() + "_var");
-        mon.add(monitor::WP_SCALAR_EPOCH_STATS, m, m_weights->name() + "_mean");
 
-        op_ptr outvar = mean(var_to_vec(m_linear_output, 0));
-        mon.add(monitor::WP_SCALAR_EPOCH_STATS,
-                outvar, m_weights->name() + "_linout_var", 0);
+        mon.add(monitor::WP_CONV_WEIGHT_STATS, m_weights, m_weights->name());
 
-        op_ptr outmean = mean(mean_to_vec(m_linear_output, 0));
-        mon.add(monitor::WP_SCALAR_EPOCH_STATS,
-                outmean, m_weights->name() + "_linout_mean", 0);
+        mon.add(monitor::WP_SINK_ONCE_STATS,
+                m_linear_output, m_weights->name() + "_linout", 0);
     }
 
     std::vector<Op*>
