@@ -625,6 +625,8 @@ namespace cuvnet
             float m_step_adapt;
             /// numerical stabilization constant: \f$H=\delta I+\|g\|_2\f$
             float m_delta;
+            /// bounds for the learningrates
+            float m_lr_max, m_lr_min;
 
         public:
             /**
@@ -639,9 +641,10 @@ namespace cuvnet
              * @param grad_avg how much to stick to the old gradient magnitudes
              * @param step_adapt adaptable step rate constant
              * @param delta numerical stabilization constant: \f$H=\delta I+\|g\|_2\f$
-             *
+             * @param lr_max upper bound for learningrates
+             * @param lr_min lower bound for learrningrates 
              */
-        na_rmsprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay = 0.0f, float momentum=0.5f, float grad_avg = 0.5f, float step_adapt = 0.02f, float delta=0.01f);
+        na_rmsprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay = 0.0f, float momentum=0.5f, float grad_avg = 0.5f, float step_adapt = 0.9f, float delta=0.01f, float lr_max = 0.1f, float lr_min = 0.00001f);
 
         protected:
         /**

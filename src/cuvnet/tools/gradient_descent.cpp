@@ -372,7 +372,7 @@ namespace cuvnet
     }
 
     // ------------ nesterov accelerated rmsprop gradient descent  ---------  \\-
-    na_rmsprop_gradient_descent::na_rmsprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float momentum, float grad_avg, float step_adapt, float delta)
+    na_rmsprop_gradient_descent::na_rmsprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float momentum, float grad_avg, float step_adapt, float delta, float lr_max, float lr_min)
         :gradient_descent(op, result, params, learnrate, weightdecay),
         m_oldW(params.size()),
         m_sq_grad_sum(params.size()),
@@ -380,7 +380,9 @@ namespace cuvnet
         m_momentum(momentum),
         m_grad_avg(grad_avg),
         m_step_adapt(step_adapt),
-        m_delta(delta)
+        m_delta(delta),
+        m_lr_max(lr_max),
+        m_lr_min(lr_min)
     {
         unsigned int i=0;
         for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
@@ -408,11 +410,12 @@ namespace cuvnet
 
             // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
-            cuv::libs::opt::na_rmsprop(*inp->data_ptr().ptr(),delta,m_oldW[i],m_learnrates[i], m_sq_grad_sum[i],m_learnrate,m_momentum,m_grad_avg,m_step_adapt, m_delta);
+            cuv::libs::opt::na_rmsprop(*inp->data_ptr().ptr(),delta,m_oldW[i],m_sq_grad_sum[i],m_learnrates[i],m_momentum,m_grad_avg,m_step_adapt, m_delta, m_lr_max, m_lr_min);
 
             inp->reset_delta();
         }
     }
+
     // ------------ adagrad gradient descent  ---------  \\-
     adagrad_gradient_descent::adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float delta, int winsize, float l1penalty)
         :gradient_descent(op, result, params, learnrate, weightdecay),

@@ -194,8 +194,16 @@ namespace cuvnet
             float delta = cfg.get("delta", 0.01f);
             float grad_avg = cfg.get("grad_avg", 0.9f);
             float l1decay = cfg.get("l1decay", 0.f);
+// <<<<<<< HEAD
             LOG4CXX_WARN(g_log_learner2, "Creating RMSProp GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << "grad_avg:" << grad_avg << ")");
             MAKE_GD(rmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay);
+// =======
+//             LOG4CXX_WARN(g_log_learner2, "Creating RMSProp GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", grad_avg:" << grad_avg << ", delta:"<< delta << ")");
+//             boost::shared_ptr<gradient_descent> gd =
+//                 drec 
+//                 ?  boost::make_shared<DRGD<rmsprop_gradient_descent> >(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay)
+//                 :  boost::make_shared<     rmsprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay);
+// >>>>>>> ENH na_rmsprop with adaptable learningrates
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
@@ -223,8 +231,22 @@ namespace cuvnet
             gd->set_verbosity(verbosity);
             return gd;
         }else if(typ == "na_rmsprop"){
-            LOG4CXX_WARN(g_log_learner2, "Creating OriginalNAG GD (initial_learnrate:"<<initial_learnrate<<", momentum:"<< initial_momentum  << ")");
-            MAKE_GD(na_rmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  initial_momentum, 0.9f);
+// <<<<<<< HEAD
+//             LOG4CXX_WARN(g_log_learner2, "Creating OriginalNAG GD (initial_learnrate:"<<initial_learnrate<<", momentum:"<< initial_momentum  << ")");
+//             MAKE_GD(na_rmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  initial_momentum, grad_avg,step_adapt,delta,lr_max,lr_min);
+// =======
+            float delta = cfg.get("delta", 0.01f);
+            float grad_avg = cfg.get("grad_avg", 0.9f);
+            float step_adapt = cfg.get("step_adapt", 0.9f);
+            float lr_min = cfg.get("lr_min", 0.00001f);
+            float lr_max = cfg.get("lr_max", 0.1f);
+            LOG4CXX_WARN(g_log_learner2, "Creating NA_RMSPROP GD (initial_learnrate:" << initial_learnrate << ", momentum:" << initial_momentum <<", l2decay:" << l2decay << ", delta:" << delta << ", grad_avg:" << grad_avg << ", step_adapt:" << step_adapt << ", lr_min:" << lr_min << ", lr_max:" << lr_max << ")");
+            MAKE_GD(na_rmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  initial_momentum, grad_avg,step_adapt,delta,lr_max,lr_min);
+//             boost::shared_ptr<gradient_descent> gd =
+//                 drec
+//                 ?  boost::make_shared<DRGD<na_rmsprop_gradient_descent> >(m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  initial_momentum, grad_avg,step_adapt,delta,lr_max,lr_min)
+//                 :  boost::make_shared<       na_rmsprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  initial_momentum, grad_avg,step_adapt,delta,lr_max,lr_min);
+// >>>>>>> ENH na_rmsprop with adaptable learningrates
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
