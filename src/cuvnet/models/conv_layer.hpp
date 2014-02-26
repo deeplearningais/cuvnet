@@ -53,6 +53,7 @@ namespace cuvnet { namespace models {
             ,m_want_dropout(false)
             ,m_group_name("convlayer")
             ,m_unique_group(true)
+            ,m_varname_suffix("")
         {}
 
         friend class conv_layer;
@@ -81,6 +82,7 @@ namespace cuvnet { namespace models {
             bool m_want_dropout;
             std::string m_group_name;
             bool m_unique_group;
+            std::string m_varname_suffix;
         public:
 
         /**
@@ -100,7 +102,7 @@ namespace cuvnet { namespace models {
          */
         inline conv_layer_opts& rectified_linear(){
             m_nonlinearity = cuvnet::rectified_linear;
-            //m_bias_default_value = 1.f;
+            //m_bias_default_value = 1.f; // annoying in conjunction with "with_bias" as order determines result
             return *this;
         }
 
@@ -269,6 +271,14 @@ namespace cuvnet { namespace models {
          * @param unique if true, append a unique number to the name.
          */
         inline conv_layer_opts& group(std::string name="", bool unique=true) { m_group_name = name; return *this;  }
+
+        /**
+         * Specifiy suffix for parameter names. This is necessary,
+         * if you want to log statitics of multiple conv_layer in a 
+         * single group.
+         * @param suffix string to append to variable name
+         */
+        inline conv_layer_opts& varname_suffix(std::string suffix) { m_varname_suffix = suffix; return *this; }
 
         /**
          * When initializing weights with this standard deviation.

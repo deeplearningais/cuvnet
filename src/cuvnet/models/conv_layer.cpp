@@ -34,9 +34,9 @@ namespace cuvnet { namespace models {
         m_bias_default_value = cfg.m_bias_default_value;
         m_weight_default_std = cfg.m_weight_default_std;
 
-        m_weights = input(cuv::extents[n_srcmaps / cfg.m_n_groups][n_fltpix][n_out], cfg.m_group_name + "W");
+        m_weights = input(cuv::extents[n_srcmaps / cfg.m_n_groups][n_fltpix][n_out], cfg.m_group_name + "W" + cfg.m_varname_suffix);
         if(cfg.m_want_bias){
-            m_bias    = input(cuv::extents[n_out], cfg.m_group_name + "b");
+            m_bias    = input(cuv::extents[n_out], cfg.m_group_name + "b" + cfg.m_varname_suffix);
         }
 
         boost::scoped_ptr<op_group> grp;
