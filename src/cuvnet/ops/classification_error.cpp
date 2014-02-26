@@ -15,10 +15,8 @@ namespace cuvnet
 
         value_type inp0 = p0.value.cdata();
         value_type inp1 = p1.value.cdata();
-        //value_type inp2;
 
         bool ignore = m_params.size() == 3 ? true : false;
-        //if (ignore) inp2 = m_params[2]->value.cdata();
 
         std::vector<unsigned int> org_shape = p0.shape;
         unsigned int dim_other_axes;
@@ -27,20 +25,17 @@ namespace cuvnet
             dim_other_axes = inp0.size() / inp0.shape(inp0.ndim()-1);
             inp0.reshape(dim_other_axes, inp0.shape(inp0.ndim()-1));
             inp1.reshape(dim_other_axes, inp0.shape(inp0.ndim()-1));
-            //if (ignore) inp2.reshape(dim_other_axes, inp0.shape(inp0.ndim()-1));
             batch_size = inp0.shape(0);
         } else {
             dim_other_axes = inp0.size() / inp0.shape(0);
             inp0.reshape(inp0.shape(0), dim_other_axes);
             inp1.reshape(inp0.shape(0), dim_other_axes);
-            //if (ignore) inp2.reshape(inp0.shape(0), dim_other_axes);
             batch_size = inp0.shape(1);
         }
 
         // Apply ignore mask if needed
         value_type& inp0src = inp0;
-        //cuv::tensor<float,Op::value_type::memory_space_type> cf( batch_size ); 
-        cuv::tensor<float,Op::value_type::memory_space_type> cf( 1 ); 
+        float cf = 0;
         if (ignore) {
             param_t::element_type& p2 = *m_params[2];
             value_type inp2 = p2.value.cdata();
@@ -56,13 +51,8 @@ namespace cuvnet
             inp0src = inp0ign;
 
             // determine amount of ignored part
-            // todo
-            //for (unsigned int i = 0; i < batch_size; i++)
-                //cuv::count(inp2[cuv::indices[0]], 0);
-                //cuv::count(inp2[cuv::extents[0]], 0);
-            //cf[0] =  cuv::count(inp2, (float) 0) / (inp2.shape[0]*inp2.shape[1]);
             int c = cuv::count(inp2, (float) 0);
-            cf[0] = c / (inp2.shape(0)*inp2.shape(1));
+            cf = c / (inp2.shape(0)*inp2.shape(1));
         }
 
         cuv::tensor<int,Op::value_type::memory_space_type> a1 ( batch_size );
@@ -80,7 +70,8 @@ namespace cuvnet
 
         value_ptr res(new value_type(cuv::extents[1], value_ptr::s_allocator));
         *res = n_wrong/(float)batch_size;
-        *res /= (1 - cf[0]);
+        if (ignore && cf < 1) // stretch error wrt to ignored input portion
+            *res /= (1 - cf);
 
         r0.push(res);
 
