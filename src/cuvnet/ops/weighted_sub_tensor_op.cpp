@@ -7,6 +7,18 @@ namespace cuvnet{
      * Weighted_SubTensor_op
      * ***********************************************************************/
 
+    void Weighted_Sub_Tensor_op::_graphviz_node_desc(detail::graphviz_node& desc)const{
+        if(m_to == cuv::alex_conv::TO_WMAX)
+            desc.label = "W_MAX";
+        else if (m_to == cuv::alex_conv::TO_LOGWADDEXP)
+            desc.label = "TO_LOGWADDEXP";
+        else if (m_to == cuv::alex_conv::TO_LOGWADDEXP_LOGSPACE)
+            desc.label = "TO_LOGWADDEXP_LOGSPACE";
+        else if (m_to == cuv::alex_conv::TO_WMAX_LOGSPACE)
+            desc.label = "TO_WMAX_LOGSPACE";        
+    }
+
+
     void Weighted_Sub_Tensor_op::_determine_shapes(){
         cuvAssert(m_params[0]->shape.size() > 1);
         cuvAssert(m_params[0]->shape.size() > 0);
@@ -35,8 +47,11 @@ namespace cuvnet{
         
         //save max Index for backprop if max function is used
         if ((m_to == cuv::alex_conv::TO_WMAX) || (m_to == cuv::alex_conv::TO_WMAX_LOGSPACE)){
-                cow_ptr< char_matrix > m(new char_matrix(r0.shape));
-                m_max_idx  = m;
+                if (!m_memory_flag){
+                    cow_ptr< char_matrix > m(new char_matrix(r0.shape, value_ptr::s_allocator));
+                    m_max_idx  = m;
+                    m_memory_flag = true;  
+                 }
 
             if(r0.can_overwrite_directly()){
                 value_ptr& v = r0.overwrite_or_add_value();
