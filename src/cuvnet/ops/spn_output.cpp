@@ -4,6 +4,15 @@
 namespace cuvnet{
 
 
+        void Spn_Output_Op::_graphviz_node_desc(detail::graphviz_node& desc)const{
+
+        if(m_hard_gd)
+            desc.label = "W_MAX";
+        else 
+            desc.label = "TO_LOGWADDEXP";
+    }
+
+    
     void Spn_Output_Op::_determine_shapes(){
         cuvAssert(m_params[0]->shape.size() > 0);
     
@@ -22,15 +31,41 @@ namespace cuvnet{
         param_t::element_type&  p1 = *m_params[1];
         param_t::element_type&  p2 = *m_params[2];
         result_t::element_type& r0 = *m_results[0];
+        
+        if (m_hard_gd){
+            if (!m_memory_flag){
+                cow_ptr< int_mat > m(new int_mat(p2.shape[1], value_ptr::s_allocator));
+                m_max_idx  = m; 
+                m_memory_flag = true;
+            }
 
             if(r0.can_overwrite_directly()){
-                cuv::alex_conv::spn_output_op(*r0.overwrite_or_add_value(),  p0.value.cdata(), p1.value.cdata(), p2.value.cdata());
+                value_ptr& v = r0.overwrite_or_add_value();
+                cuv::alex_conv::spn_output_op(*v,  p0.value.cdata(), p1.value.cdata(), p2.value.cdata(), *m_max_idx, m_hard_gd );
+                r0.push(v);                
             }else{
                 value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
-                cuv::alex_conv::spn_output_op(*v,                           p0.value.cdata(), p1.value.cdata(), p2.value.cdata());
+                cuv::alex_conv::spn_output_op(*v,                           p0.value.cdata(), p1.value.cdata(), p2.value.cdata(), *m_max_idx, m_hard_gd);
+                r0.push(v);
+            }
+        } else {
+            if (!m_memory_flag){
+                cow_ptr<int_mat> m(new int_mat(p0.shape[0], value_ptr::s_allocator));
+                m_max_idx = m; 
+                m_memory_flag = true;
+            }       
+            if(r0.can_overwrite_directly()){
+                value_ptr& v = r0.overwrite_or_add_value();
+                cuv::alex_conv::spn_output_op(*v,  p0.value.cdata(), p1.value.cdata(), p2.value.cdata(), *m_max_idx, m_hard_gd );
+                r0.push(v);       
+                m_lae = v;                
+            }else{
+                value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
+                cuv::alex_conv::spn_output_op(*v,                           p0.value.cdata(), p1.value.cdata(), p2.value.cdata(), *m_max_idx, m_hard_gd );
                 m_lae = v;
                 r0.push(v);
             }
+        }
     }
     
     
@@ -62,8 +97,8 @@ namespace cuvnet{
                 value_ptr p1_ptr = get_data_ptr(p1_old, &p1);
                 value_ptr p2_ptr = get_data_ptr(p2_old, &p2);
                 
-                spn_output_op_grad(*p0_ptr, p0.value.cdata(), *p1_ptr, *p2_ptr, p1.value.cdata(), p2.value.cdata(),  (*m_S)["S"], m_lae.cdata(), r0.delta.cdata(), p0.need_derivative, p1.need_derivative, p2.need_derivative, m_eps);       
-
+                 cuv::alex_conv::spn_output_op_grad(*p0_ptr, p0.value.cdata(), *p1_ptr, *p2_ptr, p1.value.cdata(), p2.value.cdata(),  (*m_S)["S"], m_lae.cdata(), *m_max_idx, p0.need_derivative, p1.need_derivative, p2.need_derivative, m_eps, m_hard_gd);       
+               
                 if (!p0_old) p0.push(p0_ptr);
                 if (!p1_old) p1.push(p1_ptr);                   
                 if (!p2_old) p2.push(p2_ptr);

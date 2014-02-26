@@ -541,8 +541,12 @@ namespace cuvnet
         }
         
         inline void set_l1decay(float f){ m_l1decay = f; }
+        
+        void set_learnrate(float learnrate){
+            m_learnrate = learnrate;
+        }
 
-        void get_batch(unsigned int epoch, unsigned int batch){
+        void get_batch(unsigned int epoch, unsigned int batch, bool marginalize = false){
             //get next batch;
             unsigned int start = batch * batch_size;
             unsigned int end = start + batch_size;
@@ -558,16 +562,20 @@ namespace cuvnet
             pt_X->data() = v_T;   
             
             //tofile("dataxy", pt_X->data());
-            
-            cuv::fill(pt_Y->data(), 0.f);
-            //copy data to dev memory space
-            cuv::tensor<float,cuv::dev_memory_space> l (label_data[cuv::indices[cuv::index_range(start, end)]]);
+            if (!marginalize){
+                cuv::fill(pt_Y->data(), 0.f);
+                //copy data to dev memory space
+                cuv::tensor<float,cuv::dev_memory_space> l (label_data[cuv::indices[cuv::index_range(start, end)]]);
 
-            cuv::tensor_view<float,cuv::dev_memory_space> dst(pt_Y->data(), cuv::indices[cuv::index_range()][cuv::index_range(0, 1)]);
-            l.reshape(cuv::extents[batch_size][1]);
-            dst = l;
+                cuv::tensor_view<float,cuv::dev_memory_space> dst(pt_Y->data(), cuv::indices[cuv::index_range()][cuv::index_range(0, 1)]);
+                l.reshape(cuv::extents[batch_size][1]);
+                dst = l;
+            } else {
+                cuv::fill(pt_Y->data(), -1.f);           
+            }
+
             
-            std::cout << "get_batch: labels "<< start << ", end: "<<end<< ", min: "<<cuv::minimum(dst)<< ", max: "<<cuv::maximum(dst)<<std::endl; 
+//            std::cout << "get_batch: labels "<< start << ", end: "<<end<< ", min: "<<cuv::minimum(dst)<< ", max: "<<cuv::maximum(dst)<<std::endl; 
 //             std::cout << "Y[0]: " << pt_Y->data()[cuv::indices[0]][0] << std::endl;
 //             std::cout << "Y[0]: " << pt_Y->data()[cuv::indices[0]][1] << std::endl;            
 //             std::cout << "Y[1]: " << pt_Y->data()[cuv::indices[1]][0] << std::endl;       

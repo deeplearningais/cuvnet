@@ -393,10 +393,13 @@ namespace cuvnet
 
                         m_swipe.bprop();
                        
-                        //calculate spn loss
-                        std::cout <<std::endl << "mean(SM): " << cuv::mean(*SM) << std::endl;
-                        std::cout << "mean(S): " << cuv::mean(*S) << std::endl;
+                        cuv::apply_scalar_functor(*SM, cuv::SF_EXP);
+                        cuv::apply_scalar_functor(*S, cuv::SF_EXP);
+                        
+                        std::cout << std::endl << "S: " << cuv::mean(*S) << std::endl;
+                        std::cout << "SM: " << cuv::mean(*SM) << std::endl;
 
+                        
                         cuv::apply_binary_functor(*SM, *S, cuv::BF_SUBTRACT);
                         cuv::apply_scalar_functor(*SM, *SM, cuv::SF_ABS);                             
                         float tmp_err = cuv::mean(*SM);
@@ -471,7 +474,9 @@ namespace cuvnet
             }
 
             float wd = m_weightdecay * param->get_weight_decay_factor();
-            spn_gd(*param->data_ptr().ptr(), m_old_dw[i],  dW, m_INFERENCE_TYPE->at(i), m_rescale, m_thresh, m_learnrate, wd, m_l1decay);
+            float rate = m_learnrate * param->get_learnrate_factor();
+            bool hard_inf = m_INFERENCE_TYPE->at(i);
+            spn_gd(*param->data_ptr().ptr(), m_old_dw[i],  dW, hard_inf, m_rescale, m_thresh, rate, wd, m_l1decay);
             param->reset_delta();
         }
         m_n_batches = 0;

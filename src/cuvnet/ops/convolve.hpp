@@ -746,6 +746,7 @@ namespace cuvnet
                     cuv::alex_conv::weighted_sub_tensor_op_functor m_to;
                     float m_eps;
                     bool m_spn;
+                    bool m_memory_flag;
                 private:
                 public:
                     Weighted_Sub_Tensor_op() :Op(2,1){} ///< for serialization
@@ -771,7 +772,7 @@ namespace cuvnet
                         m_lae = z;
                         
                         m_S = S;
-                        
+                        m_memory_flag = false;
                         //generate dummy tensor ( empty ) to avoid null pointer exceptions
                         cow_ptr<char_matrix> m(new char_matrix(0, value_ptr::s_allocator));
                         m_max_idx = m;                          
@@ -781,7 +782,7 @@ namespace cuvnet
                     void bprop();
 
                     void _determine_shapes();
-
+                    virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
                     void set_S(boost::shared_ptr<cuvnet::monitor> S){
                         m_S = S;
                     }
