@@ -90,10 +90,10 @@ namespace cuvnet
                         dest.push_back(m_queue.front());
                         m_queue.pop();
                         if(m_patterns_to_epoch_end == 0 && m_signal_restart){
-                            m_signal_restart = false;
+                            m_patterns_to_epoch_end = -1;
                            throw epoch_end();
-                        }
-                        m_patterns_to_epoch_end--;
+                        }else if(m_patterns_to_epoch_end > 0)
+                            m_patterns_to_epoch_end--;
                     }
                 }
         };
