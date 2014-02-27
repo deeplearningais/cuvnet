@@ -355,7 +355,15 @@ namespace cuvnet
                     m_swipe.bprop(); // backward pass
                  
                     *classification = pt_Y->delta().copy();
-
+                    cuv::apply_scalar_functor(*classification, cuv::SF_EXP);                        
+                    cuv::reduce_to_col(*a1, *classification, cuv::RF_ARGMAX);
+                    cuv::reduce_to_col(*a2, *Y_oneOutOfN, cuv::RF_ARGMAX);
+                        
+                    *a1 -= *a2;
+                    int n_wrong = batch_size - cuv::count(*a1,0);
+                    float tmp_err = n_wrong / (float) batch_size;
+                    c_err += tmp_err;
+                    
                     if(m_learnrate){
                         // this is not an evaluation pass, we're actually supposed to do work ;)
                         
@@ -396,14 +404,6 @@ namespace cuvnet
                         tofile(name, *classification);
                         tofile("labels", *Y_oneOutOfN);
 */                        
-                        cuv::apply_scalar_functor(*classification, cuv::SF_EXP);                        
-                        cuv::reduce_to_col(*a1, *classification, cuv::RF_ARGMAX);
-                        cuv::reduce_to_col(*a2, *Y_oneOutOfN, cuv::RF_ARGMAX);
-                        
-                        *a1 -= *a2;
-                        int n_wrong = batch_size - cuv::count(*a1,0);
-                        tmp_err = n_wrong / (float) batch_size;
-                        c_err += tmp_err;
 
   
                         // nan check
@@ -421,7 +421,8 @@ namespace cuvnet
                             after_weight_update(wups);
                         }
                     } else{
-                 
+                        log4cxx::MDC eval_spn("eval_spn",boost::lexical_cast<std::string>(s_err/float(n_batches))); 
+                        log4cxx::MDC eval_class("eval_class",boost::lexical_cast<std::string>(c_err /float(n_batches)));   
                         after_batch(m_epoch, batchids[batch]); // should accumulate errors etc           
                     }
                 }
