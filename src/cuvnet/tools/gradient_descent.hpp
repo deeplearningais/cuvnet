@@ -545,6 +545,10 @@ namespace cuvnet
         void set_learnrate(float learnrate){
             m_learnrate = learnrate;
         }
+        
+        float get_learnrate(){
+            return m_learnrate;
+        }
 
         void get_batch(unsigned int epoch, unsigned int batch, bool marginalize = false){
             //get next batch;

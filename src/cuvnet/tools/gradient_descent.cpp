@@ -325,12 +325,13 @@ namespace cuvnet
                 batchids[i] = i;
         }
         
+
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("gd"));
         unsigned long int iter = 1;
         unsigned long int wups = 0;
         try{
             unsigned long int t_start = time(NULL);
-            for (; ; ++m_epoch) {
+            for (; ; m_epoch +=1) {
                 float c_err = 0;
                 float s_err = 0;
                 
@@ -371,7 +372,15 @@ namespace cuvnet
                     m_swipe.bprop(); // backward pass
                  
                     *classification = pt_Y->delta().copy();
-
+                    cuv::apply_scalar_functor(*classification, cuv::SF_EXP);                        
+                    cuv::reduce_to_col(*a1, *classification, cuv::RF_ARGMAX);
+                    cuv::reduce_to_col(*a2, *Y_oneOutOfN, cuv::RF_ARGMAX);
+                        
+                    *a1 -= *a2;
+                    int n_wrong = batch_size - cuv::count(*a1,0);
+                    float tmp_err = n_wrong / (float) batch_size;
+                    c_err += tmp_err;
+                    
                     if(m_learnrate){
                         // this is not an evaluation pass, we're actually supposed to do work ;)
                         
@@ -396,38 +405,31 @@ namespace cuvnet
                         cuv::apply_scalar_functor(*SM, cuv::SF_EXP);
                         cuv::apply_scalar_functor(*S, cuv::SF_EXP);
                         
-                        std::cout << std::endl << "S: " << cuv::mean(*S) << std::endl;
-                        std::cout << "SM: " << cuv::mean(*SM) << std::endl;
-
+//                        std::cout << std::endl << "S: " << cuv::mean(*S) << std::endl;
+//                        std::cout << "SM: " << cuv::mean(*SM) << std::endl;
                         
                         cuv::apply_binary_functor(*SM, *S, cuv::BF_SUBTRACT);
                         cuv::apply_scalar_functor(*SM, *SM, cuv::SF_ABS);                             
                         float tmp_err = cuv::mean(*SM);
                         s_err += tmp_err;                        
-                        std::cout << "spn err: "  << tmp_err << std::endl;
-
+/*
                         std::string name = "class_";
                         name.append(std::to_string(batchids[batch]));
                         name.append("_");
                         name.append(std::to_string(m_epoch));
 
-//                        tofile(name, *classification);
-//                        tofile("labels", *Y_oneOutOfN);
-                        
-                        cuv::reduce_to_col(*a1, *classification,cuv::RF_ARGMAX);
-                        cuv::reduce_to_col(*a2, *Y_oneOutOfN, cuv::RF_ARGMAX);
-                        
-                        *a1 -= *a2;
-                        int n_wrong = batch_size - cuv::count(*a1,0);
-                        tmp_err = n_wrong / (float) batch_size;
-                        c_err += tmp_err;
-                        std::cout << "classification err: "  << tmp_err << std::endl;
-                        
+                        tofile(name, *classification);
+                        tofile("labels", *Y_oneOutOfN);
+*/                        
+
+  
                         // nan check
                         if ((s_err != s_err) || (c_err != c_err)) throw std::runtime_error("NAN occured -> Abort");
                         
                         after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
-
+                        log4cxx::MDC batch_err_spn("batch_err_spn",boost::lexical_cast<std::string>(s_err/float(n_batches))); 
+                        log4cxx::MDC batch_err_class("bach_err_class",boost::lexical_cast<std::string>(c_err /float(n_batches)));    
+                        
                         if(iter % m_update_every == 0) {
                             //std::cout << std::endl;
                             before_weight_update(wups);
@@ -436,10 +438,14 @@ namespace cuvnet
                             after_weight_update(wups);
                         }
                     } else{
-                        after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
+                        log4cxx::MDC eval_spn("eval_spn",boost::lexical_cast<std::string>(s_err/float(n_batches))); 
+                        log4cxx::MDC eval_class("eval_class",boost::lexical_cast<std::string>(c_err /float(n_batches)));   
+                        after_batch(m_epoch, batchids[batch]); // should accumulate errors etc           
                     }
                 }
                 //logging
+                std::cout << "spn err: "  << s_err/float(n_batches);
+                std::cout << ", classification err: "  << c_err /float(n_batches) << std::endl;                
                 log4cxx::MDC err_spn("err_spn",boost::lexical_cast<std::string>(s_err/float(n_batches))); 
                 log4cxx::MDC err_class("err_class",boost::lexical_cast<std::string>(c_err /float(n_batches)));                
                 after_epoch(m_epoch, wups); // should log error etc
