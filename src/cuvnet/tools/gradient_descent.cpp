@@ -410,7 +410,9 @@ namespace cuvnet
                         if ((s_err != s_err) || (c_err != c_err)) throw std::runtime_error("NAN occured -> Abort");
                         
                         after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
-
+                        log4cxx::MDC batch_err_spn("batch_err_spn",boost::lexical_cast<std::string>(s_err/float(n_batches))); 
+                        log4cxx::MDC batch_err_class("bach_err_class",boost::lexical_cast<std::string>(c_err /float(n_batches)));    
+                        
                         if(iter % m_update_every == 0) {
                             //std::cout << std::endl;
                             before_weight_update(wups);
@@ -420,10 +422,7 @@ namespace cuvnet
                         }
                     } else{
                  
-                        after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
-                        log4cxx::MDC batch_err_spn("batch_err_spn",boost::lexical_cast<std::string>(s_err/float(n_batches))); 
-                        log4cxx::MDC batch_err_class("bach_err_class",boost::lexical_cast<std::string>(c_err /float(n_batches)));                
-                        
+                        after_batch(m_epoch, batchids[batch]); // should accumulate errors etc           
                     }
                 }
                 //logging
