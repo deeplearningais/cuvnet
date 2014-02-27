@@ -52,16 +52,14 @@ namespace cuvnet
                         add_param(1,m_W);
                         add_param(2,Y);
                         m_S = S;      
-                        
+                                                                        
                         //generate dummy tensor ( empty ) to avoid null pointer exceptions
                         value_ptr z(new value_type(cuv::extents[1], value_ptr::s_allocator));
                         m_lae = z;
                         
-                        if (hard_gd){
-                            cow_ptr<int_mat> m(new int_mat(cuv::extents[1], value_ptr::s_allocator));
-                            m_max_idx = m; 
-                            m_memory_flag = false;
-                        }
+                        cow_ptr<int_mat> m(new int_mat(cuv::extents[1], value_ptr::s_allocator));
+                        m_max_idx = m; 
+                        m_memory_flag = false;
                     }
 
                     void fprop();

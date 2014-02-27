@@ -5,11 +5,10 @@ namespace cuvnet{
 
 
         void Spn_Output_Op::_graphviz_node_desc(detail::graphviz_node& desc)const{
-
-        if(m_hard_gd)
-            desc.label = "W_MAX";
-        else 
-            desc.label = "TO_LOGWADDEXP";
+            if(m_hard_gd)
+                desc.label = "W_MAX";
+            else 
+                desc.label = "TO_LOGWADDEXP";
     }
 
     

@@ -8,16 +8,26 @@ namespace cuvnet{
      * ***********************************************************************/
 
     void Weighted_Sub_Tensor_op::_graphviz_node_desc(detail::graphviz_node& desc)const{
-        if(m_to == cuv::alex_conv::TO_WMAX)
-            desc.label = "W_MAX";
-        else if (m_to == cuv::alex_conv::TO_LOGWADDEXP)
-            desc.label = "TO_LOGWADDEXP";
-        else if (m_to == cuv::alex_conv::TO_LOGWADDEXP_LOGSPACE)
-            desc.label = "TO_LOGWADDEXP_LOGSPACE";
-        else if (m_to == cuv::alex_conv::TO_WMAX_LOGSPACE)
-            desc.label = "TO_WMAX_LOGSPACE";        
+        using namespace cuv;
+        using namespace alex_conv;
+        switch(m_to){
+            case TO_MAX:
+                desc.label = "PT_MAX";
+                break;
+            case TO_LOGWADDEXP:
+                desc.label = "TO_LOGWADDEXP";
+                break;
+            case TO_LOGWADDEXP_LOGSPACE:
+                desc.label = "TO_LOGWADDEXP_LOGSPACE";
+                break;
+            case TO_WMAX_LOGSPACE:
+                desc.label = "TO_WMAX_LOGSPACE";
+                break;
+            case TO_WADD:
+                desc.label = "TO_WADD";
+                break;                
+        }
     }
-
 
     void Weighted_Sub_Tensor_op::_determine_shapes(){
         cuvAssert(m_params[0]->shape.size() > 1);
