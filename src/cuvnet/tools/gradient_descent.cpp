@@ -364,6 +364,9 @@ void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, u
                 int n_wrong = batch_size - cuv::count(*a1,0);
                 float tmp_err = n_wrong / (float) batch_size;
                 c_err += tmp_err;
+                log4cxx::MDC batch_err_class_mdc("bach_err_class",boost::lexical_cast<std::string>(tmp_err));    
+                LOG4CXX_WARN(log, "logging batch stats ("<<(time(NULL)-t_start)<<"s)");
+                
                 
                 if(m_learnrate){
                     // this is not an evaluation pass, we're actually supposed to do work ;)
@@ -411,8 +414,7 @@ void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, u
                     if ((s_err != s_err) || (c_err != c_err)) throw std::runtime_error("NAN occured -> Abort");
                     
                     after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
-                    log4cxx::MDC batch_err_spn_mdc("batch_err_spn",boost::lexical_cast<std::string>(s_err/float(n_batches))); 
-                    log4cxx::MDC batch_err_class_mdc("bach_err_class",boost::lexical_cast<std::string>(c_err /float(n_batches)));    
+                    log4cxx::MDC batch_err_spn_mdc("batch_err_spn",boost::lexical_cast<std::string>(tmp_err)); 
                     LOG4CXX_WARN(log, "logging batch stats ("<<(time(NULL)-t_start)<<"s)");
                     
                     
