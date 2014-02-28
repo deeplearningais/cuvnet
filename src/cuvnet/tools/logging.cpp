@@ -27,7 +27,8 @@ namespace cuvnet
         FileAppenderPtr myXMLFileAppenderPtr = new FileAppender(myXMLLayoutPtr, fn, false, true, 1024);
     
         // OtrosLogViewer Setup: TIMESTAMP LEVEL [THREAD] NDC LOGGER - MESSAGE
-        PatternLayoutPtr myLayoutPtr = new PatternLayout("%d{ISO8601} %-5p [%t] %x %c - %m%n");
+        //PatternLayoutPtr myLayoutPtr = new PatternLayout("%d{ISO8601} %-5p [%t] %x %c - %m%n");
+        PatternLayoutPtr myLayoutPtr = new PatternLayout("%d{ISO8601} %-5p %x %c - %m%n");
         ConsoleAppenderPtr myAppenderPtr = new ConsoleAppender(myLayoutPtr);
         myAppenderPtr->setThreshold(Level::getInfo());
         //FileAppenderPtr myFileAppenderPtr = new FileAppender(myLayoutPtr, "log.txt", false, true, 1024);
