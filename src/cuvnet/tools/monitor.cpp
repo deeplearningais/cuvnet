@@ -268,7 +268,7 @@ namespace cuvnet
 
         std::vector<log4cxx::MDC*> v;
         BOOST_FOREACH(const watchpoint* p, m_impl->m_watchpoints){
-            if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS || p->type == WP_FULL_WEIGHT_STATS  || p->type == WP_CONV_WEIGHT_STATS){
+            if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS || p->type == WP_FULL_WEIGHT_STATS  || p->type == WP_CONV_WEIGHT_STATS || p->type == WP_SINK_ONCE_STATS){
                 log4cxx::MDC* mdc0 = new log4cxx::MDC(p->name + "_mean", boost::lexical_cast<std::string>(mean(p->name)));
                 v.push_back(mdc0);
                 log4cxx::MDC* mdc1 = new log4cxx::MDC(p->name + "_var", boost::lexical_cast<std::string>(var(p->name)));
