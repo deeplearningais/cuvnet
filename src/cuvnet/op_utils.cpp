@@ -760,6 +760,8 @@ void valid_shape_info::determine_shapes(){
                         + (inshape[1]
                         - outshape[1] * poolp->stridex()));
 #endif
+                i_margin_l += o2i_scale * poolp->stridex() / 2.f; // pools are not centered!
+                i_margin_r += o2i_scale * poolp->stridex() / 2.f; // pools are not centered!
                 o2i_scale *= poolp->stridex();
             }
             else if((convp = dynamic_cast<Convolve*>(*it))){
