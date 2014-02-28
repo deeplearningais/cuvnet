@@ -96,11 +96,19 @@ namespace cuvnet { namespace models {
         }
 
         /**
-         * set rectified linear function as activation function and bias default value to 1
+         * set rectified linear function as activation function
          */
         inline conv_layer_opts& rectified_linear(){
             m_nonlinearity = cuvnet::rectified_linear;
-            m_bias_default_value = 1.f;
+            //m_bias_default_value = 1.f;
+            return *this;
+        }
+
+        /**
+         * set no activation function (i.e., output==linear_output)
+         */
+        inline conv_layer_opts& linear(){
+            m_nonlinearity.clear();
             return *this;
         }
 
