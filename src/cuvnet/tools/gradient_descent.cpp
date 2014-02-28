@@ -314,7 +314,7 @@ namespace cuvnet
         unsigned long int wups = 0;
         try{
             unsigned long int t_start = time(NULL);
-            for (; ; m_epoch +=1) {
+            for (; ; m_epoch++) {
                 float c_err = 0;
                 float s_err = 0;
                 
@@ -421,16 +421,21 @@ namespace cuvnet
                             after_weight_update(wups);
                         }
                     } else{
-                        log4cxx::MDC eval_spn("eval_spn",boost::lexical_cast<std::string>(s_err/float(n_batches))); 
-                        log4cxx::MDC eval_class("eval_class",boost::lexical_cast<std::string>(c_err /float(n_batches)));   
+                        log4cxx::MDC eval_batch_class("eval_batch_class",boost::lexical_cast<std::string>(c_err /float(n_batches)));   
                         after_batch(m_epoch, batchids[batch]); // should accumulate errors etc           
                     }
                 }
                 //logging
-                std::cout << "spn err: "  << s_err/float(n_batches);
-                std::cout << ", classification err: "  << c_err /float(n_batches) << std::endl;                
-                log4cxx::MDC err_spn("err_spn",boost::lexical_cast<std::string>(s_err/float(n_batches))); 
-                log4cxx::MDC err_class("err_class",boost::lexical_cast<std::string>(c_err /float(n_batches)));                
+      
+                if (m_learnrate == 0){
+                    log4cxx::MDC eval_batch("eval_class",boost::lexical_cast<std::string>(c_err /float(n_batches))); 
+                    std::cout << ",eval: classification err: "  << c_err /float(n_batches) << std::endl;                     
+                } else {
+                    log4cxx::MDC err_spn("err_spn",boost::lexical_cast<std::string>(s_err/float(n_batches))); 
+                    log4cxx::MDC err_class("err_class",boost::lexical_cast<std::string>(c_err /float(n_batches))); 
+                    std::cout << "spn err: "  << s_err/float(n_batches);
+                    std::cout << ", classification err: "  << c_err /float(n_batches) << std::endl;                     
+                }
                 after_epoch(m_epoch, wups); // should log error etc
             }
 
