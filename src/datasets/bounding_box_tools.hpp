@@ -60,6 +60,7 @@ namespace cuvnet
         struct image_meta_info{
             std::string filename;   ///< image file name
             std::vector<object> objects; ///< descriptions of depicted objects
+            float sampling_likelihood; ///< the likelihood for using this image, eg for class-stratified sampling.
 
             /// coordinates of processed image in original image.
             /// The coordinates may be outside the processed image, which means 
