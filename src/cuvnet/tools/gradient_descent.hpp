@@ -554,18 +554,21 @@ namespace cuvnet
             //get next batch;
             unsigned int start = batch * batch_size;
             unsigned int end = start + batch_size;
+
+            if (start + batch_size > label_data.size()){
+                start = label_data.size() - (batch_size );
+                end = label_data.size();               
+            }
             
              cuv::tensor<float,cuv::dev_memory_space>  v( data[cuv::indices[cuv::index_range(start, end)]]);
             cuv:: tensor<float,cuv::dev_memory_space> v_T (cuv::extents[v.shape(1)][v.shape(0)]);
             cuv::transpose(v_T, v);
-//            std::cout << "get_batch: "<< start << ", end: "<<end<< ", min: "<<cuv::minimum(v)<< ", max: "<<cuv::maximum(v)<<std::endl;
             
             cuvAssert(!has_nan(v_T));
             v_T.reshape(cuv::extents[1][img_size][img_size][batch_size]);
             cuvAssert(!has_nan(v_T));
             pt_X->data() = v_T;   
             
-            //tofile("dataxy", pt_X->data());
             if (!marginalize){
                 cuv::fill(pt_Y->data(), 0.f);
                 //copy data to dev memory space
@@ -577,13 +580,6 @@ namespace cuvnet
             } else {
                 cuv::fill(pt_Y->data(), -1.f);           
             }
-
-            
-//            std::cout << "get_batch: labels "<< start << ", end: "<<end<< ", min: "<<cuv::minimum(dst)<< ", max: "<<cuv::maximum(dst)<<std::endl; 
-//             std::cout << "Y[0]: " << pt_Y->data()[cuv::indices[0]][0] << std::endl;
-//             std::cout << "Y[0]: " << pt_Y->data()[cuv::indices[0]][1] << std::endl;            
-//             std::cout << "Y[1]: " << pt_Y->data()[cuv::indices[1]][0] << std::endl;       
-//             std::cout << "Y[0]: " << pt_Y->data()[cuv::indices[1]][1] << std::endl;            
             
             cuv::tensor<float,cuv::dev_memory_space>  vl (label_coded[cuv::indices[cuv::index_range(start, end)]]);
             cuvAssert(!has_nan(vl));            
