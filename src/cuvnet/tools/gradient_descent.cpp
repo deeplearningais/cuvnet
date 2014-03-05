@@ -437,7 +437,8 @@ void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, u
                 LOG4CXX_WARN(log, "logging eval ("<<(time(NULL)-t_start)<<"s)");
 
             } else {
-                log4cxx::MDC err_spn_mdc("err_spn",boost::lexical_cast<std::string>(s_err/float(n_batches))); 
+		m_spn_err = s_err / float(n_batches);
+                log4cxx::MDC err_spn_mdc("err_spn",boost::lexical_cast<std::string>(m_spn_err)); 
                 log4cxx::MDC err_class_mdc("err_class",boost::lexical_cast<std::string>(c_err /float(n_batches))); 
                 LOG4CXX_WARN(log, "logging  errors"<<(time(NULL)-t_start)<<"s)");
                 
