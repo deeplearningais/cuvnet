@@ -538,6 +538,8 @@ namespace cuvnet
         inline void set_l1decay(float f){ m_l1decay = f; }
         
         void set_learnrate(float learnrate){
+            log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("spn_gd"));        
+            LOG4CXX_WARN(log, "changing learn_rate to: " << learnrate);
             m_learnrate = learnrate;
         }
         
