@@ -511,6 +511,7 @@ namespace cuvnet
             unsigned int batch_size;
             unsigned int img_size;
             float m_thresh;
+	    float m_spn_err = 1.0;
                         
             typedef cuv::tensor<float,cuv::host_memory_space> host_data;
             host_data data;
@@ -543,12 +544,18 @@ namespace cuvnet
         inline void set_l1decay(float f){ m_l1decay = f; }
         
         void set_learnrate(float learnrate){
+            log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("spn_gd"));        
+            LOG4CXX_WARN(log, "changing learn_rate to: " << learnrate);
             m_learnrate = learnrate;
         }
         
         float get_learnrate(){
             return m_learnrate;
         }
+
+	float get_spn_err(){
+	    return m_spn_err;
+	}
 
         void get_batch(unsigned int epoch, unsigned int batch, bool marginalize = false){
             //get next batch;
