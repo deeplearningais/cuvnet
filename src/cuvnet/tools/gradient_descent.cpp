@@ -315,7 +315,7 @@ void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, u
     unsigned long int wups = 0;
     try{
         unsigned long int t_start = time(NULL);
-        for (; ; m_epoch++) {
+        for (; ; ++m_epoch) {
             float c_err = 0;
             float s_err = 0;
             
@@ -362,15 +362,17 @@ void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, u
                     
                 *a1 -= *a2;
                 int n_wrong = batch_size - cuv::count(*a1,0);
-                float tmp_err = n_wrong / (float) batch_size;
-                c_err += tmp_err;
-                log4cxx::MDC batch_err_class_mdc("bach_err_class",boost::lexical_cast<std::string>(tmp_err));    
-                LOG4CXX_WARN(log, "logging batch stats ("<<(time(NULL)-t_start)<<"s)");
-                
+                float tmp_cerr = n_wrong / (float) batch_size;
+                c_err += tmp_cerr;
                 
                 if(m_learnrate){
                     // this is not an evaluation pass, we're actually supposed to do work ;)
-                    
+                    log4cxx::MDC batch_err_class_mdc("batch_err_class",boost::lexical_cast<std::string>(tmp_cerr));    
+                    LOG4CXX_WARN(log, "logging batch stats ("<<(time(NULL)-t_start)<<"s)");
+		} else{	
+                    log4cxx::MDC batch_err_spn_mdc("batch_eval_class",boost::lexical_cast<std::string>(tmp_cerr)); 
+                    LOG4CXX_WARN(log, "logging eval batch stats ("<<(time(NULL)-t_start)<<"s)");
+		}   
                     //save old derivatives
                     unsigned int i=0;
                     for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
@@ -399,25 +401,16 @@ void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, u
                     cuv::apply_scalar_functor(*SM, *SM, cuv::SF_ABS);                             
                     float tmp_err = cuv::mean(*SM);
                     s_err += tmp_err;                        
-/*
-                    std::string name = "class_";
-                    name.append(std::to_string(batchids[batch]));
-                    name.append("_");
-                    name.append(std::to_string(m_epoch));
-
-                    tofile(name, *classification);
-                    tofile("labels", *Y_oneOutOfN);
-*/                        
-
 
                     // nan check
                     if ((s_err != s_err) || (c_err != c_err)) throw std::runtime_error("NAN occured -> Abort");
                     
                     after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
+                    
+                    
+  //              if(m_learnrate){
                     log4cxx::MDC batch_err_spn_mdc("batch_err_spn",boost::lexical_cast<std::string>(tmp_err)); 
                     LOG4CXX_WARN(log, "logging batch stats ("<<(time(NULL)-t_start)<<"s)");
-                    
-                    
                     if(iter % m_update_every == 0) {
                         //std::cout << std::endl;
                         before_weight_update(wups);
@@ -425,25 +418,36 @@ void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, u
                         wups ++;
                         after_weight_update(wups);
                     }
-                } else{
-                    after_batch(m_epoch, batchids[batch]); // should accumulate errors etc           
-                }
+//                } else{
+                   // after_batch(m_epoch, batchids[batch]); // should accumulate errors etc           
+//                }
             }
             //logging
  
-            if (m_learnrate == 0){
-                log4cxx::MDC eval_batch_mdc("eval_class",boost::lexical_cast<std::string>(c_err /float(n_batches))); 
-                std::cout << ",eval: classification err: "  << c_err /float(n_batches) << std::endl;    
+            if (!m_learnrate){
+		float eval_error = c_err / float(n_batches);
+                log4cxx::MDC eval_batch_mdc("eval_class",boost::lexical_cast<std::string>(eval_error)); 
+                std::cout << " eval: classification err: "  << eval_error << std::endl;    
                 LOG4CXX_WARN(log, "logging eval ("<<(time(NULL)-t_start)<<"s)");
 
+/*                    std::string name = "class_";
+                    name.append(std::to_string(batchids[batch]));
+                    name.append("_");
+                    name.append(std::to_string(m_epoch));
+
+                    tofile(name, *classification);
+                    tofile("labels", *Y_oneOutOfN);
+  */                      
+
             } else {
+		float eval_error = c_err / float(n_batches);
 		m_spn_err = s_err / float(n_batches);
                 log4cxx::MDC err_spn_mdc("err_spn",boost::lexical_cast<std::string>(m_spn_err)); 
-                log4cxx::MDC err_class_mdc("err_class",boost::lexical_cast<std::string>(c_err /float(n_batches))); 
+                log4cxx::MDC err_class_mdc("err_class",boost::lexical_cast<std::string>(eval_error)); 
                 LOG4CXX_WARN(log, "logging  errors"<<(time(NULL)-t_start)<<"s)");
-                
-                std::cout << "spn err: "  << s_err/float(n_batches);
-                std::cout << ", classification err: "  << c_err /float(n_batches) << std::endl;                     
+  
+                std::cout << "spn err: "  << m_spn_err;
+                std::cout << ", classification err: "  << eval_error << std::endl;                     
         }
         m_results->log_to_file();            
         after_epoch(m_epoch, wups); // should log error etc
