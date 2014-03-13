@@ -1131,8 +1131,15 @@ namespace cuvnet
         std::vector<unsigned int> img = m_params[0]->shape;
         std::vector<unsigned int> dst(4);
         dst[0] = img[0];
-        dst[1] = (img[1]-m_subsx) / m_stridex +1;
-        dst[2] = (img[2]-m_subsx) / m_stridex +1;
+	if ( img[1] <= m_subsx )
+	    dst[1] = 1;
+	else
+            dst[1] = (img[1]-m_subsx) / m_stridex +1;
+       
+	if ( img[2] <= m_subsx )
+	    dst[2] = 1;
+	else
+            dst[2] = (img[2]-m_subsx) / m_stridex +1;
         dst[3] = img[3];
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
