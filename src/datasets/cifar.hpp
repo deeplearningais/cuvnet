@@ -14,7 +14,7 @@ namespace cuvnet
      */
     struct cifar_dataset : dataset
     {
-        cifar_dataset(const std::string& path, bool grayscale=false){
+        cifar_dataset(const std::string& path, bool grayscale=false, bool out_of_n_coding=true){
             std::cout << "Reading CIFAR10 dataset..."<<std::flush;
             const unsigned int size = 3*32*32;
             train_data.resize(cuv::extents[50000][size]);
@@ -82,17 +82,27 @@ namespace cuvnet
                 test_data = gtest_data;
             }
 
-            train_labels.resize(cuv::extents[50000][10]);
-            test_labels.resize(cuv::extents[10000][10]);
-            train_labels = 0.f;
-            test_labels = 0.f;
-            for (unsigned int i = 0; i < trainl.size(); ++i){
-                train_labels(i, trainl[i]) = 1;
-            }
-            for (unsigned int i = 0; i < testl.size(); ++i){
-                test_labels(i, testl[i]) = 1;
-            }
-
+	    if(out_of_n_coding){
+                train_labels.resize(cuv::extents[50000][10]);
+                test_labels.resize(cuv::extents[10000][10]);
+                train_labels = 0.f;
+                test_labels = 0.f;
+                for (unsigned int i = 0; i < trainl.size(); ++i){
+                    train_labels(i, trainl[i]) = 1;
+                }
+                for (unsigned int i = 0; i < testl.size(); ++i){
+                    test_labels(i, testl[i]) = 1;
+                }
+	    } else { 
+                train_labels.resize(cuv::extents[50000]);
+                test_labels.resize(cuv::extents[10000]);
+                for (unsigned int i = 0; i < trainl.size(); ++i){
+                    train_labels(i) =  trainl[i];
+                }
+                for (unsigned int i = 0; i < testl.size(); ++i){
+                    test_labels(i) = testl[i];
+                }
+	    }
             channels = grayscale ? 1 : 3;
             binary   = false;
             image_size = 32;
