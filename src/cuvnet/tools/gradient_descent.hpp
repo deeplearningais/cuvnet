@@ -504,9 +504,11 @@ namespace cuvnet
             unsigned int n_batch;
             unsigned int batch_size;
             unsigned int img_size;
+	    unsigned int m_nChannels;
             float m_thresh;
-	    float m_spn_err = 1.0;
-                        
+	    float m_spn_err = -1.0;
+            float m_class_err = -1.0;            
+
             typedef cuv::tensor<float,cuv::host_memory_space> host_data;
             host_data data;
             host_data label_data;
@@ -526,29 +528,40 @@ namespace cuvnet
         spn_gradient_descent(Op::op_ptr op,  input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate=0.001f, bool rescale_weights = false, float thresh = 1.0, float weightdecay=0.0f);
         void minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs, bool randomize);
         
-        void set_data(const host_data & data, const host_data & labels, const host_data & label_c, unsigned int batch_size, unsigned int img_size){
+        void set_data(const host_data & data, const host_data & labels, const host_data & label_c, unsigned int batch_size, unsigned int img_size, unsigned int nChannels){
             this->data = data;
             this->label_data = labels;
             this->batch_size = batch_size;
             this->img_size = img_size;
             this->label_coded = label_c;
+	    this->m_nChannels = nChannels;
             n_batch = int(std::ceil(data.shape(0) / (float) batch_size));
         }
         
         inline void set_l1decay(float f){ m_l1decay = f; }
+       
         
+
         void set_learnrate(float learnrate){
             log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("spn_gd"));        
             LOG4CXX_WARN(log, "changing learn_rate to: " << learnrate);
             m_learnrate = learnrate;
         }
         
+        void reset_epochs(){
+	 m_epoch = 0;
+	}
+
         float get_learnrate(){
             return m_learnrate;
         }
 
 	float get_spn_err(){
 	    return m_spn_err;
+	}
+
+	float get_class_err(){
+	    return m_class_err;
 	}
 
         void get_batch(unsigned int epoch, unsigned int batch, bool marginalize = false){
@@ -566,10 +579,23 @@ namespace cuvnet
             cuv::transpose(v_T, v);
             
             cuvAssert(!has_nan(v_T));
-            v_T.reshape(cuv::extents[1][img_size][img_size][batch_size]);
+	    /*std::cout << " du 1 v_T shape " << std::endl;
+            for ( unsigned int n = 0; n < v_T.shape().size(); n++)
+		    std::cout << v_T.shape(n) << ",  ";
+	    std::cout << std::endl;
+           */
+
+            v_T.reshape(cuv::extents[m_nChannels][img_size][img_size][batch_size]);
             cuvAssert(!has_nan(v_T));
             pt_X->data() = v_T;   
-            
+           
+       /*     std::string name = "class_";
+            name.append(std::to_string(batch));
+	    name.append("_");
+	    name.append(std::to_string(m_epoch));
+            tofile(name, *classification);
+	*/												   
+
             if (!marginalize){
                 cuv::fill(pt_Y->data(), 0.f);
                 //copy data to dev memory space

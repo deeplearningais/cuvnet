@@ -364,7 +364,9 @@ void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, u
                 int n_wrong = batch_size - cuv::count(*a1,0);
                 float tmp_cerr = n_wrong / (float) batch_size;
                 c_err += tmp_cerr;
-                
+
+                bool log_batch_stats = false;        
+	if (log_batch_stats)
                 if(m_learnrate){
                     // this is not an evaluation pass, we're actually supposed to do work ;)
                     log4cxx::MDC batch_err_class_mdc("batch_err_class",boost::lexical_cast<std::string>(tmp_cerr));    
@@ -409,8 +411,10 @@ void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, u
                     
                     
   //              if(m_learnrate){
-                    log4cxx::MDC batch_err_spn_mdc("batch_err_spn",boost::lexical_cast<std::string>(tmp_err)); 
-                    LOG4CXX_WARN(log, "logging batch stats ("<<(time(NULL)-t_start)<<"s)");
+                    if (log_batch_stats){
+		        log4cxx::MDC batch_err_spn_mdc("batch_err_spn",boost::lexical_cast<std::string>(tmp_err)); 
+                        LOG4CXX_WARN(log, "logging batch stats ("<<(time(NULL)-t_start)<<"s)");
+		    }
                     if(iter % m_update_every == 0) {
                         //std::cout << std::endl;
                         before_weight_update(wups);
@@ -442,6 +446,7 @@ void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, u
             } else {
 		float eval_error = c_err / float(n_batches);
 		m_spn_err = s_err / float(n_batches);
+		m_class_err = eval_error;
                 log4cxx::MDC err_spn_mdc("err_spn",boost::lexical_cast<std::string>(m_spn_err)); 
                 log4cxx::MDC err_class_mdc("err_class",boost::lexical_cast<std::string>(eval_error)); 
                 LOG4CXX_WARN(log, "logging  errors"<<(time(NULL)-t_start)<<"s)");
