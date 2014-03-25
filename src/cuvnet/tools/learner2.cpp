@@ -155,6 +155,16 @@ namespace cuvnet
     }
 
 #define DRGD diff_recording_gradient_descent
+#define WRGD wup_recording_gradient_descent
+#define MAKE_GD(BASETYPE, ...) \
+    boost::shared_ptr<gradient_descent> gd; \
+    if(drec)  \
+      gd = boost::make_shared<DRGD<BASETYPE> >(__VA_ARGS__);\
+    else if(wrec) \
+      gd = boost::make_shared<WRGD<BASETYPE> >(__VA_ARGS__);\
+    else  \
+      gd = boost::make_shared<BASETYPE>(__VA_ARGS__);\
+
     /*****************************************
      * Learner2
      *****************************************/
@@ -162,8 +172,12 @@ namespace cuvnet
     learner2::get_gradient_descent(model& m, const ptree& cfg){
         std::string typ = cfg.get("type", "plain");
         bool drec = cfg.get("diff_rec", false);
+        bool wrec = cfg.get("wup_rec", false);
         if(drec){
             LOG4CXX_WARN(g_log_learner2, "Setting up delta recording for gradient_descent");
+        }
+        if(wrec){
+            LOG4CXX_WARN(g_log_learner2, "Setting up wup recording for gradient_descent");
         }
         float initial_learnrate = cfg.get("learnrate", 0.01);
         float initial_momentum = cfg.get("momentum", 0.9);
@@ -172,10 +186,7 @@ namespace cuvnet
         unsigned int start_epoch = cfg.get("start_epoch", 0);
         if(typ == "plain"){
             LOG4CXX_WARN(g_log_learner2, "Creating Plain GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
-            boost::shared_ptr<gradient_descent> gd =
-                drec 
-                ? boost::make_shared<DRGD<gradient_descent> >(m.loss(), 0, m.get_params(), initial_learnrate, l2decay)
-                : boost::make_shared<       gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
+            MAKE_GD(gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
@@ -184,29 +195,20 @@ namespace cuvnet
             float grad_avg = cfg.get("grad_avg", 0.9f);
             float l1decay = cfg.get("l1decay", 0.f);
             LOG4CXX_WARN(g_log_learner2, "Creating RMSProp GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << "grad_avg:" << grad_avg << ")");
-            boost::shared_ptr<gradient_descent> gd =
-                drec 
-                ?  boost::make_shared<DRGD<rmsprop_gradient_descent> >(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay)
-                :  boost::make_shared<     rmsprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay);
+            MAKE_GD(rmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
         }else if(typ == "rprop"){
             LOG4CXX_WARN(g_log_learner2, "Creating RPROP GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
-            boost::shared_ptr<gradient_descent> gd =
-                drec
-                ?  boost::make_shared<DRGD<rprop_gradient_descent> >(m.loss(), 0, m.get_params(), initial_learnrate, l2decay)
-                :  boost::make_shared<       rprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
+            MAKE_GD(rprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
             gd->set_update_every(0);
             gd->set_verbosity(verbosity);
             return gd;
         }else if(typ == "momentum"){
             LOG4CXX_WARN(g_log_learner2, "Creating Momentum GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", momentum: "<< initial_momentum << ")");
-            boost::shared_ptr<gradient_descent> gd =
-                drec
-                ?  boost::make_shared<DRGD<momentum_gradient_descent> >(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, initial_momentum)
-                :  boost::make_shared<       momentum_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay, initial_momentum);
+            MAKE_GD(momentum_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, initial_momentum);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
@@ -216,19 +218,13 @@ namespace cuvnet
             float delta = cfg.get("delta", 0.01f);
             LOG4CXX_WARN(g_log_learner2, "Creating AdaGrad GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", delta:"<< delta 
                 << ", winsize:" << winsize << ", l1_penalty:" << l1_penalty << ")");
-            boost::shared_ptr<gradient_descent> gd =
-                drec
-                ?  boost::make_shared<DRGD<adagrad_gradient_descent> >(m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  delta, winsize, l1_penalty)
-                :  boost::make_shared<       adagrad_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  delta, winsize, l1_penalty);
+            MAKE_GD(adagrad_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  delta, winsize, l1_penalty);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
         }else if(typ == "na_rmsprop"){
             LOG4CXX_WARN(g_log_learner2, "Creating OriginalNAG GD (initial_learnrate:"<<initial_learnrate<<", momentum:"<< initial_momentum  << ")");
-            boost::shared_ptr<gradient_descent> gd =
-                drec
-                ?  boost::make_shared<DRGD<na_rmsprop_gradient_descent> >(m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  initial_momentum, 0.9f)
-                :  boost::make_shared<       na_rmsprop_gradient_descent>(m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  initial_momentum, 0.9f);
+            MAKE_GD(na_rmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  initial_momentum, 0.9f);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
@@ -611,6 +607,11 @@ namespace cuvnet
             }else{
                 ((DRGD<gradient_descent>*)m_gd.get())->set_sync_function(boost::ref(*paramsync));
             }
+        }
+
+        bool want_wup_rec = cfg.get("gd.wup_rec", false);
+        if(want_wup_rec){
+            ((WRGD<gradient_descent>*)m_gd.get())->set_monitor(*m_mon);
         }
 
         boost::shared_ptr<convergence_checker> cc;

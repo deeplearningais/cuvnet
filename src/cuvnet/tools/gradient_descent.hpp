@@ -9,6 +9,7 @@
 
 namespace cuvnet
 {
+    class monitor;
 
     /**
      * @addtogroup learning_exceptions
@@ -701,15 +702,49 @@ namespace cuvnet
             protected:
                 typedef cuv::host_memory_space storage_space;
                 typedef cuv::tensor<float, storage_space> storage_t;
-                std::map<Op*, storage_t> m_updates;
-                bool m_active;
+                std::map<Op*, storage_t> m_updates_;
+                bool m_active_;
+                monitor* m_mon_;
+                drgd_helper():m_mon_(NULL){}
                 virtual std::map<Op*, storage_t>& updates() {
-                    return m_updates;
+                    return m_updates_;
                 }
                 virtual bool& active() {
-                    return m_active;
+                    return m_active_;
                 }
-                void set_active(bool b){ m_active = b; }
+                void set_active(bool b){ m_active_ = b; }
+        };
+        
+        // this class is just to have member variables of
+        // diff_recording_gradient_descent before the member variables of its
+        // BaseGradientDescent, so we can use casts to
+        // diff_recording_gradient_descent<gradient_descent>
+        struct wrgd_helper{
+            protected:
+                typedef cuv::host_memory_space storage_space;
+                typedef cuv::tensor<float, storage_space> storage_t;
+                std::map<Op*, storage_t> m_updates_;
+                std::map<Op*, float> m_vars_;
+                std::map<Op*, float> m_avgnorm_;
+                bool m_active_;
+                monitor* m_mon_;
+                unsigned int m_current_batch_;
+                unsigned int m_every_;
+                unsigned int m_n_rec_;
+                wrgd_helper()
+                    :m_mon_(NULL)
+                    ,m_current_batch_(0)
+                    ,m_every_(1)
+                    ,m_n_rec_(0)
+                {}
+                virtual std::map<Op*, storage_t>& updates() {
+                    return m_updates_;
+                }
+                virtual bool& active() {
+                    return m_active_;
+                }
+                void set_active(bool b){ m_active_ = b; }
+                void log(const std::string& desc, float val);
         };
     }
 
@@ -733,8 +768,8 @@ namespace cuvnet
             typedef std::vector<Op*> paramvec_t;
             using detail::drgd_helper::storage_space;
             using detail::drgd_helper::storage_t;
-            using detail::drgd_helper::m_updates;
-            using detail::drgd_helper::m_active;
+            using detail::drgd_helper::m_updates_;
+            using detail::drgd_helper::m_active_;
         public:
             /** 
              * this template constructor provides perfect forwarding for all arguments.
@@ -743,7 +778,7 @@ namespace cuvnet
                 diff_recording_gradient_descent(Params... args)
                 : BaseGradientDescent(args...)
                 {
-                    m_active = true;
+                    m_active_ = true;
                 }
 
             /**
@@ -785,15 +820,15 @@ namespace cuvnet
              */
             virtual void update_weights(){
 
-                if(m_active)
+                if(m_active_)
                 for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
                     ParameterInput* inp = (ParameterInput*) *it;
-                    std::map<Op*, storage_t>::iterator upit = m_updates.find(inp);
-                    if(upit != m_updates.end()){
-                        cuv::apply_binary_functor(m_updates[inp], (storage_t)inp->delta(), cuv::BF_XPBY, inp->get_learnrate_factor());
+                    std::map<Op*, storage_t>::iterator upit = m_updates_.find(inp);
+                    if(upit != m_updates_.end()){
+                        cuv::apply_binary_functor(m_updates_[inp], (storage_t)inp->delta(), cuv::BF_XPBY, inp->get_learnrate_factor());
                     }else{
-                        m_updates[inp] = inp->delta();
-                        m_updates[inp] *= inp->get_learnrate_factor();
+                        m_updates_[inp] = inp->delta();
+                        m_updates_[inp] *= inp->get_learnrate_factor();
                     }
 #define UPDATE_ONLY_ON_SERVER 0
 #if UPDATE_ONLY_ON_SERVER
@@ -803,6 +838,116 @@ namespace cuvnet
 #if !UPDATE_ONLY_ON_SERVER
                 BaseGradientDescent::update_weights();
 #endif
+            }
+    };
+
+    /** 
+     * An aspect that allows to store the \b negative weight updates regardless of the underlying weight update mechanism.
+     *
+     * (Weight Update Recording Gradient Descent)
+     *
+     * Usage:
+     * @code
+     * wup_recording_gradient_descent<gradient_descent> gd(loss,0,params);
+     * gd.minibatch_learning(...);
+     * @endcode
+     *
+     * @ingroup gd
+     */
+    template<class BaseGradientDescent>
+    struct wup_recording_gradient_descent
+    :   public detail::wrgd_helper,
+        public BaseGradientDescent
+    {
+        public:
+            typedef std::vector<Op*> paramvec_t;
+            using detail::wrgd_helper::storage_space;
+            using detail::wrgd_helper::storage_t;
+            using detail::wrgd_helper::m_updates_;
+            using detail::wrgd_helper::m_active_;
+            using detail::wrgd_helper::m_mon_;
+            using detail::wrgd_helper::m_n_rec_;
+            using detail::wrgd_helper::m_avgnorm_;
+            using detail::wrgd_helper::m_vars_;
+            typedef wup_recording_gradient_descent<BaseGradientDescent> my_class;
+
+        public:
+            /** 
+             * this template constructor provides perfect forwarding for all arguments.
+             */
+            template<typename... Params>
+                wup_recording_gradient_descent(Params... args)
+                : BaseGradientDescent(args...)
+                {
+                    m_active_ = true;
+
+                    BaseGradientDescent::before_batch.connect(boost::bind(&my_class::run_before_batch, this, _2));
+                    BaseGradientDescent::after_epoch.connect(boost::bind(&my_class::run_after_epoch, this));
+                    BaseGradientDescent::before_epoch.connect(boost::bind(&my_class::run_before_epoch, this));
+                }
+
+            void set_monitor(monitor& mon){
+                m_mon_ = &mon;
+            }
+
+
+
+        protected:
+            /**
+             * A wrapper of BaseGradientDescent::update_weights that records
+             * changes in the weights.
+             *
+             * @overload
+             */
+            virtual void update_weights(){
+
+                if(m_active_ && (m_current_batch_ % m_every_ == 0) && m_mon_)
+                for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
+                    ParameterInput* inp = (ParameterInput*) *it;
+                    if(cuv::IsSame<matrix::memory_space_type, cuv::dev_memory_space>::Result::value){
+                        m_updates_[inp] = inp->data();
+                    }else{
+                        m_updates_[inp] = inp->data().copy();
+                    }
+                }
+
+                // the standard weight update of the original gd
+                BaseGradientDescent::update_weights();
+
+                if(m_active_ && (m_current_batch_ % m_every_ == 0) && m_mon_)
+                for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
+                    ParameterInput* inp = (ParameterInput*) *it;
+                    std::map<Op*, storage_t>::iterator upit = m_updates_.find(inp);
+                    upit->second -= (host_matrix) inp->data();
+                    //m_updates[inp] *= -1.f;  // we're recording the negative update for speed
+                    
+                    m_avgnorm_[inp] += cuv::norm2(upit->second) / upit->second.size();
+                    m_vars_[inp] += cuv::var(upit->second);
+                    m_n_rec_ ++;
+                }
+            }
+
+            void run_before_batch(unsigned int batch){
+                m_current_batch_ = batch;
+            }
+
+            void run_after_epoch(){
+                if(m_active_ && m_mon_)
+                for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
+                    ParameterInput* inp = (ParameterInput*) *it;
+                    std::map<Op*, storage_t>::iterator upit = m_updates_.find(inp);
+                    log(inp->name() + "_dvar", m_vars_[inp] / m_n_rec_);
+                    log(inp->name() + "_davgnorm", m_avgnorm_[inp] / m_n_rec_);
+                }
+            }
+
+            void run_before_epoch(){
+                m_n_rec_ = 0;
+                for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
+                    ParameterInput* inp = (ParameterInput*) *it;
+                    m_avgnorm_[inp] = 0;
+                    m_vars_[inp] = 0;
+                }
             }
     };
 }

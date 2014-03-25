@@ -8,6 +8,7 @@
 #include <cuv/tools/device_tools.hpp>
 #include <cuv/libs/opt/opt.hpp>
 #include <cuvnet/tools/logging.hpp>
+#include <cuvnet/tools/monitor.hpp>
 
 namespace cuvnet
 {
@@ -494,7 +495,7 @@ namespace cuvnet
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
 
             float wd = m_weightdecay * inp->get_weight_decay_factor();
-            float gamma_i = m_learnrate * inp->get_learnrate_factor() * pow(m_count, m_p);
+            float gamma_i = m_learnrate * inp->get_learnrate_factor() * std::pow(m_count, m_p);
             float beta_i_inv  = 1.f / ((m_count+1.f)/2.f);
 
             // in the paper, the loss is evaluated on w^{md}, which is a mix of w and w^{ag}.
@@ -678,6 +679,14 @@ namespace cuvnet
             throw no_improvement_stop();
         }
 
+    }
+
+
+    namespace detail{
+        void wrgd_helper::log(const std::string& desc, float val){
+            cuvAssert(m_mon_);
+            m_mon_->set(desc, val);
+        }
     }
 
 }
