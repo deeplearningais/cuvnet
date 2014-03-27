@@ -63,7 +63,7 @@ namespace cuvnet
                 }
             }
 
-            if(grayscale){
+      /*      if(grayscale){
                 const unsigned int gsize = 32 * 32;
                 using namespace cuv;
                 typedef index_range range;
@@ -80,7 +80,7 @@ namespace cuvnet
 
                 train_data = gtrain_data;
                 test_data = gtest_data;
-            }
+            }*/
 
 	    if(out_of_n_coding){
                 train_labels.resize(cuv::extents[50000][10]);
