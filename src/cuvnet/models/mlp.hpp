@@ -26,6 +26,7 @@ namespace cuvnet
                 float m_learnrate_factor;
                 float m_learnrate_factor_bias;
                 bool m_verbose;
+                float m_weight_init_std;
             public:
                 friend class mlp_layer;
                 /**
@@ -43,6 +44,7 @@ namespace cuvnet
                     ,m_learnrate_factor(1.f)
                     ,m_learnrate_factor_bias(1.f)
                     ,m_verbose(false)
+                    ,m_weight_init_std(-1.f)
                 {
                 }
 
@@ -147,6 +149,13 @@ namespace cuvnet
                  * @param unique if true, append a unique number to the name.
                  */
                 inline mlp_layer_opts& group(std::string name="", bool unique=true) { m_group_name = name; return *this;  }
+
+                /**
+                 * Specify the standard deviation of the weight initialization.
+                 *
+                 * @param Negative values (default) means that the weights are initialized with the mechanism from Glorot & Bengio.
+                 */
+                inline mlp_layer_opts& weight_init_std(float f) { m_weight_init_std = f; return *this;  }
         };
 
         struct mlp_layer
@@ -158,6 +167,7 @@ namespace cuvnet
                 input_ptr m_W, m_bias;
                 op_ptr m_output, m_linear_output;
                 float m_bias_default_value;
+                float m_weight_init_std;
                 bool m_verbose;
                 /**
                  * ctor.
