@@ -1,5 +1,6 @@
 #include <cuvnet/tools/monitor.hpp>
 #include "spn_output.hpp"
+#include <cuvnet/tools/matwrite.hpp>
 
 namespace cuvnet{
 
@@ -98,6 +99,9 @@ namespace cuvnet{
                 
                  cuv::alex_conv::spn_output_op_grad(*p0_ptr, p0.value.cdata(), *p1_ptr, *p2_ptr, p1.value.cdata(), p2.value.cdata(),  (*m_S)["S"], m_lae.cdata(), *m_max_idx, p0.need_derivative, p1.need_derivative, p2.need_derivative, m_eps, m_hard_gd);       
                
+		 //cuvnet::tofile("wtfx.dat", *p0_ptr);
+		 //cuvnet::tofile("wtfw.dat", *p1_ptr);
+		 //cuvnet::tofile("wtfy.dat", *p2_ptr);
                 if (!p0_old) p0.push(p0_ptr);
                 if (!p1_old) p1.push(p1_ptr);                   
                 if (!p2_old) p2.push(p2_ptr);
@@ -106,7 +110,5 @@ namespace cuvnet{
             p1.value.reset();
             p2.value.reset();
             r0.delta.reset();
-    }
-    
-    
+    } 
 }
