@@ -1488,6 +1488,57 @@ BOOST_AUTO_TEST_CASE( sum_out_dim_test_last_dim )
 
             using namespace cuv;
             using namespace cuvnet;
+            typedef boost::shared_ptr<Op> op_ptr;
+        
+            //generate all inputs and fill them with rand vals
+            boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[x][y][z][p]);
+            fill_rnd_uniform(inp->data());
+
+            op_ptr op = sum(inp, 3);
+            // assumption: op has only one result
+            boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op->result());
+
+            // tell that we want derivative w.r.t. all params
+            param_collector_visitor pcv;
+            op->visit(pcv);
+            BOOST_CHECK(pcv.plist.size()>0);
+
+            std::vector<Op*> params(1);
+            params[0] = inp.get();
+            
+            swiper swipe(*op, 0, params);
+
+            swipe.fprop();
+            cuvAssert(!cuv::has_nan(out_op->cdata()));
+            cuvAssert(!cuv::has_inf(out_op->cdata())); 
+            
+            std::vector<unsigned int> desired_shape = {x, y, z, 1};
+            cuvAssert(out_op->cdata().shape() == desired_shape);
+            
+                    for (unsigned int j = 0; j < x; j++){
+                        for (unsigned int k = 0; k < y; k++){
+                            for (unsigned int l = 0; l < z; l++){
+                                float  a = 0; 
+                                for ( unsigned int i = 0; i < p; i++) a += inp->data()[indices[j][k][l]][i];
+                                float  b = out_op->cdata()[indices[j][k][l]][0];
+                                BOOST_CHECK_SMALL(fabs(a - b) , 0.0001);  
+                            }
+                        }
+                    }
+            derivative_testing::derivative_tester(*op, 0, true);
+            cuv::safeThreadSync();
+}
+
+
+BOOST_AUTO_TEST_CASE( sum_out_dim_test_last_dim )
+{  
+            unsigned int x = 21;
+            unsigned int y = 5;
+            unsigned int z = 9;
+            unsigned int p = 17;
+
+            using namespace cuv;
+            using namespace cuvnet;
             typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
             typedef boost::shared_ptr<Op> op_ptr;
         
