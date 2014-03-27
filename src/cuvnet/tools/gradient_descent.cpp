@@ -12,6 +12,8 @@
 #include <iostream>
 #include <fstream>
 #include <cuvnet/tools/matwrite.hpp>
+#include <cuv/tensor_ops/spn_gd.hpp>
+
 namespace cuvnet
 {
 gradient_descent::gradient_descent(const Op::op_ptr& op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay)
