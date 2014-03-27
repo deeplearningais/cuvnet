@@ -611,7 +611,8 @@ namespace cuvnet
 
         bool want_wup_rec = cfg.get("gd.wup_rec", false);
         if(want_wup_rec){
-            ((WRGD<gradient_descent>*)m_gd.get())->set_monitor(*m_mon);
+            unsigned int wup_rec_every = cfg.get("gd.wup_rec.every", 1);
+            ((WRGD<gradient_descent>*)m_gd.get())->set_monitor(*m_mon, wup_rec_every);
         }
 
         boost::shared_ptr<convergence_checker> cc;

@@ -866,6 +866,7 @@ namespace cuvnet
             using detail::wrgd_helper::m_updates_;
             using detail::wrgd_helper::m_active_;
             using detail::wrgd_helper::m_mon_;
+            using detail::wrgd_helper::m_every_;
             using detail::wrgd_helper::m_n_rec_;
             using detail::wrgd_helper::m_avgnorm_;
             using detail::wrgd_helper::m_vars_;
@@ -886,8 +887,9 @@ namespace cuvnet
                     BaseGradientDescent::before_epoch.connect(boost::bind(&my_class::run_before_epoch, this));
                 }
 
-            void set_monitor(monitor& mon){
+            void set_monitor(monitor& mon, unsigned int every = 1){
                 m_mon_ = &mon;
+                m_every_ = every;
             }
 
 
