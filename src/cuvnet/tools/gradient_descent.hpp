@@ -938,6 +938,7 @@ namespace cuvnet
                     std::map<Op*, storage_t>::iterator upit = m_updates_.find(inp);
                     log(inp->name() + "_dvar", m_vars_[inp] / m_n_rec_);
                     log(inp->name() + "_davgnorm", m_avgnorm_[inp] / m_n_rec_);
+                    log(inp->name() + "_drelavgnorm", m_avgnorm_[inp] / (cuv::norm2(inp->data()) / inp->data().size()));
                 }
             }
 
