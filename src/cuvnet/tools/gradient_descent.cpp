@@ -383,7 +383,7 @@ void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, u
                 c_err += tmp_cerr;
 
                 bool log_batch_stats = false;        
-	if (log_batch_stats)
+	if (log_batch_stats){
                 if(m_learnrate){
                     // this is not an evaluation pass, we're actually supposed to do work ;)
                     log4cxx::MDC batch_err_class_mdc("batch_err_class",boost::lexical_cast<std::string>(tmp_cerr));    
@@ -392,7 +392,8 @@ void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, u
                     log4cxx::MDC batch_err_spn_mdc("batch_eval_class",boost::lexical_cast<std::string>(tmp_cerr)); 
                     LOG4CXX_WARN(log, "logging eval batch stats ("<<(time(NULL)-t_start)<<"s)");
 		}   
-                    //save old derivatives
+	} 
+         	//save old derivatives
                     unsigned int i=0;
                     for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
                         ParameterInput* param = dynamic_cast<ParameterInput*>(*it);
@@ -502,7 +503,15 @@ void spn_gradient_descent::update_weights()
             dW /= (float) m_n_batches;
             m_old_dw[i] /= (float) m_n_batches;
         }
+/*
+	std::string S("fS_");
+	std::string SM("fSM_");
+        SM.append(std::to_string(i));
+        S.append(std::to_string(i));
 
+	tofile(SM, m_old_dw[i]) ;
+	tofile(S, dW);
+*/
         float wd = m_weightdecay * param->get_weight_decay_factor();
         float rate = m_learnrate * param->get_learnrate_factor();
         bool hard_inf = m_INFERENCE_TYPE->at(i);
