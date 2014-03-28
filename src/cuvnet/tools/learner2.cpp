@@ -315,11 +315,11 @@ namespace cuvnet
     }
 
     void 
-    learner2::before_predict(model* m, gradient_descent&){
+    learner2::before_predict(model* m, gradient_descent&, const ptree&){
     }
 
     void 
-    learner2::before_learning(model* m, gradient_descent&, cuvnet::early_stopper* es){
+    learner2::before_learning(model* m, gradient_descent&, cuvnet::early_stopper* es, const ptree&){
     }
 
     unsigned int 
@@ -519,7 +519,7 @@ namespace cuvnet
 
         int batch_size = cfg.get("batchsize", -1);
         gradient_descent gd(m.loss(), 0, std::vector<Op*>(), 0.0, 0.0);
-        this->before_predict(&m, gd);
+        this->before_predict(&m, gd, cfg);
         m_mon->register_gd(gd);
         if(batch_size < 0){
             _load_batch(&m, 0, 0);
@@ -550,11 +550,10 @@ namespace cuvnet
     ptree 
     learner2::fit(model& m, const ptree& cfg)
     {
-        std::string basepath = cfg.get("basepath", "experiments");
-        std::string uuid = boost::lexical_cast<std::string>(boost::uuids::uuid(boost::uuids::random_generator()()));
-        bfs::path tmppath = bfs::path(basepath) / uuid;
-        tmppath = cfg.get("path", tmppath.string());
+        std::string basepath = cfg.get("basepath", ".");
+        bfs::path tmppath = bfs::path(basepath) / cfg.get("path", ".");
         boost::filesystem::create_directories(tmppath);
+        std::string uuid = boost::lexical_cast<std::string>(boost::uuids::uuid(boost::uuids::random_generator()()));
 
         m_gd 
             = get_gradient_descent(m, cfg.get_child("gd"));
@@ -644,7 +643,7 @@ namespace cuvnet
             swtlr.reset(new stop_when_target_loss_reached(*m_gd, *m_mon, *target_loss));
             LOG4CXX_WARN(g_log_learner2,  "Setting up Min Loss Stopper (active:" << mls_active << ", target_loss:" << target_loss << ")");
         }
-        this->before_learning(&m, *m_gd, es.get());
+        this->before_learning(&m, *m_gd, es.get(), cfg);
 
         m_gd->get_swiper().dump((tmppath / "loss.dot").string(), cfg.get("verbose", false));
 

@@ -118,14 +118,14 @@ namespace cuvnet
              * 
              * Does nothing by default.
              */
-            virtual void before_learning(model* m, gradient_descent& gd, cuvnet::early_stopper* es);
+            virtual void before_learning(model* m, gradient_descent& gd, cuvnet::early_stopper* es, const ptree& cfg);
 
             /**
              * In this hook you can modify the gradient_descent object just before calling predict.
              * 
              * Does nothing by default.
              */
-            virtual void before_predict(model* m, gradient_descent& gd);
+            virtual void before_predict(model* m, gradient_descent& gd, const ptree& cfg);
 
             /**
              * Returns a gradient Gradient Descent object described by the configuration parameter.
