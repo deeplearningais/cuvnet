@@ -645,7 +645,8 @@ namespace cuvnet
         }
         this->before_learning(&m, *m_gd, es.get(), cfg);
 
-        m_gd->get_swiper().dump((tmppath / "loss.dot").string(), cfg.get("verbose", false));
+        m_gd->get_swiper().dump((tmppath / "loss.dot").string(), false);
+        m_gd->get_swiper().dump((tmppath / "loss-verbose.dot").string(), true);
 
         SignalTranslator<CtrlCPressed> sigint(boost::bind(&gradient_descent::request_stop, m_gd.get()));
         if(batch_size < 0){
