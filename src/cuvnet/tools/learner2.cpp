@@ -172,7 +172,7 @@ namespace cuvnet
     learner2::get_gradient_descent(model& m, const ptree& cfg){
         std::string typ = cfg.get("type", "plain");
         bool drec = cfg.get("diff_rec", false);
-        bool wrec = cfg.get("wup_rec", false);
+        bool wrec = cfg.get("wup_rec.active", false);
         if(drec){
             LOG4CXX_WARN(g_log_learner2, "Setting up delta recording for gradient_descent");
         }
@@ -609,7 +609,7 @@ namespace cuvnet
             }
         }
 
-        bool want_wup_rec = cfg.get("gd.wup_rec", false);
+        bool want_wup_rec = cfg.get("gd.wup_rec.active", false);
         if(want_wup_rec){
             unsigned int wup_rec_every = cfg.get("gd.wup_rec.every", 1);
             ((WRGD<gradient_descent>*)m_gd.get())->set_monitor(*m_mon, wup_rec_every);
