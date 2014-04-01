@@ -153,6 +153,7 @@ namespace cuvnet
         cuv::tensor<matrix::value_type, cuv::host_memory_space> v = mat;
         matrix::value_type* ptr = v.ptr();
         matrix::value_type* end = ptr + v.size();
+        acc = acc_t();
         for(; ptr != end; ptr++)
             acc(*ptr);
     }
