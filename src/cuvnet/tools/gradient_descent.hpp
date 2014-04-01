@@ -923,7 +923,7 @@ namespace cuvnet
                     upit->second -= (host_matrix) inp->data();
                     //m_updates[inp] *= -1.f;  // we're recording the negative update for speed
                     
-                    m_avgnorm_[inp] += cuv::norm2(upit->second) / upit->second.size();
+                    m_avgnorm_[inp] += cuv::norm1(upit->second) / upit->second.size();
                     m_vars_[inp] += cuv::var(upit->second);
                     m_n_rec_ ++;
                 }
