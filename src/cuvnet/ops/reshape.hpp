@@ -2,7 +2,6 @@
 #     define __OP_RESHAPE_HPP__
 
 #include <cuvnet/op.hpp>
-#include <boost/serialization/version.hpp>
 
 namespace cuvnet
 {

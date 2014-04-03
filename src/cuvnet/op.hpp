@@ -6,6 +6,7 @@
 #include <boost/weak_ptr.hpp>
 #include <boost/foreach.hpp>
 #include <boost/serialization/base_object.hpp>
+#include <boost/serialization/version.hpp>
 #include <cuvnet/common.hpp>
 #include <cuvnet/smart_ptr.hpp>
 #include <cuvnet/detail/op_result.hpp>

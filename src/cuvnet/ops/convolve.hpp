@@ -2,7 +2,6 @@
 #     define __OP_CONVOLVE_HPP__
 
 #include <cmath>
-#include <boost/serialization/version.hpp>
 #include <cuvnet/op.hpp>
 #include <cuv/convolution_ops/convolution_ops.hpp>
 #include <cuv/libs/nlmeans/conv3d.hpp>
