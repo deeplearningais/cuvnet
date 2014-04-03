@@ -5,11 +5,15 @@ namespace cuvnet
 {
     void Convolve::_graphviz_node_desc(detail::graphviz_node& desc)const{
         desc.color = "chartreuse4";
-        desc.label = "Conv (" +
-            boost::lexical_cast<std::string>(m_params[0]->shape[0]) + "/" +
-            boost::lexical_cast<std::string>(m_nGroups) + ":" +
-            boost::lexical_cast<std::string>(m_results[0]->shape[0]) + " fs" +
-            boost::lexical_cast<std::string>((int)sqrt(m_params[1]->shape[1])) + ")";
+        if(m_params[0]->shape.size() > 0 && m_params[1]->shape.size() > 0){
+            desc.label = "Conv (" +
+                boost::lexical_cast<std::string>(m_params[0]->shape[0]) + "/" +
+                boost::lexical_cast<std::string>(m_nGroups) + ":" +
+                boost::lexical_cast<std::string>(m_results[0]->shape[0]) + " fs" +
+                boost::lexical_cast<std::string>((int)sqrt(m_params[1]->shape[1])) + ")";
+        }else{
+            desc.label = "Conv";
+        }
     }
     void Convolve::set_random_sparse(){
         determine_shapes(*this);
