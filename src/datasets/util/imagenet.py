@@ -17,6 +17,7 @@ class ImageNetData(object):
         self.ids = np.squeeze(np.array([x.ILSVRC2011_ID for x in self.synsets]))
 
         self.wnids = np.squeeze(np.array([x.WNID for x in self.synsets]))
+        self.classnames = np.squeeze(np.array([x.words for x in self.synsets]))
         from IPython import embed
         embed()
 
@@ -48,6 +49,9 @@ class ImageNetData(object):
 
         def write_ds(dir, filename, lines):
             with open(os.path.join(dir,filename), "w") as f:
+                f.write(str(len(self.classnames)) + "\n")
+                for cls in self.classnames:
+                    f.write(cls + "\n")
                 for line in lines:
                     f.write("\t".join(line))
                     f.write("\n")
