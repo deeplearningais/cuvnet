@@ -63,6 +63,8 @@ namespace cuvnet
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
+                        if (version > 0)
+                            ar & m_axis;
                     }
         };
 
@@ -134,4 +136,5 @@ namespace cuvnet
         };
     
 }
+BOOST_CLASS_VERSION(cuvnet::ClassificationLoss, 1);
 #endif /* __CLASSIFICATION_ERROR_HPP__ */
