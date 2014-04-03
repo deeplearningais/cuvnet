@@ -291,7 +291,10 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version){
                         //ar & boost::serialization::base_object<boost::enable_shared_from_this<Op> >(*this);
                         ar & m_results & m_params;
+                        if (version > 0)
+                            ar & m_label & m_group;
                     }
         };
 }
+BOOST_CLASS_VERSION(cuvnet::Op, 1);
 #endif /* __OP_HPP__ */
