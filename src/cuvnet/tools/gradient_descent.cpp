@@ -13,6 +13,7 @@
 #include <fstream>
 #include <cuvnet/tools/matwrite.hpp>
 #include <cuv/tensor_ops/spn_gd.hpp>
+#include <cuvnet/tools/normalization.hpp>
 
 namespace cuvnet
 {
@@ -389,7 +390,7 @@ void spn_gradient_descent::minibatch_learning(const unsigned int n_max_epochs, u
                 if(m_learnrate){
                     // this is not an evaluation pass, we're actually supposed to do work ;)
                     log4cxx::MDC batch_err_class_mdc("batch_err_class",boost::lexical_cast<std::string>(tmp_cerr));    
-                    LOG4CXX_WARN(log, "logging batch stats ("<<(time(NULL)-t_start)<<"s)");
+                    LOG4CXX_WARN(log, "logging batch stats ("<< tmp_cerr <<")");
 		} else{	
                     log4cxx::MDC batch_err_spn_mdc("batch_eval_class",boost::lexical_cast<std::string>(tmp_cerr)); 
                     LOG4CXX_WARN(log, "logging eval batch stats ("<<(time(NULL)-t_start)<<"s)");
@@ -518,7 +519,10 @@ void spn_gradient_descent::update_weights()
         float rate = m_learnrate * param->get_learnrate_factor();
         bool hard_inf = m_INFERENCE_TYPE->at(i);
         spn_gd(*param->data_ptr().ptr(), m_old_dw[i],  dW, hard_inf, m_rescale, m_thresh, rate, wd, m_l1decay);
-        param->reset_delta();
+        //rescale weights in case of conv layer
+	if (m_rescale && (param->data_ptr()->shape().size() != 2))
+		project_to_unit_ball(*param->data_ptr().ptr(), 2, 100.0f);
+	param->reset_delta();
     }
     m_n_batches = 0;
 }

@@ -514,6 +514,7 @@ namespace cuvnet
             float m_thresh;
 	    float m_spn_err = -1.0;
             float m_class_err = -1.0;            
+	    bool m_add_noise = false;
 
             typedef cuv::tensor<float,cuv::host_memory_space> host_data;
             host_data data;
@@ -534,13 +535,14 @@ namespace cuvnet
         spn_gradient_descent(Op::op_ptr op,  input_ptr X, input_ptr Y, unsigned int result, boost::shared_ptr<monitor> results, const paramvec_t& params, inf_type_ptr INFERENCE_TYPE, float learnrate=0.001f, bool rescale_weights = false, float thresh = 1.0, float weightdecay=0.0f);
         void minibatch_learning(const unsigned int n_max_epochs, unsigned long int n_max_secs, bool randomize);
         
-        void set_data(const host_data & data, const host_data & labels, const host_data & label_c, unsigned int batch_size, unsigned int img_size, unsigned int nChannels){
+        void set_data(const host_data & data, const host_data & labels, const host_data & label_c, unsigned int batch_size, unsigned int img_size, unsigned int nChannels, bool add_noise = false ){
             this->data = data;
             this->label_data = labels;
             this->batch_size = batch_size;
             this->img_size = img_size;
             this->label_coded = label_c;
 	    this->m_nChannels = nChannels;
+	    this->m_add_noise = add_noise;
             n_batch = int(std::ceil(data.shape(0) / (float) batch_size));
         }
         
@@ -579,28 +581,23 @@ namespace cuvnet
                 start = label_data.size() - (batch_size );
                 end = label_data.size();               
             }
-            
-             cuv::tensor<float,cuv::dev_memory_space>  v( data[cuv::indices[cuv::index_range(start, end)]]);
+           
+	    cuv::tensor<float,cuv::dev_memory_space>  v( data[cuv::indices[cuv::index_range(start, end)]]);
             cuv:: tensor<float,cuv::dev_memory_space> v_T (cuv::extents[v.shape(1)][v.shape(0)]);
             cuv::transpose(v_T, v);
             
-            cuvAssert(!has_nan(v_T));
-	    /*std::cout << " du 1 v_T shape " << std::endl;
-            for ( unsigned int n = 0; n < v_T.shape().size(); n++)
-		    std::cout << v_T.shape(n) << ",  ";
-	    std::cout << std::endl;
-           */
+            //cuvAssert(!has_nan(v_T));
 
             v_T.reshape(cuv::extents[m_nChannels][img_size][img_size][batch_size]);
-            cuvAssert(!has_nan(v_T));
+            
+            if (m_add_noise){
+               std::cout << "adding noise" << std::endl;
+	       cuv::add_rnd_normal (v_T, .5f);
+	    }
+
+	    cuvAssert(!has_nan(v_T));
             pt_X->data() = v_T;   
            
-       /*     std::string name = "class_";
-            name.append(std::to_string(batch));
-	    name.append("_");
-	    name.append(std::to_string(m_epoch));
-            tofile(name, *classification);
-	*/												   
 
             if (!marginalize){
                 cuv::fill(pt_Y->data(), 0.f);
