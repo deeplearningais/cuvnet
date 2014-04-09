@@ -7,9 +7,9 @@ namespace cuvnet{
 
         void Spn_Output_Op::_graphviz_node_desc(detail::graphviz_node& desc)const{
             if(m_hard_gd)
-                desc.label = "W_MAX";
+                desc.label = "(spn_out_op) W_MAX";
             else 
-                desc.label = "TO_LOGWADDEXP";
+                desc.label = "(spn_out_op) TO_LOGWADDEXP_LOGSPACE";
     }
 
     
