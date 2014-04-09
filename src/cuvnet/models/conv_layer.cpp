@@ -72,13 +72,15 @@ namespace cuvnet { namespace models {
         if(cfg.m_want_maxout){
             m_output = tuplewise_op(m_output, 0, cfg.m_maxout_N, cuv::alex_conv::TO_MAX);
         }
-        if(cfg.m_nonlinearity)
-            m_output = cfg.m_nonlinearity(m_output);
 
         m_output_before_pooling = m_output;
         if(cfg.m_want_pooling){
             m_output = local_pool(m_output, cfg.m_pool_size, cfg.m_pool_stride, cfg.m_pool_type);
         }
+
+        if(cfg.m_nonlinearity)
+            m_output = cfg.m_nonlinearity(m_output);
+
         if(cfg.m_want_contrast_norm){
             cuv::tensor<float, cuv::host_memory_space> kernel(5);
             kernel[0] = 1.f;
