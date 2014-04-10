@@ -200,8 +200,11 @@ namespace cuvnet
             gd->set_verbosity(verbosity);
             return gd;
         }else if(typ == "rprop"){
-            LOG4CXX_WARN(g_log_learner2, "Creating RPROP GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
-            MAKE_GD(rprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
+			float eta_p = cfg.get("eta_p", 1.2f);
+			float eta_m = cfg.get("eta_m", 0.5f);
+			float l1_penalty = cfg.get("l1_penalty", 0.f);
+            LOG4CXX_WARN(g_log_learner2, "Creating RPROP GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", l1_penalty:"<< l1_penalty << ", eta_p:" << eta_p << ", eta_m:" << eta_m <<")");
+            MAKE_GD(rprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, l1_penalty, eta_p, eta_m);
             gd->set_epoch(start_epoch);
             gd->set_update_every(0);
             gd->set_verbosity(verbosity);

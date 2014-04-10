@@ -490,10 +490,12 @@ namespace cuvnet
             std::vector<Op::value_type> m_learnrates; ///< per-weight learning rates
             std::vector<cuv::tensor<signed char,Op::value_type::memory_space_type> > m_old_dw;     ///< old delta-w signs
             float m_l1decay;
+            float m_eta_p;
+            float m_eta_m;
 
-            unsigned int m_n_batches;
+//             unsigned int m_n_batches;
 
-            void inc_n_batches(){ m_n_batches ++; }
+//             void inc_n_batches(){ m_n_batches ++; }
         public:
             /**
              * constructor
@@ -503,10 +505,13 @@ namespace cuvnet
              * @param params the parameters w.r.t. which we want to optimize op
              * @param learnrate the initial learningrate
              * @param weightdecay weight decay for weight updates
+             * @param l1decay sparsedecay parameter
+             * @param eta_p increase-parameter for the learningrates
+             * @param eta_m decrease-parameter for the learningrates
              */
-        rprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f);
+        rprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float l1decay=0.0f, float eta_p=1.2f, float eta_m=0.5f);
 
-        inline void set_l1decay(float f){ m_l1decay = f; }
+//         inline void set_l1decay(float f){ m_l1decay = f; }
 
         protected:
         /**

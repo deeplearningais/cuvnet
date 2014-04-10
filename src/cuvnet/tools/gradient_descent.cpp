@@ -234,8 +234,8 @@ namespace cuvnet
             }
     }
 
-    rprop_gradient_descent::rprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay)
-        :gradient_descent(op, result, params, learnrate, weightdecay), m_learnrates(params.size()), m_old_dw(params.size()), m_l1decay(0.f)
+    rprop_gradient_descent::rprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float l1decay, float eta_p, float eta_m)
+        :gradient_descent(op, result, params, learnrate, weightdecay), m_learnrates(params.size()), m_old_dw(params.size()), m_l1decay(l1decay), m_eta_p(eta_p), m_eta_m(eta_m)
     { 
         unsigned int i=0;
         for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
@@ -246,7 +246,7 @@ namespace cuvnet
             m_old_dw[i] = (signed char)0;
         }
 
-        after_batch.connect(boost::bind(&rprop_gradient_descent::inc_n_batches, this)); 
+//         after_batch.connect(boost::bind(&rprop_gradient_descent::inc_n_batches, this)); 
     }
 
     void rprop_gradient_descent::update_weights()
@@ -258,14 +258,14 @@ namespace cuvnet
             ParameterInput* param = dynamic_cast<ParameterInput*>(*it);
             if(! param->derivable()) continue;
             Op::value_type dW = param->delta(); 
-            if(m_n_batches > 1)
-                dW /= (float) m_n_batches;
+//             if(m_n_batches > 1)
+//                 dW /= (float) m_n_batches;
             float wd = m_weightdecay * param->get_weight_decay_factor();
             //cuv::rprop(*param->data_ptr().ptr(), dW, m_old_dw[i], m_learnrates[i],  0.0000000f, m_weightdecay);
-            cuv::rprop(*param->data_ptr().ptr(), dW, m_old_dw[i], m_learnrates[i], wd, m_l1decay);
+            cuv::rprop(*param->data_ptr().ptr(), dW, m_old_dw[i], m_learnrates[i], wd, m_l1decay, m_eta_p, m_eta_m);
             param->reset_delta();
         }
-        m_n_batches = 0;
+//         m_n_batches = 0;
     }
 
     // ------------ momentum gradient descent  ---------  \\-
