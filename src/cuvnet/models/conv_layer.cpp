@@ -2,7 +2,7 @@
 #include <cuvnet/tools/monitor.hpp>
 #include <cuvnet/models/initialization.hpp>
 #include "conv_layer.hpp"
-
+#include <cuvnet/tools/monitor.hpp>
 namespace{
     log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("conv_layer"));
 }
@@ -100,6 +100,7 @@ namespace cuvnet { namespace models {
             m_output = mat_plus_vec(conv, m_bias, 0);
         }
         m_linear_output = m_output;
+
         if(cfg.m_want_maxout){
             m_output = tuplewise_op(m_output, 0, cfg.m_maxout_N, cuv::alex_conv::TO_MAX);
         }

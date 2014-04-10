@@ -2,6 +2,7 @@
 #     define __CUVNET_MODELS_CONV_LAYERS_HPP__
 #include <boost/function.hpp>
 #include <cuvnet/models/models.hpp>
+#include <cuvnet/tools/monitor.hpp>
 
 namespace cuvnet { namespace models {
     
@@ -290,6 +291,7 @@ namespace cuvnet { namespace models {
         inline conv_layer_opts& dropout(float rate=0.5f){
             m_want_dropout = rate > 0.;
             m_dropout_rate = rate;
+
             return *this;
         }
 
