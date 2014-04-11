@@ -57,6 +57,15 @@ namespace cuvnet { namespace models {
                 partial_sum /= 2;
             //partial_sum = 4;
             LOG4CXX_WARN(g_log, "Automatically determined partial_sum: " <<partial_sum);
+        }else{
+            int ret_shape_y = ret->result()->shape[1];
+            int ret_shape_x = ret->result()->shape[2];
+            int num_modules = ret_shape_y * ret_shape_x;
+            if(num_modules % partial_sum != 0){
+                LOG4CXX_FATAL(g_log, "Given partial_sum: " <<partial_sum << " does not divide num_modules "<<num_modules);
+            }else{
+                LOG4CXX_WARN(g_log, "Supplied partial_sum: " <<partial_sum);
+            }
         }
         boost::dynamic_pointer_cast<Convolve>(ret)->set_partial_sum(partial_sum);
         if(cfg.m_random_sparse)
