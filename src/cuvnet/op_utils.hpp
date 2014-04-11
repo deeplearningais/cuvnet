@@ -658,6 +658,11 @@ namespace cuvnet
         valid_shape_info(boost::shared_ptr<Op> begin, boost::shared_ptr<Op> end)
             :m_begin(begin.get()), m_end(end.get())
         {
+            log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("op"));
+            if(!begin || !end){
+                LOG4CXX_WARN(log, "valid_shape_info: cannot determine path due to NULL-argument!");
+                return;
+            }
             bool ok = false;
             try{
                 end->visit(*this);
@@ -666,7 +671,6 @@ namespace cuvnet
                 ok = true;
             }
             if(!ok){
-                log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("op"));
                 LOG4CXX_FATAL(log, "valid_shape_info: no path found!");
             }
         }
