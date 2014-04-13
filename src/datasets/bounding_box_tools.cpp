@@ -92,13 +92,19 @@ namespace cuvnet { namespace bbtools {
     sub_image& sub_image::crop_random_square(float frac){
         int w = pos.xmax - pos.xmin;
         int h = pos.ymax - pos.ymin;
-        int sq_size = frac * std::min(w, h);
-        int xoff = drand48() * (w - sq_size);
-        int yoff = drand48() * (h - sq_size);
-        pos.xmin += xoff;
-        pos.xmax = pos.xmin + sq_size;
-        pos.ymin += yoff;
-        pos.ymax = pos.ymin + sq_size;
+
+        // define square in the center, of which we'll pick the fraction
+        int sq_size = std::min(w, h);
+        int sq_xoff = w/2 - sq_size/2;
+        int sq_yoff = h/2 - sq_size/2;
+
+        int small_sq_size = frac * sq_size;
+        int rnd_xoff = drand48() * (sq_size - small_sq_size);
+        int rnd_yoff = drand48() * (sq_size - small_sq_size);
+        pos.xmin += sq_xoff + rnd_xoff;
+        pos.xmax = pos.xmin + small_sq_size;
+        pos.ymin += sq_yoff + rnd_yoff;
+        pos.ymax = pos.ymin + small_sq_size;
         return *this;
     }
 

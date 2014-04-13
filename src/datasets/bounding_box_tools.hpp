@@ -142,8 +142,13 @@ namespace cuvnet
             sub_image(const image& img);
 
             /**
-             * crop square region from image center
-             * @param maxoffset maximum fraction of the shorter that can be cropped away
+             * crop square region from image center.
+             *
+             * This works as proposed by Krizhevsky et al., first we select the
+             * maximum-sized square center region of the current sub_image. 
+             * Then we randomly select a smaller square within that rectangle,
+             * the sizes of which are related by the frac parameter.
+             * @param frac multiplier for larger square to get size of smaller square
              */
             sub_image& crop_random_square(float frac);
 
