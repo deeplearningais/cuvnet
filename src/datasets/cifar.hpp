@@ -63,24 +63,50 @@ namespace cuvnet
                 }
             }
 
-      /*      if(grayscale){
+            if(grayscale){
                 const unsigned int gsize = 32 * 32;
                 using namespace cuv;
                 typedef index_range range;
                 tensor<float, cuv::host_memory_space> gtrain_data(cuv::extents[50000][gsize]);
                 tensor<float, cuv::host_memory_space> gtest_data(cuv::extents[10000][gsize]);
-                gtrain_data[indices[range()]] = 
-                    0.299f * train_data[indices[range()][range(0, 32*32)]].copy() +
-                    0.587f * train_data[indices[range()][range(32*32, 2*32*32)]].copy() +
-                    0.114f * train_data[indices[range()][range(2*32*32, 3*32*32)]].copy();
-                gtest_data[indices[range()]] = 
-                    0.299f * test_data[indices[range()][range(0, 32*32)]].copy() +
-                    0.587f * test_data[indices[range()][range(32*32, 2*32*32)]].copy() +
-                    0.114f * test_data[indices[range()][range(2*32*32, 3*32*32)]].copy();
+                gtrain_data[indices[range()]] = train_data[indices[range()][range(0, 32*32)]].copy();
+	        apply_scalar_functor(gtrain_data, SF_MULT, 0.299f);
+		
+                tensor<float, cuv::host_memory_space> tmp(train_data[indices[range()][range(32*32, 2*32*32)]].copy() );
+	        	
+	        apply_scalar_functor(tmp, SF_MULT, 0.587f);
+	        apply_binary_functor(gtrain_data, tmp, BF_ADD);
+
+                tensor<float, cuv::host_memory_space> tmp2(train_data[indices[range()][range(2*32*32, 3*32*32)]].copy() );
+	        apply_scalar_functor(tmp2, SF_MULT, 0.114f);
+	        apply_binary_functor(gtrain_data, tmp2, BF_ADD);
+
+ //                   0.299f * train_data[indices[range()][range(0, 32*32)]].copy() +
+ //                   0.587f * train_data[indices[range()][range(32*32, 2*32*32)]].copy() +
+ //                   0.114f * train_data[indices[range()][range(2*32*32, 3*32*32)]].copy();
+
+
+
+                gtest_data[indices[range()]] = test_data[indices[range()][range(0, 32*32)]].copy();
+	        apply_scalar_functor(gtest_data, SF_MULT, 0.299f);
+		
+                tensor<float, cuv::host_memory_space> tmp4(test_data[indices[range()][range(32*32, 2*32*32)]].copy() );
+	        	
+	        apply_scalar_functor(tmp4, SF_MULT, 0.587f);
+	        apply_binary_functor(gtest_data, tmp4, BF_ADD);
+
+                tensor<float, cuv::host_memory_space> tmp3(test_data[indices[range()][range(2*32*32, 3*32*32)]].copy() );
+	        apply_scalar_functor(tmp3, SF_MULT, 0.114f);
+	        apply_binary_functor(gtest_data, tmp3, BF_ADD);
+
+//		gtest_data[indices[range()]] = 
+//                    0.299f * test_data[indices[range()][range(0, 32*32)]].copy() +
+//                    0.587f * test_data[indices[range()][range(32*32, 2*32*32)]].copy() +
+//                    0.114f * test_data[indices[range()][range(2*32*32, 3*32*32)]].copy();
 
                 train_data = gtrain_data;
                 test_data = gtest_data;
-            }*/
+            }
 
 	    if(out_of_n_coding){
                 train_labels.resize(cuv::extents[50000][10]);
@@ -102,6 +128,7 @@ namespace cuvnet
                 for (unsigned int i = 0; i < testl.size(); ++i){
                     test_labels(i) = testl[i];
                 }
+		std::cout << "min: " << cuv::minimum(train_labels) << ", max: " << cuv::maximum(train_labels) << std::endl; 
 	    }
             channels = grayscale ? 1 : 3;
             binary   = false;
