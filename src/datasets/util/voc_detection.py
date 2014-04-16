@@ -103,7 +103,7 @@ if __name__ == "__main__":
     import re
     parser = argparse.ArgumentParser(description='Generate an easy-to-read (for C++) aggregation of a VOC database')
     parser.add_argument('-b','--basepath',
-                        default='/home/local/backup/VOCdevkit/VOC2007',
+                        default='/home/local/datasets/VOCdevkit/VOC2012',
                         help='set the base path of the VOC database to be used')
     parser.add_argument('-c','--classes',
                         default=[], nargs='*', help='All classes that should be included')
@@ -131,4 +131,12 @@ if __name__ == "__main__":
         print dset, len(D), sum((len(x["objects"]) for x in D.values()))
         dest = os.path.join(args.basepath, "ds_VOC%s_%s%s.txt" % (year, ds_identifier, dset))
         with open(dest, "w") as f:
+            if args.classes == []:
+                f.write(str(len(all_classes)) + "\n")
+                for c in all_classes:
+                    f.write(c + "\n")
+            else:
+                f.write(str(len(args.classes)) + "\n")
+                for c in args.classes:
+                    f.write(c + "\n")
             write_for_cpp(f, args.basepath, D)

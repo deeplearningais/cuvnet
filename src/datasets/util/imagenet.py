@@ -68,15 +68,14 @@ def handle_tarfile(filename):
     dstdir = filename.replace("tars", "downsampled")[:-4]  # remove ".tar"
     if not os.path.exists(dstdir):
         os.makedirs(dstdir)
+    print "Handling tarfile: ", filename, " --> ", dstdir
     with tarfile.open(filename) as f:
         for m in f.getmembers():
-            print "Working on", m.name
             try:
                 img = cv2.imdecode(np.fromstring(f.extractfile(m).read(),dtype=np.uint8), cv2.CV_LOAD_IMAGE_COLOR)
                 fact = 256. / min(img.shape[:2])  # ensure shorter dimension is 256 long
                 img = cv2.resize(img, (int(np.round(fact * img.shape[1])), int(np.round(fact * img.shape[0]))))
                 dstfilename = os.path.join(dstdir, m.name)
-                print "Writing to", dstfilename
                 cv2.imwrite(dstfilename, img)
             except KeyboardInterrupt:
                 raise
@@ -86,11 +85,11 @@ def handle_tarfile(filename):
 
 def downsample_all_missing(base="/home/local/backup/ILSVRC2011/tars"):
     tarfiles = glob(os.path.join(base, "*"))
-    Parallel(n_jobs=1)(delayed(handle_tarfile)(f) for f in tarfiles[:1])
+    Parallel(n_jobs=-1)(delayed(handle_tarfile)(f) for f in tarfiles)
 
 
 if __name__ == "__main__":
 
-    downsample_all_missing()
+    #downsample_all_missing()
     ind = ImageNetData()
     ind.winid_classid()
