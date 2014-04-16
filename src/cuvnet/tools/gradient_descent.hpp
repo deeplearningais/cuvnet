@@ -581,18 +581,22 @@ namespace cuvnet
                 start = label_data.size() - (batch_size );
                 end = label_data.size();               
             }
-           
+	    //std::cout << " batch_size" << std::endl; 
 	    cuv::tensor<float,cuv::dev_memory_space>  v( data[cuv::indices[cuv::index_range(start, end)]]);
             cuv:: tensor<float,cuv::dev_memory_space> v_T (cuv::extents[v.shape(1)][v.shape(0)]);
             cuv::transpose(v_T, v);
             
             //cuvAssert(!has_nan(v_T));
-
-            v_T.reshape(cuv::extents[m_nChannels][img_size][img_size][batch_size]);
+	 /*   std::cout << "args1" << std::endl;
+	    for ( unsigned int i = 0; i < v_T.shape().size(); i++)
+		    std::cout << "["<< v_T.shape(i) << "]";
+	    std::cout << std::endl;
+	    std::cout << "args2" << "channels: " << m_nChannels << ", img_size: " << img_size << ", batch_size " << batch_size << std::endl;
+          */  v_T.reshape(cuv::extents[m_nChannels][img_size][img_size][batch_size]);
             
             if (m_add_noise){
                std::cout << "adding noise" << std::endl;
-	       cuv::add_rnd_normal (v_T, .5f);
+	       cuv::add_rnd_normal (v_T, .3f);
 	    }
 
 	    cuvAssert(!has_nan(v_T));

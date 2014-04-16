@@ -518,10 +518,17 @@ void spn_gradient_descent::update_weights()
         float wd = m_weightdecay * param->get_weight_decay_factor();
         float rate = m_learnrate * param->get_learnrate_factor();
         bool hard_inf = m_INFERENCE_TYPE->at(i);
-        spn_gd(*param->data_ptr().ptr(), m_old_dw[i],  dW, hard_inf, m_rescale, m_thresh, rate, wd, m_l1decay);
+//        spn_gd(*param->data_ptr().ptr(), m_old_dw[i],  dW, hard_inf, m_rescale, m_thresh, rate, wd, m_l1decay);
+        spn_gd(*param->data_ptr().ptr(), m_old_dw[i],  dW, hard_inf, false, m_thresh, rate, wd, m_l1decay);
         //rescale weights in case of conv layer
 	if (m_rescale && (param->data_ptr()->shape().size() != 2))
-		project_to_unit_ball(*param->data_ptr().ptr(), 2, 100.0f);
+		project_to_unit_ball(*param->data_ptr().ptr(), 2, 1.0f);
+        else if (m_rescale ){
+	    if (hard_inf)
+	    	    project_on_unit_ball(*param->data_ptr().ptr(), 0, 1.0f, true);
+	    else
+	    	    project_on_unit_ball(*param->data_ptr().ptr(), 0, 1.0f, true);
+	}
 	param->reset_delta();
     }
     m_n_batches = 0;
