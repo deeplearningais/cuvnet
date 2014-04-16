@@ -128,6 +128,7 @@ BOOST_CLASS_EXPORT_KEY(cuvnet::Identity);
 BOOST_CLASS_EXPORT_KEY(cuvnet::Noiser);
 BOOST_CLASS_EXPORT_KEY(cuvnet::Flatten);
 BOOST_CLASS_EXPORT_KEY(cuvnet::Reshape);
+BOOST_CLASS_EXPORT_KEY(cuvnet::Concatenate);
 BOOST_CLASS_EXPORT_KEY(cuvnet::Abs);
 BOOST_CLASS_EXPORT_KEY(cuvnet::RowSelector);
 BOOST_CLASS_EXPORT_KEY(cuvnet::RectifiedLinear);
