@@ -23,8 +23,9 @@ namespace cuvnet
 
             private:
                 unsigned int m_axis;
+                bool m_subtract_mean;
             public:
-                MatPlusVec():Op(2,1){} ///< for serialization
+                MatPlusVec():Op(2,1),m_subtract_mean(false){} ///< for serialization
                 
                 /**
                  * ctor.
@@ -32,12 +33,14 @@ namespace cuvnet
                  * @param mat the matrix 
                  * @param vec the vector
                  * @param axis the axis-th dimension of matrix must agree with the vector dimension.
+                 * @param subtract_mean if true, ensure that the matrix gradient is zero-mean
                  *
                  * @warning currently, only the first and the last dimension of matrix are supported.
                  */
-                MatPlusVec(result_t& mat, result_t& vec, unsigned int axis)
+                MatPlusVec(result_t& mat, result_t& vec, unsigned int axis, bool subtract_mean=false)
                     :   Op(2,1)
                       , m_axis(axis)
+                      , m_subtract_mean(subtract_mean)
             {
                 add_param(0,mat);
                 add_param(1,vec);
@@ -54,6 +57,8 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_axis;
+                        if(version > 0)
+                            ar & m_subtract_mean;
                     }
     };
 
@@ -157,4 +162,5 @@ namespace cuvnet
                     }
     };
 }
+BOOST_CLASS_VERSION(cuvnet::MatPlusVec, 1);
 #endif /* __OP_MAT_PLUS_VEC_HPP__ */

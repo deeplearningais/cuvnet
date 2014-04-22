@@ -32,8 +32,6 @@ namespace cuvnet
         param_t::element_type&  p1 = *m_params[1];
         result_t::element_type& r0 = *m_results[0];
 
-        if(p0.need_derivative)
-            p0.push(r0.delta);
         if(p1.need_derivative){
             unsigned int size = 1;
             unsigned int ndim = r0.shape.size();
@@ -92,6 +90,30 @@ namespace cuvnet
                 }
                 p1.push(v);
             }
+
+        }
+        if(p0.need_derivative){
+            if(m_subtract_mean){
+                // veeery inefficient: we're doing this all over. 
+                matrix& r0delta = r0.delta.data(); // copy, if we must
+
+                value_type v(p1.shape, value_ptr::s_allocator);
+                if(m_axis == p0.shape.size()-1)
+                    reduce_to_row(v, r0delta, RF_ADD);
+                else if(m_axis == 0)
+                    reduce_to_col(v, r0delta, RF_ADD);
+                else
+                    cuvAssert(false);
+
+                cuvAssert(!cuv::has_nan(r0delta));
+                cuvAssert(!cuv::has_inf(r0delta));
+                v /= -(float)(r0delta.size() / r0delta.shape(m_axis));
+                cuvAssert(!cuv::has_nan(v));
+                cuvAssert(!cuv::has_inf(v));
+                // subtract mean value
+                cuv::matrix_op_vec(r0delta, r0delta, v, m_axis, BF_ADD);
+            }
+            p0.push(r0.delta);
         }
         r0.delta.reset();
     }
