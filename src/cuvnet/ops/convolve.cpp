@@ -287,7 +287,7 @@ namespace cuvnet
 
         // force symmetric padding
         int padsize = m_padding_size;
-        if(is_padded())
+        if(m_symmetric_padding)
             padsize *= 2;
 
 #define DIVUP(x,y) (((x)+ (y) -1) / (y))

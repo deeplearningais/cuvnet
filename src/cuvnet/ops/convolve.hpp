@@ -43,6 +43,7 @@ namespace cuvnet
                 int m_padding_start;
                 int m_padding_size;
                 int m_stride;
+                bool m_symmetric_padding;
                 cuv::tensor<int, matrix::memory_space_type> m_indices;
             public:
                 inline int stride()const{return m_stride;}
@@ -90,6 +91,11 @@ namespace cuvnet
                     m_partial_sum = ps;
                 }
 
+                /// determines whether padding is same on both sides of the input
+                inline void set_symmetric_padding(bool b){
+                    m_symmetric_padding = b;
+                }
+
             private:
                 friend class boost::serialization::access;
                 template<class Archive>
@@ -102,6 +108,8 @@ namespace cuvnet
                         ar & m_stride;
                         if(version >= 1)
                             ar & m_indices;
+                        if(version >= 2)
+                            ar & m_symmetric_padding;
                     }
         };
 
@@ -715,5 +723,5 @@ namespace cuvnet
         };
 
 }
-BOOST_CLASS_VERSION(cuvnet::Convolve, 1)
+BOOST_CLASS_VERSION(cuvnet::Convolve, 2)
 #endif /* __OP_CONVOLVE_HPP__ */
