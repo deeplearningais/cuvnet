@@ -43,7 +43,11 @@ namespace cuvnet { namespace models {
         if (!cfg.m_group_name.empty())
             grp.reset(new op_group(cfg.m_group_name, cfg.m_unique_group));
 
-        auto ret = convolve(m_input, m_weights, padding>=0, padding, cfg.m_stride, cfg.m_n_groups, 0);
+        inp = m_input;
+        if(cfg.m_want_dropout){
+            inp = m_noiser = zero_out(inp, 0.5);
+        }
+        auto conv = convolve(inp, m_weights, padding>=0, padding, cfg.m_stride, cfg.m_n_groups, 0);
         determine_shapes(*ret);
         int partial_sum = cfg.m_partial_sum;
         // determine partial_sum automatically if not given
@@ -75,9 +79,6 @@ namespace cuvnet { namespace models {
         }
         m_output = ret;
         m_linear_output = m_output;
-        if(cfg.m_want_dropout){
-            m_output = m_noiser = zero_out(m_output, 0.5);
-        }
         if(cfg.m_want_maxout){
             m_output = tuplewise_op(m_output, 0, cfg.m_maxout_N, cuv::alex_conv::TO_MAX);
         }
