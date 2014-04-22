@@ -10,12 +10,16 @@ namespace cuvnet
         result_t::element_type& r0 = *m_results[0];
         if(r0.can_overwrite_directly()){
             value_type& v = *r0.overwrite_or_add_value();
-            v = p0.value.cdata(); // this is O(1), but violates const-correctness(!)
+            if(m_copy){
+                v = p0.value.data(); // this is always fine, but may take more time than no-copy.
+            }else{
+                v = p0.value.cdata(); // this is O(1), but violates const-correctness(!)
+            }
             v.reshape(r0.shape);
         }else{
             value_ptr v;
             if(m_copy)
-                v.reset(new value_type(p0.value.cdata().copy()));
+                v.reset(new value_type(p0.value.data())); //this is always fine, but may take more time than no-copy
             else
                 v.reset(new value_type(p0.value.cdata())); // this is O(1), but violates const-correctness(!)
             v->reshape(r0.shape);
@@ -33,14 +37,14 @@ namespace cuvnet
         if(p0.can_overwrite_directly()){
             value_type& v = *p0.overwrite_or_add_value();
             if(m_copy)
-                v = r0.delta.cdata().copy();
+                v = r0.delta.data(); // O(n) if someone else wants to read still, but always safe
             else
                 v = r0.delta.cdata(); // O(1), but violates const-correctness again!
             v.reshape(p0.shape);
         }else{
             value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
             if(m_copy)
-                *v = r0.delta.cdata().copy();
+                *v = r0.delta.data(); // O(n) if someone else wants to read still, but always safe
             else
                 *v = r0.delta.cdata(); // O(1), but violates const-correctness
             v->reshape(p0.shape);
@@ -69,14 +73,14 @@ namespace cuvnet
         if(r0.can_overwrite_directly()){
             value_type& v = *r0.overwrite_or_add_value();
             if(m_copy)
-                v = p0.value.cdata().copy(); // this safer but slower
+                v = p0.value.data(); // this safer but may be slower
             else
                 v = p0.value.cdata(); // this is O(1), but violates const-correctness(!)
             v.reshape(r0.shape);
         }else{
             value_ptr v;
             if(m_copy)
-                v.reset(new value_type(p0.value.cdata().copy())); // this safer but slower
+                v.reset(new value_type(p0.value.data())); // this safer but maybe slower
             else
                 v.reset(new value_type(p0.value.cdata())); // this is O(1), but violates const-correctness(!)
             v->reshape(r0.shape);
