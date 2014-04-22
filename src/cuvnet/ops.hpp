@@ -214,7 +214,7 @@ namespace cuvnet
         Op::op_ptr tuplewise_op(Op::op_ptr img, unsigned int dim, unsigned int sub_size=2, cuv::alex_conv::tuplewise_op_functor to = cuv::alex_conv::TO_NORM, float epsilon=0.f) { return boost::make_shared<Tuplewise_op>(img->result(), dim, sub_size, to, epsilon); }
     /// construct a Convolve object
     inline
-        Op::op_ptr convolve(Op::op_ptr img, Op::op_ptr flt, bool padding, int padding_size, int stride, int ngroups, int partialSum=4) { return boost::make_shared<Convolve>(img->result(),flt->result(), padding, padding_size, stride, ngroups, partialSum); }
+        boost::shared_ptr<Convolve> convolve(Op::op_ptr img, Op::op_ptr flt, bool padding, int padding_size, int stride, int ngroups, int partialSum=4) { return boost::make_shared<Convolve>(img->result(),flt->result(), padding, padding_size, stride, ngroups, partialSum); }
 #ifndef NO_THEANO_WRAPPERS
     /// construct a Convolve theano object
     inline
