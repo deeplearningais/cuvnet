@@ -1012,14 +1012,14 @@ namespace cuvnet
         if(r0.can_overwrite_directly()){
             //int subsX, int startX, int strideX, int outputsX, pool_type pooler
             local_pool(*r0.overwrite_or_add_value(),p0.value.cdata(),
-                    m_subsx, 0, m_stridex, outx, m_pooltype);
+                    m_subsx, m_startx, m_stridex, outx, m_pooltype);
             if(m_pooltype == PT_MAX && p0.need_derivative)
                 m_result = r0.overwrite_or_add_value(); // save for bprop
         }else{
             // reallocate *sigh*
             value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
             local_pool(*v,p0.value.cdata(),
-                    m_subsx, 0, m_stridex, outx, m_pooltype);
+                    m_subsx, m_startx, m_stridex, outx, m_pooltype);
             r0.push(v);
             if(m_pooltype == PT_MAX && p0.need_derivative)
                 m_result = v; // save for bprop
@@ -1053,24 +1053,24 @@ namespace cuvnet
         if(filtSizeOK){
             if(m_pooltype == PT_AVG){
                 if(p0.can_overwrite_directly()){
-                    local_avg_pool_grad(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_subsx,0,m_stridex);
+                    local_avg_pool_grad(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_subsx,m_startx,m_stridex);
                 }else{
                     // try overwriting p0.
                     //value_ptr ptr = p0.value;
                     value_ptr ptr(new value_type(p0.shape, value_ptr::s_allocator));
                     value_type& v = *ptr;
-                    local_avg_pool_grad(v, r0.delta.cdata(), m_subsx,0,m_stridex);
+                    local_avg_pool_grad(v, r0.delta.cdata(), m_subsx,m_startx,m_stridex);
                     p0.push(ptr);
                 }
             }else if(m_pooltype == PT_MAX){
                 if(p0.can_overwrite_directly()){
-                    local_max_pool_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex);
+                    local_max_pool_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,m_startx,m_stridex);
                 }else if(p0.can_add_directly()){
-                    local_max_pool_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex, 1.f,1.f);
+                    local_max_pool_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,m_startx,m_stridex, 1.f,1.f);
                 }else{
                     value_ptr ptr(new value_type(p0.shape, value_ptr::s_allocator));
                     value_type& v = *ptr;
-                    local_max_pool_grad(v, p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,0,m_stridex);
+                    local_max_pool_grad(v, p0.value.cdata(), r0.delta.cdata(), m_result.cdata(), m_subsx,m_startx,m_stridex);
                     p0.push(ptr);
                 }
                 p0.value.reset();
@@ -1087,7 +1087,7 @@ namespace cuvnet
                     indices[range(0, nFiltReal)][range()][range()][range()]] = r0.delta.cdata();
 
             if(m_pooltype == PT_AVG){
-                local_avg_pool_grad(tmp_p0delta, tmp_r0delta, m_subsx,0,m_stridex);
+                local_avg_pool_grad(tmp_p0delta, tmp_r0delta, m_subsx,m_startx,m_stridex);
             }else if(m_pooltype == PT_MAX){
                 // pad input
                 value_type tmp_p0value(extents[nFiltTmp][p0.shape[1]][p0.shape[2]][p0.shape[3]]);
@@ -1097,7 +1097,7 @@ namespace cuvnet
                 value_type tmp_r0value(extents[nFiltTmp][r0.shape[1]][r0.shape[2]][r0.shape[3]]);
                 tmp_r0value[
                         indices[range(0,nFiltReal)][range()][range()][range()]] = m_result.cdata();
-                local_max_pool_grad(tmp_p0delta, tmp_p0value, tmp_r0delta, tmp_r0value, m_subsx,0,m_stridex);
+                local_max_pool_grad(tmp_p0delta, tmp_p0value, tmp_r0delta, tmp_r0value, m_subsx,m_startx,m_stridex);
             }
             p0.push(value_ptr(
                         new value_type(
@@ -1114,8 +1114,9 @@ namespace cuvnet
             desc.label = "Max";
         else if(m_pooltype == PT_AVG)
             desc.label = "Avg";
-        desc.label += "Pool (" + boost::lexical_cast<std::string>(m_subsx) + ","
-            +                    boost::lexical_cast<std::string>(m_stridex) + ")";
+        desc.label += "Pool (size" + boost::lexical_cast<std::string>(m_subsx) + ", stride"
+            +                    boost::lexical_cast<std::string>(m_stridex) + ", start"
+            +                    boost::lexical_cast<std::string>(m_startx) + ")";
     }
 
     void LocalPooling::_determine_shapes(){
@@ -1132,14 +1133,14 @@ namespace cuvnet
             m_subsx -= m_subsx - img[1];
         }
         else
-            dst[1] = (img[1]-m_subsx) / m_stridex +1;
+            dst[1] = DIVUP(img[1] - m_startx - m_subsx, m_stridex);
 
         if ( img[2] <= m_subsx ){
             dst[2] = 1;
             m_subsx -= m_subsx - img[2];
         }
         else
-            dst[2] = (img[2]-m_subsx) / m_stridex +1;
+            dst[2] = DIVUP(img[2] - m_startx - m_subsx, m_stridex);
         dst[3] = img[3];
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));

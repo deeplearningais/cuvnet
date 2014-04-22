@@ -551,26 +551,30 @@ namespace cuvnet
             private:
                 cuv::alex_conv::pool_type m_pooltype;
                 unsigned int m_subsx, m_stridex;
+                int m_startx;
                 value_ptr m_result;
             public:
-                LocalPooling() :Op(1,1){} ///< for serialization
+                LocalPooling() :Op(1,1), m_startx(0){} ///< for serialization
                 /**
                  * ctor.
                  * @param images the input images
                  * @subx pooling size
                  * @stridex distance between neighboring neurons in a bank
+                 * @startx where to start implicitly, relative to left/top margin
                  * @param pt pooling type
                  */
-                LocalPooling(result_t& images, int subsx, int stridex, cuv::alex_conv::pool_type pt)
+                LocalPooling(result_t& images, int subsx, int stridex, cuv::alex_conv::pool_type pt, int startx=0)
                     :Op(1,1),
                     m_pooltype(pt),
                     m_subsx(subsx),
-                    m_stridex(stridex)
+                    m_stridex(stridex),
+                    m_startx(startx)
                 {
                     add_param(0,images);
                 }
                 inline unsigned int subsx()const{return m_subsx;}
                 inline unsigned int stridex()const{return m_stridex;}
+                inline int startx()const{return m_startx;}
                 virtual void release_data();
                 void fprop();
                 void bprop();
@@ -584,6 +588,9 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_pooltype & m_subsx & m_stridex;
+                        if(version>0){
+                            ar & m_startx;
+                        }
                     }
         };
 
@@ -724,4 +731,5 @@ namespace cuvnet
 
 }
 BOOST_CLASS_VERSION(cuvnet::Convolve, 2)
+BOOST_CLASS_VERSION(cuvnet::LocalPooling, 2)
 #endif /* __OP_CONVOLVE_HPP__ */
