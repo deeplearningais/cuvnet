@@ -83,13 +83,6 @@ namespace cuvnet { namespace models {
             m_output = tuplewise_op(m_output, 0, cfg.m_maxout_N, cuv::alex_conv::TO_MAX);
         }
 
-        m_output_before_pooling = m_output;
-        if(cfg.m_want_pooling){
-            m_output = local_pool(m_output, cfg.m_pool_size, cfg.m_pool_stride, cfg.m_pool_type);
-        }
-
-        if(cfg.m_nonlinearity)
-            m_output = cfg.m_nonlinearity(m_output);
 
         if(cfg.m_want_contrast_norm){
             cuv::tensor<float, cuv::host_memory_space> kernel(5);
@@ -106,6 +99,16 @@ namespace cuvnet { namespace models {
             m_output = response_normalization_cross_maps(m_output,
                     cfg.m_rn_N, cfg.m_rn_alpha, cfg.m_rn_beta);
         }
+
+        // Krizhevsky et al.: pooling /after/ response normalization
+        m_output_before_pooling = m_output;
+        if(cfg.m_want_pooling){
+            m_output = local_pool(m_output, cfg.m_pool_size, cfg.m_pool_stride, cfg.m_pool_type);
+        }
+
+        // finally: apply the non-linearity.
+        if(cfg.m_nonlinearity)
+            m_output = cfg.m_nonlinearity(m_output);
     }
 
 
