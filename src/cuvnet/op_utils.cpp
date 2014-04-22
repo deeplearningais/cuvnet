@@ -746,8 +746,14 @@ void valid_shape_info::determine_shapes(){
             else if((poolp = dynamic_cast<LocalPooling*>(*it))){
                 std::vector<unsigned int> inshape  = poolp->param(0)->shape;
                 std::vector<unsigned int> outshape = poolp->result(0)->shape;
-                i_margin_l += 0.f;
-                i_margin_r += (inshape[1] - outshape[1] * poolp->stridex());
+                // startx is usually negative or zero. 
+                // A negative value for startx decreases the margin
+                i_margin_l += (poolp->subsx()-1)/2.f + poolp->startx();
+
+                // applying outshape[1] pools in every line, with stride stridex;
+                // the last filter ends at startx+(outshape-1)*stridex + subsx.
+                // half of the last filter is (again) part of the margin
+                i_margin_r += inshape[1] - (poolp->startx() + (outshape[1]-1) * poolp->stridex() + poolp->subsx()/2.f);
 #if VALID_SHAPE_INFO_DEBUG
                 cuvAssert(inshape[1] == 
                         0.f
@@ -760,8 +766,8 @@ void valid_shape_info::determine_shapes(){
                         + (inshape[1]
                         - outshape[1] * poolp->stridex()));
 #endif
-                i_margin_l += o2i_scale * poolp->stridex() / 2.f; // pools are not centered!
-                i_margin_r += o2i_scale * poolp->stridex() / 2.f; // pools are not centered!
+                //i_margin_l += o2i_scale * poolp->subsx() / 2.f; // pools are not centered!
+                //i_margin_r += o2i_scale * poolp->subsx() / 2.f; // pools are not centered!
                 o2i_scale *= poolp->stridex();
             }
             else if((convp = dynamic_cast<Convolve*>(*it))){
