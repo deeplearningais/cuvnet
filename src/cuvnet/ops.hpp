@@ -195,6 +195,9 @@ namespace cuvnet
     /// construct a sum object (python style)
     inline
         Op::op_ptr mean(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<SumOutDim>(x->result(), ax, true, false ); }
+    // construct sum_out_dim in logspace (logaddexp)
+    inline
+        Op::op_ptr lae(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<SumOutDim>(x->result(), ax, false, false, true ); }
 
         /// construct a Mean object
     inline

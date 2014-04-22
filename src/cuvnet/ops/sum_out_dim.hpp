@@ -6,7 +6,7 @@
 namespace cuvnet
 {
     /**
-     * Sums out a dimension (currently only first or last dimension can be summed out.
+     * Sums out a dimension (currently only first or last dimension can be summed out).
      *
      * E.g. a (3,4,5)-sized input summed to dimension 0 results in a
      * 3-dimensional vector with size (1,4,5).
@@ -30,9 +30,12 @@ namespace cuvnet
                 std::vector<unsigned int> m_param_shape;
                 std::vector<unsigned int> m_res_reshape;
                 std::vector<unsigned int> m_res_shape;
+
+		value_ptr m_lae_res;
                 float m_n_summed;
                 bool m_mean;
                 bool m_squared;
+		bool m_lae;
             public:
                 SumOutDim() :   Op(1,1){} ///< for serialization
                 /**
@@ -42,12 +45,15 @@ namespace cuvnet
                  * @param mean if true, divide by the number of entries summed over
                  * @param squared if true, sum squared elements
                  */
-                SumOutDim(result_t& mat, unsigned int axis, bool mean=false, bool squared=false)
+                SumOutDim(result_t& mat, unsigned int axis, bool mean=false, bool squared=false, bool lae=false)
                     :   Op(1,1)
                       , m_axis(axis)
                       , m_mean(mean)
                       , m_squared(squared)
+		      , m_lae(lae)
             {
+		if ( (m_lae && m_mean) || (m_lae && m_squared))
+                    throw std::invalid_argument( "options squared and mean ore not implemented in combination with log add exp." );
                 add_param(0,mat);
             }
 
