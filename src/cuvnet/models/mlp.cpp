@@ -30,16 +30,17 @@ namespace cuvnet
             if (!args.m_group_name.empty())
                 grp.reset(new op_group(args.m_group_name, args.m_unique_group));
 
+            if(args.m_want_dropout)
+                X = zero_out(X, 0.5);
+
             if(args.m_want_bias){
                 m_bias = input(cuv::extents[size], args.m_group_name + "b");
                 m_bias->set_learnrate_factor(args.m_learnrate_factor_bias);
+
                 m_linear_output = mat_plus_vec(
                         prod(X, m_W), m_bias, 1);
             }else
                 m_linear_output = prod(X, m_W);
-
-            if(args.m_want_dropout)
-                m_linear_output = zero_out(m_linear_output, 0.5);
 
             if(args.m_want_maxout)
                 m_linear_output = tuplewise_op(m_linear_output, 1, 
