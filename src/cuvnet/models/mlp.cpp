@@ -5,6 +5,10 @@
 #include <cuvnet/ops.hpp>
 #include "mlp.hpp"
 
+namespace{
+    log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("mlp"));
+}
+
 namespace cuvnet
 {
     namespace models
@@ -54,6 +58,11 @@ namespace cuvnet
             m_bias_default_value = args.m_bias_default_value;
             m_weight_init_std = args.m_weight_init_std;
             m_verbose = args.m_verbose;
+            if(m_verbose){
+                LOG4CXX_WARN(g_log, "#in: "<< m_W->data().shape(0) << ", #out: " << m_W->data().shape(0)
+                        << ", #params: " 
+                        << m_W->data().size() + (m_bias ? m_bias->data().size(): 0));
+            }
         }
         void mlp_layer::register_watches(monitor& mon){
             if(!m_verbose)
