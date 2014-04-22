@@ -62,6 +62,7 @@ namespace cuvnet { namespace models {
             bool m_random_sparse;
             float m_verbose;
             int m_padding;
+            bool m_symmetric_padding;
             unsigned int m_stride, m_n_groups;
             int m_partial_sum;
             bool m_want_pooling;
@@ -199,11 +200,25 @@ namespace cuvnet { namespace models {
 
         // negative padding will amount to a size-keeping convolution
         /**
-         * add padding around convolution.
+         * add padding (left and top) before convolution.
          *
-         * @param i padding amount: if negative, use size-keeping convolution
+         * @param i padding amount: if negative, pad half of the filter size (interger division)
          */
-        inline conv_layer_opts& padding(int i=-1){ m_padding = i; return *this;}
+        inline conv_layer_opts& padding(int i=-1){ 
+            m_padding = i; 
+            m_symmetric_padding = false;
+            return *this;}
+
+        /**
+         * add symmetric padding around convolution.
+         *
+         * @param i padding amount: if negative, pad half of the filter size (interger division)
+         */
+        inline conv_layer_opts& symmetric_padding(int i=-1){ 
+            m_padding = i; 
+            m_symmetric_padding = true;
+            return *this;
+        }
 
         /**
          * Increase stride of convolution.

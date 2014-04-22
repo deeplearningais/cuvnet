@@ -4,7 +4,7 @@
 #include "conv_layer.hpp"
 
 namespace{
-    log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("layers"));
+    log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("conv_layer"));
 }
 
 namespace cuvnet { namespace models {
@@ -29,7 +29,6 @@ namespace cuvnet { namespace models {
         determine_shapes(*m_input);
         unsigned int n_srcmaps = m_input->result()->shape[0];
         unsigned int n_fltpix  = fs * fs;
-        LOG4CXX_WARN(g_log, "n_srcmaps: "<<n_srcmaps << ", n_out: "<<n_out);
 
         m_bias_default_value = cfg.m_bias_default_value;
         m_weight_default_std = cfg.m_weight_default_std;
@@ -48,13 +47,22 @@ namespace cuvnet { namespace models {
             inp = m_noiser = zero_out(inp, 0.5);
         }
         auto conv = convolve(inp, m_weights, padding>=0, padding, cfg.m_stride, cfg.m_n_groups, 0);
-        determine_shapes(*ret);
+        if(cfg.m_symmetric_padding)
+            conv->set_symmetric_padding(true);
+
+        determine_shapes(*conv);
+
+        LOG4CXX_WARN(g_log, "#srcmaps: "<<n_srcmaps << ", #out: "<<n_out 
+                << ", #params: " << m_weights->data().size() + (m_bias ? m_bias->data().size(): 0)
+                << ", #neuron: " << conv->result()->shape[1] * conv->result()->shape[2] * n_out
+                );
+
         int partial_sum = cfg.m_partial_sum;
         // determine partial_sum automatically if not given
         if (cfg.m_partial_sum <= 0){
-            int ret_shape_y = ret->result()->shape[1];
-            int ret_shape_x = ret->result()->shape[2];
-            int num_modules = ret_shape_y * ret_shape_x;
+            int conv_shape_y = conv->result()->shape[1];
+            int conv_shape_x = conv->result()->shape[2];
+            int num_modules = conv_shape_y * conv_shape_x;
             partial_sum = num_modules;
 
             while((partial_sum/2)*2 == partial_sum && partial_sum > 4)
@@ -62,22 +70,22 @@ namespace cuvnet { namespace models {
             //partial_sum = 4;
             LOG4CXX_WARN(g_log, "Automatically determined partial_sum: " <<partial_sum);
         }else{
-            int ret_shape_y = ret->result()->shape[1];
-            int ret_shape_x = ret->result()->shape[2];
-            int num_modules = ret_shape_y * ret_shape_x;
+            int conv_shape_y = conv->result()->shape[1];
+            int conv_shape_x = conv->result()->shape[2];
+            int num_modules = conv_shape_y * conv_shape_x;
             if(num_modules % partial_sum != 0){
                 LOG4CXX_FATAL(g_log, "Given partial_sum: " <<partial_sum << " does not divide num_modules "<<num_modules);
             }else{
                 LOG4CXX_WARN(g_log, "Supplied partial_sum: " <<partial_sum);
             }
         }
-        boost::dynamic_pointer_cast<Convolve>(ret)->set_partial_sum(partial_sum);
+        conv->set_partial_sum(partial_sum);
         if(cfg.m_random_sparse)
-            boost::dynamic_pointer_cast<Convolve>(ret)->set_random_sparse();
+            conv->set_random_sparse();
+        m_output = conv;
         if(cfg.m_want_bias){
-            ret = mat_plus_vec(ret, m_bias, 0);
+            m_output = mat_plus_vec(conv, m_bias, 0);
         }
-        m_output = ret;
         m_linear_output = m_output;
         if(cfg.m_want_maxout){
             m_output = tuplewise_op(m_output, 0, cfg.m_maxout_N, cuv::alex_conv::TO_MAX);
