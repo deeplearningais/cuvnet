@@ -112,6 +112,7 @@ void cnpy::parse_zip_footer(FILE* fp, unsigned short& nrecs, unsigned int& globa
     if(res != 22)
         throw std::runtime_error("parse_zip_footer: failed fread");
 
+#ifndef NDEBUG
     unsigned short disk_no, disk_start, nrecs_on_disk, comment_len;
     disk_no = *(unsigned short*) &footer[4];
     disk_start = *(unsigned short*) &footer[6];
@@ -125,6 +126,7 @@ void cnpy::parse_zip_footer(FILE* fp, unsigned short& nrecs, unsigned int& globa
     assert(disk_start == 0);
     assert(nrecs_on_disk == nrecs);
     assert(comment_len == 0);
+#endif
 }
 
 cnpy::NpyArray load_the_npy_file(FILE* fp) {
