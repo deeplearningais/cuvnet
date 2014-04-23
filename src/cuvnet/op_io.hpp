@@ -103,6 +103,7 @@ BOOST_CLASS_EXPORT_KEY(cuvnet::Atan2);
 BOOST_CLASS_EXPORT_KEY(cuvnet::NegCrossEntropyOfLogistic);
 BOOST_CLASS_EXPORT_KEY(cuvnet::Softmax);
 BOOST_CLASS_EXPORT_KEY(cuvnet::MultinomialLogisticLoss);
+BOOST_CLASS_EXPORT_KEY(cuvnet::MultinomialLogisticLoss2);
 BOOST_CLASS_EXPORT_KEY(cuvnet::ClassificationLoss);
 BOOST_CLASS_EXPORT_KEY(cuvnet::F2Measure);
 BOOST_CLASS_EXPORT_KEY(cuvnet::EpsilonInsensitiveLoss);

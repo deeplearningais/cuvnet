@@ -9,6 +9,7 @@
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/derivative_test.hpp>
 #include <cuvnet/tools/function.hpp>
+#include <cuvnet/tools/matwrite.hpp>
 
 #include <cuvnet/ops.hpp>
 
@@ -450,6 +451,53 @@ BOOST_AUTO_TEST_CASE(derivative_test_softmax){
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<Softmax>(inp0->result(), 1);
         derivative_tester(*func);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(derivative_test_mll2){
+    typedef boost::shared_ptr<Op> ptr_t;
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][5]);
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8]);
+        ptr_t func                     = boost::make_shared<MultinomialLogisticLoss2>(inp0->result(), inp1->result(), 0);
+        cuv::fill_rnd_uniform(inp0->data());
+        inp1->data() = 0.f;
+        for(unsigned int i=0; i<inp0->data().shape(0); i++){
+            int klass = (int) (inp0->data().shape(1) * drand48());
+            inp1->data()(i) = klass;
+        }
+        //{
+        //    cuvnet::function f(func, 1);
+        //    tofile("sm.npy", f.evaluate());
+        //    tofile("inp0.npy", inp0->data());
+        //    tofile("inp1.npy", inp1->data());
+        //}
+        //{
+        //    cuvnet::function f(func, 0);
+        //    std::cout << "logprob: " << f.evaluate()[0] <<std::endl;
+        //}
+        //{
+        //    cuvnet::delta_function f(func, func);
+        //    tofile("d_sm.npy", f.evaluate());
+        //    //tofile("inp0.npy", inp0->data());
+        //    //tofile("inp1.npy", inp1->data());
+        //}
+
+        inp1->set_derivable(false);
+        derivative_tester(*func, 0, true, .003, 0., 0.);
+    }
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[5]);
+        ptr_t func                     = boost::make_shared<MultinomialLogisticLoss2>(inp0->result(), inp1->result(), 1);
+        cuv::fill_rnd_uniform(inp0->data());
+        inp1->data() = 0.f;
+        for(unsigned int i=0; i<inp0->data().shape(1); i++){
+            int klass = (int) (inp0->data().shape(0) * drand48());
+            inp1->data()(i) = klass;
+        }
+        inp1->set_derivable(false);
+        derivative_tester(*func, 0, true, .003, 0., 0.);
     }
 }
 
@@ -1858,7 +1906,6 @@ BOOST_AUTO_TEST_CASE(theano_convolve){
                }
             }
         }
-
 }
 
 BOOST_AUTO_TEST_CASE(theano_shuffle_dim){

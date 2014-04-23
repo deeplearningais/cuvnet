@@ -78,6 +78,7 @@ BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::Atan2);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::NegCrossEntropyOfLogistic);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::Softmax);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::MultinomialLogisticLoss);
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::MultinomialLogisticLoss2);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::ClassificationLoss);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::F2Measure);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::EpsilonInsensitiveLoss);

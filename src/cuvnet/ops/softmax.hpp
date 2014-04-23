@@ -290,5 +290,62 @@ namespace cuvnet
                         ar & m_axis;
                     }
     };
+
+    /**
+     * Multinomial logistic loss, including softmax, needs no one-out-of-n coding of labels.
+     *
+     * For some dataset \f$D=(X,Y)\f$
+     * \f[
+     * l(\theta, D) = 
+     *  -\sum_{i=1}^{|X|}\left[
+     *      \sum_k y_{ik}\hat y_{ik} - \log\sum_k\exp(\hat y_{ik})
+     *     \right]
+     * \f]
+     *
+     * where \f$\hat y\f$ is a function of \f$\theta\f$.
+     *
+     * the second result of this op is the softmaxed input, the third result is
+     * the classification loss.
+     *
+     * @note that the derivative is only implemented for y_hat.
+     *
+     */
+    class MultinomialLogisticLoss2
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                int m_pattern_axis;
+                value_ptr m_softmaxed;
+            public:
+                MultinomialLogisticLoss2(){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 y_hat (estimator)
+                 * @param p1 y (target)
+                 * @param pattern_axis axis in which patterns are stored
+                 */
+                MultinomialLogisticLoss2(result_t& p0, result_t& p1, int pattern_axis)
+                    :Op(2,3)
+                    ,m_pattern_axis(pattern_axis)
+                {
+                    add_param(0,p0);
+                    add_param(1,p1);
+                }
+                void fprop();
+                void bprop();
+            void _determine_shapes();
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        ar & m_pattern_axis;
+                    }
+    };
 }
 #endif /* __OP_SOFTMAX_HPP__ */

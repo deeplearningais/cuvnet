@@ -307,6 +307,10 @@ namespace cuvnet
     /// construct a MultinomialLogisticLoss object
     inline
         Op::op_ptr multinomial_logistic_loss(Op::op_ptr x, Op::op_ptr target, unsigned int dim=0){ return boost::make_shared<MultinomialLogisticLoss>(x->result(), target->result(), dim); }
+    /// construct a MultinomialLogisticLoss2 object, which should be more
+    /// efficient than MultinomialLogisticLoss, but outputs only a single number for the whole batch
+    inline
+        Op::op_ptr multinomial_logistic_loss2(Op::op_ptr x, Op::op_ptr target, unsigned int pattern_axis=0){ return boost::make_shared<MultinomialLogisticLoss2>(x->result(), target->result(), pattern_axis); }
     /// construct a EpsilonInsensitiveLoss object
     inline
         Op::op_ptr epsilon_insensitive_loss(float sensitivity, Op::op_ptr target, Op::op_ptr x){ return boost::make_shared<EpsilonInsensitiveLoss>(sensitivity, target->result(), x->result()); }

@@ -584,4 +584,105 @@ namespace cuvnet
         m_results[1]->shape = m_params[0]->shape;
     }
 
+    /***********************************************
+     * MultinomialLogisticLoss2
+     ***********************************************/
+
+    void MultinomialLogisticLoss2::fprop(){
+        using namespace cuv;
+        using namespace cuv::libs::opt;
+        param_t::element_type&  p0 = *m_params[0]; // estimator
+        param_t::element_type&  p1 = *m_params[1]; // labels
+        result_t::element_type& r0 = *m_results[0]; // loglikelihood of true labels
+        result_t::element_type& r1 = *m_results[1]; // softmaxed estimator
+        result_t::element_type& r2 = *m_results[2]; // classification error
+        std::pair<float, float> lloss_closs;
+        if(r1.can_overwrite_directly()){
+            lloss_closs = cuv::libs::opt::multinomial_logistic_loss(
+                    *r1.overwrite_or_add_value(), p0.value.cdata(),
+                    p1.value.cdata(), m_pattern_axis, value_ptr::s_allocator);
+            m_softmaxed = r1.overwrite_or_add_value();
+        }else{
+            // try to overwrite p0.value
+            lloss_closs = cuv::libs::opt::multinomial_logistic_loss(
+                    *p0.value, p0.value.cdata(),
+                    p1.value.cdata(), m_pattern_axis, value_ptr::s_allocator);
+            m_softmaxed = p0.value;
+            r1.push(p0.value);
+        }
+        if(r0.need_result){
+            // log loss
+            if(r0.can_overwrite_directly()){
+                (*r0.overwrite_or_add_value())[0] = lloss_closs.first;
+            }else if(r0.can_add_directly()){
+                (*r0.overwrite_or_add_value())[0] += lloss_closs.first;
+            }else{
+                value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
+                (*v)[0] = lloss_closs.first;
+                r0.push(v);
+            }
+        }
+        if(r2.need_result){
+            // classification loss
+            if(r2.can_overwrite_directly()){
+                (*r2.overwrite_or_add_value())[0] = lloss_closs.second;
+            }else if(r2.can_add_directly()){
+                (*r2.overwrite_or_add_value())[0] += lloss_closs.second;
+            }else{
+                value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
+                (*v)[0] = lloss_closs.second;
+                r2.push(v);
+            }
+        }
+
+        p0.value.reset();
+        if(!p0.need_derivative){
+            p1.value.reset();
+            m_softmaxed.reset();
+        }
+    }
+
+    void MultinomialLogisticLoss2::bprop(){
+        using namespace cuv;
+        using namespace cuv::libs::opt;
+        param_t::element_type&  p0 = *m_params[0]; // estimator
+        param_t::element_type&  p1 = *m_params[1]; // labels
+        //result_t::element_type& r0 = *m_results[0];
+        //result_t::element_type& r1 = *m_results[1];
+        //result_t::element_type& r2 = *m_results[2];
+        assert( p0.need_derivative);
+        assert(!p1.need_derivative); // cannot do that currently. Why should we? :)
+
+        if(p0.can_overwrite_directly()){
+            multinomial_logistic_loss_grad(*p0.overwrite_or_add_value(),
+                    m_softmaxed.cdata(), p1.value.cdata(),
+                    m_pattern_axis, false);
+        }else if(p0.can_add_directly()){
+            multinomial_logistic_loss_grad(*p0.overwrite_or_add_value(),
+                    m_softmaxed.cdata(), p1.value.cdata(),
+                    m_pattern_axis, true);
+        }else{
+            // try to overwrite the softmaxed activations
+            const value_type& sm = m_softmaxed.cdata();
+            multinomial_logistic_loss_grad(m_softmaxed.data_onlyshape(),
+                    sm, p1.value.cdata(),
+                    m_pattern_axis, false);
+            p0.push(m_softmaxed);
+        }
+        m_softmaxed.reset();
+    }
+
+    void MultinomialLogisticLoss2::_determine_shapes(){
+        if(m_results[0]->need_result){
+            cuvAssert(m_pattern_axis == 0 ||
+                    m_pattern_axis == (int)m_params[0]->shape.size() - 1);
+            cuvAssert(m_params[1]->shape.size() == 1);
+            cuvAssert(m_params[0]->shape[m_pattern_axis] == m_params[1]->shape[0]);
+        }
+        std::vector<unsigned int> src = m_params[0]->shape;
+        m_results[0]->shape.resize(1); m_results[0]->shape[0] = 1;
+        m_results[1]->shape = m_params[0]->shape;
+        m_results[2]->shape.resize(1); m_results[2]->shape[0] = 1;
+    }
+
 }
