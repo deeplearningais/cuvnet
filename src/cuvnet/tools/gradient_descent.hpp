@@ -564,6 +564,9 @@ namespace cuvnet
     };
     /**
      * does RMSPROP gradient descent.
+     * 
+     * also allocates and manages variables for learning rates,
+     * old gradients and squared gradient sum for each parameter.
      *
      * @ingroup gd
      */
@@ -608,6 +611,9 @@ namespace cuvnet
      * does Nesterov accelerated RMSPROP gradient descent.
      * (http://climin.readthedocs.org/en/latest/rmsprop.html)
      *
+     * also allocates and manages variables for learning rates,
+     * old gradients and squared gradient sum for each parameter.
+     * 
      * @ingroup gd
      */
     struct na_rmsprop_gradient_descent
@@ -659,6 +665,63 @@ namespace cuvnet
         virtual void update_weights();
 
     };
+    /**
+     * does RRMSPROP gradient descent.
+     * 
+     * this rmsprop version is derived from rprop
+     * 
+     * also allocates and manages variables for learning rates,
+     * old gradients and squared gradient sum for each parameter.
+     * 
+     * @ingroup gd
+     * 
+     */
+    struct rrmsprop_gradient_descent
+    : gradient_descent
+    {
+        public:
+            typedef std::vector<Op*> paramvec_t;
+        private:
+            /// per-weight squared gradient sum
+            std::vector<Op::value_type> m_sq_grad_sum;
+            /// per-weight learning rates
+            std::vector<Op::value_type> m_learnrates;
+            /// old delta-w signs
+            std::vector<cuv::tensor<signed char,Op::value_type::memory_space_type> > m_old_dw;
+            /// gradient magnitude averaging constant (0.9 means mostly keep current average)
+            float m_grad_avg;
+            /// numerical stabilization constant: \f$H=\delta I+\|g\|_2\f$
+            float m_delta;
+            ///increase- and decrease-parameter for the learningrates 
+            float m_eta_p, m_eta_m;
+            /// bounds for the learningrates
+            float m_delta_max, m_delta_min;
+            /// L1 penalty
+            float m_l1penalty;
+
+        public:
+            /**
+             * constructor
+             *
+             * @param op the function we want to minimize
+             * @param result which result of op to minimize
+             * @param params the parameters w.r.t. which we want to optimize op
+             * @param learnrate the initial learningrate
+             * @param weightdecay weight decay for weight updates
+             * @param l1decay L1 penalty on parameters
+             * @param grad_avg how much to stick to the old gradient magnitudes
+             * @param delta numerical stabilization constant: \f$H=\delta I+\|g\|_2\f$
+             * @param eta_p increase-parameter for the learningrates
+             * @param eta_m decrease-parameter for the learningrates
+             * @param delta_max upper bound for learningrates
+             * @param delta_min lower bound for learrningrates 
+             */
+        rrmsprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay = 0.0f, float l1decay=0.0f, float grad_avg = 0.5f, float delta=0.01f, float eta_p= 1.2f, float eta_m= 0.5f, float delta_max = 5.f, float delta_min = 0.00001f);
+
+        protected:
+        virtual void update_weights();	
+    };
+
     /**
      * does AdaGrad gradient descent.
      *

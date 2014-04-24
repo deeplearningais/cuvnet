@@ -194,15 +194,15 @@ namespace cuvnet
             float delta = cfg.get("delta", 0.01f);
             float grad_avg = cfg.get("grad_avg", 0.9f);
             float l1decay = cfg.get("l1decay", 0.f);
-            LOG4CXX_WARN(g_log_learner2, "Creating RMSProp GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << "grad_avg:" << grad_avg << ")");
+            LOG4CXX_WARN(g_log_learner2, "Creating RMSProp GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", grad_avg:" << grad_avg << ", delta:" << delta << ")");
             MAKE_GD(rmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
         }else if(typ == "rprop"){
-			float eta_p = cfg.get("eta_p", 1.2f);
-			float eta_m = cfg.get("eta_m", 0.5f);
-			float l1_penalty = cfg.get("l1_penalty", 0.f);
+            float eta_p = cfg.get("eta_p", 1.2f);
+            float eta_m = cfg.get("eta_m", 0.5f);
+            float l1_penalty = cfg.get("l1_penalty", 0.f);
             LOG4CXX_WARN(g_log_learner2, "Creating RPROP GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", l1_penalty:"<< l1_penalty << ", eta_p:" << eta_p << ", eta_m:" << eta_m <<")");
             MAKE_GD(rprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, l1_penalty, eta_p, eta_m);
             gd->set_epoch(start_epoch);
@@ -236,7 +236,23 @@ namespace cuvnet
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
-        }else{
+        }else if(typ == "rrmsprop"){
+            float delta = cfg.get("delta", 0.01f);
+            float grad_avg = cfg.get("grad_avg", 0.9f);
+            float eta_p = cfg.get("eta_p", 1.2f);
+            float eta_m = cfg.get("eta_m", 0.5f);
+            float delta_min = cfg.get("delta_min", 0.00001f);
+            float delta_max = cfg.get("delta_max", 5.0f);
+            float l1_penalty = cfg.get("l1_penalty", 0.f);
+            LOG4CXX_WARN(g_log_learner2, "Creating RRMSPROP GD (initial_learnrate:" << initial_learnrate << ", l2decay:" << l2decay << ", l1_penalty:"<< l1_penalty <<", delta:" << delta << ", grad_avg:" << grad_avg <<  ", eta_p:" << eta_p << ", eta_m:" << eta_m << ", delta_min:" << delta_min << ", delta_max:" << delta_max << ")");
+            MAKE_GD(rrmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, l1_penalty, grad_avg, delta/*, eta_p, eta_m, delta_max, delta_min*/);
+            gd->set_epoch(start_epoch);
+            gd->set_update_every(0);
+            gd->set_verbosity(verbosity);
+            return gd;
+
+        }
+        else{
             throw std::runtime_error("unknown/not implemented gd_type: " + typ);
         }
     }

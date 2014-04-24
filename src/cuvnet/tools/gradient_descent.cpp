@@ -415,6 +415,52 @@ namespace cuvnet
             inp->reset_delta();
         }
     }
+    
+    // ------------ rrmsprop gradient descent  ---------  \\-    
+    rrmsprop_gradient_descent::rrmsprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float l1decay, float grad_avg, float delta, float eta_p, float eta_m, float delta_max, float delta_min)
+        :gradient_descent(op, result, params, learnrate, weightdecay),
+        m_sq_grad_sum(params.size()),
+        m_learnrates(params.size()),
+        m_old_dw(params.size()),
+        m_grad_avg(grad_avg),
+        m_delta(delta),
+        m_eta_p(eta_p),
+        m_eta_m(eta_m),
+        m_delta_max(delta_max),
+        m_delta_min(delta_min),
+        m_l1penalty(l1decay)
+    {
+        unsigned int i=0;
+        for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
+            m_sq_grad_sum[i].resize(((ParameterInput*)*it)->data().shape());
+            m_sq_grad_sum[i] = 1.f;
+            m_learnrates[i].resize(((ParameterInput*)*it)->data().shape());
+            m_learnrates[i] = learnrate;
+            m_old_dw[i].resize(((ParameterInput*)*it)->data().shape());
+            m_old_dw[i] = (signed char)0;
+        }
+    }
+    
+    void rrmsprop_gradient_descent::update_weights(){
+        using namespace cuv;
+        unsigned int i=0;
+        for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end();it++, i++){
+            ParameterInput* inp = (ParameterInput*) *it;
+            if(! inp->derivable()) continue;
+
+            // we exploit CUVs problems with const-correctness to get an
+            // overwritable version of inp->delta.
+            // the delta() of const ParameterInput* uses cdata() of the
+            // cow_ptr!
+            matrix delta = ((const ParameterInput*) inp)->delta();
+
+            // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
+            //       we're changing the underlying object all cow_ptrs pointing to it!!!
+            cuv::rrmsprop(*inp->data_ptr().ptr(),delta,m_old_dw[i],m_learnrates[i],m_sq_grad_sum[i],m_grad_avg,m_delta,m_weightdecay,m_l1penalty,m_eta_p,m_eta_m,m_delta_max, m_delta_min);
+
+            inp->reset_delta();
+        }
+    }
 
     // ------------ adagrad gradient descent  ---------  \\-
     adagrad_gradient_descent::adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float delta, int winsize, float l1penalty)
