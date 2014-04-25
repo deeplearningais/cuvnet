@@ -602,6 +602,7 @@ namespace cuvnet
     {
         cuvAssert(patience_increase > 1.);
         m_best_perf = std::numeric_limits<float>::infinity();
+        m_perf_thresh = std::numeric_limits<float>::infinity();
         m_connection = gd.before_epoch.connect(boost::ref(*this), boost::signals::at_front);
         m_patience = 4000;
     }
@@ -660,9 +661,10 @@ namespace cuvnet
             // save the (now best) parameters
             m_gd.save_current_params();  
             improved();
-            if(perf < m_thresh * m_best_perf){ 
+            if(perf < m_perf_thresh){ 
                 // improved by more than thresh
                 m_patience = std::max((float)m_patience, (float)wups * m_patience_increase);
+                m_perf_thresh = m_thresh * perf;
             }
             m_best_perf = perf;
         }

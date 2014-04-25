@@ -359,6 +359,9 @@ namespace cuvnet
             /// best value attained so far
             float m_best_perf;
 
+            /// the value that needs to be reached so that allowed time (=patience) is increased
+            float m_perf_thresh;
+
             /// when to run.
             unsigned int m_every;
 
