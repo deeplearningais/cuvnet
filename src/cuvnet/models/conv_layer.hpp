@@ -51,6 +51,7 @@ namespace cuvnet { namespace models {
             ,m_scat_C(0)
             ,m_want_maxout(false)
             ,m_want_dropout(false)
+            ,m_dropout_rate(0.5)
             ,m_group_name("convlayer")
             ,m_unique_group(true)
             ,m_varname_suffix("")
@@ -81,6 +82,7 @@ namespace cuvnet { namespace models {
             bool m_want_maxout;
             int m_maxout_N;
             bool m_want_dropout;
+            float m_dropout_rate;
             std::string m_group_name;
             bool m_unique_group;
             std::string m_varname_suffix;
@@ -273,10 +275,11 @@ namespace cuvnet { namespace models {
 
         /**
          * Use dropout after pooling.
-         * @param b if true, use dropout.
+         * @param rate if non-zero, apply dropout by setting this fraction to zero.
          */
-        inline conv_layer_opts& dropout(bool b=true){
-            m_want_dropout = b;
+        inline conv_layer_opts& dropout(float rate=0.5f){
+            m_want_dropout = rate > 0.;
+            m_dropout_rate = rate;
             return *this;
         }
 

@@ -44,7 +44,7 @@ namespace cuvnet { namespace models {
 
         inp = m_input;
         if(cfg.m_want_dropout){
-            inp = m_noiser = zero_out(inp, 0.5);
+            inp = m_noiser = zero_out(inp, cfg.m_dropout_rate);
         }
         auto conv = convolve(inp, m_weights, padding>=0, padding, cfg.m_stride, cfg.m_n_groups, 0);
         if(cfg.m_symmetric_padding)
