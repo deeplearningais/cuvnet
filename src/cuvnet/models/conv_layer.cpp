@@ -64,17 +64,23 @@ namespace cuvnet { namespace models {
 
         int partial_sum = cfg.m_partial_sum;
         // determine partial_sum automatically if not given
-        if (cfg.m_partial_sum <= 0){
+        if (cfg.m_partial_sum < 0){
             int conv_shape_y = conv->result()->shape[1];
             int conv_shape_x = conv->result()->shape[2];
             int num_modules = conv_shape_y * conv_shape_x;
-            partial_sum = num_modules;
+            //partial_sum = num_modules;
+            //while((partial_sum/2)*2 == partial_sum && partial_sum > 4)
+            //    partial_sum /= 2;
 
-            while((partial_sum/2)*2 == partial_sum && partial_sum > 4)
-                partial_sum /= 2;
-            //partial_sum = 4;
+
+            partial_sum = 1;
+            for(int ps=1; ps < 128; ps ++){
+                if(num_modules % ps == 0      // divisibla
+                        && num_modules / ps >= 128)  // enough work left to spawn many threads
+                    partial_sum = ps;
+            }
             LOG4CXX_WARN(g_log, "Automatically determined partial_sum: " <<partial_sum);
-        }else{
+        }else if(cfg.m_partial_sum > 0){
             int conv_shape_y = conv->result()->shape[1];
             int conv_shape_x = conv->result()->shape[2];
             int num_modules = conv_shape_y * conv_shape_x;
@@ -83,6 +89,8 @@ namespace cuvnet { namespace models {
             }else{
                 LOG4CXX_WARN(g_log, "Supplied partial_sum: " <<partial_sum);
             }
+        }else{
+                LOG4CXX_WARN(g_log, "Supplied partial_sum: " <<partial_sum);
         }
         conv->set_partial_sum(partial_sum);
         if(cfg.m_random_sparse)
