@@ -31,12 +31,20 @@ namespace cuvnet
             logistic_regression(){}
 
             /**
-             * logistic regression ctor.
+             * logistic regression ctor using one-out-of-n encoding in Y.
              * @param X the estimator input
              * @param Y the target value
              * @param degenerate if true, assume is already estimator
              */
             logistic_regression(op_ptr X, op_ptr Y, bool degenerate=false);
+
+            /**
+             * logistic regression ctor using class id coding in Y.
+             * @param X the estimator input
+             * @param Y the target value
+             * @param n_classes the number of classes (ignored if degenerate is true)
+             */
+            logistic_regression(op_ptr X, op_ptr Y, int n_classes);
 
             virtual std::vector<Op*> get_params();
             virtual void reset_params();
