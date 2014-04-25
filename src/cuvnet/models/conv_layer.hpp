@@ -34,6 +34,7 @@ namespace cuvnet { namespace models {
             ,m_padding(-1)
             ,m_stride(1)
             ,m_n_groups(1)
+            ,m_n_filter_channels(0)
             ,m_partial_sum(-1)
             ,m_want_pooling(false)
             ,m_pool_size(2)
@@ -64,7 +65,7 @@ namespace cuvnet { namespace models {
             float m_verbose;
             int m_padding;
             bool m_symmetric_padding;
-            unsigned int m_stride, m_n_groups;
+            unsigned int m_stride, m_n_groups, m_n_filter_channels;
             int m_partial_sum;
             bool m_want_pooling;
             unsigned int m_pool_size;
@@ -236,6 +237,15 @@ namespace cuvnet { namespace models {
          * @see random_sparse
          */
         inline conv_layer_opts& n_groups(unsigned int i){ m_n_groups = i; return *this;}
+
+        /**
+         * Set the number of channels every filter is connected to when sparse connections are used.
+         *
+         * Default is to divide the total number of input channels by the number of groups.
+         *
+         * @see random_sparse
+         */
+        inline conv_layer_opts& n_filter_channels(unsigned int i){ m_n_filter_channels = i; return *this;}
 
         /**
          * This is a speed/size tradeoff for gradient computation.

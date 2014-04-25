@@ -33,7 +33,12 @@ namespace cuvnet { namespace models {
         m_bias_default_value = cfg.m_bias_default_value;
         m_weight_default_std = cfg.m_weight_default_std;
 
-        m_weights = input(cuv::extents[n_srcmaps / cfg.m_n_groups][n_fltpix][n_out], cfg.m_group_name + "W" + cfg.m_varname_suffix);
+        cuvAssert(n_srcmaps % cfg.m_n_groups == 0);
+        cuvAssert((n_srcmaps < 4) || (n_srcmaps % 4 == 0));
+        int n_filter_channels = n_srcmaps / cfg.m_n_groups;
+        if(cfg.m_random_sparse && cfg.m_n_filter_channels > 0)
+            n_filter_channels = cfg.m_n_filter_channels;
+        m_weights = input(cuv::extents[n_filter_channels][n_fltpix][n_out], cfg.m_group_name + "W" + cfg.m_varname_suffix);
         if(cfg.m_want_bias){
             m_bias    = input(cuv::extents[n_out], cfg.m_group_name + "b" + cfg.m_varname_suffix);
         }
@@ -81,7 +86,7 @@ namespace cuvnet { namespace models {
         }
         conv->set_partial_sum(partial_sum);
         if(cfg.m_random_sparse)
-            conv->set_random_sparse();
+            conv->set_random_sparse(cfg.m_n_filter_channels);
         m_output = conv;
         if(cfg.m_want_bias){
             m_output = mat_plus_vec(conv, m_bias, 0);

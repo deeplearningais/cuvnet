@@ -15,12 +15,21 @@ namespace cuvnet
             desc.label = "Conv";
         }
     }
-    void Convolve::set_random_sparse(){
+    void Convolve::set_random_sparse(unsigned int nFiltChan){
         determine_shapes(*this);
-        int nFiltChan = m_params[1]->shape[0];
+
         int nImgChan  = m_params[0]->shape[0];
+        if(nFiltChan == 0)
+            nFiltChan = nImgChan / m_nGroups;
+        cuvAssert(nFiltChan * m_nGroups % nImgChan == 0);
         int nGroups   = m_nGroups;
         int oversample = nGroups * nFiltChan / nImgChan;
+
+        unsigned int nFiltChanP0 = m_params[1]->shape[0];
+        cuvAssert(nFiltChanP0 == nFiltChan);
+        //int nFltPix  = m_params[1]->shape[1];
+        //int nDstMaps = m_params[1]->shape[2];
+        //m_weights->data().resize(cuv::extents[nFiltChan][nFltPix][nDstMaps]);
 
         m_indices.resize(cuv::extents[nGroups][oversample * nImgChan]);
         for(int i=0; i < nGroups; i++){

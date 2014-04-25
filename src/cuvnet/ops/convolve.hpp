@@ -79,7 +79,7 @@ namespace cuvnet
                 void _determine_shapes();
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
 
-                void set_random_sparse();
+                void set_random_sparse(unsigned int n_filt_channels=0);
 
                 /// @return true iff we use padding
                 inline bool is_padded()const{
