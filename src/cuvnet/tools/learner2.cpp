@@ -330,7 +330,12 @@ namespace cuvnet
     boost::shared_ptr<monitor> 
     learner2::get_monitor(model& m, const ptree& cfg){
         bool verbose = cfg.get("verbose", true);
-        boost::shared_ptr<monitor> mon = boost::make_shared<monitor>(verbose);
+        boost::optional<std::string> basepath = cfg.get_optional<std::string>("basepath");
+        boost::shared_ptr<monitor> mon;
+        if (basepath)
+            mon.reset(new monitor(verbose, *basepath + "/loss.csv"));
+        else
+            mon.reset(new monitor(verbose));
         mon->add(monitor::WP_SCALAR_EPOCH_STATS, m.loss(), "loss");
         if(m.error())
             mon->add(monitor::WP_SCALAR_EPOCH_STATS, m.error(), "cerr");
@@ -616,7 +621,7 @@ namespace cuvnet
             = get_gradient_descent(m, cfg.get_child("gd"));
 
         m_mon
-            = get_monitor(m, cfg.get_child("monitor", ptree()));
+            = get_monitor(m, cfg.get_child("monitor", cfg));
 
         boost::shared_ptr<early_stopper> es;
         boost::shared_ptr<record_optimal_training_loss> rotl;
