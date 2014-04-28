@@ -151,7 +151,7 @@ namespace cuvnet
              * Returns an convergence checker or NULL, configured according to the cfg parameter.
              */
             boost::shared_ptr<convergence_checker>
-                get_convergence_checker(gradient_descent& gd, monitor& mon, const ptree& cfg);
+                get_convergence_checker(gradient_descent& gd, boost::shared_ptr<early_stopper> es, monitor& mon, const ptree& cfg);
 
             /**
              * Returns a monitor that watches loss and error of the model.

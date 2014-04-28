@@ -262,7 +262,7 @@ namespace cuvnet
     }
 
     boost::shared_ptr<convergence_checker>
-    learner2::get_convergence_checker(gradient_descent& gd, monitor& mon, const ptree& cfg){
+    learner2::get_convergence_checker(gradient_descent& gd, boost::shared_ptr<early_stopper> es, monitor& mon, const ptree& cfg){
         boost::shared_ptr<convergence_checker> cc;
         bool active = cfg.get("active", true);
         if (!active)
@@ -271,13 +271,27 @@ namespace cuvnet
         float thresh = cfg.get("thresh", 0.995);
         int min_wups = cfg.get("min_wups", 10);
         float patience_inc_fact = cfg.get("patience_inc_fact", 1.2);
+        bool use_early_stopper = cfg.get("use_early_stopper", false);
+        if(use_early_stopper)
+            cc.reset(new convergence_checker(gd, *es,
+                        boost::bind(&monitor::mean, &mon, watch), thresh, min_wups, patience_inc_fact));
+        else
+            cc.reset(new convergence_checker(gd,
+                        boost::bind(&monitor::mean, &mon, watch), thresh, min_wups, patience_inc_fact));
+        int max_steps = cfg.get("max_steps", 4);
+        float lr_fact = cfg.get("lr_fact", -1.f);
+        if(lr_fact > 0)
+            cc->decrease_lr(max_steps, lr_fact);
         LOG4CXX_WARN(g_log_learner2, "Setting up Convergence Checker ("
                 <<  "watch: " << watch
                 << " thresh: " << thresh
                 << " min_wups: " << min_wups
+                << " use_early_stopper: " << use_early_stopper
                 << " patience_inc_fact: " << patience_inc_fact
+                << " max_steps: " << max_steps
+                << " lr_fact: " << lr_fact
+                << " )"
                 );
-        cc.reset(new convergence_checker(gd, boost::bind(&monitor::mean, &mon, watch), thresh, min_wups, patience_inc_fact));
         return cc;
     }
 
@@ -618,7 +632,7 @@ namespace cuvnet
         boost::optional<const ptree&> cc_cfg
             = cfg.get_child_optional("convergence_checker");
         if (cc_cfg)
-            cc = get_convergence_checker(*m_gd, *m_mon, *cc_cfg);
+            cc = get_convergence_checker(*m_gd, es, *m_mon, *cc_cfg);
 
         int time_limit = cfg.get("time_limit", INT_MAX);
         int batch_size = cfg.get("batchsize", -1);

@@ -540,6 +540,25 @@ namespace cuvnet
         m_connection = gd.after_epoch.connect(boost::ref(*this), boost::signals::at_front);
     }
 
+    convergence_checker::convergence_checker(
+            gradient_descent& gd,
+            early_stopper& es,
+            boost::function<float(void)> performance,
+            float thresh, unsigned int min_wups, float patience_inc_fact)
+        :   m_gd(gd),
+            m_performance(performance),
+            m_thresh(thresh),
+            m_patience(min_wups),
+            m_patience_inc_fact(patience_inc_fact),
+            m_max_steps(1),
+            m_steps(0),
+            m_lr_fact(1.f)
+    {
+        cuvAssert(patience_inc_fact > 1.);
+        m_connection = es.after_early_stopping_epoch.connect(
+                boost::bind(&convergence_checker::operator(), this, _1, _1), boost::signals::at_front);
+    }
+
 
     void convergence_checker::disconnect(){
         m_connection.disconnect();
@@ -644,7 +663,6 @@ namespace cuvnet
                 i++)
             perf += m_val_perfs[i];
         perf /= window_size;
-
 
         log4cxx::MDC perf_mdc("perf", boost::lexical_cast<std::string>(perf));
         log4cxx::MDC patience_mdc("patience", boost::lexical_cast<std::string>(m_patience));

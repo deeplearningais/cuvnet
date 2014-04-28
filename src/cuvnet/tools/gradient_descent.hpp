@@ -10,6 +10,7 @@
 namespace cuvnet
 {
     class monitor;
+    class early_stopper;
 
     /**
      * @addtogroup learning_exceptions
@@ -293,10 +294,14 @@ namespace cuvnet
         public:
 
             /**
-             * stopping by convergence: ctor.
+             * stopping by convergence on training set: ctor.
              *
              * Stops \c gradient_descent new value is more than
-             * thresh*best_value for `many` epochs.
+             * thresh*best_value for `min_wups` weight updates.
+             *
+             * `min_wups` is increased by a factor of
+             * `patience_inc_fact` every time the threshold is
+             * reached.
              *
              * Tested on /training/ set, which should always improve, except
              * for too large/too small learning rates.
@@ -311,6 +316,30 @@ namespace cuvnet
                     gradient_descent& gd,
                     boost::function<float(void)> performance,
                     float thresh=0.95f, unsigned int min_wups=100, float patience_inc_fact=2.f);
+
+            /**
+             * stopping by convergence on validation set: ctor.
+             *
+             * Stops \c gradient_descent new value is more than
+             * thresh*best_value for `min_epochs` epochs.
+             *
+             * `min_epochs` is increased by a factor of
+             * `patience_inc_fact` every time the threshold is
+             * reached.
+             *
+             * Tested on /validation/ set, by referring to the perfomance measured in the early_stopper.
+             * @param gd gradient_descent object to register with
+             * @param es an early stopper to register with
+             * @param performance a function which determines how good we are after an epoch
+             * @param thresh stop when new value is more than thresh*best_value and no patience left
+             * @param min_epochs initial value for patience
+             * @param patience_inc_fact patience is multiplied by this when better performance is found
+             */
+            convergence_checker(
+                    gradient_descent& gd,
+                    early_stopper& es,
+                    boost::function<float(void)> performance,
+                    float thresh=0.95f, unsigned int min_epochs=100, float patience_inc_fact=2.f);
 
             /**
              * modify learning rate upon convergence.
