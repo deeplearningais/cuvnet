@@ -618,6 +618,8 @@ namespace cuvnet
         , m_thresh(thresh)
         , m_patience_increase(patience_increase)
         , m_box_filter_size(box_filter_size)
+        , m_max_steps(0)
+        , m_lr_fact(0.5f)
     {
         cuvAssert(patience_increase > 1.);
         m_best_perf = std::numeric_limits<float>::infinity();
@@ -695,8 +697,17 @@ namespace cuvnet
         if(m_patience <= wups){
             // stop learning if we failed to get significant improvements
             log4cxx::MDC mdc("best_perf", boost::lexical_cast<std::string>(m_best_perf));
-            LOG4CXX_WARN(log, "STOP no improvement after " <<current_epoch << " epochs");
-            throw no_improvement_stop();
+            if(m_max_steps <= 0){
+                LOG4CXX_WARN(log, "STOP no improvement after " <<current_epoch << " epochs");
+                throw no_improvement_stop();
+            }else{
+                LOG4CXX_WARN(log, "DECLR no improvement after " <<current_epoch << " epochs, decreasing learnrate");
+                unsigned int epoch_osp = m_gd.epoch_of_saved_params();
+                m_gd.load_best_params();
+                m_gd.set_learnrate(m_lr_fact * m_gd.learnrate());
+                m_patience = wups + 2.f * epoch_osp;  // wait twice as long as it took to get there
+                m_max_steps--;
+            }
         }
 
     }

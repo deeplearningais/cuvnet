@@ -245,15 +245,23 @@ namespace cuvnet
         float multiply = cfg.get("multiply", 2.f);
         int boxfilter = cfg.get("boxfilter", 1);
         int patience = cfg.get("patience", 100);
+        int max_steps = cfg.get("max_steps", 0);
+        int lr_fact = cfg.get("lr_fact", 0.5f);
         LOG4CXX_WARN(g_log_learner2, "Setting up Early Stopper (watch:"<<watch
                 <<", thresh:"<< thresh
                 << ", every: "<< every 
                 << ", multiply:"<<multiply
                 << ", boxfilter:" << boxfilter 
-                << ", patience:" << patience<< ")");
+                << ", patience:" << patience
+                << ", max_steps:" << max_steps
+                << ", lr_fact:" << lr_fact
+                << ")");
         es.reset(new early_stopper(gd, boost::bind(&monitor::mean, &mon, watch), thresh, every, multiply, boxfilter));
         es->before_early_stopping_epoch.connect(boost::bind(&learner2::_switch_dataset, this, CM_VALID, 0));
         es->after_early_stopping_epoch.connect(boost::bind(&learner2::_switch_dataset, this, CM_TRAIN, 0));
+        if(max_steps > 0){
+            es->decrease_lr(max_steps, lr_fact);
+        }
 
         es->before_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_VALID, 0));
         es->after_early_stopping_epoch.connect(boost::bind(&monitor::set_training_phase, &mon, CM_TRAIN, 0));

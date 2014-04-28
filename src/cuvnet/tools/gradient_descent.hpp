@@ -406,6 +406,12 @@ namespace cuvnet
             /// connection of early stopping
             boost::signals::connection m_connection;
 
+            /// multiply learning rate for `m_max_steps` times before finally stopping learning
+            unsigned int m_max_steps;
+
+            /// multiply learning rate for `m_max_steps` by `m_lr_fact` before finally stopping learning
+            float m_lr_fact;
+
         public:
             /// triggered when starting a early-stopping epoch.
             boost::signal<void(unsigned int)> before_early_stopping_epoch;
@@ -450,6 +456,16 @@ namespace cuvnet
                 m_patience = patience;
             }
 
+            /**
+             * modify learning rate upon convergence.
+             *
+             * @param max_steps converge this many times before stopping training
+             * @param lr_fact multiply learning rate with this factor upon convergence
+             */
+            inline void decrease_lr(unsigned int max_steps=4, float lr_fact=0.75f){
+                m_max_steps = max_steps;
+                m_lr_fact = lr_fact;
+            }
 
             /**
              * disconnects early stopping from gradient_descent object we registered with. 
