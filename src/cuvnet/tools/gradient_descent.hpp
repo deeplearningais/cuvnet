@@ -239,16 +239,16 @@ namespace cuvnet
              */
             void eval_epoch(unsigned int current_epoch);
             
+            /**
+             * load the saved parameters back into the function.
+             */
+            void load_best_params();
+
         protected:
             /**
              * this function should update all weights using backpropagated deltas.
              */
             virtual void update_weights();
-
-            /**
-             * load the saved parameters back into the function.
-             */
-            void load_best_params();
 
     };
 
