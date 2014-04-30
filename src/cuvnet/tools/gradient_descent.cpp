@@ -705,7 +705,7 @@ namespace cuvnet
                 unsigned int epoch_osp = m_gd.epoch_of_saved_params();
                 m_gd.load_best_params();
                 m_gd.set_learnrate(m_lr_fact * m_gd.learnrate());
-                m_patience = wups + 2.f * epoch_osp;  // wait twice as long as it took to get there
+                m_patience = wups + m_patience_increase * epoch_osp;  // wait patience_increase times as long as it took to get there
                 m_max_steps--;
             }
         }
