@@ -96,6 +96,12 @@ namespace cuvnet
                     m_symmetric_padding = b;
                 }
 
+                /// turn padding off (cannot be turned on again, since the value is overridden and not saved!)
+                inline void disable_padding(){
+                    m_padding_start = 0;
+                    m_padding_size = 0;
+                }
+
             private:
                 friend class boost::serialization::access;
                 template<class Archive>
