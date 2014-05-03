@@ -1142,14 +1142,14 @@ namespace cuvnet
             m_subsx -= m_subsx - img[1];
         }
         else
-            dst[1] = DIVUP(img[1] - m_startx - m_subsx, m_stridex);
+            dst[1] = (img[1] - m_startx) / m_stridex;
 
         if ( img[2] <= m_subsx ){
             dst[2] = 1;
             m_subsx -= m_subsx - img[2];
         }
         else
-            dst[2] = DIVUP(img[2] - m_startx - m_subsx, m_stridex);
+            dst[2] = (img[2] - m_startx) / m_stridex;
         dst[3] = img[3];
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));

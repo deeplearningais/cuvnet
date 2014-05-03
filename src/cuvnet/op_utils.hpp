@@ -330,12 +330,12 @@ namespace cuvnet
      *
      * @todo write a topological sort that includes /all/ connected sinks
      */
-    inline void determine_shapes(Op& op){
+    inline void determine_shapes(Op& op, bool results_too=true){
         determine_shapes_visitor dsv;
         while(!dsv.done){
             dsv.done = true;
             dsv.forget_visited();
-            op.visit(dsv, true);
+            op.visit(dsv, results_too);
         }
     }
 

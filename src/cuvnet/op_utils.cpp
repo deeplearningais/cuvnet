@@ -746,14 +746,14 @@ void valid_shape_info::determine_shapes(){
             else if((poolp = dynamic_cast<LocalPooling*>(*it))){
                 std::vector<unsigned int> inshape  = poolp->param(0)->shape;
                 std::vector<unsigned int> outshape = poolp->result(0)->shape;
-                // startx is usually negative or zero. 
-                // A negative value for startx decreases the margin
-                i_margin_l += (poolp->subsx()-1)/2.f + poolp->startx();
 
-                // applying outshape[1] pools in every line, with stride stridex;
-                // the last filter ends at startx+(outshape-1)*stridex + subsx.
-                // half of the last filter is (again) part of the margin
-                i_margin_r += inshape[1] - (poolp->startx() + (outshape[1]-1) * poolp->stridex() + poolp->subsx()/2.f);
+                // this is very similar to the convolution calculation, only
+                // the naming scheme slightly differs.
+                int fs = poolp->subsx();
+                float lmarg = (fs-1)/2.f + poolp->startx();
+                i_margin_l += o2i_scale * lmarg;
+                float re = lmarg + (outshape[1] - 1) * poolp->stridex();
+                i_margin_r += o2i_scale * ((int)inshape[1] - re - 1);
 #if VALID_SHAPE_INFO_DEBUG
                 cuvAssert(inshape[1] == 
                         0.f
@@ -777,18 +777,19 @@ void valid_shape_info::determine_shapes(){
 
                 int fs = std::sqrt(convp->param(1)->shape[1]);
 
-                int lmarg = fs/2 + convp->padding_start();
+                float lmarg = (fs-1)/2.f + convp->padding_start();
 
                 // left margin: fs/2 is removed from valid convolution           
                 // but this can be compensated by (negative!) padding            
                 i_margin_l += o2i_scale * lmarg;
 
-                // this is the pixel in the input over which the center of the last filter
-                int re = lmarg + outshape[1] * convp->stride();
+                // this is the pixel in the input over which the center of the
+                // last filter resides
+                float re = lmarg + (outshape[1] - 1) * convp->stride();
 
-                // the margin on the right hand side might even be negative, if the last
-                // filter extends outside the image.
-                i_margin_r += o2i_scale * ((int)inshape[1] - re);
+                // the margin on the right hand side might even be negative, if
+                // the last filter extends outside the image.
+                i_margin_r += o2i_scale * ((int)inshape[1] - re - 1);
 
 #if VALID_SHAPE_INFO_DEBUG
                 cuvAssert(inshape[1] == 
