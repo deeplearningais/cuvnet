@@ -216,7 +216,19 @@ namespace cuvnet
                     m_res_reshape[0]   *= p0.shape[i];   
                 }
             }            
-        }
+	} else {
+		for ( unsigned int i = 0; i < m_ndim; i++) {
+			m_param_shape[i] = p0.shape[i];
+			m_res_shape[i]   = p0.shape[i]; 
+		}
+		if (m_axis == 0){
+			m_res_reshape[0] = p0.shape[m_ndim -1];       
+			m_res_shape[m_axis] = 1;
+		} else{
+			m_res_reshape[0] = p0.shape[0];       
+			m_res_shape[m_axis] = 1;
+		}
+	}
 
         m_results[0]->shape.resize(m_ndim);
         for ( unsigned int i = 0; i < m_ndim; i++){
