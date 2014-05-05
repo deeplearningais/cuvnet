@@ -794,7 +794,61 @@ namespace cuvnet
                             ar & boost::serialization::base_object<Op>(*this) & m_subspace_size & m_size & m_to & m_stride & m_eps & m_spn;
                         }
             };
+////////////////////////////////// fully connected SPN ///////////////////////////////////////
 
+        /**
+         * TODO
+	 * @ingroup Ops
+         */
+        class Spn_Sum_Fully_Connected
+            : public Op{
+                public:
+                    typedef Op::value_type    value_type;
+                    typedef Op::op_ptr        op_ptr;
+                    typedef Op::value_ptr     value_ptr;
+                    typedef Op::param_t       param_t;
+                    typedef Op::result_t      result_t;
+
+                    // for profiling host / dev
+                    value_ptr    m_lae;
+		    unsigned int m_size;
+		    std::vector<unsigned int> src_shape;
+		    std::vector<unsigned int> src_reshape;
+		    bool m_reshape;
+                private:
+                public:
+                    Spn_Sum_Fully_Connected() :Op(2,1){} ///< for serialization
+                    /**
+                     * ctor.
+                     * @param images the input images
+                     */
+                    Spn_Sum_Fully_Connected(result_t& images, result_t& m_W, unsigned int size, bool reshape = false)
+                        :Op(2,1),
+			m_size(size),
+			m_reshape(reshape)
+                    {
+                        add_param(0,images);
+                        add_param(1,m_W);
+
+                        using namespace cuv;
+                           //generate dummy tensor ( empty ) to avoid null pointer exceptions
+                        value_ptr z(new value_type(0, value_ptr::s_allocator));
+                        m_lae = z;
+                    }
+
+                    void fprop();
+                    void bprop();
+
+                    void _determine_shapes();
+                    virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
+                                       
+                private:
+                    friend class boost::serialization::access;
+                    template<class Archive>
+                        void serialize(Archive& ar, const unsigned int version){
+                            ar & boost::serialization::base_object<Op>(*this) & m_size & m_reshape;
+                        }
+            };
 }
 BOOST_CLASS_VERSION(cuvnet::Convolve, 1)
 #endif /* __OP_CONVOLVE_HPP__ */

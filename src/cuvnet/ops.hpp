@@ -220,6 +220,9 @@ namespace cuvnet
     /// construct a weighted_sub_tensor_op object
     inline
         boost::shared_ptr<Weighted_Sub_Tensor_op> weighted_sub_tensor_op(Op::op_ptr img, Op::op_ptr m_W, boost::shared_ptr<cuvnet::monitor> S, unsigned int size, unsigned int stride, unsigned int sub_size=2, cuv::alex_conv::weighted_sub_tensor_op_functor to = cuv::alex_conv::TO_LOGWADDEXP, float eps = 0.00001f, bool spn=false) { return boost::make_shared<Weighted_Sub_Tensor_op>(img->result(), m_W->result(), S, size, stride, sub_size, to, eps, spn); }
+    /// construct a spn_sum_fully_connected object 
+    inline
+        boost::shared_ptr<Spn_Sum_Fully_Connected> spn_sum_fully_connected(Op::op_ptr img, Op::op_ptr m_W, unsigned int size, bool r) { return boost::make_shared<Spn_Sum_Fully_Connected>(img->result(), m_W->result(), size, r); }
     /// construct a spn_output_op object
     inline
         boost::shared_ptr<Spn_Output_Op> spn_output_op(Op::op_ptr img, Op::op_ptr m_W, Op::op_ptr Y, boost::shared_ptr<cuvnet::monitor> S, unsigned int classes, bool hard_gd, float eps = 0.00001f ) { return boost::make_shared<Spn_Output_Op>(img->result(), m_W->result(), Y->result(), S, classes, hard_gd, eps); }

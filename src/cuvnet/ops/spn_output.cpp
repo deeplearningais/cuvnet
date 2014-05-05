@@ -86,8 +86,6 @@ namespace cuvnet{
         param_t::element_type&  p2 = *m_params[2];
         result_t::element_type& r0 = *m_results[0];
         
-        //check that S has been set if op is used for spn with soft gradient
-        cuvAssert( ((*m_S)["S"].size() == p0.shape[2]) || ((*m_S)["S"].size() == p0.shape[3]) );
 
             if (p0.need_derivative || p1.need_derivative || p2.need_derivative){
                 bool p0_old = p0.can_overwrite_directly();
