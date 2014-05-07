@@ -668,9 +668,9 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
     for (int padding = 0; padding < 2; ++padding)
     {
         {
-            unsigned int nImgChan = 3;      // must be divisible by nGroups
-            unsigned int nImgPixX = 16;
-            unsigned int nImgPixY = 16;
+            unsigned int nImgChan = 1;      // must be divisible by nGroups
+            unsigned int nImgPixX = 6;
+            unsigned int nImgPixY = 6;
             unsigned int nImg     = 4;
             unsigned int nGroups  = 1;      // must be divisible by 2 ??
 
@@ -683,14 +683,14 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
             {
                 // sparse convolution
                 unsigned int nGroups = 2;
-                unsigned int nImgChan = 32;
-                unsigned int nFiltChan = 16;
-                unsigned int nFilt     = 32;
+                unsigned int nImgChan = 16;
+                unsigned int nFiltChan = 8;
+                unsigned int nFilt     = 16;
                 boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg], "inputs");
-                boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFiltChan][nFiltPixX*nFiltPixX][nFilt], "weights");
+                boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFiltChan][nFiltPixX*nFiltPixX][nFilt * nGroups], "weights");
                 boost::shared_ptr<Convolve> func        = boost::make_shared<Convolve>(inp0->result(), inp1->result(), 
                         padding, padding, 1, nGroups, 0);
-                func->set_random_sparse();
+                func->set_random_sparse(nFiltChan);
 
                 derivative_tester(*func,0,false,.03f);
             }
@@ -702,7 +702,8 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
                         padding, padding, 1, nGroups, 1);
 
                 // it might not be possible to derive for images if they have only 3 channels!
-                inp0->set_derivable(false);
+                if(nImgChan % 4 != 0)
+                    inp0->set_derivable(false);
 
                 derivative_tester(*func,0,false,.03f);
             }
@@ -726,9 +727,9 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
             // the version used here will use (temporarily) more memory and will be slower
             // (than a hypothetical "optimal" version)
             unsigned int nImgChan = 1;      // must be divisible by nGroups
-            unsigned int nImgPixY  = 16;
-            unsigned int nImgPixX  = 16;
-            unsigned int nImg     = 16;
+            unsigned int nImgPixY  = 6;
+            unsigned int nImgPixX  = 6;
+            unsigned int nImg     = 4;
             unsigned int nGroups  = 1;      // must be divisible by 2 ??
 
             unsigned int nFiltChan = nImgChan/nGroups;
