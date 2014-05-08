@@ -33,6 +33,7 @@ namespace cuvnet { namespace models {
             ,m_random_sparse(false)
             ,m_verbose(false)
             ,m_padding(-1)
+            ,m_symmetric_padding(true)
             ,m_stride(1)
             ,m_n_groups(1)
             ,m_n_filter_channels(0)
