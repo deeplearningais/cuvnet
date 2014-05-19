@@ -34,6 +34,12 @@ namespace cuvnet { namespace bbtools {
     image::image(const std::string& fn){
         using namespace cv;
         porig.reset(new Mat(imread(fn.c_str())));
+        if(!porig->data )                              // Check for invalid input
+        {
+            // we shouldn't be throwin' exceptions in the constructor, but we
+            // want the program to die in this case, anyway!
+            throw std::runtime_error("Could not open or find the image");
+        }
     }
     image::~image(){
     }
