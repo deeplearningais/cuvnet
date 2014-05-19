@@ -49,7 +49,7 @@ namespace cuvnet
                 inline int stride()const{return m_stride;}
                 inline int padding_start()const{return m_padding_start;}
                 inline int padding_size()const{return m_padding_size;}
-                Convolve() :Op(2,1){} ///< for serialization
+                Convolve() :Op(2,1),m_symmetric_padding(true){} ///< for serialization
 
                 /**
                  * constructor.
