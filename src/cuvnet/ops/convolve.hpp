@@ -581,6 +581,7 @@ namespace cuvnet
                 inline unsigned int subsx()const{return m_subsx;}
                 inline unsigned int stridex()const{return m_stridex;}
                 inline int startx()const{return m_startx;}
+                inline void set_startx(int i){m_startx = i;}
                 virtual void release_data();
                 void fprop();
                 void bprop();
