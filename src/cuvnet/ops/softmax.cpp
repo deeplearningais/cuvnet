@@ -381,10 +381,27 @@ namespace cuvnet
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
 
+        // reshape inputs to allow for image like dimensions
+        value_type inp = p0.value.cdata();  // copy of meta info only (original data)
+        std::vector<unsigned int> shape(2);
+        unsigned int dim_other_axes;
+        if (m_axis==1) {
+            dim_other_axes = inp.size() / inp.shape(0);
+            shape[0] = inp.shape(0);
+            shape[1] = dim_other_axes;
+        } else {
+            dim_other_axes = inp.size() / inp.shape(inp.ndim()-1);
+            shape[0] = dim_other_axes;
+            shape[1] = inp.shape(inp.ndim()-1);
+        }
+        inp.reshape(shape);
         if(r0.can_overwrite_directly()){
             value_type& v = *r0.overwrite_or_add_value();
+            v.reshape(shape);
             v = 0.f; // required by cuv
-            softmax(v,p0.value.cdata(), m_axis);
+            //softmax(v,p0.value.cdata(), m_axis);
+            softmax(v, inp, m_axis);
+            v.reshape(r0.shape);
             m_result = r0.overwrite_or_add_value(); // save copy!
 
             // we cannot do this, we need a copy of the outputs!
@@ -396,10 +413,13 @@ namespace cuvnet
 
         }else{
             // try overwriting inputs
-            const value_type& src = p0.value.cdata();
+            //const value_type& src = p0.value.cdata();
+            const value_type& src = inp;
             value_type& dst = p0.value.data_onlyshape();
+            dst.reshape(shape);
             softmax(dst,src,m_axis);
             m_result = p0.value;
+            dst.reshape(r0.shape);
             r0.push(p0.value);
         }
         p0.value.reset();
@@ -410,19 +430,46 @@ namespace cuvnet
         using namespace cuv::libs::opt;
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
+
+        //value_type inp = p0.value.cdata();  // copy of meta info only (original data)
+        value_type delta = r0.delta.cdata();
+        std::vector<unsigned int> shape(2);
+        unsigned int dim_other_axes;
+         if (m_axis==1) {
+            dim_other_axes = delta.size() / delta.shape(0);
+            shape[0] = delta.shape(0);
+            shape[1] = dim_other_axes;
+        } else {
+            dim_other_axes = delta.size() / delta.shape(delta.ndim()-1);
+            shape[0] = dim_other_axes;
+            shape[1] = delta.shape(delta.ndim()-1);
+        }
+        //inp.reshape(shape);
+        delta.reshape(shape);
+        value_type res = m_result.cdata();
+        res.reshape(shape);
+        
         assert(p0.need_derivative);
         if(p0.can_overwrite_directly()){
             value_type& v = *p0.overwrite_or_add_value();
+            v.reshape(shape);
             v = 0.f;
-            softmax_derivative(v,m_result.cdata(),r0.delta.cdata(), m_axis);
+            //softmax_derivative(v,m_result.cdata(),r0.delta.cdata(), m_axis);
+            softmax_derivative(v,res, delta, m_axis);
+            v.reshape(r0.shape);
         }else if(p0.can_add_directly()){
             value_type& v = *p0.overwrite_or_add_value();
-            softmax_derivative(v,m_result.cdata(),r0.delta.cdata(), m_axis);
+            v.reshape(shape);
+            //softmax_derivative(v,m_result.cdata(),r0.delta.cdata(), m_axis);
+            softmax_derivative(v,res, delta, m_axis);
+            v.reshape(r0.shape);
         }else{
             // try to overwrite dst
-            const value_type& delta = r0.delta.cdata();
+            //const value_type& delta = r0.delta.cdata();
             value_type& dst         = r0.delta.data_onlyshape();
-            softmax_derivative(dst,m_result.cdata(),delta, m_axis);
+            dst.reshape(shape);
+            softmax_derivative(dst,res,delta, m_axis);
+            dst.reshape(r0.shape);
             p0.push(r0.delta);
         }
         r0.delta.reset();
