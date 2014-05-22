@@ -82,7 +82,7 @@ namespace cuvnet
                 void pop(std::list<boost::shared_ptr<PatternType> >& dest, unsigned int n)
                 {
                     boost::mutex::scoped_lock lock(m_mutex);
-                    m_cond.wait(lock, [&]{return size() >= n;});
+                    m_cond.wait(lock, [this, n]{return size() >= n;});
 
                     for (unsigned int i = 0; i < n; ++i) {
                         dest.push_back(m_queue.front());
