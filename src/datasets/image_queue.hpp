@@ -199,7 +199,9 @@ namespace cuvnet
             struct asio_queue_impl;
             struct asio_queue{
                 boost::shared_ptr<asio_queue_impl> m_impl;
+                unsigned int m_n_threads;
                 asio_queue(unsigned int n_threads);
+                inline unsigned int n_threads(){ return m_n_threads; }
                 void stop();
                 void post(boost::function<void (void)>);
             };

@@ -155,7 +155,9 @@ namespace cuvnet { namespace image_datasets {
             }
         };
 
-        asio_queue::asio_queue(unsigned int n_threads){
+        asio_queue::asio_queue(unsigned int n_threads)
+            :m_n_threads(n_threads)
+        {
             m_impl.reset(new asio_queue_impl(n_threads));
         }
 
