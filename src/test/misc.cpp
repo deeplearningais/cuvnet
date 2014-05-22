@@ -47,10 +47,10 @@ BOOST_AUTO_TEST_CASE(inv){
 }
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE( t_normalization )
-BOOST_AUTO_TEST_CASE(everything){
-    cuv::tensor<float,cuv::host_memory_space> m(cuv::extents[20][3]);
-    cuv::tensor<float,cuv::host_memory_space> s(cuv::extents[20]);
+void
+t_normalization_dim0(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned int n_dst_maps){
+    cuv::tensor<float,cuv::host_memory_space> m(cuv::extents[n_src_maps][n_flt_pix * n_dst_maps]);
+    cuv::tensor<float,cuv::host_memory_space> s(cuv::extents[n_src_maps]);
 
     float thresh = sqrt(75);
 
@@ -68,12 +68,13 @@ BOOST_AUTO_TEST_CASE(everything){
         if(s(i) > thresh * thresh)
             cnt++;
     }
-    BOOST_CHECK_LT(cnt, 20);
+    // ensure that test is not "boring"
+    BOOST_CHECK_LT(cnt, n_flt_pix * n_dst_maps);
     BOOST_CHECK_GT(cnt, 0);
 
-    m.reshape(cuv::extents[4][5][3]);
-    cuvnet::project_to_unit_ball(m, 2, thresh);
-    m.reshape(cuv::extents[20][3]);
+    m.reshape(cuv::extents[n_src_maps][n_flt_pix][n_dst_maps]);
+    cuvnet::project_to_unit_ball(m, 0, thresh);
+    m.reshape(cuv::extents[n_src_maps][n_flt_pix * n_dst_maps]);
     for (unsigned int i = 0; i < m.shape(0); ++i)
     {
         float sum = 0.f;
@@ -87,14 +88,66 @@ BOOST_AUTO_TEST_CASE(everything){
             BOOST_CHECK_CLOSE(sum, (float) s(i), 0.001f);
         }
     }
+}
+void
+t_normalization_dim2(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned int n_dst_maps){
+    cuv::tensor<float,cuv::host_memory_space> m(cuv::extents[n_src_maps * n_flt_pix][n_dst_maps]);
+    cuv::tensor<float,cuv::host_memory_space> s(cuv::extents[n_dst_maps]);
+
+    float thresh = sqrt(75);
+
+    s = 0.f;
+
+    unsigned int cnt = 0;
+    for (unsigned int j = 0; j < m.shape(1); ++j)
+    {
+        for (unsigned int i = 0; i < m.shape(0); ++i)
+        {
+            float f = 10.f*drand48();
+            m(i,j) = f;
+            s(j) += f * f;
+        }
+        if(s(j) > thresh * thresh)
+            cnt++;
+    }
+    // ensure that test is not "boring"
+    BOOST_CHECK_LT(cnt, n_dst_maps);
+    BOOST_CHECK_GT(cnt, 0);
+
+    m.reshape(cuv::extents[n_src_maps][n_flt_pix][n_dst_maps]);
+    cuvnet::project_to_unit_ball(m, 2, thresh);
+    m.reshape(cuv::extents[n_src_maps * n_flt_pix][n_dst_maps]);
+    for (unsigned int j = 0; j < m.shape(1); ++j)
+    {
+        float sum = 0.f;
+        for (unsigned int i = 0; i < m.shape(0); ++i)
+        {
+            sum += m(i,j) * m(i,j);
+        }
+        if(s(j) > thresh * thresh){
+            BOOST_CHECK_CLOSE(sum, thresh*thresh, 0.001f);
+        }else{
+            BOOST_CHECK_CLOSE(sum, (float) s(j), 0.001f);
+        }
+    }
 
     
 
 }
+
+BOOST_AUTO_TEST_SUITE( t_normalization )
+BOOST_AUTO_TEST_CASE(dim0){
+    t_normalization_dim0(16, 3*3, 16);
+    t_normalization_dim0(7, 3*3, 7);
+}
+BOOST_AUTO_TEST_CASE(dim2){
+    t_normalization_dim2(16, 3*3, 16);
+    t_normalization_dim2(7, 3*3, 7);
+}
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( orthogonalization )
-BOOST_AUTO_TEST_CASE(everything){
+BOOST_AUTO_TEST_CASE(ortho_all){
     {
         cuv::tensor<float,cuv::host_memory_space> m(cuv::extents[5][2]);
         for (unsigned int i = 0; i < m.shape(0); ++i)
