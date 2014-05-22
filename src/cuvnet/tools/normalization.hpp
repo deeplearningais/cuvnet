@@ -18,11 +18,11 @@ namespace cuvnet
         if(axis < 0)
             axis = W.ndim()-1;
         if(W.ndim() < 2)
-            throw std::runtime_error("project_to_unit_ball: need >2-dimensional matrix, this one has " + boost::lexical_cast<std::string>(W.ndim()));
+            throw std::runtime_error("project_to_unit_ball: need >= 2-dimensional matrix, this one has " + boost::lexical_cast<std::string>(W.ndim()));
         if(axis >= W.ndim())
             throw std::runtime_error("project_to_unit_ball: axis parameter is not in matrix dimensions, of which there are " + boost::lexical_cast<std::string>(W.ndim()));
 
-        if((C.ndim() == 3 || C.ndim() == 4) && (C.shape(axis) % 16 == 0))
+        if(axis == 1 && (C.ndim() == 3 || C.ndim() == 4) && (C.shape(axis) % 16 == 0))
         {
             cuv::alex_conv::project_to_ball(C, thresh);
             return;
