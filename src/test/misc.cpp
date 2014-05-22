@@ -52,8 +52,6 @@ t_normalization_dim0(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned i
     cuv::tensor<float,cuv::host_memory_space> m(cuv::extents[n_src_maps][n_flt_pix * n_dst_maps]);
     cuv::tensor<float,cuv::host_memory_space> s(cuv::extents[n_src_maps]);
 
-    float thresh = sqrt(75);
-
     s = 0.f;
 
     unsigned int cnt = 0;
@@ -65,12 +63,8 @@ t_normalization_dim0(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned i
             m(i,j) = f;
             s(i) += f * f;
         }
-        if(s(i) > thresh * thresh)
-            cnt++;
     }
-    // ensure that test is not "boring"
-    BOOST_CHECK_LT(cnt, n_flt_pix * n_dst_maps);
-    BOOST_CHECK_GT(cnt, 0);
+    float thresh = std::sqrt(cuv::mean(s));
 
     m.reshape(cuv::extents[n_src_maps][n_flt_pix][n_dst_maps]);
     cuvnet::project_to_unit_ball(m, 0, thresh);
@@ -94,8 +88,6 @@ t_normalization_dim2(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned i
     cuv::tensor<float,cuv::host_memory_space> m(cuv::extents[n_src_maps * n_flt_pix][n_dst_maps]);
     cuv::tensor<float,cuv::host_memory_space> s(cuv::extents[n_dst_maps]);
 
-    float thresh = sqrt(75);
-
     s = 0.f;
 
     unsigned int cnt = 0;
@@ -107,12 +99,8 @@ t_normalization_dim2(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned i
             m(i,j) = f;
             s(j) += f * f;
         }
-        if(s(j) > thresh * thresh)
-            cnt++;
     }
-    // ensure that test is not "boring"
-    BOOST_CHECK_LT(cnt, n_dst_maps);
-    BOOST_CHECK_GT(cnt, 0);
+    float thresh = std::sqrt(cuv::mean(s));
 
     m.reshape(cuv::extents[n_src_maps][n_flt_pix][n_dst_maps]);
     cuvnet::project_to_unit_ball(m, 2, thresh);
