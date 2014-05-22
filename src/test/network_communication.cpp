@@ -139,7 +139,7 @@ struct optimizer{
 
         // but we cannot see inp2 directly, we only see its noisy version
 
-        boost::shared_ptr<Noiser> noisy_inp2 = boost::dynamic_pointer_cast<Noiser>(cuvnet::add_rnd_normal(inp2, 2.0f));
+        boost::shared_ptr<Noiser> noisy_inp2 = boost::dynamic_pointer_cast<Noiser>(cuvnet::add_rnd_normal(inp2, 0.2f));
         op_ptr loss = cuvnet::mean(cuvnet::pow(noisy_inp2-inp1, 2.f));
         cuvnet::function f(loss,0);
 
@@ -151,7 +151,7 @@ struct optimizer{
             noisy_inp2->set_active(true);
             cuvnet::gradient_descent gd(loss,0,params, 0.05f);
 
-            gd.batch_learning(500, INT_MAX);
+            gd.batch_learning(100, INT_MAX);
             noisy_inp2->set_active(false);
             std::cout << "plain GD: after optimization: " << (lossval = f.evaluate()[0]) << std::endl;
             BOOST_CHECK_SMALL((float)f.evaluate()[0], 0.05f);
@@ -160,6 +160,7 @@ struct optimizer{
 
     void async_gd(unsigned int i){
         cuv::initCUDA(1);
+        cuv::initialize_mersenne_twister_seeds(i);
         using cuvnet::Noiser;
         boost::shared_ptr<cuvnet::ParameterInput> inp1(new cuvnet::ParameterInput(cuv::extents[5][6],"inp1"));
         boost::shared_ptr<cuvnet::ParameterInput> inp2(new cuvnet::ParameterInput(cuv::extents[5][6],"inp2"));
@@ -172,7 +173,7 @@ struct optimizer{
 
         // but we cannot see inp2 directly, we only see its noisy version
 
-        boost::shared_ptr<Noiser> noisy_inp2 = boost::dynamic_pointer_cast<Noiser>(cuvnet::add_rnd_normal(inp2, 2.0f));
+        boost::shared_ptr<Noiser> noisy_inp2 = boost::dynamic_pointer_cast<Noiser>(cuvnet::add_rnd_normal(inp2, 0.2f));
         op_ptr loss = cuvnet::mean(cuvnet::pow(noisy_inp2-inp1, 2.f));
         cuvnet::function f(loss,0);
 
@@ -191,7 +192,7 @@ struct optimizer{
             gd.set_sync_function(boost::ref(ps));
             gd.after_epoch.connect(boost::bind(sleeper)); // artificially slow down to allow server to catch up
 
-            gd.batch_learning(500, INT_MAX);
+            gd.batch_learning(100, INT_MAX);
             noisy_inp2->set_active(false);
             std::cout << "async GD: after optimization: " << (lossval = f.evaluate()[0]) << std::endl;
             BOOST_CHECK_SMALL((float)f.evaluate()[0], 0.05f);
@@ -211,7 +212,7 @@ BOOST_AUTO_TEST_CASE( nc_gd ){
     boost::thread*  threads[n_clt];
     using cuvnet::network_communication::server;
     //cuvnet::network_communication::adagrad_merger mrg(.05f, 0.1f);
-    cuvnet::network_communication::momentum_merger mrg(0.05, 0.1f);
+    cuvnet::network_communication::momentum_merger mrg(1.00, 0.1f);
     //cuvnet::network_communication::merger mrg(0.05f);
 
     server s(HOST,DB,KEY, &mrg);
