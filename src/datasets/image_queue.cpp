@@ -48,6 +48,8 @@ namespace cuvnet { namespace image_datasets {
         while(ifs){
             bbtools::image_meta_info imi;
             ifs >> imi.filename;
+            if(!ifs)
+                break;
             if(imi.filename.size() == 0)
                 break;
             if(imi.filename[0] == '#')
