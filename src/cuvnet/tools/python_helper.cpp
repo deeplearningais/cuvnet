@@ -136,6 +136,12 @@ namespace cuvnet
         }
 
     struct Dummy{};
+
+    std::string __str__(Op& o){
+        detail::graphviz_node desc;
+        o._graphviz_node_desc(desc);
+        return o.get_group() + " // " + desc.label;
+    }
     matrix evaluate_op(Op& o, boost::python::list l){
         cuvnet::function f(o.shared_from_this(), 0, "click");
         
@@ -235,6 +241,7 @@ namespace cuvnet
                     (Sink* (*)(const boost::shared_ptr<Op>&, const std::string&)) get_node, 
                     return_internal_reference<1>())
             .def("evaluate", &evaluate_op, (arg("additional_res")=boost::python::list()))
+            .def("__str__", &__str__)
             .def(self == self)
             .def(self != self)
             ;
