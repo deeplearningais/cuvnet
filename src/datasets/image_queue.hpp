@@ -31,6 +31,7 @@ namespace cuvnet
         template<class PatternType>
         class image_queue{
             private:
+                typedef image_queue<PatternType> my_type;
                 mutable boost::mutex m_mutex;
                 boost::condition_variable m_cond;
                 int m_patterns_to_epoch_end;
@@ -65,6 +66,10 @@ namespace cuvnet
                 size_t size()const{
                     return m_queue.size();
                 }
+                /// return whether size is >= value
+                bool size_ge_val(size_t value)const{
+                    return m_queue.size() >= value;
+                }
 
                 /// remove all patterns from the queue
                 void clear(){
@@ -82,7 +87,7 @@ namespace cuvnet
                 void pop(std::list<boost::shared_ptr<PatternType> >& dest, unsigned int n)
                 {
                     boost::mutex::scoped_lock lock(m_mutex);
-                    m_cond.wait(lock, [this, n]{return size() >= n;});
+                    m_cond.wait(lock, boost::bind(&my_type::size_ge_val, this, n));
 
                     for (unsigned int i = 0; i < n; ++i) {
                         dest.push_back(m_queue.front());
