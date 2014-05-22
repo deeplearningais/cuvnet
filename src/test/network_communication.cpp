@@ -10,11 +10,13 @@
 #define DB   "testnc"
 #define KEY  "tst"
 
+
 BOOST_AUTO_TEST_SUITE( netcom )
 BOOST_AUTO_TEST_CASE( server_start ){
    using namespace cuvnet;
    using namespace network_communication;
-   server s(HOST,DB,KEY);
+   cuvnet::network_communication::merger mrg(1.f);
+   server s(HOST,DB,KEY, &mrg);
    s.cleanup();
 }
 BOOST_AUTO_TEST_CASE( client_start ){
@@ -27,8 +29,10 @@ BOOST_AUTO_TEST_CASE( save_mat ){
     using namespace cuvnet;
     using namespace network_communication;
 
+    float learnrate = 1.f;
+    cuvnet::network_communication::merger mrg(learnrate);
     client c(HOST,DB,KEY);
-    server s(HOST,DB,KEY);
+    server s(HOST,DB,KEY, &mrg);
     s.cleanup();
 
     BOOST_CHECK_THROW(c.fetch_merged("m"), value_not_found_exception);
@@ -37,7 +41,7 @@ BOOST_AUTO_TEST_CASE( save_mat ){
 
     cuv::sequence(m);
     md = m.copy();
-    md *= 0.1f;
+    md *= learnrate;
 
     c.put_for_merging("m", md, m); // only puts m and md
 
@@ -46,7 +50,7 @@ BOOST_AUTO_TEST_CASE( save_mat ){
 
     BOOST_CHECK_NO_THROW(n = c.fetch_merged("m"));
     
-    BOOST_CHECK_SMALL(cuv::norm1((m+md)-n), 0.001f);
+    BOOST_CHECK_SMALL(cuv::norm1((m-md)-n), 0.001f);
 }
 
 BOOST_AUTO_TEST_CASE( averaging ){
@@ -55,7 +59,8 @@ BOOST_AUTO_TEST_CASE( averaging ){
 
     client c0(HOST,DB,KEY, "c0");
     client c1(HOST,DB,KEY, "c1");
-    server s(HOST,DB,KEY);
+    cuvnet::network_communication::merger mrg(1.f);
+    server s(HOST,DB,KEY, &mrg);
     s.cleanup();
 
     BOOST_CHECK_THROW(c0.fetch_merged("m"), value_not_found_exception);
@@ -64,11 +69,11 @@ BOOST_AUTO_TEST_CASE( averaging ){
     cuv::tensor<float, cuv::host_memory_space> m(cuv::extents[5][6]), md;
     m = 3.f;
     md = m.copy();
-    md = 2.f;
+    md = -2.f;
 
     c0.put_for_merging("m", md, m); // puts m and md
 
-    md = 4.f;
+    md = -4.f;
 
     c1.put_for_merging("m", md, m); // puts md
 
@@ -87,7 +92,8 @@ BOOST_AUTO_TEST_CASE( self_overwrite ){
     using namespace network_communication;
 
     client c0(HOST,DB,KEY);
-    server s(HOST,DB,KEY);
+    cuvnet::network_communication::merger mrg(1.f);
+    server s(HOST,DB,KEY, &mrg);
     s.cleanup();
 
     BOOST_CHECK_THROW(c0.fetch_merged("m"), value_not_found_exception);
@@ -95,14 +101,15 @@ BOOST_AUTO_TEST_CASE( self_overwrite ){
     cuv::tensor<float, cuv::host_memory_space> m(cuv::extents[5][6]), md;
     m = 2.f;
     md = m.copy();
-    md = 3.f;
+    md = -3.f;
 
     c0.put_for_merging("m", md, m); // puts m and md
 
-    md = 4.f;
+    md = -4.f;
 
     c0.put_for_merging("m", md, m); // puts=adds new md
 
+    s.merge();
     s.merge();
     s.push_merged();
 
@@ -152,6 +159,7 @@ struct optimizer{
     }
 
     void async_gd(unsigned int i){
+        cuv::initCUDA(1);
         using cuvnet::Noiser;
         boost::shared_ptr<cuvnet::ParameterInput> inp1(new cuvnet::ParameterInput(cuv::extents[5][6],"inp1"));
         boost::shared_ptr<cuvnet::ParameterInput> inp2(new cuvnet::ParameterInput(cuv::extents[5][6],"inp2"));
@@ -211,6 +219,7 @@ BOOST_AUTO_TEST_CASE( nc_gd ){
 
     for (int i = 0; i < n_clt; ++i)
     {
+        std::cout << "starting client #" << i << std::endl;
         clients[i] = new optimizer();
         threads[i] = new boost::thread(boost::bind(&optimizer::async_gd, clients[i], i));
     }
