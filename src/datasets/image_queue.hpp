@@ -32,6 +32,7 @@ namespace cuvnet
         class image_queue{
             private:
                 mutable boost::mutex m_mutex;
+                boost::condition_variable m_cond;
                 int m_patterns_to_epoch_end;
                 std::queue<boost::shared_ptr<PatternType> > m_queue;
                 bool m_signal_restart;
@@ -50,10 +51,14 @@ namespace cuvnet
                 void push(boost::shared_ptr<PatternType> pat, bool lock=true){ 
                     if(!lock){
                         m_queue.push(pat); 
+                        m_cond.notify_one();
                         return;
                     }
-                    boost::mutex::scoped_lock l(m_mutex);
-                    m_queue.push(pat); 
+                    {
+                        boost::mutex::scoped_lock l(m_mutex);
+                        m_queue.push(pat); 
+                    }
+                    m_cond.notify_one();
                 }
 
                 /// return the number of patterns currently stored in the queue
@@ -76,16 +81,9 @@ namespace cuvnet
                  */
                 void pop(std::list<boost::shared_ptr<PatternType> >& dest, unsigned int n)
                 {
-                    // TODO: use boost condition_variable!                                                                                                                      
-                    while(size() < n)
-                    {
-                        //LOG4CXX_WARN(m_log, "queue size="<<size()<<", but requested "<<n<<" patterns-->sleeping");
-                        boost::this_thread::sleep(boost::posix_time::millisec(10));
-                    }
-
-                    // TODO: when getting lock fails, loop again above!
-                    //       that way, multiple clients can use the same queue
                     boost::mutex::scoped_lock lock(m_mutex);
+                    m_cond.wait(lock, [&]{return size() >= n;});
+
                     for (unsigned int i = 0; i < n; ++i) {
                         dest.push_back(m_queue.front());
                         m_queue.pop();
