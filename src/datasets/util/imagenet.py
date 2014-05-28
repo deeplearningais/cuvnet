@@ -14,16 +14,57 @@ import cv2
 class ImageNetData(object):
 
     def __init__(self):
-        self.meta_path = "/home/local/backup/ILSVRC2011/ILSVRC2011_devkit-2.0/data"
+        #self.meta_path = "/home/local/backup/ILSVRC2011/ILSVRC2011_devkit-2.0/data"
+        self.meta_path = "/home/local/backup/ILSVRC2010/devkit-1.0/data"
         self.meta_data = loadmat(os.path.join(self.meta_path, "meta.mat"), struct_as_record=False)
 
         self.synsets = np.squeeze(self.meta_data['synsets'])
-        self.ids = np.squeeze(np.array([x.ILSVRC2011_ID for x in self.synsets]))
+        self.ids = np.squeeze(np.array([x.ILSVRC2010_ID for x in self.synsets]))
 
         self.wnids = np.squeeze(np.array([x.WNID for x in self.synsets]))
         self.classnames = np.squeeze(np.array([x.words for x in self.synsets]))
         #from IPython import embed
         #embed()
+
+    def winid_classid_2010(self):
+        lines = []
+        def from_path(pathid):
+            synsets = glob(os.path.join("/home/local/backup/ILSVRC2010/256x256/%s" % pathid, "*"))
+            for synset in synsets:
+                images = glob(os.path.join(synset, "*"))
+                for m in images:
+                    if m.endswith(".jpg") or m.endswith(".JPEG"):
+                        wnid = os.path.split(os.path.split(m)[0])[1]
+                        result = np.where(self.wnids==wnid)
+                        #from IPython.core.debugger import Tracer
+                        #Tracer()()
+                        if len(result[0]) == 0:
+                            raise ValueError("Invalid wnid.")
+                        # -1 for object count is a marker for a pure classification dataset
+                        info = [m, "-1", str(result[0][0])]
+                        lines.append(info)
+
+            shuffle(lines)
+            return lines
+
+        def write_ds(dir, filename, lines):
+            with open(os.path.join(dir,filename), "w") as f:
+                f.write(str(len(self.classnames)) + "\n")
+                for cls in self.classnames:
+                    f.write(cls + "\n")
+                for line in lines:
+                    f.write("\t".join(line))
+                    f.write("\n")
+
+        train = from_path("train")
+        val = from_path("val")
+
+        d = "/tmp"
+        if not os.path.exists(d):
+            os.makedirs(d)
+
+        write_ds(d, "ds_ILSVRC2010_train.txt", train)
+        write_ds(d, "ds_ILSVRC2010_val.txt", val)
 
     def winid_classid(self):
         lines = []
@@ -92,4 +133,4 @@ if __name__ == "__main__":
 
     #downsample_all_missing()
     ind = ImageNetData()
-    ind.winid_classid()
+    ind.winid_classid_2010()
