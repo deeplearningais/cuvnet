@@ -1025,10 +1025,10 @@ namespace cuvnet
                 if(m_active_ && (m_current_batch_ % m_every_ == 0) && m_mon_)
                 for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
                     ParameterInput* inp = (ParameterInput*) *it;
-                    if(cuv::IsSame<matrix::memory_space_type, cuv::dev_memory_space>::Result::value){
-                        m_updates_[inp] = inp->data();
-                    }else{
+                    if(cuv::IsSame<matrix::memory_space_type, detail::wrgd_helper::storage_space>::Result::value){
                         m_updates_[inp] = inp->data().copy();
+                    }else{
+                        m_updates_[inp] = inp->data();
                     }
                 }
 
