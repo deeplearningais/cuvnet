@@ -42,6 +42,7 @@ namespace cuvnet
                 image_queue(bool signal_restart)
                 :m_signal_restart(signal_restart){
                     m_log = log4cxx::Logger::getLogger("image_queue");
+                    LOG4CXX_INFO(m_log, "Creating image queue. signal_restart: " << signal_restart);
                     m_patterns_to_epoch_end = -1;
                 }
 
@@ -94,6 +95,7 @@ namespace cuvnet
                         m_queue.pop();
                         if(m_patterns_to_epoch_end == 0 && m_signal_restart){
                             m_patterns_to_epoch_end = -1;
+                            LOG4CXX_INFO(m_log, "Dataset throws epoch_end exception");
                            throw epoch_end();
                         }else if(m_patterns_to_epoch_end > 0)
                             m_patterns_to_epoch_end--;
@@ -316,10 +318,10 @@ namespace cuvnet
                                 m_asio_queue.post(m_worker_factory(m_queue, &m_dataset->get(cnt)));
                                 cnt = (cnt+1) % m_dataset->size();
                                 if(cnt == 0){
+                                    LOG4CXX_INFO(m_log, "Roundtrip through dataset (" << m_dataset->size()<< ") completed. Shuffling.");
                                     m_dataset->shuffle();
                                     m_asio_queue.post(boost::bind(&Queue::on_epoch_ends, m_queue));
                                 }
-                                //    LOG4CXX_INFO(g_log, "Roundtrip through dataset completed. Shuffling.");
                             }
 
                             // the last job should set m_running to false;
