@@ -2,6 +2,7 @@
 #     define __OP_INPUT_HPP__
 
 #include <cuvnet/op.hpp>
+#include <boost/serialization/split_member.hpp>
 
 namespace cuvnet
 {
@@ -130,15 +131,16 @@ namespace cuvnet
             private:
                 value_ptr   m_data;
                 value_ptr   m_delta;
+                bool m_save_data;  ///< if true, do not serialize m_data, only its shape
 
             public:
-                ParameterInput(){} ///< for serialization
+                ParameterInput() : m_save_data(true) {} ///< for serialization
                 /**
                  * Construct a ParameterInput using eg an extents object.
                  * @param init an extents object (passed on to Input)
                  */
                 template<class T>
-                    ParameterInput(const T& init):Input(init), m_data(new value_type(init, value_ptr::s_allocator)){ 
+                    ParameterInput(const T& init):Input(init), m_data(new value_type(init, value_ptr::s_allocator)), m_save_data(true){ 
                         set_derivable(true);
                     }
                 /**
@@ -146,7 +148,7 @@ namespace cuvnet
                  * @param init an extents object (passed on to Input)
                  */
                 template<class T>
-                    ParameterInput(const T& init, const std::string& name):Input(init,name), m_data(new value_type(init, value_ptr::s_allocator)){  
+                    ParameterInput(const T& init, const std::string& name):Input(init,name), m_data(new value_type(init, value_ptr::s_allocator)), m_save_data(true){  
                         set_derivable(true);
                     }
                 /**
@@ -180,14 +182,45 @@ namespace cuvnet
                 /// @return the backpropagated gradient (read only)
                 inline const value_type& delta() const{ return m_delta.cdata(); }
 
+                /// determine whether the data is saved or not. 
+                /// especially useful if the content is not a weight matrix,
+                /// but some input object where loading does not make much sense.
+                inline void set_save_data(bool b) { m_save_data = b; }
+
             private:
                 friend class boost::serialization::access;
                 template<class Archive>
+                    void load(Archive& ar, const unsigned int version){
+                        ar >> boost::serialization::base_object<Input>(*this);
+                        if(version > 0)
+                            ar >> m_save_data;
+                        if(m_save_data)
+                            ar >> m_data;
+                        else{
+                            std::vector<unsigned int> shape;
+                            ar >> shape;
+                            m_data.reset(new value_type(shape));
+                            m_data.data() = 0.f;
+                        }
+                    }
+                template<class Archive>
+                    void save(Archive& ar, const unsigned int version) const{
+                        ar << boost::serialization::base_object<Input>(*this);
+                        if(version > 0)
+                            ar << m_save_data;
+                        if(m_save_data)
+                            ar << m_data;
+                        else{
+                            std::vector<unsigned int> shape = m_data.cdata().shape();
+                            ar << shape;
+                        }
+                    }
+                template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
-                        ar & boost::serialization::base_object<Input>(*this);
-                        ar & m_data;
+                        boost::serialization::split_member(ar, *this, version);
                     }
         };
 }
+BOOST_CLASS_VERSION(cuvnet::ParameterInput, 1)
 
 #endif /* __OP_INPUT_HPP__ */
