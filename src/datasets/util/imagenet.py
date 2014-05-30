@@ -1,7 +1,7 @@
 import os
 from glob import glob
 import numpy as np
-from random import shuffle
+from random import shuffle, seed
 from scipy.io import loadmat
 import matplotlib as plt
 from scipy.ndimage import zoom
@@ -14,15 +14,17 @@ import cv2
 class ImageNetData(object):
 
     def __init__(self):
-        #self.meta_path = "/home/local/backup/ILSVRC2011/ILSVRC2011_devkit-2.0/data"
-        self.meta_path = "/home/local/backup/ILSVRC2010/devkit-1.0/data"
+        self.meta_path = "/home/local/backup/ILSVRC2011/ILSVRC2011_devkit-2.0/data"
+        #self.meta_path = "/home/local/backup/ILSVRC2010/devkit-1.0/data"
         self.meta_data = loadmat(os.path.join(self.meta_path, "meta.mat"), struct_as_record=False)
 
         self.synsets = np.squeeze(self.meta_data['synsets'])
-        self.ids = np.squeeze(np.array([x.ILSVRC2010_ID for x in self.synsets]))
-
-        self.wnids = np.squeeze(np.array([x.WNID for x in self.synsets]))
-        self.classnames = np.squeeze(np.array([x.words for x in self.synsets]))
+        #self.ids = np.squeeze(np.array([x.ILSVRC2010_ID for x in self.synsets])) - 1  # -1 for matlab -> "normal"
+        self.ids = np.squeeze(np.array([x.ILSVRC2011_ID for x in self.synsets])) - 1  # -1 for matlab -> "normal"
+        idx = np.argsort(self.ids)
+        self.wnids = np.squeeze(np.array([x.WNID for x in self.synsets]))[idx]
+        self.classnames = np.squeeze(np.array([x.words for x in self.synsets]))[idx]
+        self.class_used = np.zeros(len(self.classnames), dtype=bool)
         #from IPython import embed
         #embed()
 
@@ -38,26 +40,36 @@ class ImageNetData(object):
                         result = np.where(self.wnids==wnid)
                         #from IPython.core.debugger import Tracer
                         #Tracer()()
-                        if len(result[0]) == 0:
+                        if len(result[0]) != 1:
                             raise ValueError("Invalid wnid.")
+                        klass = self.ids[result[0][0]]
+                        self.class_used[klass] = True
                         # -1 for object count is a marker for a pure classification dataset
-                        info = [m, "-1", str(result[0][0])]
+                        info = [m, "-1", str(klass)]
                         lines.append(info)
 
+            seed(42)
             shuffle(lines)
             return lines
 
         def write_ds(dir, filename, lines):
             with open(os.path.join(dir,filename), "w") as f:
                 f.write(str(len(self.classnames)) + "\n")
-                for cls in self.classnames:
-                    f.write(cls + "\n")
+                for used, wnid, cls in zip(self.class_used, self.wnids, self.classnames):
+                    if not used:
+                        cls = "unused"
+                    f.write(cls + ", " + wnid + "\n")
                 for line in lines:
                     f.write("\t".join(line))
                     f.write("\n")
 
         train = from_path("train")
         val = from_path("val")
+
+        # remove unused classes at the end
+        while not self.class_used[-1]:
+            self.class_used = self.class_used[:-1]
+            self.classnames = self.classnames[:-1]
 
         d = "/tmp"
         if not os.path.exists(d):
@@ -79,31 +91,42 @@ class ImageNetData(object):
                             print "does not exist: ", downsampled, " -- ignoring."
                             continue
                         result = np.where(self.wnids==wnid)
-                        if len(result[0]) == 0:
+                        if len(result[0]) != 1:
                             raise ValueError("Invalid wnid.")
+                        klass = self.ids[result[0][0]]
+                        self.class_used[klass] = True
                         # -1 for object count is a marker for a pure classification dataset
-                        info = [downsampled, "-1", str(result[0][0])]
+                        info = [downsampled, "-1", str(klass)]
                         lines.append(info)
 
+        seed(42)
         shuffle(lines)
-        split = len(lines) * 1 / 5
+        split = 4 * 8192
         val   = lines[:split]
         train = lines[split:]
 
         def write_ds(dir, filename, lines):
             with open(os.path.join(dir,filename), "w") as f:
                 f.write(str(len(self.classnames)) + "\n")
-                for cls in self.classnames:
-                    f.write(cls + "\n")
+                for used, wnid, cls in zip(self.class_used, self.wnids, self.classnames):
+                    if not used:
+                        cls = "unused"
+                    f.write(cls + ", " + wnid + "\n")
                 for line in lines:
                     f.write("\t".join(line))
                     f.write("\n")
+
+        # remove unused classes at the end
+        while not self.class_used[-1]:
+            self.class_used = self.class_used[:-1]
+            self.classnames = self.classnames[:-1]
+
         d = "/tmp"
         if not os.path.exists(d):
             os.makedirs(d)
 
         write_ds(d, "ds_ILSVRC2011_train.txt", train)
-        write_ds(d, "ds_ILSVRC2011_test.txt", val)
+        write_ds(d, "ds_ILSVRC2011_val.txt", val)
 
 def handle_tarfile(filename):
     dstdir = filename.replace("tars", "downsampled")[:-4]  # remove ".tar"
@@ -133,4 +156,5 @@ if __name__ == "__main__":
 
     #downsample_all_missing()
     ind = ImageNetData()
-    ind.winid_classid_2010()
+    #ind.winid_classid_2010()
+    ind.winid_classid()
