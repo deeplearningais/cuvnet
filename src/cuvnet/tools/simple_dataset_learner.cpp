@@ -237,4 +237,18 @@ namespace cuvnet
                 Y->data() = labl[cuv::indices[cuv::index_range(bid*bs,(bid+1)*bs)]];
             }
         }
+    
+    host_matrix& simple_dataset_learner::get_current_data()
+    {
+        bool in_early_stopping = m_current_mode == CM_VALID;
+        host_matrix& data = in_early_stopping ? m_current_vdata : m_current_data;
+        return data;
+    }
+
+    host_matrix& simple_dataset_learner::get_current_labels()
+    {
+        bool in_early_stopping = m_current_mode == CM_VALID;
+        host_matrix& labels = in_early_stopping ? m_current_vlabels : m_current_labels;
+        return labels;
+    }
 }

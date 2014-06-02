@@ -7,7 +7,7 @@
 namespace cuvnet
 {
     class simple_dataset_learner
-    : public multistage_learner
+    : public learner2
     {
         private:
             splitter m_splits;
@@ -60,6 +60,21 @@ namespace cuvnet
              * @return the splitter object.
              */
             inline const splitter& get_splitter()const{ return m_splits; }
+            
+            /**
+             * @return the current cv_mode.
+             */
+            inline const cv_mode& get_current_mode()const{return m_current_mode; }
+            
+            /**
+             * @return the current data host_matrix.
+             */
+            host_matrix& get_current_data();
+
+            /**
+             * @return the current labels host_matrix.
+             */
+            host_matrix& get_current_labels();
     };
 }
 #endif /* __SIMPLE_DATASET_LEARNER_HPP__ */
