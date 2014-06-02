@@ -291,46 +291,25 @@ namespace cuvnet
             float wd = m_weightdecay * inp->get_weight_decay_factor();
 
             cuvAssert(inp->delta().shape() == inp->data().shape());
-#if 1
+
+            // The following calculation has one major issue; I think that the
+            // weight decay should not depend on the batch size, but since the
+            // learning rate often depends on the batch size, the weight decay
+            // also effectively decreases the larger your batch is.
+            // You should take that into account by multiplying the weight
+            // decay by the batch size to get comparable results!
+
+            // weight decay
+            if(wd > 0.f)
+                cuv::apply_binary_functor(m_last_delta[i], inp->data(), cuv::BF_XPBY, -wd * lr);
 
             // this is the momentum part:
-            cuv::apply_binary_functor(m_last_delta[i], inp->delta(), cuv::BF_AXPY, m_momentum);
-            //LOG4CXX_WARN(log, "Delta of " << inp->name() << ": "<< cuv::norm1(inp->delta())/inp->delta().size());
+            cuv::apply_binary_functor(m_last_delta[i], inp->delta(), cuv::BF_AXPBY, m_momentum, -lr);
 
             // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
             //       we're changing the underlying object all cow_ptrs pointing to it!!!
-            cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), m_last_delta[i], lr, wd);
-            //m_learnrate *= m_learnrate_decay;
-#else
-            // when gradient is exactly zero, assume that the unit has been dropped out
-            // then, do not apply any gradient step, not even the part due to momentum
-            cuv::tensor<unsigned char, matrix::memory_space_type> mask =
-                inp->delta() == 0.f;
+            *inp->data_ptr().ptr() += m_last_delta[i];
 
-            matrix last_delta_copy = m_last_delta[i].copy();
-            // This is the momentum part for imagenet:
-            //cuv::apply_binary_functor(m_last_delta[i], inp->delta(), cuv::BF_AXPY, m_momentum);
-            // this is the momentum part for mnist:
-            cuv::apply_binary_functor(m_last_delta[i], inp->delta(), cuv::BF_AXPBY, m_momentum, (-1.f + m_momentum)*lr);  // lastDelta += momentum * newDelta
-
-
-            // copy back the part where inp->delta() was zero
-            cuv::apply_scalar_functor(m_last_delta[i], last_delta_copy, cuv::SF_COPY, &mask);  // lastDelta[newDelta==0] = originalLastDelta
-
-
-            // ensure that only weights are changed which had non-zero inp->delta().
-            last_delta_copy = m_last_delta[i].copy();
-            cuv::apply_scalar_functor(last_delta_copy, cuv::SF_MULT, 0.f, &mask);
-            cuvAssert(wd == 0.f); // if wd != 0, the learn_step_weight_decay
-            // function would still update the zero gradient weights!
-
-
-
-            // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
-            //       we're changing the underlying object all cow_ptrs pointing to it!!!
-            // cuv::learn_step_weight_decay( *inp->data_ptr().ptr(), last_delta_copy, lr, wd);
-            *inp->data_ptr().ptr()  += last_delta_copy;
-#endif
             inp->reset_delta();
         }
     }
