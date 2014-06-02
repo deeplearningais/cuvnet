@@ -653,7 +653,7 @@ namespace cuvnet
         m_best_perf = std::numeric_limits<float>::infinity();
         m_perf_thresh = std::numeric_limits<float>::infinity();
         m_connection = gd.before_epoch.connect(boost::ref(*this), boost::signals::at_front);
-        m_patience = 4000;
+        m_patience = 20;
     }
 
     void early_stopper::disconnect(){
@@ -697,12 +697,15 @@ namespace cuvnet
         log4cxx::MDC perf_mdc("perf", boost::lexical_cast<std::string>(perf));
         log4cxx::MDC patience_mdc("patience", boost::lexical_cast<std::string>(m_patience));
         log4cxx::MDC wups_mdc("wups", boost::lexical_cast<std::string>(wups));
+
+        // how often we already ran
+        unsigned int patience_cmp = m_val_perfs.size();
         if(perf < m_best_perf) {
             log4cxx::MDC perf_mdc("best_perf", boost::lexical_cast<std::string>(perf));
-            LOG4CXX_DEBUG(log, "* "<<current_epoch<<": "<<wups<<" / "<<m_patience<<", "<<std::setprecision(3) <<(perf/m_best_perf)<<": "<< std::setprecision(6) << perf);
+            LOG4CXX_DEBUG(log, "* "<<current_epoch<<": "<<patience_cmp<<" / "<<m_patience<<", "<<std::setprecision(3) <<(perf/m_best_perf)<<": "<< std::setprecision(6) << perf);
         } else {
             log4cxx::MDC perf_mdc("best_perf", boost::lexical_cast<std::string>(m_best_perf));
-            LOG4CXX_DEBUG(log, "- "<<current_epoch<<": "<<wups<<" / "<<m_patience<<", "<<std::setprecision(3) <<(perf/m_best_perf)<<": "<< std::setprecision(6) << perf);
+            LOG4CXX_DEBUG(log, "- "<<current_epoch<<": "<<patience_cmp<<" / "<<m_patience<<", "<<std::setprecision(3) <<(perf/m_best_perf)<<": "<< std::setprecision(6) << perf);
         }
 
         if(perf < m_best_perf) {
@@ -711,7 +714,7 @@ namespace cuvnet
             improved();
             if(perf < m_perf_thresh){ 
                 // improved by more than thresh
-                m_patience = std::max((float)m_patience, (float)wups * m_patience_increase);
+                m_patience = std::max((float)m_patience, (float)patience_cmp * m_patience_increase);
                 m_perf_thresh = m_thresh * perf;
             }
             m_best_perf = perf;
@@ -722,7 +725,7 @@ namespace cuvnet
             LOG4CXX_WARN(log, "STOP loss zero after " <<current_epoch << " epochs");
             throw no_improvement_stop();
         }
-        if(m_patience <= wups){
+        if(m_patience <= patience_cmp){
             // stop learning if we failed to get significant improvements
             log4cxx::MDC mdc("best_perf", boost::lexical_cast<std::string>(m_best_perf));
             if(m_max_steps <= 0){
@@ -733,7 +736,7 @@ namespace cuvnet
                 unsigned int epoch_osp = m_gd.epoch_of_saved_params();
                 m_gd.load_best_params();
                 m_gd.set_learnrate(m_lr_fact * m_gd.learnrate());
-                m_patience = wups + m_patience_increase * epoch_osp;  // wait patience_increase times as long as it took to get there
+                m_patience = patience_cmp + m_patience_increase * epoch_osp;  // wait patience_increase times as long as it took to get there
                 m_max_steps--;
             }
         }
