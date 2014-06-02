@@ -238,18 +238,19 @@ namespace cuvnet
              * @return number of early-stopping batches
              */
             void eval_epoch(unsigned int current_epoch);
-            
+
             /**
              * load the saved parameters back into the function.
              */
             void load_best_params();
+
+            virtual void watch_evolution(boost::shared_ptr<cuvnet::monitor> mon, unsigned int vec_pos, unsigned int matrix_pos, std::string label);
 
         protected:
             /**
              * this function should update all weights using backpropagated deltas.
              */
             virtual void update_weights();
-
     };
 
     /**
@@ -500,9 +501,6 @@ namespace cuvnet
             float m_eta_p;
             float m_eta_m;
 
-//             unsigned int m_n_batches;
-
-//             void inc_n_batches(){ m_n_batches ++; }
         public:
             /**
              * constructor
@@ -518,7 +516,7 @@ namespace cuvnet
              */
         rprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float l1decay=0.0f, float eta_p=1.2f, float eta_m=0.5f);
 
-//         inline void set_l1decay(float f){ m_l1decay = f; }
+        virtual void watch_evolution(boost::shared_ptr<cuvnet::monitor> mon, unsigned int vec_pos, unsigned int matrix_pos, std::string label);
 
         protected:
         /**
@@ -606,6 +604,8 @@ namespace cuvnet
              */
         rmsprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float delta=0.01f, float grad_avg=.9f, float l1_penalty=0.f);
 
+        virtual void watch_evolution(boost::shared_ptr<cuvnet::monitor> mon, unsigned int vec_pos, unsigned int matrix_pos, std::string label);
+
         protected:
         /**
          * @overload
@@ -663,6 +663,8 @@ namespace cuvnet
              * @param lr_min lower bound for learrningrates 
              */
         na_rmsprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay = 0.0f, float momentum=0.5f, float grad_avg = 0.5f, float step_adapt = 0.9f, float delta=0.01f, float lr_max = 0.1f, float lr_min = 0.00001f);
+
+        virtual void watch_evolution(boost::shared_ptr<cuvnet::monitor> mon, unsigned int vec_pos, unsigned int matrix_pos, std::string label);
 
         protected:
         /**
@@ -725,6 +727,8 @@ namespace cuvnet
              */
         rrmsprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay = 0.0f, float l1decay=0.0f, float grad_avg = 0.5f, float delta=0.01f, float eta_p= 1.2f, float eta_m= 0.5f, float delta_max = 5.f, float delta_min = 0.00001f);
 
+        virtual void watch_evolution(boost::shared_ptr<cuvnet::monitor> mon, unsigned int vec_pos, unsigned int matrix_pos, std::string label);
+
         protected:
         virtual void update_weights();	
     };
@@ -764,6 +768,8 @@ namespace cuvnet
              * @param l1penalty L1 penalty on parameters
              */
         adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate=0.0001f, float weightdecay=0.0f, float delta=0.01f, int winsize=INT_MAX, float l1_penalty=0.f);
+
+        virtual void watch_evolution(boost::shared_ptr<cuvnet::monitor> mon, unsigned int vec_pos, unsigned int matrix_pos, std::string label);
 
         protected:
         /**

@@ -18,11 +18,11 @@ namespace cuvnet
           , m_swipe(*op,result,params,false), m_update_every(1)
     { 
 
-        // remove doublets
-        std::sort(m_params.begin(), m_params.end());
-        m_params.erase(std::unique(m_params.begin(), m_params.end()),
-                m_params.end());
-        m_loss = op;
+         remove doublets
+         std::sort(m_params.begin(), m_params.end());
+         m_params.erase(std::unique(m_params.begin(), m_params.end()),
+                 m_params.end());
+         m_loss = op;
     }
     gradient_descent::~gradient_descent(){}
 
@@ -233,6 +233,11 @@ namespace cuvnet
                 after_batch(current_epoch, 0);
             }
     }
+    
+    void gradient_descent::watch_evolution(boost::shared_ptr<cuvnet::monitor> mon, unsigned int vec_pos, unsigned int matrix_po, std::string labels)
+    {
+        ;
+    }
 
     rprop_gradient_descent::rprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float l1decay, float eta_p, float eta_m)
         :gradient_descent(op, result, params, learnrate, weightdecay), m_learnrates(params.size()), m_old_dw(params.size()), m_l1decay(l1decay), m_eta_p(eta_p), m_eta_m(eta_m)
@@ -266,6 +271,11 @@ namespace cuvnet
             param->reset_delta();
         }
 //         m_n_batches = 0;
+    }
+   
+    void rprop_gradient_descent::watch_evolution(boost::shared_ptr<cuvnet::monitor> mon, unsigned int vec_pos, unsigned int matrix_pos, std::string label)
+    {
+        mon -> set("lr" + label, m_learnrates[vec_pos][matrix_pos]);
     }
 
     // ------------ momentum gradient descent  ---------  \\-
@@ -349,6 +359,13 @@ namespace cuvnet
             inp->reset_delta();
         }
     }
+    
+    void rmsprop_gradient_descent::watch_evolution(boost::shared_ptr<cuvnet::monitor> mon, unsigned int vec_pos, unsigned int matrix_pos, std::string label)
+    {
+        float lr = m_learnrate / (std::sqrt(m_sq_grad_sum[vec_pos][matrix_pos]) + m_delta);
+        mon -> set("sum" + label, m_sq_grad_sum[vec_pos][matrix_pos]);
+        mon -> set("lr" + label, lr);
+    }
 
     // ------------ nesterov accelerated rmsprop gradient descent  ---------  \\-
     na_rmsprop_gradient_descent::na_rmsprop_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float momentum, float grad_avg, float step_adapt, float delta, float lr_max, float lr_min)
@@ -393,6 +410,14 @@ namespace cuvnet
 
             inp->reset_delta();
         }
+    }
+    
+    void na_rmsprop_gradient_descent::watch_evolution(boost::shared_ptr<cuvnet::monitor> mon, unsigned int vec_pos, unsigned int matrix_pos, std::string label)
+    {
+        float lr = m_learnrates[vec_pos][matrix_pos] / (std::sqrt(m_sq_grad_sum[vec_pos][matrix_pos]) + m_delta);
+        mon -> set("sum" + label, m_sq_grad_sum[vec_pos][matrix_pos]);
+        mon -> set("lr_adapt" + label, m_learnrates[vec_pos][matrix_pos]);
+        mon -> set("lr" + label, lr);
     }
     
     // ------------ rrmsprop gradient descent  ---------  \\-    
@@ -440,6 +465,14 @@ namespace cuvnet
             inp->reset_delta();
         }
     }
+    
+    void rrmsprop_gradient_descent::watch_evolution(boost::shared_ptr<cuvnet::monitor> mon, unsigned int vec_pos, unsigned int matrix_pos, std::string label)
+    {
+        float lr = m_learnrates[vec_pos][matrix_pos] / (std::sqrt(m_sq_grad_sum[vec_pos][matrix_pos]) + m_delta);
+        mon -> set("sum" + label, m_sq_grad_sum[vec_pos][matrix_pos]);
+        mon -> set("lr_rprop" + label, m_learnrates[vec_pos][matrix_pos]);
+        mon -> set("lr" + label, lr);
+    }
 
     // ------------ adagrad gradient descent  ---------  \\-
     adagrad_gradient_descent::adagrad_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float delta, int winsize, float l1penalty)
@@ -485,6 +518,13 @@ namespace cuvnet
             inp->reset_delta();
         }
         ++m_count;
+    }
+    
+    void adagrad_gradient_descent::watch_evolution(boost::shared_ptr<cuvnet::monitor> mon, unsigned int vec_pos, unsigned int matrix_pos, std::string label)
+    {
+        float lr = m_learnrate / (std::sqrt(m_sq_grad_sum[vec_pos][matrix_pos]) + m_delta);
+        mon -> set("sum" + label, m_sq_grad_sum[vec_pos][matrix_pos]);
+        mon -> set("lr" + label, lr);
     }
     // ------------ accelerated gradient descent  ---------  \\-
     accelerated_gradient_descent::accelerated_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float p)
