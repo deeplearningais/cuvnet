@@ -684,14 +684,14 @@ namespace cuvnet
             throw arithmetic_error_stop();
         }
 
-        m_val_perfs.push_back(perf);
+        m_val_perfs.push_back(std::make_pair(current_epoch, perf));
 
         perf = 0.f;
         unsigned int window_size = std::min(m_val_perfs.size(), (size_t) m_box_filter_size);
         for(unsigned int i = m_val_perfs.size()-window_size;
                 i < m_val_perfs.size(); 
                 i++)
-            perf += m_val_perfs[i];
+            perf += m_val_perfs[i].second;
         perf /= window_size;
 
         log4cxx::MDC perf_mdc("perf", boost::lexical_cast<std::string>(perf));
@@ -700,6 +700,7 @@ namespace cuvnet
 
         // how often we already ran
         unsigned int patience_cmp = m_val_perfs.size();
+
         if(perf < m_best_perf) {
             log4cxx::MDC perf_mdc("best_perf", boost::lexical_cast<std::string>(perf));
             LOG4CXX_DEBUG(log, "* "<<current_epoch<<": "<<patience_cmp<<" / "<<m_patience<<", "<<std::setprecision(3) <<(perf/m_best_perf)<<": "<< std::setprecision(6) << perf);
@@ -741,6 +742,26 @@ namespace cuvnet
             }
         }
 
+    }
+
+    float early_stopper::get_performance_at_epoch(unsigned int epoch){
+        log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("early_stop"));
+        float val = 0.f;
+        unsigned int val_diff = INT_MAX;
+        for(std::vector<std::pair<unsigned int, float> >::const_iterator it = m_val_perfs.begin();
+                it != m_val_perfs.end();
+                ++it){
+            unsigned int e = it->first;
+            int diff = std::abs((int) e - (int) epoch);
+            if(diff < val_diff){
+                val_diff = diff;
+                val = it->second;
+            }
+        }
+        if(val_diff > m_every){
+            LOG4CXX_WARN(log, "get_performance_at_epoch yields value of "<<val<<" but difference ("<<val_diff<<") is larger than m_every ("<<m_every <<")");
+        }
+        return val;
     }
 
 

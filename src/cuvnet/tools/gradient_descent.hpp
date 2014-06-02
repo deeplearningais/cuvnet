@@ -382,8 +382,8 @@ namespace cuvnet
             /// should yield current performance
             boost::function<float(void)> m_performance; 
 
-            /// a vector containing all validation set results for smoothing
-            std::vector<float> m_val_perfs;
+            /// a vector containing all validation set results together with the epoch they occurred in
+            std::vector<std::pair<unsigned int, float> > m_val_perfs;
 
             /// best value attained so far
             float m_best_perf;
@@ -466,6 +466,13 @@ namespace cuvnet
                 m_max_steps = max_steps;
                 m_lr_fact = lr_fact;
             }
+
+            /**
+             * @return the (estimated) performance value at a specific epoch.
+             *
+             * returns the value of the early-stopper run closest to the requested epoch.
+             */
+            float get_performance_at_epoch(unsigned int epoch);
 
             /**
              * disconnects early stopping from gradient_descent object we registered with. 
