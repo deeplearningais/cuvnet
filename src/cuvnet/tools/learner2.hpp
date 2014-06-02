@@ -97,6 +97,7 @@ namespace cuvnet
     struct learner2{
         private:
             boost::shared_ptr<gradient_descent> m_gd;
+            boost::shared_ptr<early_stopper> m_es;
             boost::shared_ptr<monitor> m_mon;
         protected:
             typedef models::model model;

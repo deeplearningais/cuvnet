@@ -716,6 +716,7 @@ namespace cuvnet
             result.put("gd.early_stopper.best_perf", es->best_perf());
             if(rotl)
                 result.put("gd.early_stopper.optimal_training_error", rotl->best_training_loss);
+            m_es = es; // contains infos that may be valuable to cross-validation etc.
         }else{
             if(m_mon->has("loss"))
                 result.put("loss", m_mon->mean("loss"));
