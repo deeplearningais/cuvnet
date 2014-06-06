@@ -689,7 +689,6 @@ namespace cuvnet
             swtlr.reset(new stop_when_target_loss_reached(*m_gd, *m_mon, *target_loss));
             LOG4CXX_WARN(g_log_learner2,  "Setting up Min Loss Stopper (active:" << mls_active << ", target_loss:" << target_loss << ")");
         }
-        this->before_learning(&m, *m_gd, es.get(), cfg);
 
         m_gd->get_swiper().dump((tmppath / "loss.dot").string(), false);
         m_gd->get_swiper().dump((tmppath / "loss-verbose.dot").string(), true);
@@ -697,10 +696,12 @@ namespace cuvnet
         SignalTranslator<CtrlCPressed> sigint(boost::bind(&gradient_descent::request_stop, m_gd.get()));
         if(batch_size < 0){
             _load_batch(&m, 0, 0);
+            this->before_learning(&m, *m_gd, es.get(), cfg);
             m_gd->batch_learning(max_epochs, time_limit);
         }else {
             m_gd->before_batch.connect(boost::bind(&learner2::_load_batch, this, &m, _1, _2));
             m_gd->current_batch_num = boost::bind(&learner2::_n_batches, this, batch_size);
+            this->before_learning(&m, *m_gd, es.get(), cfg);
             m_gd->minibatch_learning(max_epochs, time_limit);
         }
         ptree result;
