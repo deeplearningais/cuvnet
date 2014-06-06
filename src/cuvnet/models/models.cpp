@@ -1,4 +1,5 @@
 #include "models.hpp"
+#include <cuvnet/ops/input.hpp>
 
 namespace cuvnet { namespace models {
 
@@ -25,6 +26,15 @@ namespace cuvnet { namespace models {
     }
 
     void model::set_batchsize(unsigned int bs){
+        std::vector<Op*> inputs = get_inputs();
+        for(unsigned int i=0; i<inputs.size(); i++){
+            ParameterInput* inp = (ParameterInput*) inputs[i];
+            std::vector<unsigned int> shape = inp->data().shape();
+            if(shape.size() == 0)
+                continue;
+            shape[0] = bs;
+            inp->data().resize(shape);
+        }
     }
 
     model::~model(){}
