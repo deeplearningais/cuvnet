@@ -118,7 +118,15 @@ namespace cuvnet
         m_cv_mode = mode;
         m_split = split;
     }
-    void monitor::after_batch(){
+    void update_stats(acc_t& acc, const matrix& mat){
+        cuv::tensor<matrix::value_type, cuv::host_memory_space> v = mat;
+        matrix::value_type* ptr = v.ptr();
+        matrix::value_type* end = ptr + v.size();
+        acc = acc_t();
+        for(; ptr != end; ptr++)
+            acc(*ptr);
+    }
+    void monitor::after_batch(unsigned int epoch, unsigned int bid){
         m_batch_presentations ++;
 
         BOOST_FOREACH(watchpoint* p, m_impl->m_watchpoints){
@@ -150,6 +158,10 @@ namespace cuvnet
             {
                 p->scalar_stats((float)p->func.evaluate()[0]);
             }
+            if(p->type == WP_SINK_ONCE_STATS && bid == 0)
+            {
+                update_stats(p->scalar_stats, p->sink->cdata());
+            }
         }
     }
     void monitor::before_epoch(){
@@ -165,14 +177,6 @@ namespace cuvnet
         }
 
     }
-    void update_stats(acc_t& acc, const matrix& mat){
-        cuv::tensor<matrix::value_type, cuv::host_memory_space> v = mat;
-        matrix::value_type* ptr = v.ptr();
-        matrix::value_type* end = ptr + v.size();
-        acc = acc_t();
-        for(; ptr != end; ptr++)
-            acc(*ptr);
-    }
     void monitor::after_epoch(){
         BOOST_FOREACH(watchpoint* p, m_impl->m_watchpoints){
             switch(p->type){
@@ -180,9 +184,9 @@ namespace cuvnet
                 case WP_CONV_WEIGHT_STATS:
                     update_stats(p->scalar_stats, boost::dynamic_pointer_cast<ParameterInput>(p->op)->data());
                     break;
-                case WP_SINK_ONCE_STATS:
-                    update_stats(p->scalar_stats, p->sink->cdata());
-                    break;
+                //case WP_SINK_ONCE_STATS:
+                //    update_stats(p->scalar_stats, p->sink->cdata());
+                //    break;
                 default:
                     break;
             }
@@ -305,7 +309,7 @@ namespace cuvnet
     }
     void monitor::register_gd(gradient_descent& gd){
         gd.after_epoch.connect( boost::bind(&monitor::after_epoch,this));
-        gd.after_batch.connect( boost::bind(&monitor::after_batch,this));
+        gd.after_batch.connect( boost::bind(&monitor::after_batch,this, _1, _2));
         gd.before_epoch.connect(boost::bind(&monitor::before_epoch,this));
 
         BOOST_FOREACH(watchpoint* p, m_impl->m_watchpoints){

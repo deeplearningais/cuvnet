@@ -118,7 +118,7 @@ namespace cuvnet
              * increases number of batch presentations and updates scalar
              * statistics
              */
-            void after_batch();
+            void after_batch(unsigned int, unsigned int);
 
             /// resets all epoch statistics
             void before_epoch();
