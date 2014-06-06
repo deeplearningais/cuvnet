@@ -42,7 +42,7 @@ namespace cuvnet
      * learning rate/weight decay afterwards.
      * @ingroup gd
      */
-    struct gradient_descent{
+    class gradient_descent{
         public:
             typedef std::vector<Op*> paramvec_t;
             enum stop_reason_t {
@@ -258,7 +258,7 @@ namespace cuvnet
      *
      * @ingroup gd_util
      */
-    struct convergence_checker{
+    class convergence_checker{
         private:
             /// gradient descent object for calls to save_current_params
             /// and registering events
@@ -371,7 +371,7 @@ namespace cuvnet
      *
      * @ingroup gd_util
      */
-    struct early_stopper{
+    class early_stopper{
         private:
             /// max num of epochs to run
             unsigned int  m_patience; 
@@ -533,7 +533,7 @@ namespace cuvnet
      *
      * @ingroup gd
      */
-    struct momentum_gradient_descent
+    class momentum_gradient_descent
     : public gradient_descent
     {
         public:

@@ -14,7 +14,7 @@ namespace cuvnet
     
     /// contains information tracked by monitor
     struct watchpoint;
-    struct gradient_descent;
+    class gradient_descent;
 
     /**
      * Monitors a function during learning, eg statistics over

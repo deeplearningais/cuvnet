@@ -491,7 +491,8 @@ namespace cuvnet
      *
      * @ingroup op_visitors
      */
-    struct swiper{
+    class swiper{
+        public:
         determine_exec_order m_topo; ///< contains exec order information for fprop/bprop
         int m_verbosity;
 

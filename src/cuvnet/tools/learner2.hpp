@@ -94,7 +94,7 @@ namespace cuvnet
      * sets up common learning features and fits given models.
      * @ingroup learning
      */
-    struct learner2{
+    class learner2{
         private:
             boost::shared_ptr<gradient_descent> m_gd;
             boost::shared_ptr<early_stopper> m_es;

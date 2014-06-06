@@ -180,7 +180,7 @@ namespace cuvnet
                 friend struct reset_value_set_flag;
                 friend struct reset_delta_set_flag;
                 friend struct define_graphviz_node_visitor;
-                friend struct swiper;
+                friend class swiper;
 
                 /**
                  * Show all Ops to a (constant) visitor recursively.
