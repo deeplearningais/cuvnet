@@ -547,6 +547,11 @@ namespace cuvnet
         void request_other_result(Op& op, int result=0, bool call_init=true);
 
         /**
+         * remove results requested by request_other_result ()
+         */
+        void remove_other_result(Op& op, int result=0, bool call_init=true);
+
+        /**
          * calls write_graphviz with the current topological order.
          *
          * @param filename where to store the dot file

@@ -96,6 +96,22 @@ namespace cuvnet
         }
         return *this;
     }
+    monitor& monitor::remove(const std::string& name){
+        for(auto it = m_impl->m_watchpoints.begin();
+                it != m_impl->m_watchpoints.end();
+                ++it){
+            if((*it)->name == name){
+                m_impl->m_watchpoints.erase(it);
+                break;
+            }
+        }
+        auto it = m_impl->m_wpmap.find(name);
+        if(it != m_impl->m_wpmap.end()){
+            m_impl->m_wpmap.erase(it);
+        }
+        return *this;
+    }
+    
     void monitor::set_training_phase(cv_mode mode, int split){
         if(split != m_split || mode == CM_TRAINALL)
             m_epochs = 0;

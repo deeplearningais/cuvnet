@@ -89,6 +89,11 @@ namespace cuvnet
              */
             monitor& add(watchpoint_type type, boost::shared_ptr<Op> op, const std::string& name, unsigned int result=0);
 
+            /**
+             * remove a watchpoint
+             */
+            monitor& remove(const std::string& name);
+
             template<class ValueType>
             monitor& set(const std::string& name, const ValueType& value){
                 m_constants[name] = boost::lexical_cast<std::string>(value);

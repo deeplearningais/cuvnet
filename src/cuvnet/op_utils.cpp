@@ -545,7 +545,21 @@ void swiper::set_calculate_result(){
 }
 
 void swiper::request_other_result(Op& op, int result, bool call_init){
-    m_other_funcs.push_back(std::make_pair(&op, result));
+    auto it = std::find(
+            m_other_funcs.begin(), m_other_funcs.end(),
+            std::make_pair(&op, result));
+
+    if(it == m_other_funcs.end())
+        m_other_funcs.push_back(std::make_pair(&op, result));
+
+    if(call_init)
+        init();
+}
+
+void swiper::remove_other_result(Op& op, int result, bool call_init){
+    m_other_funcs.erase(
+            std::remove(m_other_funcs.begin(), m_other_funcs.end(), 
+                std::make_pair(&op, result)), m_other_funcs.end());
     if(call_init)
         init();
 }
