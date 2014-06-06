@@ -558,6 +558,7 @@ namespace cuvnet
         	m_momentum = momentum;
         	std::cout<<"momentum is"<<momentum<<std::endl;
         }
+        void reset();
 
         protected:
         /**

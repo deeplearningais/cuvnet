@@ -282,8 +282,13 @@ namespace cuvnet
     momentum_gradient_descent::momentum_gradient_descent(Op::op_ptr op, unsigned int result, const paramvec_t& params, float learnrate, float weightdecay, float momentum)
         :gradient_descent(op, result, params, learnrate, weightdecay), m_last_delta(params.size()), m_momentum(momentum)
     { 
+        reset();
+    }
+    void momentum_gradient_descent::reset()
+    { 
         unsigned int i=0;
-        for(paramvec_t::iterator it=m_params.begin();it!=m_params.end();it++, i++){
+        for(paramvec_t::iterator it=m_params.begin();
+                it!=m_params.end();it++, i++){
             m_last_delta[i].resize(((ParameterInput*)*it)->data().shape());
             m_last_delta[i] = 0.f;
         }
