@@ -18,7 +18,7 @@ namespace cuvnet
           , m_swipe(*op,result,params,false), m_update_every(1)
     { 
 
-         remove doublets
+         //remove doublets
          std::sort(m_params.begin(), m_params.end());
          m_params.erase(std::unique(m_params.begin(), m_params.end()),
                  m_params.end());
