@@ -339,15 +339,24 @@ namespace cuvnet
     }
     
     void
-    learner2::register_validation_batchsize(model& m , early_stopper& es, const ptree& cfg){
+    learner2::register_validation_batchsize(model& m , gradient_descent& gd, early_stopper& es, const ptree& cfg){
         unsigned int bs_train = cfg.get("batchsize", -1);
         unsigned int bs_valid = cfg.get("batchsize_valid", bs_train);
+        LOG4CXX_WARN(g_log_learner2, "Setting up batch sizes, validation: " << bs_valid << " train: "<<bs_train);
+
+        gradient_descent* gdp = &gd;
 
         if(bs_train != bs_valid){
+            es.before_early_stopping_epoch.connect([=](unsigned int){
+                    gdp->current_batch_num = boost::bind(&learner2::_n_batches, this, bs_valid);
+                    });
             es.before_early_stopping_epoch.connect(boost::bind(&model::set_batchsize, &m, bs_valid));
             es.before_early_stopping_epoch.connect(boost::bind(&gradient_descent::repair_swiper, m_gd));
             es.after_early_stopping_epoch.connect(boost::bind(&model::set_batchsize, &m, bs_train));
             es.after_early_stopping_epoch.connect(boost::bind(&gradient_descent::repair_swiper, m_gd));
+            es.after_early_stopping_epoch.connect([=](unsigned int){
+                    gdp->current_batch_num = boost::bind(&learner2::_n_batches, this, bs_train);
+                    });
         }
     }
 
@@ -575,6 +584,7 @@ namespace cuvnet
            
             if(batch_size_test != batch_size){
                 m.set_batchsize(batch_size_test);
+                batch_size = batch_size_test;
                 gd.repair_swiper();
             }
 
@@ -614,7 +624,7 @@ namespace cuvnet
         if(es_cfg){
             es = get_early_stopper(*m_gd, *m_mon, *es_cfg);
             if(es) {
-                register_validation_batchsize(m, *es, cfg);
+                register_validation_batchsize(m, *m_gd, *es, cfg);
                 rotl.reset(new record_optimal_training_loss(*es, *m_mon));
                 m_mon->register_gd(*m_gd, *es);
             }else{

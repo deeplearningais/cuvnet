@@ -301,7 +301,7 @@ namespace cuvnet
              * (virtual) dtor.
              */
             virtual ~learner2();
-            void register_validation_batchsize(model& m, early_stopper& es, const ptree& cfg);
+            void register_validation_batchsize(model& m, gradient_descent& gd, early_stopper& es, const ptree& cfg);
 
             inline 
                 boost::shared_ptr<early_stopper> get_early_stopper(){ return m_es; }
