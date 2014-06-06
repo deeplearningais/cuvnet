@@ -15,12 +15,12 @@ namespace cuvnet
         template<class T>
             struct cow_ptr_traits{
                 static T* clone(const T& t){ return new T(t); }
-                static void check(const T* t){}
+                static void check(const T*){}
             };
         template<class V, class M, class L>
             struct cow_ptr_traits<cuv::tensor<V,M,L> >{
                 typedef cuv::tensor<V,M,L> T;
-                static T* clone(const T& t){ return new T(t,cuv::linear_memory_tag()); }
+                static T* clone(const T& t); // { return new T(t,cuv::linear_memory_tag()); }
                 static void check(const T* t){
                     if(t){
                         cuvAssert(!cuv::has_nan(*t));
@@ -152,6 +152,17 @@ namespace cuvnet
         std::ostream& 
         operator<< (std::ostream &o, const cow_ptr<T>& p){
             o << (T)p; return o;
+        }
+
+        namespace detail
+        {
+            template<class V, class M, class L>
+                cuv::tensor<V,M,L>* cow_ptr_traits<cuv::tensor<V,M,L> >::
+                clone(const cuv::tensor<V,M,L> & t)
+                { 
+                    // the linear_memory_tag argument forces a copy of memory
+                    return new cuv::tensor<V,M,L>(t,  cuv::linear_memory_tag()); 
+                }
         }
 }
 #endif /* __CUVNET_SMART_PTR_HPP__ */
