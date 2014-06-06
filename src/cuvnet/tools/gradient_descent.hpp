@@ -842,7 +842,8 @@ namespace cuvnet
                 virtual std::map<Op*, storage_t>& updates() {
                     return m_updates_;
                 }
-                virtual bool& active() {
+            public:
+                virtual const bool& active() const{
                     return m_active_;
                 }
                 void set_active(bool b){ m_active_ = b; }
@@ -1070,7 +1071,7 @@ namespace cuvnet
                 if(m_active_ && m_mon_)
                 for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
                     ParameterInput* inp = (ParameterInput*) *it;
-                    std::map<Op*, storage_t>::iterator upit = m_updates_.find(inp);
+                    //std::map<Op*, storage_t>::iterator upit = m_updates_.find(inp);
                     log(inp->name() + "_dvar", m_vars_[inp] / m_n_rec_);
                     log(inp->name() + "_davgnorm", m_avgnorm_[inp] / m_n_rec_);
                     log(inp->name() + "_drelavgnorm", m_avgnorm_[inp] / m_n_rec_ / (cuv::norm1(inp->data()) / inp->data().size()));

@@ -792,7 +792,7 @@ namespace cuvnet
     float early_stopper::get_performance_at_epoch(unsigned int epoch){
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("early_stop"));
         float val = 0.f;
-        unsigned int val_diff = INT_MAX;
+        int val_diff = INT_MAX;
         for(std::vector<std::pair<unsigned int, float> >::const_iterator it = m_val_perfs.begin();
                 it != m_val_perfs.end();
                 ++it){
@@ -803,7 +803,7 @@ namespace cuvnet
                 val = it->second;
             }
         }
-        if(val_diff > m_every){
+        if(val_diff > (int)m_every){
             LOG4CXX_WARN(log, "get_performance_at_epoch yields value of "<<val<<" but difference ("<<val_diff<<") is larger than m_every ("<<m_every <<")");
         }
         return val;
