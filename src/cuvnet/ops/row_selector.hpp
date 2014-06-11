@@ -35,7 +35,7 @@ namespace cuvnet
                  * @param row if -1, select row randomly in every fprop.
                  * @param copy if true, copy result before passing it to the next functor.
                  */
-                RowSelector(result_t& p0, int row=-1, bool copy=false):Op(1,1),m_row(row),m_random(m_row<0),m_copy(copy){ 
+                RowSelector(result_t& p0, int row=-1, bool copy=true):Op(1,1),m_row(row),m_random(m_row<0),m_copy(copy){ 
                     add_param(0,p0);
                 }
                 /**
