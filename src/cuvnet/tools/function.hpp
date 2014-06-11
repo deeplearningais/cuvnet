@@ -80,6 +80,7 @@ namespace cuvnet
              * @return the value returned by the function
              */
             const matrix& evaluate(){
+                repair_swiper();
                 m_swiper->fprop();
                 return m_sink->cdata();
             }
@@ -89,6 +90,14 @@ namespace cuvnet
              */
             const matrix& result()const{
                 return m_sink->cdata();
+            }
+            /**
+             * Clear all data in graph.
+             */
+            void forget(){
+                m_sink->forget();
+                cleanup_temp_vars_visitor ctvv;
+                m_op->visit(ctvv,true);
             }
 
             /**
@@ -174,6 +183,7 @@ namespace cuvnet
              */
             const matrix& evaluate(){
                 repair_swiper();
+                m_swiper->dump("delta_function.dot", true);
                 m_swiper->fprop();
                 m_swiper->bprop();
                 return m_sink->cdata();
