@@ -163,6 +163,7 @@ namespace cuvnet
                 }
                 void fprop(); ///< @overload
                 void bprop(); ///< @overload
+                void release_data(); ///< @overload
                 void _determine_shapes(); ///< @overload
                 //inline void reset_delta(){ if(!!m_delta) m_delta.data()=0.f; }
                 /// clear the backpropagated gradient.

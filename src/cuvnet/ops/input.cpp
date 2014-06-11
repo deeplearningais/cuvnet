@@ -8,6 +8,10 @@ namespace cuvnet
         m_results[0]->shape = m_shape;
     }
 
+    void ParameterInput::release_data(){
+        Op::release_data();
+        m_delta.reset();
+    }
     void ParameterInput::fprop(){
         m_results[0]->push(m_data);
         // TODO: forget m_data now? (Inputs only, not weights)
