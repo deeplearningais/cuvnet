@@ -158,6 +158,7 @@ namespace cuvnet
     matrix evaluate_delta_sink(Op& loss, Op& o, int param){
 
         cuvnet::delta_function f(loss.shared_from_this(), o.shared_from_this(), 0, param, "click");
+        f.forget();
         return f.evaluate();
     }
     matrix evaluate_sink(Sink& o, boost::python::list l){
@@ -345,6 +346,7 @@ namespace cuvnet
         def("project_to_unit_ball", project_to_unit_ball<cuv::host_memory_space>);
 
         class_<swiper, boost::shared_ptr<swiper> >("swiper", no_init)
+            .def("dump", &swiper::dump)
             .def("fprop", &swiper::fprop)
             .def("bprop", &swiper::bprop
                     , boost::python::default_call_policies()

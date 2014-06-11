@@ -1,7 +1,14 @@
+#include <boost/format.hpp>
 #include "row_selector.hpp"
 
 namespace cuvnet
 {
+    void RowSelector::_graphviz_node_desc(detail::graphviz_node& desc)const{
+        if(m_random)
+            desc.label = "Random Row Selector";
+        else
+            desc.label = boost::str(boost::format("Row %d Selector") % m_row);
+    }
     void RowSelector::set_random(bool b){
         m_random = b;
         if(!m_random && m_row < 0)

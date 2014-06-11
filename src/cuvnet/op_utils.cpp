@@ -119,6 +119,8 @@ void define_graphviz_node_visitor::preorder(Op* o){
                     shape += boost::lexical_cast<std::string>(p->shape[i]) + ((i==p->shape.size()-1) ? " " : ", ");
                 }
                 shape += ")";
+            if(p->need_derivative)
+                shape += "*";
             }
             paramsstr += shape;
         }
@@ -138,6 +140,8 @@ void define_graphviz_node_visitor::preorder(Op* o){
                 shape += boost::lexical_cast<std::string>(r->shape[i]) + ((i==r->shape.size()-1) ? " " : ", ");
             }
             shape += ")";
+            if(r->need_result)
+                shape += "*";
         }
         resultsstr += shape;
 
@@ -269,8 +273,12 @@ void define_graphviz_node_visitor::preorder(Op* o){
 	BOOST_FOREACH(Op::param_t& p, o->m_params){
 		BOOST_FOREACH(Op::result_t& r, p->param_uses){
             std::string wd;
-            if(!is_sink)
-                wd = boost::lexical_cast<std::string>(o->need_result() ? 4.0 : 0.5);
+            if(!is_sink){
+                float f = r->need_result ? 4.0 : 1.0;
+                if(!p->need_derivative)
+                    f /= 2.f;
+                wd = boost::lexical_cast<std::string>(f);
+            }
             else
                 wd = boost::lexical_cast<std::string>(sink_prev->need_result() ? 4.0 : 0.5);
 			m_edge_defs << "edge [ "
@@ -670,7 +678,8 @@ namespace cuvnet
 {
 void write_graphviz(Op& op, std::ostream& os, bool verbose){
 	os << "digraph { "<<std::endl;
-	os << "rankdir=TB; concentrate=true; remincross=true; splines=ortho; ranksep=1;"<<std::endl;
+	//os << "rankdir=TB; concentrate=true; remincross=true; splines=ortho; ranksep=1;"<<std::endl;
+	os << "rankdir=TB; remincross=true; ranksep=1;"<<std::endl;
 #if 1
     groups_collector gc;
     op.visit(gc);
@@ -692,7 +701,7 @@ void write_graphviz(Op& op, std::ostream& os, bool verbose){
 }
 void write_graphviz(Op& op, std::ostream& os, bool verbose, std::vector<Op*>& fl, std::vector<Op*>& bl, Op* current){
 	os << "digraph { "<<std::endl;
-	os << "rankdir=TB; concentrate=true; remincross=true; splines=ortho; ranksep=1;"<<std::endl;
+	os << "rankdir=TB; remincross=true; ranksep=1;"<<std::endl;
 #if 1
     groups_collector gc;
     op.visit(gc, true);
