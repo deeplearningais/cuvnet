@@ -14,8 +14,38 @@ namespace cuvnet
             desc.label = (boost::format("zero out noise %1.2f [%s]") % act % m_param).str();
         else if(m_noisetype == NT_NORMAL)
             desc.label = (boost::format("gaussian noise %1.2f [%s]") % act % m_param).str();
+        else if(m_noisetype == NT_SALT_AND_PEPPER)
+            desc.label = (boost::format("salt/pepper noise %1.2f [%s]") % act % m_param).str();
     }
 
+
+    void Noiser::fprop_salt_and_pepper(){
+        using namespace cuv;
+        param_t::element_type&  p0 = *m_params[0];
+        result_t::element_type& r0 = *m_results[0];
+
+        // construct 2nd matrix with uniform values, binarize
+        value_type rnd(p0.shape);
+
+        // salt
+        cuv::fill_rnd_uniform(rnd);
+        m_zero_mask.resize(rnd.shape());
+        cuv::apply_scalar_functor(m_zero_mask, rnd, SF_LT, m_param / 2.f);
+
+        value_type&       res    = p0.value.data();
+        cuv::apply_scalar_functor(res,SF_MULT,0.f,&m_zero_mask);
+
+        // pepper (assumes maximum is 1)
+        cuv::apply_scalar_functor(m_zero_mask, rnd, SF_GT, 1.f - m_param / 2.f);
+        cuv::apply_scalar_functor(res, SF_RSUB, 1.f); // res = 1 - res
+        cuv::apply_scalar_functor(res,SF_MULT,0.f,&m_zero_mask);
+        cuv::apply_scalar_functor(res, SF_RSUB, 1.f); // res = 1 - res
+
+        // do not compensate for salt/pepper
+
+        r0.push(p0.value);
+        p0.value.reset();
+    }
 
     void Noiser::fprop_zero_out(){
         using namespace cuv;
@@ -82,6 +112,7 @@ namespace cuvnet
         switch(m_noisetype){
             case NT_NORMAL: fprop_normal(); break;
             case NT_ZERO_OUT: fprop_zero_out(); break;
+            case NT_SALT_AND_PEPPER: fprop_salt_and_pepper(); break;
         }
     }
 
@@ -90,6 +121,7 @@ namespace cuvnet
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
         assert(p0.need_derivative);
+        assert(m_noisetype != NT_SALT_AND_PEPPER);
 
 
         if(!m_active || m_noisetype == NT_NORMAL){

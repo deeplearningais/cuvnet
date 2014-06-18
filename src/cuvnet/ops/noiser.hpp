@@ -26,7 +26,8 @@ namespace cuvnet
                 /// the two noise types supported by Noiser
                 enum NoiseType{ 
                     NT_NORMAL,  ///< add Gaussian noise
-                    NT_ZERO_OUT  ///< set a certain percentage to zero
+                    NT_ZERO_OUT,  ///< set a certain percentage to zero
+                    NT_SALT_AND_PEPPER  ///< set certain percentage to either 0 or 1
                 };
             private:
                 float m_param;
@@ -89,6 +90,10 @@ namespace cuvnet
                  * set some values to zero.
                  */
                 void fprop_zero_out();
+                /**
+                 * set some values to zero, others to 1
+                 */
+                void fprop_salt_and_pepper();
                 /**
                  * adds gaussian noise.
                  */

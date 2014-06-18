@@ -165,6 +165,9 @@ namespace cuvnet
     /// construct a Noiser object
     inline
         boost::shared_ptr<Noiser> zero_out(Op::op_ptr x, float f, bool compensate=true){ return boost::make_shared<Noiser>(x->result(),f, Noiser::NT_ZERO_OUT, compensate); }
+    /// construct a Noiser object
+    inline
+        boost::shared_ptr<Noiser> salt_and_pepper(Op::op_ptr x, float f){ return boost::make_shared<Noiser>(x->result(),f, Noiser::NT_SALT_AND_PEPPER, false); }
     /// construct a Sum object
     inline
         Op::op_ptr sum(Op::op_ptr x)                    { return boost::make_shared<Sum>(x->result()); }
