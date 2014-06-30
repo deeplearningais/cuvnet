@@ -572,7 +572,7 @@ namespace cuvnet
         m_mon
             = get_monitor(m, cfg.get_child("monitor", ptree()));
 
-        int batch_size = cfg.get("batchsize", -1);
+        int batch_size = cfg.get<int>("batchsize");
         gradient_descent gd(m.loss(), 0, std::vector<Op*>(), 0.0, 0.0);
         this->before_predict(&m, gd, cfg);
         m_mon->register_gd(gd);
