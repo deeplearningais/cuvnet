@@ -4,8 +4,15 @@
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/tools/matwrite.hpp>
 #include <cuvnet/tools/function.hpp>
+#include <cuvnet/tools/logging.hpp>
+#include <cuvnet/ops/axpby.hpp>
+#include <cuvnet/ops/sum.hpp>
 
 #include <boost/test/unit_test.hpp>
+
+namespace {
+    log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("derivative_tester"));
+}
 
 namespace cuvnet{ namespace derivative_testing {
 
@@ -18,7 +25,7 @@ namespace cuvnet{ namespace derivative_testing {
             tensor<float,host_memory_space> r1 = out->cdata().copy();
 
             if(verbose)
-                std::cout << "-- Checking Results; cuv::minimum(r0):" << cuv::minimum(r0) << " cuv::maximum(r0):" << cuv::maximum(r0) << std::endl;
+                LOG4CXX_INFO(g_log, "-- Checking Results; cuv::minimum(r0):" << cuv::minimum(r0) << " cuv::maximum(r0):" << cuv::maximum(r0));
 
             BOOST_CHECK(out->result()->shape == r0.shape()); // shape should be as advertised by determine_shapes
             BOOST_CHECK(equal_shape(r0,r1));
@@ -44,7 +51,7 @@ namespace cuvnet{ namespace derivative_testing {
             pi->reset_delta();
 
             if(verbose)
-                std::cout << "-- Checking Gradients of `" << pi->name() << "'; cuv::minimum(r0):" << cuv::minimum(r0) << " cuv::maximum(r0):" << cuv::maximum(r0) << std::endl;
+                LOG4CXX_INFO(g_log, "-- Checking Gradients of `" << pi->name() << "'; cuv::minimum(r0):" << cuv::minimum(r0) << " cuv::maximum(r0):" << cuv::maximum(r0));
 
             BOOST_CHECK(equal_shape(r0,r1));
             tensor<float,host_memory_space> rdiff(r0.shape());
@@ -104,15 +111,7 @@ namespace cuvnet{ namespace derivative_testing {
             ResultType* operator()(ArgumentType*s)const{ return (ResultType*)s; }
         };
 
-        void derivative_tester(Op& op, int result, bool verbose, double prec, float minv, float maxv){
-            // assumption: op has only one result
-            boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op.result(result));
-
-            // tell that we want derivative w.r.t. all params
-            param_collector_visitor pcv;
-            op.visit(pcv);
-            BOOST_CHECK(pcv.plist.size()>0);
-
+        void initialize_inputs(param_collector_visitor& pcv, float minv, float maxv){
             // fill all params with random numbers
             BOOST_FOREACH(Op* raw, pcv.plist){
                 ParameterInput* param = dynamic_cast<ParameterInput*>(raw);
@@ -129,6 +128,17 @@ namespace cuvnet{ namespace derivative_testing {
                     }
                 }
             }
+        }
+
+        void derivative_tester_impl(Op& op, int result, bool verbose, double prec, float minv, float maxv){
+            // assumption: op has only one result
+            boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op.result(result));
+
+            // tell that we want derivative w.r.t. all params
+            param_collector_visitor pcv;
+            op.visit(pcv);
+            BOOST_CHECK(pcv.plist.size()>0);
+
 
             // find only those parameters which we can derive for
             // (the others are needed since they need to be initialized above)
@@ -144,10 +154,12 @@ namespace cuvnet{ namespace derivative_testing {
             BOOST_CHECK(derivable_params.size() > 0);
 
             swiper swipe(op, result, derivable_params);
+            swipe.dump("derivative_tester.dot", true);
 
+            initialize_inputs(pcv, minv, maxv);
             {
                 if(verbose)
-                    std::cout << "  -ensuring function is stateless" << std::endl;
+                    LOG4CXX_INFO(g_log, "  -ensuring function is stateless");
                 boost::shared_ptr<Op> p = op.shared_from_this();
                 ensure_no_state(out_op, swipe, derivable_params, verbose);
             }
@@ -163,8 +175,8 @@ namespace cuvnet{ namespace derivative_testing {
                 matrix J(n_outputs, n_inputs); J = 0.f;
                 if(verbose)
                 {
-                std::cout << "  -testing derivative w.r.t. "<<param->name()<<""<<std::endl;
-                std::cout << "   Jacobi dims: "<<n_outputs<<" x "<<n_inputs<<"..."<<std::endl;
+                LOG4CXX_INFO(g_log, "  -testing derivative w.r.t. "<<param->name());
+                LOG4CXX_INFO(g_log, "   Jacobi dims: "<<n_outputs<<" x "<<n_inputs);
                 }
                 for(unsigned int out=0;out<n_outputs;out++){
                     swipe.fprop();
@@ -209,8 +221,8 @@ namespace cuvnet{ namespace derivative_testing {
                 cuv::tensor<float, cuv::host_memory_space> tmp(Jh.shape());
                 if(verbose)
                 {
-                    std::cout << "   range(Jh)[finite differences]="<<cuv::maximum(Jh)-cuv::minimum(Jh)<<std::endl;
-                    std::cout << "   range(J_t)[analytical]       ="<<cuv::maximum(J_t)-cuv::minimum(J_t)<<std::endl;
+                    LOG4CXX_INFO(g_log, "   range(Jh)[finite differences]="<<cuv::maximum(Jh)-cuv::minimum(Jh));
+                    LOG4CXX_INFO(g_log, "   range(J_t)[analytical]       ="<<cuv::maximum(J_t)-cuv::minimum(J_t));
                 }
                 cuv::apply_binary_functor(tmp, J_t, Jh, cuv::BF_SUBTRACT);
                 cuv::apply_scalar_functor(tmp, cuv::SF_SQUARE);
@@ -218,18 +230,57 @@ namespace cuvnet{ namespace derivative_testing {
                 double prec_  = prec * prec;                       // square precision, too
                 if(verbose)
                 {
-                    std::cout << "   maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;
-                    std::cout << "   range(differences)="<<cuv::maximum(tmp)-cuv::minimum(tmp)<<std::endl;
+                    LOG4CXX_INFO(g_log, "   maxdiff="<<maxdiff<<", prec_="<<prec_);
+                    LOG4CXX_INFO(g_log, "   range(differences)="<<cuv::maximum(tmp)-cuv::minimum(tmp));
                 }
                 if(maxdiff>prec_){
-                    std::cout << "   maxdiff="<<maxdiff<<", prec_="<<prec_<<std::endl;
-                    std::cout << "   dumping Jacobi matrices: " << std::endl;
-                    std::cout << "   - analyticalJ.npy" << std::endl;
-                    std::cout << "   - finitediffJ.npy" << std::endl;
+                    LOG4CXX_WARN(g_log, "   maxdiff="<<maxdiff<<", prec_="<<prec_);
+                    LOG4CXX_WARN(g_log, "   dumping Jacobi matrices: ");
+                    LOG4CXX_WARN(g_log, "   - analyticalJ.npy");
+                    LOG4CXX_WARN(g_log, "   - finitediffJ.npy");
                     tofile("analyticalJ.npy", Jh);
                     tofile("finitediffJ.npy", J_t);
                 }
                 BOOST_CHECK_LT(maxdiff, prec_ );
+            }
+        }
+
+        void derivative_tester(Op& op, int result, bool verbose, double prec, float minv, float maxv){
+            determine_shapes(op);
+            bool simple_and_fast = true;
+            std::vector<unsigned int> shape = op.result(result)->shape;
+            boost::shared_ptr<ParameterInput> otherin = boost::make_shared<ParameterInput>(shape, "dummy_input");
+            unsigned int factor = std::accumulate(shape.begin(), shape.end(), 1u, std::multiplies<unsigned int>());
+            factor = std::min(factor, 10u); // give it some leeway in case we're summing over outputs.
+            otherin->set_derivable(false);
+            {
+                TRACE(g_log, "plain");
+                if(!simple_and_fast)
+                    derivative_tester_impl(op, result, verbose, prec, minv, maxv);
+                else{
+                    boost::shared_ptr<Sum> func = boost::make_shared<Sum>(op.result(result));
+                    derivative_tester_impl(*func, 0, verbose, prec * factor, minv, maxv);
+                }
+            }
+            {
+                TRACE(g_log, "variant_a");
+                boost::shared_ptr<Op> func = boost::make_shared<Axpby>(otherin->result(), op.result(result), 2.f, 2.f);
+                if(!simple_and_fast)
+                    derivative_tester_impl(*func, 0, verbose, prec, minv, maxv);
+                else{
+                    boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(func->result(0));
+                    derivative_tester_impl(*func2, 0, verbose, prec * factor, minv, maxv);
+                }
+            }
+            {
+                TRACE(g_log, "variant_b");
+                boost::shared_ptr<Op> func = boost::make_shared<Axpby>(op.result(result), otherin->result(), 2.f, 2.f);
+                if(!simple_and_fast)
+                    derivative_tester_impl(*func, 0, verbose, prec, minv, maxv);
+                else{
+                    boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(func->result(0));
+                    derivative_tester_impl(*func2, 0, verbose, prec * factor, minv, maxv);
+                }
             }
         }
 } }
