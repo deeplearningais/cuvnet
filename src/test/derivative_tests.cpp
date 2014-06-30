@@ -177,8 +177,13 @@ BOOST_AUTO_TEST_CASE(derivative_test_rectified_linear){
     typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                    = boost::make_shared<RectifiedLinear>(inp->result());
-    derivative_tester(*func);
-    derivative_tester(*func, 1);
+    {
+        derivative_tester(*func);
+    }
+    {
+        ptr_t f2 = boost::make_shared<Axpby>(func->result(0),func->result(1));
+        derivative_tester(*f2, 0);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(derivative_test_multiply){
