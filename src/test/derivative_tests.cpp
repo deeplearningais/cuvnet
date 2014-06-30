@@ -10,6 +10,7 @@
 #include <cuvnet/derivative_test.hpp>
 #include <cuvnet/tools/function.hpp>
 #include <cuvnet/tools/matwrite.hpp>
+#include <cuvnet/tools/logging.hpp>
 
 #include <cuvnet/ops.hpp>
 
@@ -22,7 +23,20 @@ using namespace cuvnet;
 using std::printf;
 using namespace cuvnet::derivative_testing;
 
-BOOST_AUTO_TEST_SUITE( op_test )
+namespace{
+    log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("derivative_test"));
+}
+
+struct Fix{
+    boost::shared_ptr<Tracer> m_suite_trace;
+    boost::shared_ptr<Tracer> m_test_trace;
+    Fix(){
+        //m_suite_trace.reset(new Tracer(g_log, boost::unit_test::framework::current_test_case().p_parent_id.));
+        m_test_trace.reset(new Tracer(g_log, boost::unit_test::framework::current_test_case().p_name));
+    }
+};
+
+BOOST_FIXTURE_TEST_SUITE( op_test, Fix )
 
 BOOST_AUTO_TEST_CASE(deltasink){
     typedef boost::shared_ptr<Op> ptr_t;
@@ -47,7 +61,7 @@ BOOST_AUTO_TEST_CASE(deltasink){
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE( derivative_test )
+BOOST_FIXTURE_TEST_SUITE( derivative_test, Fix )
 BOOST_AUTO_TEST_CASE(derivative_test_pipe){
    typedef boost::shared_ptr<Op> ptr_t;
    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
@@ -457,6 +471,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_softmax){
 BOOST_AUTO_TEST_CASE(derivative_test_mll2){
     typedef boost::shared_ptr<Op> ptr_t;
     {
+        TRACE(g_log, "Axis0");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][5]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8]);
         ptr_t func                     = boost::make_shared<MultinomialLogisticLoss2>(inp0->result(), inp1->result(), 0);
@@ -487,6 +502,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_mll2){
         derivative_tester(*func, 0, true, .003, 0., 0.);
     }
     {
+        TRACE(g_log, "Axis1");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[5]);
         ptr_t func                     = boost::make_shared<MultinomialLogisticLoss2>(inp0->result(), inp1->result(), 1);
@@ -765,7 +781,7 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
     using namespace cuv::alex_conv;
 
     {
-       std::cout << "in first case tuplewise op" << std::endl;/* cursor */
+       LOG4CXX_DEBUG(g_log, "in first case tuplewise op");
        unsigned int sub_size = 3;
        unsigned int nImgChan = 2 * sub_size;      // must be divisible by nGroups
        unsigned int nImgPixX = 8;
@@ -785,7 +801,7 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
 
 
     {
-        std::cout << "in 2nd case tuplewise op" << std::endl;/* cursor */
+        LOG4CXX_DEBUG(g_log, "in 2nd case tuplewise op" );
         unsigned int sub_size = 3;
         unsigned int nImgChan = 2 * sub_size;      // must be divisible by nGroups
         unsigned int nImgPixX = 8;
@@ -802,7 +818,7 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
     }
 
     {
-        std::cout << "in 3rd case tuplewise op" << std::endl;/* cursor */
+        LOG4CXX_DEBUG(g_log, "in 3rd case tuplewise op" );
         unsigned int sub_size = 3;
         unsigned int nImgChan = 2 * sub_size;      // must be divisible by nGroups
         unsigned int nImg     = 8;
