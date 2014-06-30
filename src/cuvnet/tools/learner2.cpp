@@ -59,11 +59,11 @@ namespace boost {
     namespace archive {
         namespace detail {
             template<>
-                bool oserializer<binary_oarchive, cuvnet::matrix >::tracking(const unsigned int f /* flags */) const {
+                bool oserializer<binary_oarchive, cuv::tensor<float, cuv::dev_memory_space> >::tracking(const unsigned int f /* flags */) const {
                     return !(f & no_tracking);
                 }
             template<>
-                bool oserializer<binary_oarchive, cuvnet::host_matrix >::tracking(const unsigned int f /* flags */) const {
+                bool oserializer<binary_oarchive, cuv::tensor<float, cuv::host_memory_space> >::tracking(const unsigned int f /* flags */) const {
                     return !(f & no_tracking);
                 }
         }}}
