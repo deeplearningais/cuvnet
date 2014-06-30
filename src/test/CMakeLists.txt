@@ -14,7 +14,7 @@ find_package(CUDA)
 
 file(GLOB TEST_SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 add_executable(${PROJECT_TEST_NAME} ${TEST_SRC_FILES})
-target_link_libraries(${PROJECT_TEST_NAME}  ${GTEST_BOTH_LIBRARIES} cuvnet cuv tp_theano jpeg ${Boost_LIBRARIES} pthread ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
+target_link_libraries(${PROJECT_TEST_NAME}  ${GTEST_BOTH_LIBRARIES} cuvnet ${CUV_LIBRARY} jpeg ${Boost_LIBRARIES} pthread ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
 
 FIND_PACKAGE( PythonLibs 2.7 REQUIRED)
 if ( PYTHONLIBS_FOUND )

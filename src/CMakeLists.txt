@@ -11,8 +11,16 @@ FIND_PACKAGE( Boost 1.46 COMPONENTS date_time filesystem unit_test_framework ser
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(/usr/local/cuda/include)
-#INCLUDE_DIRECTORIES(~/checkout/git/mongo/include)
-#INCLUDE_DIRECTORIES(/usr/local/cuv/include)
+SET(CUV_BASE_DIRECTORY "/home/local/cuv" CACHE STRING "Checkout directory for cuv")
+SET(CUV_BUILD_TYPE "debug" CACHE STRING "subdirectory of CUV_BASE_DIRECTORY containing build")
+SET(CUV_INCLUDE_DIR "${CUV_BASE_DIRECTORY}/src")
+SET(CUV_LIB_DIR "${CUV_BASE_DIRECTORY}/${CUV_BUILD_TYPE}/src/cuv"
+                "${CUV_BASE_DIRECTORY}/${CUV_BUILD_TYPE}/src/3rd_party/cuda_ndarray")
+SET(CUV_LIBRARY cuv tp_theano)
+SET(CUV_PYTHON_LIBRARY "${CUV_BASE_DIRECTORY}/${CUV_BUILD_TYPE}/src/cuv_python/_cuv_python.so")
+
+INCLUDE_DIRECTORIES(${CUV_INCLUDE_DIR})
+LINK_DIRECTORIES(${CUV_LIB_DIR})
 
 FIND_PACKAGE( LAPACK )
 FIND_PACKAGE( CUDA )
@@ -22,7 +30,6 @@ FIND_PACKAGE( PythonLibs 2.7 REQUIRED )
 
 
 INCLUDE_DIRECTORIES($ENV{HOME}/pool/include/boost-numeric-bindings/)
-#LINK_DIRECTORIES(/usr/local/cuv/lib)
 LINK_DIRECTORIES(~/lib)
 LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -fno-strict-aliasing")
@@ -104,7 +111,7 @@ endif( PYTHONLIBS_FOUND )
 
 add_library(cuvnet SHARED ${CUVNET_SRC})
 
-TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx cuv tp_theano ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES}  ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
+TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx ${CUV_PYTHON_LIBRARY} ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES}  ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
 
 #add_subdirectory(cuvnet)
 #add_subdirectory(third_party)
