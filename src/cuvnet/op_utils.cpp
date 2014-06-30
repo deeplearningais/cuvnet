@@ -615,18 +615,24 @@ void swiper::bprop(bool set_last_delta_to_one){
 	}
 #if SWIPER_DEBUG
     unsigned int cnt=0;
+    static unsigned int g_bprop_cnt = 0;
+    static const unsigned int g_stopidx = 1;
 #endif
 	BOOST_FOREACH(Op* o, m_topo.bprop_nodelist){
 		if(o->need_derivative()){
 #if SWIPER_DEBUG
-            debug(cnt++,o,true,false,"bprop");
+            if(g_bprop_cnt == g_stopidx)
+                debug(cnt++,o,true,false,"bprop");
 #endif
 			o->bprop();
         }
 	}
 #if SWIPER_DEBUG
+    if(g_bprop_cnt == g_stopidx){
         std::cout << "Exiting after first bprop (swiper debugging)" << std::endl;
         exit(0);
+    }
+    g_bprop_cnt ++;
 #endif
 }
 void 
