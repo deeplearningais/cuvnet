@@ -30,7 +30,7 @@ namespace cuvnet
                 /**
                  * ctor.
                  * @param in the input
-                 * @param eg the extents after reshaping.
+                 * @param dim the dimension along which the inputs are concatenated
                  */
                 Concatenate(boost::shared_ptr<std::vector<result_t> > & in, unsigned int dim)
                     :Op(in->size(),1),
