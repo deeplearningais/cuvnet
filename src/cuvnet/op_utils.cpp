@@ -93,6 +93,10 @@ void define_graphviz_node_visitor::preorder(Op* o){
 			n.label += " [," + boost::lexical_cast<std::string>(std::distance(m_bmark_order.begin(),bit))+"]";
         }
 	}
+    {
+        // add the number of references to this op
+        n.label += "(#" + boost::lexical_cast<std::string>(o->shared_from_this().use_count()) + ")";
+    }
     if(current_op()==o){
         n.fillcolor = "firebrick1";
     }
@@ -122,6 +126,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
             if(p->need_derivative)
                 shape += "*";
             }
+            shape += "(#" + boost::lexical_cast<std::string>(p.use_count()) + ")";
             paramsstr += shape;
         }
         if(o->get_n_params()-1 != p->param_number)
@@ -142,6 +147,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
             shape += ")";
             if(r->need_result)
                 shape += "*";
+            shape += "(#" + boost::lexical_cast<std::string>(r.use_count()) + ")";
         }
         resultsstr += shape;
 
