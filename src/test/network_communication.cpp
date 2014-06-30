@@ -49,6 +49,8 @@ BOOST_AUTO_TEST_CASE( save_mat ){
     s.push_merged();
 
     BOOST_CHECK_NO_THROW(n = c.fetch_merged("m"));
+
+    BOOST_REQUIRE(n.ptr() != NULL);
     
     BOOST_CHECK_SMALL(cuv::norm1((m-md)-n), 0.001f);
 }
