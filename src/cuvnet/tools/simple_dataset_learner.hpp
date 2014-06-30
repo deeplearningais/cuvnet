@@ -47,6 +47,12 @@ namespace cuvnet
             unsigned int n_batches(unsigned int batchsize);
 
             /**
+             * determine the number of data points in the current dataset.
+             * @return the number of data points in the dataset
+             */
+            unsigned int size();
+
+            /**
              * @return the number of splits (as supplied in the init() function)
              */
             inline unsigned int n_splits()const{ return m_splits.n_splits(); }

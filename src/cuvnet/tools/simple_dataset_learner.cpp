@@ -251,4 +251,9 @@ namespace cuvnet
         host_matrix& labels = in_early_stopping ? m_current_vlabels : m_current_labels;
         return labels;
     }
+
+    unsigned int simple_dataset_learner::size()
+    {
+        return get_current_labels().shape(0);
+    }
 }
