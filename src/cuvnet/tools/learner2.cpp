@@ -94,7 +94,7 @@ namespace cuvnet
         {
             alpha = std::log(final/initial) / std::log(t0/(t0 + duration));
             eta0  = initial * std::pow(t0, alpha);
-            LOG4CXX_WARN(g_log_learner2, "Setting up exponential learnrate schedule (initial: "<<initial
+            LOG4CXX_INFO(g_log_learner2, "Setting up exponential learnrate schedule (initial: "<<initial
                     << ", final:" << final
                     << ", duration:"<<duration
                     << ", alpha:"<<alpha
@@ -174,10 +174,10 @@ namespace cuvnet
         bool drec = cfg.get("diff_rec", false);
         bool wrec = cfg.get("wup_rec.active", false);
         if(drec){
-            LOG4CXX_WARN(g_log_learner2, "Setting up delta recording for gradient_descent");
+            LOG4CXX_INFO(g_log_learner2, "Setting up delta recording for gradient_descent");
         }
         if(wrec){
-            LOG4CXX_WARN(g_log_learner2, "Setting up wup recording for gradient_descent");
+            LOG4CXX_INFO(g_log_learner2, "Setting up wup recording for gradient_descent");
         }
         float initial_learnrate = cfg.get("learnrate", 0.01);
         float initial_momentum = cfg.get("momentum", 0.9);
@@ -185,7 +185,7 @@ namespace cuvnet
         int verbosity = cfg.get("verbosity", 0);
         unsigned int start_epoch = cfg.get("start_epoch", 0);
         if(typ == "plain"){
-            LOG4CXX_WARN(g_log_learner2, "Creating Plain GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
+            LOG4CXX_INFO(g_log_learner2, "Creating Plain GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
             MAKE_GD(gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
@@ -194,7 +194,7 @@ namespace cuvnet
             float delta = cfg.get("delta", 0.01f);
             float grad_avg = cfg.get("grad_avg", 0.9f);
             float l1decay = cfg.get("l1decay", 0.f);
-            LOG4CXX_WARN(g_log_learner2, "Creating RMSProp GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", grad_avg:" << grad_avg << ", delta:" << delta << ")");
+            LOG4CXX_INFO(g_log_learner2, "Creating RMSProp GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", grad_avg:" << grad_avg << ", delta:" << delta << ")");
             MAKE_GD(rmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
@@ -203,14 +203,14 @@ namespace cuvnet
             float eta_p = cfg.get("eta_p", 1.2f);
             float eta_m = cfg.get("eta_m", 0.5f);
             float l1_penalty = cfg.get("l1_penalty", 0.f);
-            LOG4CXX_WARN(g_log_learner2, "Creating RPROP GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", l1_penalty:"<< l1_penalty << ", eta_p:" << eta_p << ", eta_m:" << eta_m <<")");
+            LOG4CXX_INFO(g_log_learner2, "Creating RPROP GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", l1_penalty:"<< l1_penalty << ", eta_p:" << eta_p << ", eta_m:" << eta_m <<")");
             MAKE_GD(rprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, l1_penalty, eta_p, eta_m);
             gd->set_epoch(start_epoch);
             gd->set_update_every(0);
             gd->set_verbosity(verbosity);
             return gd;
         }else if(typ == "momentum"){
-            LOG4CXX_WARN(g_log_learner2, "Creating Momentum GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", momentum: "<< initial_momentum << ")");
+            LOG4CXX_INFO(g_log_learner2, "Creating Momentum GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", momentum: "<< initial_momentum << ")");
             MAKE_GD(momentum_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, initial_momentum);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
@@ -219,7 +219,7 @@ namespace cuvnet
             float winsize = cfg.get("winsize", INT_MAX);
             float l1_penalty = cfg.get("l1_penalty", 0.f);
             float delta = cfg.get("delta", 0.01f);
-            LOG4CXX_WARN(g_log_learner2, "Creating AdaGrad GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", delta:"<< delta 
+            LOG4CXX_INFO(g_log_learner2, "Creating AdaGrad GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", delta:"<< delta 
                 << ", winsize:" << winsize << ", l1_penalty:" << l1_penalty << ")");
             MAKE_GD(adagrad_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  delta, winsize, l1_penalty);
             gd->set_epoch(start_epoch);
@@ -231,7 +231,7 @@ namespace cuvnet
             float step_adapt = cfg.get("step_adapt", 0.9f);
             float lr_min = cfg.get("lr_min", 0.00001f);
             float lr_max = cfg.get("lr_max", 0.1f);
-            LOG4CXX_WARN(g_log_learner2, "Creating NA_RMSPROP GD (initial_learnrate:" << initial_learnrate << ", momentum:" << initial_momentum <<", l2decay:" << l2decay << ", delta:" << delta << ", grad_avg:" << grad_avg << ", step_adapt:" << step_adapt << ", lr_min:" << lr_min << ", lr_max:" << lr_max << ")");
+            LOG4CXX_INFO(g_log_learner2, "Creating NA_RMSPROP GD (initial_learnrate:" << initial_learnrate << ", momentum:" << initial_momentum <<", l2decay:" << l2decay << ", delta:" << delta << ", grad_avg:" << grad_avg << ", step_adapt:" << step_adapt << ", lr_min:" << lr_min << ", lr_max:" << lr_max << ")");
             MAKE_GD(na_rmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  initial_momentum, grad_avg,step_adapt,delta,lr_max,lr_min);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
@@ -244,7 +244,7 @@ namespace cuvnet
             float delta_min = cfg.get("delta_min", 0.00001f);
             float delta_max = cfg.get("delta_max", 5.0f);
             float l1_penalty = cfg.get("l1_penalty", 0.f);
-            LOG4CXX_WARN(g_log_learner2, "Creating RRMSPROP GD (initial_learnrate:" << initial_learnrate << ", l2decay:" << l2decay << ", l1_penalty:"<< l1_penalty <<", delta:" << delta << ", grad_avg:" << grad_avg <<  ", eta_p:" << eta_p << ", eta_m:" << eta_m << ", delta_min:" << delta_min << ", delta_max:" << delta_max << ")");
+            LOG4CXX_INFO(g_log_learner2, "Creating RRMSPROP GD (initial_learnrate:" << initial_learnrate << ", l2decay:" << l2decay << ", l1_penalty:"<< l1_penalty <<", delta:" << delta << ", grad_avg:" << grad_avg <<  ", eta_p:" << eta_p << ", eta_m:" << eta_m << ", delta_min:" << delta_min << ", delta_max:" << delta_max << ")");
             MAKE_GD(rrmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, l1_penalty, grad_avg, delta/*, eta_p, eta_m, delta_max, delta_min*/);
             gd->set_epoch(start_epoch);
             gd->set_update_every(0);
@@ -271,7 +271,7 @@ namespace cuvnet
         int patience = cfg.get("patience", 100);
         int max_steps = cfg.get("max_steps", 0);
         float lr_fact = cfg.get("lr_fact", 0.5f);
-        LOG4CXX_WARN(g_log_learner2, "Setting up Early Stopper (watch:"<<watch
+        LOG4CXX_INFO(g_log_learner2, "Setting up Early Stopper (watch:"<<watch
                 <<", thresh:"<< thresh
                 << ", every: "<< every 
                 << ", multiply:"<<multiply
@@ -314,7 +314,7 @@ namespace cuvnet
         float lr_fact = cfg.get("lr_fact", -1.f);
         if(lr_fact > 0)
             cc->decrease_lr(max_steps, lr_fact);
-        LOG4CXX_WARN(g_log_learner2, "Setting up Convergence Checker ("
+        LOG4CXX_INFO(g_log_learner2, "Setting up Convergence Checker ("
                 <<  "watch: " << watch
                 << " thresh: " << thresh
                 << " min_wups: " << min_wups
@@ -342,7 +342,7 @@ namespace cuvnet
     learner2::register_validation_batchsize(model& m , gradient_descent& gd, early_stopper& es, const ptree& cfg){
         unsigned int bs_train = cfg.get("batchsize", -1);
         unsigned int bs_valid = cfg.get("batchsize_valid", bs_train);
-        LOG4CXX_WARN(g_log_learner2, "Setting up batch sizes, validation: " << bs_valid << " train: "<<bs_train);
+        LOG4CXX_INFO(g_log_learner2, "Setting up batch sizes, validation: " << bs_valid << " train: "<<bs_train);
 
         gradient_descent* gdp = &gd;
 
@@ -406,7 +406,7 @@ namespace cuvnet
             float initial = cfg.get("initial", gd.learnrate());
             float final   = cfg.get("final", initial * 0.01f);
             int   duration = cfg.get("duration", max_epochs);
-            LOG4CXX_WARN(g_log_learner2, "Setting up linear learnrate schedule (initial: "<<initial
+            LOG4CXX_INFO(g_log_learner2, "Setting up linear learnrate schedule (initial: "<<initial
                     << ", final:" << final
                     << ", duration:"<<duration<<")");
             hs.reset(new schedules::linear_learnrate_schedule(&gd, initial, final, duration));
@@ -438,7 +438,7 @@ namespace cuvnet
             float initial = cfg.get("initial", gd->momentum());
             float final   = cfg.get("final", 0.9f);
             int   duration = cfg.get("duration", max_epochs);
-            LOG4CXX_WARN(g_log_learner2, "Setting up linear momentum schedule (initial: "<<initial
+            LOG4CXX_INFO(g_log_learner2, "Setting up linear momentum schedule (initial: "<<initial
                     << ", final:" << final
                     << ", duration:"<<duration<<")");
             hs.reset(new schedules::linear_momentum_schedule(gd, initial, final, duration));
@@ -464,7 +464,7 @@ namespace cuvnet
     ptree 
     learner2::learn_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result){
         float target_loss = result.get<float>("gd.early_stopper.optimal_training_error");
-        LOG4CXX_WARN(g_log_learner2, "multistage_learner: learn_until_previous_loss_reached, target_loss:"<<target_loss);
+        LOG4CXX_INFO(g_log_learner2, "multistage_learner: learn_until_previous_loss_reached, target_loss:"<<target_loss);
         ptree cfg2 = cfg;
         cfg2.put("early_stopper.active", false);
         cfg2.put("min_loss_stopper.active", true);
@@ -550,7 +550,7 @@ namespace cuvnet
             float current_loss = ba::mean(s_valperf);
             float prev_loss = cfg.get("xval.retrain_all_thresh", INT_MAX);
             if(current_loss < prev_loss){
-                LOG4CXX_WARN(g_log_xval2, "retrain on TRAINVAL, current_loss:"<<current_loss<<", prev_loss:"<<prev_loss);
+                LOG4CXX_INFO(g_log_xval2, "retrain on TRAINVAL, current_loss:"<<current_loss<<", prev_loss:"<<prev_loss);
                 m.reset_params();
                 ptree cfg2 = cfg;
                 cfg2.put("train_dataset", (int)CM_TRAINALL); // required for multi-stage learning
@@ -561,7 +561,7 @@ namespace cuvnet
                 result.put_child("xval.retrain_all.training", tres);
                 result.put_child("xval.retrain_all.test", pres);
             }else{
-                LOG4CXX_WARN(g_log_xval2, "NO retrain on TRAINVAL, current_loss:"<<current_loss<<", prev_loss:"<<prev_loss);
+                LOG4CXX_INFO(g_log_xval2, "NO retrain on TRAINVAL, current_loss:"<<current_loss<<", prev_loss:"<<prev_loss);
             }
         }
 
@@ -583,6 +583,7 @@ namespace cuvnet
             int batch_size_test = cfg.get("batchsize_test", batch_size);
            
             if(batch_size_test != batch_size){
+                LOG4CXX_INFO(g_log_learner2, "Predict: changing batch_size to: " << batch_size_test);
                 m.set_batchsize(batch_size_test);
                 batch_size = batch_size_test;
                 gd.repair_swiper();
@@ -639,7 +640,7 @@ namespace cuvnet
         boost::shared_ptr<cuvnet::network_communication::client> client;
         boost::shared_ptr<cuvnet::network_communication::param_synchronizer> paramsync;
         if(nc_cfg){
-            LOG4CXX_WARN(g_log_learner2, "Setting up netcom " <<nc_cfg->get<std::string>("host") << "/"
+            LOG4CXX_INFO(g_log_learner2, "Setting up netcom " <<nc_cfg->get<std::string>("host") << "/"
                     << nc_cfg->get<std::string>("db")<<"/"
                     << nc_cfg->get<std::string>("key") << "("
                     << nc_cfg->get<std::string>("push_steps") << " push, "
@@ -679,7 +680,7 @@ namespace cuvnet
         int time_limit = cfg.get("time_limit", INT_MAX);
         int batch_size = cfg.get("batchsize", -1);
         int max_epochs = cfg.get("gd.max_epochs", 5);
-        LOG4CXX_WARN(g_log_learner2, "batchsize:"<< batch_size<< ", max_epochs:"<<max_epochs<<", time_limit:"<<time_limit);
+        LOG4CXX_INFO(g_log_learner2, "batchsize:"<< batch_size<< ", max_epochs:"<<max_epochs<<", time_limit:"<<time_limit);
 
         boost::shared_ptr<schedules::hyperparam_schedule> learnrate_schedule =
             get_learnrate_schedule(*m_gd, max_epochs, cfg.get_child("learnrate_schedule", ptree()));
@@ -697,7 +698,7 @@ namespace cuvnet
         boost::shared_ptr<stop_when_target_loss_reached> swtlr;
         if(target_loss){
             swtlr.reset(new stop_when_target_loss_reached(*m_gd, *m_mon, *target_loss));
-            LOG4CXX_WARN(g_log_learner2,  "Setting up Min Loss Stopper (active:" << mls_active << ", target_loss:" << target_loss << ")");
+            LOG4CXX_INFO(g_log_learner2,  "Setting up Min Loss Stopper (active:" << mls_active << ", target_loss:" << target_loss << ")");
         }
 
         m_gd->get_swiper().dump((tmppath / "loss.dot").string(), false);
@@ -770,7 +771,7 @@ namespace cuvnet
         }
 
         ~save_stage_dataset(){
-            LOG4CXX_WARN(g_log_mslearner, "save_stage_dataset: saved "<<m_n_batches<<" batches of stage `"
+            LOG4CXX_INFO(g_log_mslearner, "save_stage_dataset: saved "<<m_n_batches<<" batches of stage `"
                     <<m_stagename<<"' to `"<<(m_path + "/"+ m_dataset + "-" + m_stagename + ".ser"));
         }
     };
@@ -808,7 +809,7 @@ namespace cuvnet
             if(!stop)
                 n_batches ++;
         }while(!stop);
-        LOG4CXX_WARN(g_log_mslearner, " loaded " << n_batches<<" batches from `"<<filename<<"'");
+        LOG4CXX_INFO(g_log_mslearner, " loaded " << n_batches<<" batches from `"<<filename<<"'");
     }
 
     void multistage_dataset::load_batch(unsigned int epoch, unsigned int batch){
@@ -832,7 +833,7 @@ namespace cuvnet
 
         typedef multistage_model::stage_type stage_type;
         stage_type n_stages = m.n_stages();
-        LOG4CXX_WARN(g_log_mslearner, "fitting a model with "<<n_stages<<" stages");
+        LOG4CXX_INFO(g_log_mslearner, "fitting a model with "<<n_stages<<" stages");
 
         cv_mode train_ds = (cv_mode)cfg.get("train_dataset", (int)CM_TRAIN);
 
@@ -846,7 +847,7 @@ namespace cuvnet
             // take params from a subtree named like the stage if it exists
             stage_name = "stage_" + boost::lexical_cast<std::string>(stage);
             log4cxx::NDC ndc(stage_name);
-            LOG4CXX_WARN(g_log_mslearner, "fitting `"<<stage_name<<"'");
+            LOG4CXX_INFO(g_log_mslearner, "fitting `"<<stage_name<<"'");
             ptree stagecfg = cfg.get_child(stage_name, cfg);
             ptree res = learner2::fit(m, stagecfg);
             stageres.put_child(stage_name, res);
@@ -956,12 +957,12 @@ namespace cuvnet
             case CM_TEST: ds = "TEST"; break;
         }
         if(!m_stage_datasets[mode]){
-            //LOG4CXX_WARN(g_log_mslearner, "_switch_dataset ORIG `"<<ds<<"':"<<split);
-            //LOG4CXX_WARN(g_log, "switch_dataset virtual: mode:"<<mode<<" split:"<<split);
+            //LOG4CXX_INFO(g_log_mslearner, "_switch_dataset ORIG `"<<ds<<"':"<<split);
+            //LOG4CXX_INFO(g_log, "switch_dataset virtual: mode:"<<mode<<" split:"<<split);
             switch_dataset(mode, split);
         }
         else{
-            //LOG4CXX_WARN(g_log_mslearner, "_switch_dataset STAGE `"<<ds<<"':"<<split);
+            //LOG4CXX_INFO(g_log_mslearner, "_switch_dataset STAGE `"<<ds<<"':"<<split);
             m_current_dataset = m_stage_datasets[mode];
         }
     }
@@ -991,7 +992,7 @@ namespace cuvnet
                 +stage_name
                 +".gd.early_stopper.optimal_training_error");
             ptree stagecfg = cfg.get_child(stage_name, cfg);
-            LOG4CXX_WARN(g_log_mslearner, "learn_until_previous_loss_reached "<<stage_name<<", target_loss:"<<target_loss);
+            LOG4CXX_INFO(g_log_mslearner, "learn_until_previous_loss_reached "<<stage_name<<", target_loss:"<<target_loss);
             stagecfg.put("early_stopper.active", false);
             stagecfg.put("min_loss_stopper.active", true);
             stagecfg.put("min_loss_stopper.target_loss", target_loss);
@@ -1001,7 +1002,7 @@ namespace cuvnet
         cfg2.put("train_dataset", cfg.get("train_dataset", (int)CM_TRAIN));
         ptree retrain_all_res = fit(m, cfg2);
 
-        LOG4CXX_WARN(g_log_mslearner, "learn_until_previous_loss_reached DONE");
+        LOG4CXX_INFO(g_log_mslearner, "learn_until_previous_loss_reached DONE");
         return retrain_all_res;
     }
 }

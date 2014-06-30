@@ -67,11 +67,12 @@ namespace cuvnet { namespace image_datasets {
             dest.push_back(imi);
             cnt_imgs ++;
         }
-        LOG4CXX_WARN(m_log, "MetaData loaded:" << filename << " cnt_imgs:" << cnt_imgs << " cnt_objs:" << cnt_objs);
+        LOG4CXX_INFO(m_log, "MetaData loaded:" << filename << " cnt_imgs:" << cnt_imgs << " cnt_objs:" << cnt_objs);
     }
 
     image_dataset::image_dataset(const std::string& filename, bool shuffle){
         m_log = log4cxx::Logger::getLogger("image_dataset");
+        LOG4CXX_INFO(m_log, "MetaData:" << filename << " created; shuffle: "<< shuffle);
         read_meta_info(m_dataset, filename);
         for (unsigned int i = 0; i < m_dataset.size(); ++i)
             m_indices.push_back(i);
