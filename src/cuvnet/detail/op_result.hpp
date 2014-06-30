@@ -76,6 +76,7 @@ namespace cuvnet
                     BOOST_FOREACH(boost::weak_ptr<op_param<T> >& pu, result_uses){
                         pu.lock()->remove(this);
                     }
+                    this->op.reset();
                     result_uses.clear();
                 }
                 void remove(op_param<T>* x, bool reset_if_last=true){
