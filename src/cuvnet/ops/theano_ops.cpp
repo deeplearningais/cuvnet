@@ -7,11 +7,13 @@ namespace cuvnet
     void ShuffleDim::fprop(){
         using namespace cuv;
         using namespace cuv::theano_ops;
+#ifdef CUVNET_USE_CPU
+        throw std::runtime_error("ShuffleDim fprop: not implemented for CPU");
+#else
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
 
         const value_type& inp = p0.value.cdata();
-
         if(r0.can_overwrite_directly()){
             dim_shuffle_vec(r0.overwrite_or_add_value().data(), inp, m_pattern);
         }else{
@@ -23,12 +25,16 @@ namespace cuvnet
 
         if(!p0.need_derivative)
             p0.value.reset();
+#endif
     }
 
 
     void ShuffleDim::bprop(){
         using namespace cuv;
         using namespace cuv::theano_ops;
+#ifdef CUVNET_USE_CPU
+        throw std::runtime_error("ShuffleDim bprop: not implemented for CPU");
+#else
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
         assert(p0.need_derivative);
@@ -43,6 +49,7 @@ namespace cuvnet
         }
         r0.delta.reset();
         p0.value.reset(); // now we don't need it anymore ;)
+#endif
     }
 
     void ShuffleDim::_determine_shapes(){
@@ -62,6 +69,9 @@ namespace cuvnet
     void FlipDims::fprop(){
         using namespace cuv;
         using namespace cuv::theano_ops;
+#ifdef CUVNET_USE_CPU
+        throw std::runtime_error("FlipDims fprop: not implemented for CPU");
+#else
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
 
@@ -78,6 +88,7 @@ namespace cuvnet
 
         if(!p0.need_derivative)
             p0.value.reset();
+#endif
     }
 
 
@@ -88,6 +99,9 @@ namespace cuvnet
         result_t::element_type& r0 = *m_results[0];
         assert(p0.need_derivative);
 
+#ifdef CUVNET_USE_CPU
+        throw std::runtime_error("FlipDims bprop: not implemented for CPU");
+#else
         if(p0.can_overwrite_directly()){
             flip_dims_vec(*p0.overwrite_or_add_value(), r0.delta.cdata(), m_pattern);
         }else{
@@ -96,6 +110,7 @@ namespace cuvnet
             flip_dims_vec(dres, r0.delta.cdata(), m_pattern);
             p0.push(res);
         }
+#endif
         r0.delta.reset();
         p0.value.reset(); // now we don't need it anymore ;)
     }

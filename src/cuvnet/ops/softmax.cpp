@@ -499,6 +499,8 @@ namespace cuvnet
         result_t::element_type& r1 = *m_results[1];
         assert( p0.need_derivative);
         assert(!p1.need_derivative); // cannot do that currently. Why should we? :)
+        assert( r0.need_result); // cannot derive for 2nd result!
+        assert(!r1.need_result); // cannot derive for 2nd result!
         
         unsigned int dim_other_axes;
         value_type v0 = p0.value.cdata();
@@ -589,6 +591,9 @@ namespace cuvnet
      ***********************************************/
 
     void MultinomialLogisticLoss2::fprop(){
+#ifdef CUVNET_USE_CPU
+        throw std::runtime_error("MultinomialLogisticLoss2 fprop: not implemented for CPU");
+#else
         using namespace cuv;
         using namespace cuv::libs::opt;
         param_t::element_type&  p0 = *m_params[0]; // estimator
@@ -640,9 +645,13 @@ namespace cuvnet
             p1.value.reset();
             m_softmaxed.reset();
         }
+#endif
     }
 
     void MultinomialLogisticLoss2::bprop(){
+#ifdef CUVNET_USE_CPU
+        throw std::runtime_error("MultinomialLogisticLoss2 bprop: not implemented for CPU");
+#else
         using namespace cuv;
         using namespace cuv::libs::opt;
         param_t::element_type&  p0 = *m_params[0]; // estimator
@@ -670,6 +679,7 @@ namespace cuvnet
             p0.push(m_softmaxed);
         }
         m_softmaxed.reset();
+#endif
     }
 
     void MultinomialLogisticLoss2::_determine_shapes(){

@@ -1,3 +1,4 @@
+#include <cuvnet/common.hpp>
 #include <cuvnet/op_utils.hpp>
 #include "convolve.hpp"
 
@@ -667,6 +668,9 @@ namespace cuvnet
      ***************************************************/
 
     void SeparableFilter1d::fprop(){
+#ifdef CUVNET_USE_CPU
+        throw std::runtime_error(" fprop: not implemented for CPU");
+#else
         using namespace cuv;
         using namespace cuv::libs;
         using namespace cuv::libs::nlmeans;
@@ -692,9 +696,13 @@ namespace cuvnet
             r0.push(v);
         }
         p0.value.reset();
+#endif
     }
 
     void SeparableFilter1d::bprop(){
+#ifdef CUVNET_USE_CPU
+        throw std::runtime_error("SeparableFilter1d bprop: not implemented for CPU");
+#else
         using namespace cuv;
         using namespace cuv::libs;
         using namespace cuv::libs::nlmeans;
@@ -720,6 +728,7 @@ namespace cuvnet
         }
         r0.delta.reset();
         p0.value.reset();
+#endif
     }
 
     void SeparableFilter1d::_determine_shapes(){
