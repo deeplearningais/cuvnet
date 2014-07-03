@@ -17,7 +17,9 @@ namespace {
 namespace cuvnet{ namespace derivative_testing {
 
     void ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params, bool verbose){
+        Tracer t_top(g_log, "ensure_no_state");
         { // forward pass
+            TRACE(g_log, "fprop");
             using namespace cuv;
             swp.fprop();
             tensor<float,host_memory_space> r0 = out->cdata().copy();
@@ -35,9 +37,11 @@ namespace cuvnet{ namespace derivative_testing {
             apply_scalar_functor(rdiff, SF_ABS);
             BOOST_CHECK_LT(maximum(rdiff), 0.00000001);
         }
+        Tracer t_bprop(g_log, "bprop");
         BOOST_FOREACH(Op* raw, params){
             using namespace cuv;
             ParameterInput* pi = dynamic_cast<ParameterInput*>(raw);
+            TRACE(g_log, "param_" + pi->name())
             BOOST_CHECK(pi != NULL);
             pi->reset_delta();
             swp.fprop();
@@ -173,10 +177,11 @@ namespace cuvnet{ namespace derivative_testing {
                 unsigned int n_inputs  = param->data().size();
                 unsigned int n_outputs = prod(op.result(result)->shape);
                 matrix J(n_outputs, n_inputs); J = 0.f;
+                TRACE(g_log, "wrt_" + param->name());
                 if(verbose)
                 {
-                LOG4CXX_INFO(g_log, "  -testing derivative w.r.t. "<<param->name());
-                LOG4CXX_INFO(g_log, "   Jacobi dims: "<<n_outputs<<" x "<<n_inputs);
+                    LOG4CXX_INFO(g_log, "  -testing derivative w.r.t. "<<param->name());
+                    LOG4CXX_INFO(g_log, "   Jacobi dims: "<<n_outputs<<" x "<<n_inputs);
                 }
                 for(unsigned int out=0;out<n_outputs;out++){
                     swipe.fprop();
@@ -234,10 +239,7 @@ namespace cuvnet{ namespace derivative_testing {
                     LOG4CXX_INFO(g_log, "   range(differences)="<<cuv::maximum(tmp)-cuv::minimum(tmp));
                 }
                 if(maxdiff>prec_){
-                    LOG4CXX_WARN(g_log, "   maxdiff="<<maxdiff<<", prec_="<<prec_);
-                    LOG4CXX_WARN(g_log, "   dumping Jacobi matrices: ");
-                    LOG4CXX_WARN(g_log, "   - analyticalJ.npy");
-                    LOG4CXX_WARN(g_log, "   - finitediffJ.npy");
+                    LOG4CXX_WARN(g_log, "   maxdiff="<<maxdiff<<", prec_="<<prec_ << " dumping Jacobi matrices (analyticalJ.npy, finitediffJ.npy)");
                     tofile("analyticalJ.npy", Jh);
                     tofile("finitediffJ.npy", J_t);
                 }
