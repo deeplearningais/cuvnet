@@ -152,7 +152,7 @@ namespace cuvnet
                 }
 
                 /**
-                 * Get a number of patterns from the queue.
+                 * Get a pattern from the queue.
                  * Blocks when queue size is less than n.
                  * You're responsible for deleting them once you're done.
                  *
@@ -171,11 +171,13 @@ namespace cuvnet
 
                     // retrieve object to return
                     boost::shared_ptr<pattern_type> ret 
-                        = m_queue->front()->get_for_processing();
+                        = m_queue.front()->get_for_processing();
 
                     // check whether the set is empty now
                     if(m_queue.front()->todo_size() == 0)
                         m_queue.pop();
+
+                    return ret;
                 }
         };
 
