@@ -909,7 +909,7 @@ namespace cuvnet
              * this template constructor provides perfect forwarding for all arguments.
              */
             template<typename... Params>
-                diff_recording_gradient_descent(Params... args)
+                diff_recording_gradient_descent(Params&&... args)
                 : BaseGradientDescent(args...)
                 {
                     m_active_ = true;
