@@ -15,9 +15,12 @@ SET(CUV_BASE_DIRECTORY "/home/local/cuv" CACHE STRING "Checkout directory for cu
 SET(CUV_BUILD_TYPE "debug" CACHE STRING "subdirectory of CUV_BASE_DIRECTORY containing build")
 SET(CUV_INCLUDE_DIR "${CUV_BASE_DIRECTORY}/src")
 SET(CUV_LIB_DIR "${CUV_BASE_DIRECTORY}/${CUV_BUILD_TYPE}/src/cuv"
-                "${CUV_BASE_DIRECTORY}/${CUV_BUILD_TYPE}/src/3rd_party/cuda_ndarray")
+                "${CUV_BASE_DIRECTORY}/${CUV_BUILD_TYPE}/src/3rd_party/cuda_ndarray"
+                "${CUV_BASE_DIRECTORY}/${CUV_BUILD_TYPE}/src/cuv_python"
+                "/usr/lib/python2.7/dist-packages/cuv_python"
+                )
 SET(CUV_LIBRARY cuv tp_theano)
-SET(CUV_PYTHON_LIBRARY "${CUV_BASE_DIRECTORY}/${CUV_BUILD_TYPE}/src/cuv_python/_cuv_python.so")
+SET(CUV_PYTHON_LIBRARY _cuv_python.so)
 
 INCLUDE_DIRECTORIES(${CUV_INCLUDE_DIR})
 LINK_DIRECTORIES(${CUV_LIB_DIR})
@@ -111,7 +114,7 @@ endif( PYTHONLIBS_FOUND )
 
 add_library(cuvnet SHARED ${CUVNET_SRC})
 
-TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx ${CUV_PYTHON_LIBRARY} ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES}  ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
+TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES}  ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
 
 #add_subdirectory(cuvnet)
 #add_subdirectory(third_party)
