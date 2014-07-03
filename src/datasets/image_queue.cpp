@@ -80,16 +80,14 @@ namespace cuvnet { namespace image_datasets {
         this->shuffle();
     }
 
-    image_loader::image_loader(image_queue<classification_pattern>* queue, const bbtools::image_meta_info* meta)
-        :m_queue(queue), m_meta(meta){}
 
-    sample_image_loader::sample_image_loader(image_queue<classification_pattern>* queue, 
+    sample_image_loader::sample_image_loader(patternset_ptr dst, 
             const bbtools::image_meta_info* meta, 
             unsigned int pattern_size,
             bool grayscale,
             unsigned int n_classes
             )
-        : image_loader(queue, meta)
+        : m_dst(dst), m_meta(meta)
         , m_grayscale(grayscale)
         , m_pattern_size(pattern_size)
         , m_n_classes(n_classes)
@@ -133,7 +131,7 @@ namespace cuvnet { namespace image_datasets {
 
         pat.img /= 255.f; 
         pat.img -= 0.5f;
-        m_queue->push(pat_ptr);
+        m_dst->push(pat_ptr, true);
     }
 
     namespace detail

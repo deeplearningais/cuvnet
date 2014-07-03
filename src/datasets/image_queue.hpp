@@ -12,6 +12,10 @@ namespace cuvnet
 
     namespace image_datasets
     {
+        struct base_image_queue{
+            virtual void notify_patternset_complete()=0;
+        };
+
         /// a fully loaded pattern.                                                                                                                                     
         struct classification_pattern{                                                                                                                                                 
             bbtools::image_meta_info meta_info;                                                                                                                         
@@ -19,6 +23,69 @@ namespace cuvnet
             cuv::tensor<float,cuv::host_memory_space> tch; ///< teacher
             cuv::tensor<float,cuv::host_memory_space> result; ///< result                                                                                               
         };       
+
+        /// set of patterns which belong together, eg sliding windows over the same image
+        template<class Pattern>
+        struct pattern_set{
+            /// the type of the patterns
+            typedef Pattern pattern_type;
+            
+            /// this gets notified when all patterns have been generated so that waiting threads can be woken up.
+            base_image_queue* m_queue;
+
+            /// this is set to true once m_todo has been filled completely
+            bool m_done_generating; 
+
+            /// patterns which have been generated, but still need to be
+            /// processed by the network
+            std::vector<boost::shared_ptr<Pattern> > m_todo;
+
+            /// patterns which are currently being processed by the network
+            std::vector<boost::shared_ptr<Pattern> > m_processing;
+
+            /// patterns which have been processed by the network
+            std::vector<boost::shared_ptr<Pattern> > m_done;
+
+            /// ctor.
+            pattern_set(base_image_queue* q):m_queue(q), m_done_generating(false){}
+
+            /// add a pattern to the TODO list
+            inline void push(boost::shared_ptr<pattern_type> p, bool last=false){
+                assert(!done_generating());
+                m_todo.push_back(p);
+                if(last)
+                    set_done_generating();
+            }
+
+            /// get a pattern for processing, also moves it from todo to processing internally.
+            inline boost::shared_ptr<Pattern> get_for_processing(){
+                assert(!m_todo.empty());
+                m_processing.push_back(m_todo.back());
+                m_todo.pop_back();
+                return m_processing.back();
+            }
+
+            /// tell the pattern_set that the pattern p can be moved from processing to done.
+            inline void notify_processed(boost::shared_ptr<Pattern> p){
+                typename std::vector<boost::shared_ptr<Pattern> >::iterator it 
+                    = m_processing.find(p);
+                assert(it != m_processing.end());
+                m_processing.erase(it);
+                m_done.push_back(p);
+            }
+
+            /// this is a special marker pattern which can be put in the queue to signal the end of a loop through the dataset.
+            inline bool is_end_marker(){
+                return m_done_generating == true 
+                    && m_todo.size() == 0 
+                    && m_processing.size() == 0
+                    && m_done.size() == 0;
+            }
+
+            inline void set_done_generating(){ m_done_generating = true; m_queue->notify_patternset_complete(); }
+            inline bool done_generating()const{ return m_done_generating; }
+            inline size_t todo_size()const{return m_todo.size();}
+        };
 
 
         /** a convenience wrapper around std::queue, which provides a mutex and
@@ -28,14 +95,16 @@ namespace cuvnet
          * The patterns can then be processed in a batch fashion by popping
          * many at a time.
          */
-        template<class PatternType>
-        class image_queue{
+        template<class PatternSetType>
+        class image_queue : public base_image_queue {
+            public:
+                typedef image_queue<PatternSetType> my_type;
+                typedef typename PatternSetType::pattern_type pattern_type;
+                typedef PatternSetType patternset_type;
             private:
-                typedef image_queue<PatternType> my_type;
                 mutable boost::mutex m_mutex;
                 boost::condition_variable m_cond;
-                int m_patterns_to_epoch_end;
-                std::queue<boost::shared_ptr<PatternType> > m_queue;
+                std::queue<boost::shared_ptr<PatternSetType> > m_queue;
                 bool m_signal_restart;
                 log4cxx::LoggerPtr m_log;
             public:
@@ -43,14 +112,15 @@ namespace cuvnet
                 :m_signal_restart(signal_restart){
                     m_log = log4cxx::Logger::getLogger("image_queue");
                     LOG4CXX_INFO(m_log, "Creating image queue. signal_restart: " << signal_restart);
-                    m_patterns_to_epoch_end = -1;
                 }
 
-                void on_epoch_ends(){
-                    m_patterns_to_epoch_end = size();
-                }
-
-                void push(boost::shared_ptr<PatternType> pat, bool lock=true){ 
+                /**
+                 * New patternsets should be pushed by the thread creating the jobs.
+                 * Once all the tasks inside a patternset are generated, the
+                 * image loader should call notify_patternset_complete(), so
+                 * that waiting threads are woken up.
+                 */
+                void push(boost::shared_ptr<PatternSetType> pat, bool lock=true){ 
                     if(!lock){
                         m_queue.push(pat); 
                         m_cond.notify_one();
@@ -60,6 +130,9 @@ namespace cuvnet
                         boost::mutex::scoped_lock l(m_mutex);
                         m_queue.push(pat); 
                     }
+                }
+
+                virtual void notify_patternset_complete() override {
                     m_cond.notify_one();
                 }
 
@@ -68,8 +141,9 @@ namespace cuvnet
                     return m_queue.size();
                 }
                 /// return whether size is >= value
-                bool size_ge_val(size_t value)const{
-                    return m_queue.size() >= value;
+                bool can_pop()const{
+                    return m_queue.size() >= 1
+                        && m_queue.front()->done_generating();
                 }
 
                 /// remove all patterns from the queue
@@ -85,21 +159,23 @@ namespace cuvnet
                  * @param dest where to put the patterns
                  * @param n the number of patterns to get
                  */
-                void pop(std::list<boost::shared_ptr<PatternType> >& dest, unsigned int n)
-                {
+                boost::shared_ptr<pattern_type> 
+                pop(){
                     boost::mutex::scoped_lock lock(m_mutex);
-                    m_cond.wait(lock, boost::bind(&my_type::size_ge_val, this, n));
+                    m_cond.wait(lock, boost::bind(&my_type::can_pop, this));
 
-                    for (unsigned int i = 0; i < n; ++i) {
-                        dest.push_back(m_queue.front());
+                    if(m_queue.front()->is_end_marker() && m_signal_restart){
                         m_queue.pop();
-                        if(m_patterns_to_epoch_end == 0 && m_signal_restart){
-                            m_patterns_to_epoch_end = -1;
-                            LOG4CXX_INFO(m_log, "Dataset throws epoch_end exception");
-                           throw epoch_end();
-                        }else if(m_patterns_to_epoch_end > 0)
-                            m_patterns_to_epoch_end--;
+                        throw epoch_end();
                     }
+
+                    // retrieve object to return
+                    boost::shared_ptr<pattern_type> ret 
+                        = m_queue->front()->get_for_processing();
+
+                    // check whether the set is empty now
+                    if(m_queue.front()->todo_size() == 0)
+                        m_queue.pop();
                 }
         };
 
@@ -134,8 +210,10 @@ namespace cuvnet
                  * shuffle indices.
                  */
                 inline void shuffle(){
-                    if(m_shuffle)
+                    if(m_shuffle){
+                        LOG4CXX_INFO(m_log, "Shuffling.");
                         std::random_shuffle(m_indices.begin(), m_indices.end());
+                    }
                 }
                
                 /**
@@ -146,36 +224,16 @@ namespace cuvnet
                 }
         };
 
-        /**
-         * Base class of methods that transform a bbtools::image_meta_info into
-         * a (series of) instances of type pattern.
-         *
-         * All patterns generated are added to an image_queue with locking, so
-         * that many image_loader instances can work in parallel.
-         *
-         * The meta-data that is processed by the image loader can be provided
-         * e.g. by instances of the image_dataset class.
-         */
-        class image_loader{
-            protected:
-                image_queue<classification_pattern>* m_queue;               ///< where to put loaded patterns
-                const bbtools::image_meta_info* m_meta;      ///< meta-infos for the image to be processed
-
-            public:
-                /**
-                 * ctor.
-                 * @param queue where to store patterns
-                 * @param meta the meta-infos of the image to be loaded
-                 */
-                image_loader(image_queue<classification_pattern>* queue, const bbtools::image_meta_info* meta);
-                virtual void operator()()=0;
-        };
-
         /** 
          * Loads one image into a single pattern. 
          */
-        class sample_image_loader : image_loader{
+        class sample_image_loader{
             private:
+                typedef pattern_set<classification_pattern> patternset_type;
+                typedef boost::shared_ptr<patternset_type> patternset_ptr;
+                patternset_ptr m_dst;
+                const bbtools::image_meta_info* m_meta;      ///< meta-infos for the image to be processed
+
                 bool m_grayscale;
                 unsigned int m_pattern_size;
                 unsigned int m_n_classes;
@@ -188,13 +246,11 @@ namespace cuvnet
                  * @param grayscale if true, discard color information
                  * @param n_classes the number of classes that can be distinguished (=number of output maps).
                  */
-                sample_image_loader(image_queue<classification_pattern>* queue, 
+                sample_image_loader(patternset_ptr dst,
                         const bbtools::image_meta_info* meta, 
                         unsigned int pattern_size, 
                         bool grayscale,
                         unsigned int n_classes);
-                sample_image_loader(image_queue<classification_pattern>* queue, 
-                        const bbtools::image_meta_info* meta);
 
                 virtual void operator()();
         };
@@ -242,18 +298,41 @@ namespace cuvnet
         class loader_pool{
             private:
                 typedef loader_pool<Queue,Dataset,WorkerFactory> my_type;
-                Queue* m_queue;
+                typedef typename Queue::patternset_type patternset_type;
+
+                /// this keeps the results of the worker processing, which can
+                /// be then processed by the network
+                Queue* m_result_queue;
+
+                /// contains references (such as filenames) to the data vectors
+                /// which are stored in some mass memory.
                 Dataset* m_dataset;
 
+                /// contains all the worker threads
                 boost::thread m_pool_thread;
+
+                /// if true, the workers have just received jobs and we
+                /// shouldn't create new jobs until this variable was set to
+                /// false and the result queue size is smaller than
+                /// m_min_pipe_len.
                 bool m_running;
                 bool m_request_stop;
 
+                /// Usually a function that creates worker jobs.
+                /// If your workers need parameters, this is the way to pass
+                /// them. The worker factory gets passed two parameters,
+                /// the pattern_set to work on and a pointer to the dataset
+                /// element to be processed.
                 WorkerFactory m_worker_factory;
+
                 log4cxx::LoggerPtr m_log;
 
+                /// The queue should never have less than m_min_pipe_len and
+                /// never more than  m_max_pipe_len elements. Due to parallel
+                /// processing, this cannot be guaranteed exactly.
                 unsigned int m_min_pipe_len, m_max_pipe_len;
 
+                /// this keeps the jobs to be processed by the worker threads
                 detail::asio_queue m_asio_queue;
                 void on_stop(){
                     m_running = false;
@@ -270,7 +349,7 @@ namespace cuvnet
                  * @param max_queue_len maximal length of the queue
                  */
                 loader_pool(Queue& queue, unsigned int n_threads, Dataset& ds, WorkerFactory worker_factory, size_t min_queue_len=32, size_t max_queue_len=32*3)
-                    : m_queue(&queue)
+                    : m_result_queue(&queue)
                     , m_dataset(&ds)
                     , m_running(false)
                     , m_request_stop(false)
@@ -311,16 +390,19 @@ namespace cuvnet
                     unsigned int cnt = 0;
                     m_running = false;
                     while(!m_request_stop){
-                        unsigned int size = m_queue->size();
+                        unsigned int size = m_result_queue->size();
                         if(size < m_min_pipe_len && !m_running){
                             for (unsigned int i = 0; i < m_min_pipe_len && i + size < m_max_pipe_len; ++i)
                             {
-                                m_asio_queue.post(m_worker_factory(m_queue, &m_dataset->get(cnt)));
+                                boost::shared_ptr<patternset_type> todo
+                                    = boost::make_shared<patternset_type>(m_result_queue);
+                                m_result_queue->push(todo);
+
+                                m_asio_queue.post(m_worker_factory(todo, &m_dataset->get(cnt)));
                                 cnt = (cnt+1) % m_dataset->size();
                                 if(cnt == 0){
-                                    LOG4CXX_INFO(m_log, "Roundtrip through dataset (" << m_dataset->size()<< ") completed. Shuffling.");
+                                    LOG4CXX_INFO(m_log, "Roundtrip through dataset (" << m_dataset->size()<< ") completed.");
                                     m_dataset->shuffle();
-                                    m_asio_queue.post(boost::bind(&Queue::on_epoch_ends, m_queue));
                                 }
                             }
 

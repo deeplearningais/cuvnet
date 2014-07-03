@@ -23,9 +23,9 @@ struct image_loader_factory{
     image_loader_factory() { }
 
     sample_image_loader
-    operator()(image_queue<classification_pattern>* q, 
+    operator()(boost::shared_ptr<pattern_set<classification_pattern> > p, 
                 const bbtools::image_meta_info* meta){
-        return sample_image_loader(q, meta, 128, true, 4);
+        return sample_image_loader(p, meta, 128, true, 4);
     }
 };
 
@@ -47,24 +47,29 @@ BOOST_AUTO_TEST_CASE( image_loading_and_queueing ){
 
     for (int grayscale = 0; grayscale < 2; ++grayscale)
     {
-        image_queue<classification_pattern> q(false);
-        sample_image_loader ld(&q, &ids.get(0), 128, grayscale, 4);
+        image_queue<pattern_set<classification_pattern> > q(false);
+        boost::shared_ptr<pattern_set<classification_pattern> > pat
+            (new pattern_set<classification_pattern>(&q));
+        // this is the job performed by the async image_queue
+        q.push(pat);
+        sample_image_loader ld(pat, &ids.get(0), 128, grayscale, 4);
 
         ld(); // load a single image
 
         BOOST_CHECK_EQUAL(1, q.size());
+        BOOST_CHECK(q.can_pop());
 
-        std::list<boost::shared_ptr<classification_pattern> > L;
-        q.pop(L, 1);
+        BOOST_CHECK_EQUAL(1, pat->todo_size());
+        BOOST_CHECK(pat->done_generating());
 
         unsigned int ndims = grayscale ? 1 : 3;
-        BOOST_CHECK_EQUAL(ndims, L.front()->img.shape(0));
-        BOOST_CHECK_EQUAL(128, L.front()->img.shape(1));
-        BOOST_CHECK_EQUAL(128, L.front()->img.shape(2));
+        BOOST_CHECK_EQUAL(ndims, pat->m_todo.front()->img.shape(0));
+        BOOST_CHECK_EQUAL(128, pat->m_todo.front()->img.shape(1));
+        BOOST_CHECK_EQUAL(128, pat->m_todo.front()->img.shape(2));
     }
 
     // load a whole bunch of images
-    image_queue<classification_pattern> q(false);
+    image_queue<pattern_set<classification_pattern> > q(false);
     auto pool = make_loader_pool(2, q, ids, image_loader_factory(), 2, 2);
 
     pool->start();
