@@ -164,9 +164,12 @@ namespace cuvnet
                     boost::mutex::scoped_lock lock(m_mutex);
                     m_cond.wait(lock, boost::bind(&my_type::can_pop, this));
 
-                    if(m_queue.front()->is_end_marker() && m_signal_restart){
+                    if(m_queue.front()->is_end_marker()){
                         m_queue.pop();
-                        throw epoch_end();
+                        if(m_signal_restart)
+                            throw epoch_end();
+                        else
+                            m_cond.wait(lock, boost::bind(&my_type::can_pop, this));
                     }
 
                     // retrieve object to return
