@@ -18,7 +18,7 @@
 
 namespace cuvnet
 {
-    Logger::Logger(const std::string& fn){
+    Logger::Logger(const std::string& fn, int verbosity){
         using namespace log4cxx;
     
         xml::XMLLayoutPtr myXMLLayoutPtr = new xml::XMLLayout();
@@ -30,8 +30,18 @@ namespace cuvnet
         //PatternLayoutPtr myLayoutPtr = new PatternLayout("%d{ISO8601} %-5p [%t] %x %c - %m%n");
         PatternLayoutPtr myLayoutPtr = new PatternLayout("%d{ISO8601} %-5p %x %c - %m%n");
         ConsoleAppenderPtr myAppenderPtr = new ConsoleAppender(myLayoutPtr);
-        myAppenderPtr->setThreshold(Level::getInfo());
+        if(verbosity > 2)
+            myAppenderPtr->setThreshold(Level::getDebug());
+        else if(verbosity > 1)
+            myAppenderPtr->setThreshold(Level::getInfo());
+        else if(verbosity > 0)
+            myAppenderPtr->setThreshold(Level::getWarn());
+        else
+            myAppenderPtr->setThreshold(Level::getError());
         //FileAppenderPtr myFileAppenderPtr = new FileAppender(myLayoutPtr, "log.txt", false, true, 1024);
+        
+        // do not log DEBUG messages to XML
+        //myXMLFileAppenderPtr->setThreshold(Level::getInfo());
 
         char* hn = new char[64];
         gethostname(hn, 64);

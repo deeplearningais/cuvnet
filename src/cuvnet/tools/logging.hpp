@@ -24,7 +24,7 @@ namespace cuvnet
              *
              * @param fn file to write the log to
 			 */
-			Logger(const std::string& fn = "log.xml");
+			Logger(const std::string& fn = "log.xml", int verbosity=1);
 	};
 
 #define TRACE(logger, msg) Tracer _trace(logger, msg);
