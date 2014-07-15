@@ -41,7 +41,7 @@ namespace cuvnet
             std::vector<boost::shared_ptr<Pattern> > m_todo;
 
             /// patterns which are currently being processed by the network
-            std::vector<boost::shared_ptr<Pattern> > m_processing;
+            std::vector<boost::weak_ptr<Pattern> > m_processing;
 
             /// patterns which have been processed by the network
             std::vector<boost::shared_ptr<Pattern> > m_done;
@@ -60,15 +60,24 @@ namespace cuvnet
             /// get a pattern for processing, also moves it from todo to processing internally.
             inline boost::shared_ptr<Pattern> get_for_processing(){
                 assert(!m_todo.empty());
-                m_processing.push_back(m_todo.back());
+                boost::shared_ptr<pattern_type> pat = m_todo.back();
+                m_processing.push_back(boost::weak_ptr<pattern_type>(pat));
                 m_todo.pop_back();
-                return m_processing.back();
+                return pat;
             }
+
+            struct cmp_weak_strong{
+                const boost::shared_ptr<Pattern>& q;
+                cmp_weak_strong(const boost::shared_ptr<Pattern>& _q):q(_q){}
+                bool operator()(const boost::weak_ptr<Pattern>& p){
+                    return p.lock() == q;
+                }
+            };
 
             /// tell the pattern_set that the pattern p can be moved from processing to done.
             inline void notify_processed(boost::shared_ptr<Pattern> p){
-                typename std::vector<boost::shared_ptr<Pattern> >::iterator it 
-                    = m_processing.find(p);
+                typename std::vector<boost::weak_ptr<Pattern> >::iterator it 
+                    = std::find_if(m_processing.begin(), m_processing.end(), cmp_weak_strong(p));
                 assert(it != m_processing.end());
                 m_processing.erase(it);
                 m_done.push_back(p);
@@ -164,7 +173,8 @@ namespace cuvnet
                     boost::mutex::scoped_lock lock(m_mutex);
                     m_cond.wait(lock, boost::bind(&my_type::can_pop, this));
 
-                    if(m_queue.front()->is_end_marker()){
+                    while(m_queue.front()->is_end_marker()){
+                        LOG4CXX_DEBUG(m_log, "encountered end marker");
                         m_queue.pop();
                         if(m_signal_restart)
                             throw epoch_end();
@@ -177,8 +187,9 @@ namespace cuvnet
                         = m_queue.front()->get_for_processing();
 
                     // check whether the set is empty now
-                    if(m_queue.front()->todo_size() == 0)
+                    if(m_queue.front()->todo_size() == 0){
                         m_queue.pop();
+                    }
 
                     return ret;
                 }
