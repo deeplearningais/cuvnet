@@ -1,4 +1,5 @@
 #include <iostream>
+#include <locale>
 #include <sstream>
 #include <boost/function.hpp>
 #include <boost/mpl/vector.hpp>
@@ -175,6 +176,7 @@ namespace cuvnet
         return f.evaluate();
     }
     std::string dot(Op& o, bool verbose){
+        std::locale::global(std::locale::classic());
         std::string path = boost::filesystem::unique_path("%%%%-%%%%-%%%%-%%%%.dot").string();
         
         std::ostringstream os(path.c_str());
