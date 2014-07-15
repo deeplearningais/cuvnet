@@ -1,0 +1,12 @@
+FIND_PACKAGE(PythonLibs 2.7)
+include_directories(${PYTHON_INCLUDE_DIRS})
+
+PYTHON_ADD_MODULE(pycuvnet SHARED pycuvnet.cpp)
+
+SET_TARGET_PROPERTIES(pycuvnet PROPERTIES OUTPUT_NAME "_pycuvnet")
+SET_TARGET_PROPERTIES(pycuvnet PROPERTIES PREFIX "")
+TARGET_LINK_LIBRARIES(pycuvnet 
+    cuvnet cuv pthread jpeg log4cxx
+    #profiler
+    ${Boost_LIBRARIES} ${PYTHON_LIBRARIES})
+CONFIGURE_FILE( ${CMAKE_CURRENT_SOURCE_DIR}/__init__.py ${CMAKE_CURRENT_BINARY_DIR} COPYONLY)
