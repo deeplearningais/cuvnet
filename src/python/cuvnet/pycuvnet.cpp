@@ -18,6 +18,7 @@ namespace bar = boost::archive;
 using namespace cuvnet;
 
 typedef boost::property_tree::ptree ptree;
+typedef boost::shared_ptr<Op> op_ptr;
 
 enum allo_t{
     AT_DEFAULT,
@@ -50,6 +51,11 @@ BOOST_PYTHON_MODULE(_pycuvnet)
         .value("POOLED_CUDA", AT_POOLED_CUDA)
         .value("NAN", AT_NAN);
 
+    enum_<cuv::alex_conv::pool_type>("pool_type")
+        .value("AVG", cuv::alex_conv::PT_AVG)
+        .value("MAX", cuv::alex_conv::PT_MAX)
+        ;
+
     def("initialize", &init_cuvnet, (args("dev")=0, args("seed")=42, 
                 args("alloc")=AT_POOLED_CUDA, 
                 args("loglevel")=0, args("logfile")=std::string("log.xml")));
@@ -69,27 +75,67 @@ BOOST_PYTHON_MODULE(_pycuvnet)
         .def("get_params", &models::model::get_params)
         ;
 
-    class_<models::mlp_layer, bases<models::model>, boost::shared_ptr<models::mlp_layer> >("mlp_layer", no_init)
+    class_<models::logistic_regression, boost::shared_ptr<models::logistic_regression> >("logistic_regression", init<op_ptr, op_ptr, bool>())
+        .def_readonly("estimator", &models::logistic_regression::m_estimator)
+        .def_readonly("W", &models::logistic_regression::m_W)
+        .def_readonly("bias", &models::logistic_regression::m_bias)
+        .def_readonly("loss", &models::logistic_regression::m_loss)
+        .def_readonly("cerr", &models::logistic_regression::m_classloss)
+        .def_readonly("y", &models::logistic_regression::m_Y)
+        .def_readonly("x", &models::logistic_regression::m_X)
+        ;
+
+
+    class_<models::mlp_layer_opts>("mlp_layer_opts")
+        .def("copy", &models::mlp_layer_opts::copy)
+        .def("verbose", &models::mlp_layer_opts::verbose, return_internal_reference<>())
+        .def("rectified_linear", &models::mlp_layer_opts::rectified_linear, return_internal_reference<>())
+        .def("tanh", &models::mlp_layer_opts::tanh, return_internal_reference<>())
+        .def("logistic", &models::mlp_layer_opts::logistic, return_internal_reference<>())
+        .def("with_bias", &models::mlp_layer_opts::with_bias, (args("b")=true, args("defaultval")=0.f), return_internal_reference<>())
+        .def("maxout", &models::mlp_layer_opts::maxout, (args("n")), return_internal_reference<>())
+        .def("dropout", &models::mlp_layer_opts::dropout, (args("b")=true), return_internal_reference<>())
+        .def("learnrate_factor", &models::mlp_layer_opts::learnrate_factor, (args("fW"), args("fB")=-1.f), return_internal_reference<>())
+        .def("group", &models::mlp_layer_opts::group, (args("name")="", args("unique")=true), return_internal_reference<>())
+        .def("weight_init_std", &models::mlp_layer_opts::weight_init_std, (args("std")), return_internal_reference<>())
+        ;
+
+
+    class_<models::conv_layer_opts>("conv_layer_opts")
+        .def("copy", &models::conv_layer_opts::copy)
+        .def("rectified_linear", &models::conv_layer_opts::linear, return_internal_reference<>())
+        .def("linear", &models::conv_layer_opts::linear, return_internal_reference<>())
+        .def("learnrate_factor", &models::conv_layer_opts::learnrate_factor, (args("fW"), args("fB")=-1.f), return_internal_reference<>())
+        .def("random_sparse", &models::conv_layer_opts::random_sparse, return_internal_reference<>())
+        .def("verbose", &models::conv_layer_opts::verbose, return_internal_reference<>())
+        .def("pool", &models::conv_layer_opts::pool, (args("pool_size"), args("pool_stride")=-1, args("pt")=cuv::alex_conv::PT_MAX), return_internal_reference<>())
+        .def("contrast_norm", &models::conv_layer_opts::contrast_norm, (args("n"), args("alpha")=0.001f, args("beta")=0.5f), return_internal_reference<>())
+        .def("response_norm", &models::conv_layer_opts::response_norm, (args("n"), args("alpha")=0.5f, args("beta")=0.5f), return_internal_reference<>())
+        .def("padding", &models::conv_layer_opts::padding, (args("i")=-1), return_internal_reference<>())
+        .def("symmetric_padding", &models::conv_layer_opts::symmetric_padding, (args("i")=-1), return_internal_reference<>())
+        .def("stride", &models::conv_layer_opts::stride, (args("i")=-1), return_internal_reference<>())
+        .def("n_groups", &models::conv_layer_opts::n_groups, (args("i")), return_internal_reference<>())
+        .def("n_filter_channels", &models::conv_layer_opts::n_filter_channels, (args("i")), return_internal_reference<>())
+        .def("partial_sum", &models::conv_layer_opts::partial_sum, (args("i")), return_internal_reference<>())
+        .def("with_bias", &models::conv_layer_opts::with_bias, (args("b")=true, args("defaultval")=0.f), return_internal_reference<>())
+        .def("maxout", &models::conv_layer_opts::maxout, (args("n")), return_internal_reference<>())
+        .def("dropout", &models::conv_layer_opts::dropout, (args("rate")=0.5f), return_internal_reference<>())
+        .def("group", &models::conv_layer_opts::group, (args("name")="", args("unique")=true), return_internal_reference<>())
+        .def("weight_init_std", &models::conv_layer_opts::weight_default_std, (args("std")), return_internal_reference<>())
+        ;
+
+
+    class_<models::mlp_layer, bases<models::model>, boost::shared_ptr<models::mlp_layer> >("mlp_layer", init<op_ptr, unsigned int, models::mlp_layer_opts>())
         .def_readonly("output", &models::mlp_layer::m_output)
         .def_readonly("linear_output", &models::mlp_layer::m_linear_output)
         .def_readonly("weights", &models::mlp_layer::m_W)
         .def_readonly("bias", &models::mlp_layer::m_bias)
         ;
 
-    class_<models::conv_layer, boost::shared_ptr<models::conv_layer> >("conv_layer", no_init)
+    class_<models::conv_layer, boost::shared_ptr<models::conv_layer> >("conv_layer", init<op_ptr,int,int,const models::conv_layer_opts&>())
         .def_readonly("input", &models::conv_layer::m_input)
         .def_readonly("output", &models::conv_layer::m_output)
         .def_readonly("weights", &models::conv_layer::m_weights)
         .def_readonly("bias", &models::conv_layer::m_bias)
         ;
-
-    class_<models::logistic_regression, boost::shared_ptr<models::logistic_regression> >("logistic_regression", no_init)
-        .def_readonly("estimator", &models::logistic_regression::m_estimator)
-        .def_readonly("W", &models::logistic_regression::m_W)
-        .def_readonly("bias", &models::logistic_regression::m_bias)
-        .def_readonly("loss", &models::logistic_regression::m_loss)
-        .def_readonly("y", &models::logistic_regression::m_Y)
-        ;
-
-
 }
