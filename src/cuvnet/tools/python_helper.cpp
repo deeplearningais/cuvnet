@@ -12,6 +12,7 @@
 #include <cuvnet/tools/normalization.hpp>
 #include <boost/python.hpp>
 #include <boost/python/register_ptr_to_python.hpp>
+#include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 #include <boost/python/list.hpp>
 #include "python_helper.hpp"
 
@@ -355,6 +356,9 @@ namespace cuvnet
                     , (arg("set_last_delta_to_one")=true))
             ;
 
+        class_<std::vector<Op*> >("OpPtrVec")
+            .def(boost::python::vector_indexing_suite<std::vector<Op*> >())
+            ;
         class_<gradient_descent, boost::shared_ptr<gradient_descent>, boost::noncopyable >
             ("gradient_descent", no_init)
             .def("__init__", make_constructor(
@@ -362,10 +366,20 @@ namespace cuvnet
                         , boost::python::default_call_policies()
                         , (arg("loss"), arg("result")=0, arg("params")=boost::python::list(),
                          arg("lr")=0.f, arg("wd")=0.f)))
+            .def(init<const boost::shared_ptr<Op>&, unsigned int, const std::vector<Op*>&, float, float>()
+                    //, boost::python::default_call_policies()
+                    //, (arg("loss"), arg("result"), arg("params"), arg("lr")=0.f, arg("wd")=0.f)
+                    )
             .add_property("swiper",
                     make_function(
                         &gradient_descent::get_swiper,
                         return_internal_reference<>()))
+            .def("batch_learning", 
+                        &gradient_descent::batch_learning,
+                        (arg("n_epochs"), arg("n_max_secs")=(int)1e6))
+            .def("minibatch_learning", 
+                        &gradient_descent::minibatch_learning,
+                        (arg("n_epochs"), arg("n_max_secs")=(int)1e6, arg("randomize")))
             ;
 
         class_<std::pair<float, float> >("float_pair", init<float, float>())

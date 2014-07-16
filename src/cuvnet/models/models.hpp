@@ -149,6 +149,7 @@ namespace cuvnet
             protected:
                 std::vector<model*> m_models;
 
+            public:
                 /** 
                  * add a model to the list of submodels.
                  * @param m  the model to be added

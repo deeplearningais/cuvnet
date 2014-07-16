@@ -66,16 +66,22 @@ BOOST_PYTHON_MODULE(_pycuvnet)
         .def_readonly("error", &models::model::error)
         .def_readonly("inputs", &models::model::get_inputs)
         .def("get_params", &models::model::get_params)
+        .def("reset_params", &models::model::reset_params)
+        .def("set_batchsize", &models::model::set_batchsize)
         ;
 
-    class_<models::metamodel<models::multistage_model>, bases<models::model>, 
-        boost::shared_ptr<models::metamodel<models::multistage_model> > >("multistage_metamodel", no_init)
+    typedef models::metamodel<models::multistage_model> metamodel;
+    class_<metamodel, bases<models::model>, boost::shared_ptr<metamodel> >("multistage_metamodel", init<>())
         .def_readonly("loss", &models::model::loss)
         .def_readonly("error", &models::model::error)
         .def("get_params", &models::model::get_params)
+        .def("register_submodel", &metamodel::register_submodel)
+        .def("deregister_submodel", &metamodel::deregister_submodel)
+        .def("clear_submodels", &metamodel::clear_submodels)
         ;
 
-    class_<models::logistic_regression, boost::shared_ptr<models::logistic_regression> >("logistic_regression", init<op_ptr, op_ptr, bool>())
+    class_<models::logistic_regression, bases<models::model>, boost::shared_ptr<models::logistic_regression> >("logistic_regression", init<op_ptr, op_ptr, bool>())
+        .def(init<op_ptr, op_ptr, int>())
         .def_readonly("estimator", &models::logistic_regression::m_estimator)
         .def_readonly("W", &models::logistic_regression::m_W)
         .def_readonly("bias", &models::logistic_regression::m_bias)
@@ -83,6 +89,12 @@ BOOST_PYTHON_MODULE(_pycuvnet)
         .def_readonly("cerr", &models::logistic_regression::m_classloss)
         .def_readonly("y", &models::logistic_regression::m_Y)
         .def_readonly("x", &models::logistic_regression::m_X)
+        ;
+
+    class_<models::linear_regression, bases<models::model>, boost::shared_ptr<models::linear_regression> >("linear_regression", init<op_ptr, op_ptr, bool>())
+        .def_readonly("W", &models::linear_regression::m_W)
+        .def_readonly("bias", &models::linear_regression::m_bias)
+        .def_readonly("loss", &models::linear_regression::m_loss)
         ;
 
 
