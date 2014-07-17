@@ -165,6 +165,7 @@ namespace cuvnet
                 typedef boost::shared_ptr<Op> op_ptr;
             public:
                 input_ptr m_W, m_bias;
+                boost::shared_ptr<Noiser> m_noiser;
                 op_ptr m_output, m_linear_output;
                 float m_bias_default_value;
                 float m_weight_init_std;
@@ -179,6 +180,7 @@ namespace cuvnet
                 virtual std::vector<Op*> get_params();
                 virtual void register_watches(monitor& mon);
                 virtual void reset_params();
+                virtual void set_predict_mode(bool b=true);
                 virtual ~mlp_layer(){}
             private:
                 friend class boost::serialization::access;
@@ -189,6 +191,8 @@ namespace cuvnet
                         ar & m_bias_default_value;
                         if(version > 1)
                             ar & m_verbose;
+                        if(version > 2)
+                            ar & m_noiser;
                     };
         };
 
@@ -216,6 +220,6 @@ namespace cuvnet
 }
 BOOST_CLASS_EXPORT_KEY(cuvnet::models::mlp_layer);
 BOOST_CLASS_EXPORT_KEY(cuvnet::models::mlp_classifier);
-BOOST_CLASS_VERSION(cuvnet::models::mlp_layer, 1);
+BOOST_CLASS_VERSION(cuvnet::models::mlp_layer, 3);
 
 #endif /* __CUVNET_MODELS_MLP_HPP__ */

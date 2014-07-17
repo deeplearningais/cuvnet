@@ -357,10 +357,7 @@ namespace cuvnet { namespace models {
             	return *this;
             }
 
-            inline void set_noiser_active(bool b){
-                if(m_noiser)
-                    m_noiser->set_active(b);
-            }
+            virtual void set_predict_mode(bool b=true);
             void register_watches(monitor& mon);
             std::vector<Op*> get_params();
             void reset_params();

@@ -66,6 +66,15 @@ namespace cuvnet
                  */
                 virtual void reset_params();
 
+                /**
+                 * Should turn off all noise introduced during training, eg by Dropout. Does nothing by default.
+                 */
+                virtual void set_predict_mode(bool b=true);
+
+                /**
+                 * Change the batch size of the model. Changes the first
+                 * dimension of all params returned by get_inputs().
+                 */
                 virtual void set_batchsize(unsigned int bs);
 
                 /**
@@ -199,6 +208,11 @@ namespace cuvnet
                  * @param mon this parameter is passed through.
                  */
                 virtual void register_watches(monitor& mon);
+
+                /**
+                 * Calls set_predict_mode for all submodels.
+                 */
+                virtual void set_predict_mode(bool b=true);
 
                 /**
                  * dtor.

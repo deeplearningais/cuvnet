@@ -24,6 +24,8 @@ namespace cuvnet { namespace models {
 
     void model::register_watches(monitor& mon){
     }
+    void model::set_predict_mode(bool b){
+    }
 
     void model::set_batchsize(unsigned int bs){
         std::vector<Op*> inputs = get_inputs();
@@ -138,6 +140,13 @@ namespace cuvnet { namespace models {
     metamodel<Base>::register_watches(monitor& mon){
         for(std::vector<model*>::const_reverse_iterator it = m_models.rbegin(); it!=m_models.rend(); it++)
             (*it)->register_watches(mon);
+    }
+
+    template<class Base>
+    void
+    metamodel<Base>::set_predict_mode(bool b){
+        for(std::vector<model*>::const_reverse_iterator it = m_models.rbegin(); it!=m_models.rend(); it++)
+            (*it)->set_predict_mode(b);
     }
 
     template<class Base>

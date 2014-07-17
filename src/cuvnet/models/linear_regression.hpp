@@ -2,6 +2,7 @@
 #     define __CUVNET_LINREG_HPP__
 
 #include <cuvnet/ops/input.hpp>
+#include <cuvnet/ops/noiser.hpp>
 #include "models.hpp"
 
 namespace cuvnet
@@ -19,6 +20,7 @@ namespace cuvnet
             op_ptr m_loss;
             input_ptr m_W;
             input_ptr m_bias;
+            boost::shared_ptr<Noiser> m_noiser;
 
 
             /// default ctor for serialization.
@@ -29,12 +31,15 @@ namespace cuvnet
              * @param X the estimator input
              * @param Y the target value
              * @param degenerate if true, assume is already estimator
+             * @param dropout if true, do dropout in inputs before multiplication
              */
-            linear_regression(op_ptr X, op_ptr Y, bool degenerate=false);
+            linear_regression(op_ptr X, op_ptr Y, bool degenerate=false, bool dropout=false);
 
             virtual std::vector<Op*> get_params();
             virtual void reset_params();
             virtual op_ptr loss()const;
+
+            virtual void set_predict_mode(bool b=true);
 
             virtual ~linear_regression(){}
             private:
@@ -43,8 +48,11 @@ namespace cuvnet
                 void serialize(Archive& ar, const unsigned int version) { 
                     ar & boost::serialization::base_object<model>(*this);;
                     ar & m_loss & m_W & m_bias;
+                    if(version > 0)
+                        ar & m_noiser;
                 };
         };
     }
 }
+BOOST_CLASS_VERSION(cuvnet::models::linear_regression, 1);
 #endif /* __CUVNET_LINREG_HPP__ */

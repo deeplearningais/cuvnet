@@ -17,9 +17,12 @@ namespace cuvnet
         }
         linear_regression::op_ptr linear_regression::loss()const{ return m_loss; }
 
-        linear_regression::linear_regression(op_ptr X, op_ptr Y, bool degenerate){
-            determine_shapes(*X);
+        linear_regression::linear_regression(op_ptr X, op_ptr Y, bool degenerate, bool dropout){
+            if(dropout)
+                X = m_noiser = zero_out(X, 0.5f);
+
             determine_shapes(*Y);
+            determine_shapes(*X);
 
             op_ptr estimator;
             if(!degenerate) {
@@ -31,6 +34,10 @@ namespace cuvnet
                 estimator = X;
 
             m_loss = mean(sum_to_vec(square(estimator-Y), 0));
+        }
+        void linear_regression::set_predict_mode(bool b){
+            if(m_noiser)
+                m_noiser->set_active(!b);
         }
         std::vector<Op*> linear_regression::get_params(){
             std::vector<Op*> params;

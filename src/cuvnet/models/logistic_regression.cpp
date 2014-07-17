@@ -21,11 +21,14 @@ namespace cuvnet
         logistic_regression::op_ptr logistic_regression::loss()const{ return m_loss; }
         logistic_regression::op_ptr logistic_regression::error()const{ return m_classloss; }
 
-        logistic_regression::logistic_regression(op_ptr X, op_ptr Y, bool degenerate){
+        logistic_regression::logistic_regression(op_ptr X, op_ptr Y, bool degenerate, bool dropout){
+            m_X = X;
+            if(dropout)
+                X = m_noiser = zero_out(X, 0.5f);
+            m_Y = boost::dynamic_pointer_cast<ParameterInput>(Y);
+
             determine_shapes(*X);
             determine_shapes(*Y);
-            m_X = X;
-            m_Y = boost::dynamic_pointer_cast<ParameterInput>(Y);
 
             if(!degenerate) {
                 m_W = input(cuv::extents[X->result()->shape[1]][Y->result()->shape[1]], "logreg_W");
@@ -42,11 +45,15 @@ namespace cuvnet
                         m_estimator, Y, 1));
             m_classloss = classification_loss(m_estimator, Y);
         }
-        logistic_regression::logistic_regression(op_ptr X, op_ptr Y, int n_classes){
+
+        logistic_regression::logistic_regression(op_ptr X, op_ptr Y, int n_classes, bool dropout){
+            m_X = X;
+            if(dropout)
+                X = m_noiser = zero_out(X, 0.5f);
+            m_Y = boost::dynamic_pointer_cast<ParameterInput>(Y);
+
             determine_shapes(*X);
             determine_shapes(*Y);
-            m_X = X;
-            m_Y = boost::dynamic_pointer_cast<ParameterInput>(Y);
 
             m_W = input(cuv::extents[X->result()->shape[1]][n_classes], "logreg_W");
             m_bias = input(cuv::extents[n_classes], "logreg_b");
@@ -57,6 +64,10 @@ namespace cuvnet
             m_loss = 
                     multinomial_logistic_loss2(m_estimator, Y);
             m_classloss = result(m_loss, 2);
+        }
+        void logistic_regression::set_predict_mode(bool b){
+            if(m_noiser)
+                m_noiser->set_active(!b);
         }
         std::vector<Op*> logistic_regression::get_params(){
             std::vector<Op*> params;

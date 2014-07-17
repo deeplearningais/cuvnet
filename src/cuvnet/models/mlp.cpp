@@ -35,7 +35,7 @@ namespace cuvnet
                 grp.reset(new op_group(args.m_group_name, args.m_unique_group));
 
             if(args.m_want_dropout)
-                X = zero_out(X, 0.5);
+                X = m_noiser = zero_out(X, 0.5);
 
             if(args.m_want_bias){
                 m_bias = input(cuv::extents[size], args.m_group_name + "b");
@@ -63,6 +63,10 @@ namespace cuvnet
                         << ", #params: " 
                         << m_W->data().size() + (m_bias ? m_bias->data().size(): 0));
             }
+        }
+        void mlp_layer::set_predict_mode(bool b){
+            if(m_noiser)
+                m_noiser->set_active(!b);
         }
         void mlp_layer::register_watches(monitor& mon){
             if(!m_verbose)

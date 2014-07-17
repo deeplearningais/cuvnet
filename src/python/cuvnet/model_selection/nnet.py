@@ -115,6 +115,7 @@ def conv_layer(nnet, group, n_flt,
 
 class MLPLayer(Layer):
     def __init__(self, args):
+        self.args = args
         cfg = cn.mlp_layer_opts()
         for k, v in IterNotNone(args):
             if k == "size":
@@ -173,25 +174,29 @@ def mlp_layer(net, group, size,
 
 
 class LogisticRegressionLayer(Layer):
-    def __init__(self, n_classes):
+    def __init__(self, n_classes, dropout):
         self.n_classes = n_classes
+        self.dropout = dropout
 
     def build(self, X, Y):
-        return cn.logistic_regression(X, Y, self.n_classes)
+        return cn.logistic_regression(X, Y, self.n_classes, self.dropout)
 
 
 class LinearRegressionLayer(Layer):
+    def __init__(self, dropout):
+        self.dropout = dropout
+
     def build(self, X, Y):
-        return cn.linear_regression(X, Y, False)
+        return cn.linear_regression(X, Y, False, self.dropout)
 
 
 @scope.define
-def logistic_regression(net, n_classes):
-    net.add(LogisticRegressionLayer(n_classes))
+def logistic_regression(net, n_classes, dropout):
+    net.add(LogisticRegressionLayer(n_classes, dropout))
     return net
 
 
 @scope.define
-def linear_regression(net):
-    net.add(LinearRegressionLayer())
+def linear_regression(net, dropout=False):
+    net.add(LinearRegressionLayer(dropout))
     return net

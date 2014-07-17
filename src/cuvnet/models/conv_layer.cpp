@@ -154,6 +154,11 @@ namespace cuvnet { namespace models {
         return params;
     }
 
+    void conv_layer::set_predict_mode(bool b){
+        if(m_noiser)
+            m_noiser->set_active(!b);
+    }
+
     void conv_layer::reset_params(){
     	m_weights->set_learnrate_factor(m_learnrate_factor);
         if(m_bias)

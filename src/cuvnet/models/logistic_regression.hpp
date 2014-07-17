@@ -4,6 +4,7 @@
 #include <boost/serialization/version.hpp>
 #include <cuvnet/ops/input.hpp>
 #include <cuvnet/ops/output.hpp>
+#include <cuvnet/ops/noiser.hpp>
 #include "models.hpp"
 
 namespace cuvnet
@@ -27,6 +28,8 @@ namespace cuvnet
 
             sink_ptr m_estimator_sink;
 
+            boost::shared_ptr<Noiser> m_noiser;
+
             /// default ctor for serialization.
             logistic_regression(){}
 
@@ -35,21 +38,25 @@ namespace cuvnet
              * @param X the estimator input
              * @param Y the target value
              * @param degenerate if true, assume is already estimator
+             * @param dropout if true, apply dropout to inputs
              */
-            logistic_regression(op_ptr X, op_ptr Y, bool degenerate=false);
+            logistic_regression(op_ptr X, op_ptr Y, bool degenerate=false, bool dropout=false);
 
             /**
              * logistic regression ctor using class id coding in Y.
              * @param X the estimator input
              * @param Y the target value
              * @param n_classes the number of classes (ignored if degenerate is true)
+             * @param dropout if true, apply dropout to inputs
              */
-            logistic_regression(op_ptr X, op_ptr Y, int n_classes);
+            logistic_regression(op_ptr X, op_ptr Y, int n_classes, bool dropout=false);
 
             virtual std::vector<Op*> get_params();
             virtual void reset_params();
             virtual op_ptr loss()const;
             virtual op_ptr error()const;
+
+            virtual void set_predict_mode(bool b=true);
 
             virtual ~logistic_regression(){}
             private:
@@ -61,11 +68,13 @@ namespace cuvnet
                     ar & m_X & m_Y;
                     if(version > 0)
                         ar & m_estimator_sink;
+                    if(version > 1)
+                        ar & m_noiser;
                 };
         };
 
     }
 }
 BOOST_CLASS_EXPORT_KEY(cuvnet::models::logistic_regression) 
-BOOST_CLASS_VERSION(cuvnet::models::logistic_regression, 1);
+BOOST_CLASS_VERSION(cuvnet::models::logistic_regression, 2);
 #endif /* __CUVNET_LOGREG_HPP__ */
