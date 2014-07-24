@@ -1,7 +1,12 @@
 /* Copyright 2009 William McLean.  */
 
-#include "npy.h"
+
+#include<stdio.h>
+#include<string.h>
+#include<stdlib.h>
+#include<complex.h>
 #include <stdint.h>
+#include "npy.h"
 
 #ifdef __APPLE__
 #include <libkern/OSByteOrder.h>

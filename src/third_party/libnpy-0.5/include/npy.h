@@ -4,11 +4,6 @@ Functions to create native numpy data files (.npy).
 
 #pragma once
 
-#include<stdio.h>
-#include<string.h>
-#include<stdlib.h>
-#include<complex.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
