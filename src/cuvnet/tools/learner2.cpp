@@ -110,6 +110,21 @@ namespace cuvnet
                         ));
         }
         /*****************************************
+         * bergstra_learnrate_schedule
+         *****************************************/
+        bergstra_learnrate_schedule::bergstra_learnrate_schedule(gradient_descent* _gd, float begin, float anneal)
+            :initial(begin), anneal_start(anneal), gd(_gd)
+        {
+            LOG4CXX_WARN(g_log_learner2, "Setting up bergstra learnrate schedule (initial: "<<initial
+                    << ", anneal_start:" << anneal_start<<")");
+            con = gd->before_epoch.connect(boost::ref(*this));
+        }
+        void bergstra_learnrate_schedule::operator()(unsigned int epoch, unsigned int wups)
+        {
+            gd->set_learnrate(
+                    initial * std::min(1.0f, anneal_start / (epoch +1)));
+        }
+        /*****************************************
          * linear_momentum_schedule
          *****************************************/
         linear_momentum_schedule::linear_momentum_schedule(momentum_gradient_descent* _gd, float begin, float end, int epochs)
@@ -425,6 +440,12 @@ namespace cuvnet
             hs.reset(new schedules::exponential_learnrate_schedule(&gd, initial, final, duration, t0));
             return hs;
         }
+        if(schedule == "bergstra"){
+			float initial = cfg.get("initial", gd.learnrate());
+			float anneal_start = cfg.get("anneal", 70.0f);
+			hs.reset(new schedules::bergstra_learnrate_schedule(&gd, initial, anneal_start));
+			return hs;
+		}
         throw std::runtime_error("unknown learnrate schedule: " + schedule);
     }
 

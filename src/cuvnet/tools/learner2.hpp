@@ -53,7 +53,18 @@ namespace cuvnet
             exponential_learnrate_schedule(gradient_descent* _gd, float begin, float end, int epochs, float t0);
             virtual void operator()(unsigned int epoch, unsigned int wups);
         };
-
+        /**
+         * A learnrate schedule by James Bergsra, see:
+         * https://github.com/hyperopt/hyperopt-nnet/blob/master/hpnnet/nnet.py
+         * @ingroup learning
+         */
+        struct bergstra_learnrate_schedule : public hyperparam_schedule{
+            float initial, anneal_start;
+            gradient_descent* gd;
+            boost::signals::scoped_connection con;
+            bergstra_learnrate_schedule(gradient_descent* _gd, float begin, float anneal);
+            virtual void operator()(unsigned int epoch, unsigned int wups);
+        };
         /**
          * A linearly increasing momentum schedule.
          * @ingroup learning
@@ -301,10 +312,12 @@ namespace cuvnet
              * (virtual) dtor.
              */
             virtual ~learner2();
+
             void register_validation_batchsize(model& m, gradient_descent& gd, early_stopper& es, const ptree& cfg);
 
             inline 
                 boost::shared_ptr<early_stopper> get_early_stopper(){ return m_es; }
+
     };
 
     /**
