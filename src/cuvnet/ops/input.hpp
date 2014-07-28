@@ -187,6 +187,7 @@ namespace cuvnet
                 /// especially useful if the content is not a weight matrix,
                 /// but some input object where loading does not make much sense.
                 inline void set_save_data(bool b) { m_save_data = b; }
+                inline bool get_save_data() const { return m_save_data; }
 
             private:
                 friend class boost::serialization::access;

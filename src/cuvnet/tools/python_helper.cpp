@@ -291,6 +291,9 @@ namespace cuvnet
             .add_property("derivable", 
                     &ParameterInput::derivable,
                     &ParameterInput::set_derivable)
+            .add_property("save_data", 
+                    &ParameterInput::get_save_data,
+                    &ParameterInput::set_save_data)
             .add_property("data", 
                     make_function(
                         (Op::value_type& (ParameterInput::*)())
