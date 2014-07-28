@@ -610,7 +610,7 @@ namespace cuvnet
             m_lr_fact(1.f)
     {
         cuvAssert(patience_inc_fact > 1.);
-        m_connection = gd.after_epoch.connect(boost::ref(*this), boost::signals::at_front);
+        m_connection = gd.after_epoch.connect(boost::ref(*this), boost::signals2::at_front);
     }
 
     convergence_checker::convergence_checker(
@@ -629,7 +629,7 @@ namespace cuvnet
     {
         cuvAssert(patience_inc_fact > 1.);
         m_connection = es.after_early_stopping_epoch.connect(
-                boost::bind(&convergence_checker::operator(), this, _1, _1), boost::signals::at_front);
+                boost::bind(&convergence_checker::operator(), this, _1, _1), boost::signals2::at_front);
     }
 
 

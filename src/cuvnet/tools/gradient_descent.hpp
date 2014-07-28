@@ -1,7 +1,7 @@
 #ifndef __GRADIENT_DESCENT_HPP__
 #     define __GRADIENT_DESCENT_HPP__
 
-#include<boost/signals.hpp>
+#include<boost/signals2.hpp>
 #include<boost/bind.hpp>
 #include<cuvnet/op.hpp>
 #include<cuvnet/op_utils.hpp>
@@ -70,17 +70,17 @@ namespace cuvnet
             stop_reason_t    m_stop_reason; ///< explains why learning was stopped
         public:
             /// triggered before an epoch starts.
-            boost::signal<void(unsigned int, unsigned int)> before_epoch;
+            boost::signals2::signal<void(unsigned int, unsigned int)> before_epoch;
             /// triggered after an epoch finished
-            boost::signal<void(unsigned int, unsigned int)> after_epoch;
+            boost::signals2::signal<void(unsigned int, unsigned int)> after_epoch;
             /// triggered before executing a batch (you should load batch data here!)
-            boost::signal<void(unsigned int,unsigned int)> before_batch;
+            boost::signals2::signal<void(unsigned int,unsigned int)> before_batch;
             /// triggered after executing a batch
-            boost::signal<void(unsigned int,unsigned int)> after_batch;
+            boost::signals2::signal<void(unsigned int,unsigned int)> after_batch;
             /// triggered before updating weights
-            boost::signal<void(unsigned int)> before_weight_update;
+            boost::signals2::signal<void(unsigned int)> before_weight_update;
             /// triggered after updating weights
-            boost::signal<void(unsigned int)> after_weight_update;
+            boost::signals2::signal<void(unsigned int)> after_weight_update;
 
             /// @return the reason why learning was stopped
             inline stop_reason_t stop_reason()const{return m_stop_reason;}
@@ -102,7 +102,7 @@ namespace cuvnet
             }
 
             /// triggered when finished with learning
-            boost::signal<void()> done_learning;
+            boost::signals2::signal<void()> done_learning;
 
             /// should return current number of batches
             boost::function<unsigned int(void)> current_batch_num;
@@ -289,7 +289,7 @@ namespace cuvnet
             float m_lr_fact;
             
             /// connection of convergence checker
-            boost::signals::connection m_connection;
+            boost::signals2::connection m_connection;
 
 
         public:
@@ -405,7 +405,7 @@ namespace cuvnet
             unsigned int m_box_filter_size;
             
             /// connection of early stopping
-            boost::signals::connection m_connection;
+            boost::signals2::connection m_connection;
 
             /// multiply learning rate for `m_max_steps` times before finally stopping learning
             unsigned int m_max_steps;
@@ -415,13 +415,13 @@ namespace cuvnet
 
         public:
             /// triggered when starting a early-stopping epoch.
-            boost::signal<void(unsigned int)> before_early_stopping_epoch;
+            boost::signals2::signal<void(unsigned int)> before_early_stopping_epoch;
 
             /// triggered after finishing a early-stopping epoch
-            boost::signal<void(unsigned int)> after_early_stopping_epoch;
+            boost::signals2::signal<void(unsigned int)> after_early_stopping_epoch;
 
             /// triggered when a new 'best' value is found
-            boost::signal<void()> improved;
+            boost::signals2::signal<void()> improved;
 
             /**
              * ctor.

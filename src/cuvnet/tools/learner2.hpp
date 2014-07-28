@@ -1,7 +1,7 @@
 #ifndef __LEARNER2_HPP__
 #define __LEARNER2_HPP__
 
-#include <boost/signals.hpp>
+#include <boost/signals2.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <cuvnet/models/models.hpp>
 #include <datasets/dataset.hpp>    /* for cv_mode */
@@ -38,7 +38,7 @@ namespace cuvnet
         struct linear_learnrate_schedule : public hyperparam_schedule{
             float initial, final, duration;
             gradient_descent* gd;
-            boost::signals::scoped_connection con;
+            boost::signals2::scoped_connection con;
             linear_learnrate_schedule(gradient_descent* _gd, float begin, float end, int epochs);
             virtual void operator()(unsigned int epoch, unsigned int wups);
         };
@@ -49,7 +49,7 @@ namespace cuvnet
         struct exponential_learnrate_schedule : public hyperparam_schedule{
             float initial, final, duration, t0, alpha, eta0;
             gradient_descent* gd;
-            boost::signals::scoped_connection con;
+            boost::signals2::scoped_connection con;
             exponential_learnrate_schedule(gradient_descent* _gd, float begin, float end, int epochs, float t0);
             virtual void operator()(unsigned int epoch, unsigned int wups);
         };
@@ -61,7 +61,7 @@ namespace cuvnet
         struct linear_momentum_schedule : public hyperparam_schedule{
             float initial, final, duration;
             momentum_gradient_descent* gd;
-            boost::signals::scoped_connection con;
+            boost::signals2::scoped_connection con;
             linear_momentum_schedule(momentum_gradient_descent* _gd, float begin, float end, int epochs);
             virtual void operator()(unsigned int epoch, unsigned int wups);
         };
@@ -73,7 +73,7 @@ namespace cuvnet
     struct record_optimal_training_loss{
         float current_training_loss, best_training_loss;
         monitor* mon;
-        boost::signals::scoped_connection con0, con1;
+        boost::signals2::scoped_connection con0, con1;
         record_optimal_training_loss(early_stopper& es, monitor& _mon);
         void before_early_stopping_epoch(unsigned int);
         void improved();
@@ -85,7 +85,7 @@ namespace cuvnet
     struct stop_when_target_loss_reached{
         float target_loss;
         monitor* mon;
-        boost::signals::scoped_connection con;
+        boost::signals2::scoped_connection con;
         stop_when_target_loss_reached(gradient_descent& gd, monitor& _mon, float tloss);
         void operator()(unsigned int current_epoch, unsigned int wups);
     };
