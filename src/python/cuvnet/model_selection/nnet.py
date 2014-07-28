@@ -13,8 +13,8 @@ from hyperopt.pyll import scope
 import cuvnet as cn
 import inspect
 import sys
-from IPython.core.debugger import Tracer
-trace = Tracer()
+#from IPython.core.debugger import Tracer
+#trace = Tracer()
 
 @scope.define
 class Model(object):
@@ -45,13 +45,15 @@ def IterNotNone(args):
 
 class ConvLayer(Layer):
     def build(self, inp):
-        return cn.conv_layer(inp, self.n_flt, self.cfg)
+        return cn.conv_layer(inp, self.fs, self.n_flt, self.cfg)
 
     def __init__(self, args):
         cfg = cn.conv_layer_opts()
         for k, v in IterNotNone(args):
             if k == "n_flt":
-                self.n_flt = v
+                self.n_flt = np.around(v).astype("int")
+            elif k == "fs":
+                self.fs = np.around(v).astype("int")
             elif k == "group":
                 if isinstance(v, tuple):
                     cfg.group(*v)
@@ -96,7 +98,7 @@ class ConvLayer(Layer):
 
 
 @scope.define
-def conv_layer(nnet, group, n_flt,
+def conv_layer(nnet, group, fs, n_flt,
                    verbose=True,
                    symmetric_padding=False,
                    n_groups=1,
@@ -110,8 +112,10 @@ def conv_layer(nnet, group, n_flt,
                    ):
     d = dict(locals())
     del d["nnet"]
-    nnet.add(ConvLayer(d))
-    return nnet
+    if nnet is not None:
+        nnet.add(ConvLayer(d))
+        return nnet
+    return ConvLayer(d)
 
 class MLPLayer(Layer):
     def __init__(self, args):
@@ -169,8 +173,10 @@ def mlp_layer(net, group, size,
               ):
     d = dict(locals())
     del d["net"]
-    net.add(MLPLayer(d))
-    return net
+    if net is not None:
+        net.add(MLPLayer(d))
+        return net
+    return MLPLayer(d)
 
 
 class LogisticRegressionLayer(Layer):
@@ -192,11 +198,22 @@ class LinearRegressionLayer(Layer):
 
 @scope.define
 def logistic_regression(net, n_classes, dropout):
-    net.add(LogisticRegressionLayer(n_classes, dropout))
-    return net
+    if net is not None:
+        net.add(LogisticRegressionLayer(n_classes, dropout))
+        return net
+    return LogisticRegressionLayer(n_classes, dropout)
 
 
 @scope.define
 def linear_regression(net, dropout=False):
-    net.add(LinearRegressionLayer(dropout))
-    return net
+    if net is not None:
+        net.add(LinearRegressionLayer(dropout))
+        return net
+    else:
+        return LinearRegressionLayer(dropout)
+
+@scope.define_info(o_len=2)
+def test_classifier(model, lr):
+    learner = dict(lr=lr)
+    return model, learner
+

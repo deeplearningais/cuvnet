@@ -26,7 +26,7 @@ enum allo_t{
     AT_NAN
 };
 
-void init_cuvnet(unsigned int dev, unsigned int seed, allo_t alloc, unsigned int loglevel, std::string logfile){
+void init_cuvnet(int dev, unsigned int seed, allo_t alloc, unsigned int loglevel, std::string logfile){
     cuv::initCUDA(dev);
     if(alloc == AT_DEFAULT)
         cuvnet::cow_ptr<matrix>::s_allocator.reset(
@@ -71,8 +71,21 @@ BOOST_PYTHON_MODULE(_pycuvnet)
         .def("set_batchsize", &models::model::set_batchsize)
         ;
 
-    typedef models::metamodel<models::multistage_model> metamodel;
-    class_<metamodel, bases<models::model>, boost::shared_ptr<metamodel> >("multistage_metamodel", init<>())
+    class_<models::multistage_model, boost::shared_ptr<models::multistage_model>, bases<models::model> >("multistage_model", no_init)
+        ;
+
+    typedef models::metamodel<models::multistage_model> mmetamodel;
+    class_<mmetamodel, bases<models::multistage_model>, boost::shared_ptr<mmetamodel> >("multistage_metamodel", init<>())
+        .def_readonly("loss", &models::model::loss)
+        .def_readonly("error", &models::model::error)
+        .def("get_params", &models::model::get_params)
+        .def("register_submodel", &mmetamodel::register_submodel)
+        .def("deregister_submodel", &mmetamodel::deregister_submodel)
+        .def("clear_submodels", &mmetamodel::clear_submodels)
+        ;
+
+    typedef models::metamodel<models::model> metamodel;
+    class_<metamodel, bases<models::model>, boost::shared_ptr<metamodel> >("metamodel", init<>())
         .def_readonly("loss", &models::model::loss)
         .def_readonly("error", &models::model::error)
         .def("get_params", &models::model::get_params)
@@ -138,14 +151,14 @@ BOOST_PYTHON_MODULE(_pycuvnet)
         ;
 
 
-    class_<models::mlp_layer, bases<models::model>, boost::shared_ptr<models::mlp_layer> >("mlp_layer", init<op_ptr, unsigned int, models::mlp_layer_opts>())
+    class_<models::mlp_layer, bases<models::model>, boost::shared_ptr<models::mlp_layer>, bases<models::model> >("mlp_layer", init<op_ptr, unsigned int, models::mlp_layer_opts>())
         .def_readonly("output", &models::mlp_layer::m_output)
         .def_readonly("linear_output", &models::mlp_layer::m_linear_output)
         .def_readonly("weights", &models::mlp_layer::m_W)
         .def_readonly("bias", &models::mlp_layer::m_bias)
         ;
 
-    class_<models::conv_layer, boost::shared_ptr<models::conv_layer> >("conv_layer", init<op_ptr,int,int,const models::conv_layer_opts&>())
+    class_<models::conv_layer, boost::shared_ptr<models::conv_layer>, bases<models::model> >("conv_layer", init<op_ptr,int,int,const models::conv_layer_opts&>())
         .def_readonly("input", &models::conv_layer::m_input)
         .def_readonly("output", &models::conv_layer::m_output)
         .def_readonly("weights", &models::conv_layer::m_weights)
