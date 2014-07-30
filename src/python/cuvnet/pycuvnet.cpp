@@ -15,6 +15,7 @@
 
 
 namespace bar = boost::archive;
+namespace bpy = boost::python;
 using namespace cuvnet;
 
 typedef boost::property_tree::ptree ptree;
@@ -25,6 +26,47 @@ enum allo_t{
     AT_POOLED_CUDA,
     AT_NAN
 };
+
+template<class T>
+struct bs_pickle_suite : bpy::pickle_suite {
+    static bool getstate_manages_dict() { return true; }
+    static bpy::object getstate (bpy::object obj) {
+        std::ostringstream os;
+        boost::archive::binary_oarchive oa(os);
+        T const& t = boost::python::extract<T const&>(obj)();
+        oa << t;
+        return 
+            boost::python::make_tuple(
+                    obj.attr("__dict__"),
+                    bpy::str (os.str()));
+    }
+
+    static void
+        setstate(boost::python::object obj, bpy::tuple state) {
+            using namespace boost::python;
+
+            T& t = extract<T&>(obj)();
+            if (len(state) != 2)
+            {
+                PyErr_SetObject(PyExc_ValueError,
+                        ("expected 2-item tuple in call to __setstate__; got %s"
+                         % state).ptr()
+                        );
+                throw_error_already_set();
+            }
+             // restore the object's __dict__
+            dict d = extract<dict>(obj.attr("__dict__"))();
+            d.update(state[0]);
+
+            bpy::str s = bpy::extract<bpy::str> (state[1])();
+            std::string st = bpy::extract<std::string> (s)();
+            std::istringstream is (st);
+
+            boost::archive::binary_iarchive ia (is);
+            ia >> t;
+        }
+};
+
 
 void init_cuvnet(int dev, unsigned int seed, allo_t alloc, unsigned int loglevel, std::string logfile){
     cuv::initCUDA(dev);
@@ -42,6 +84,12 @@ void init_cuvnet(int dev, unsigned int seed, allo_t alloc, unsigned int loglevel
     cuv::initialize_mersenne_twister_seeds(seed);
     Logger(logfile, loglevel);
 }
+
+models::conv_layer_opts& conv_layer_opts_pool(models::conv_layer_opts& cfg, int pool_size, int pool_stride, int pool_type){
+    cfg.pool(pool_size, pool_stride, (cuv::alex_conv::pool_type) pool_type);
+    return cfg;
+}
+
 
 BOOST_PYTHON_MODULE(_pycuvnet)
 {
@@ -96,6 +144,8 @@ BOOST_PYTHON_MODULE(_pycuvnet)
 
     class_<models::logistic_regression, bases<models::model>, boost::shared_ptr<models::logistic_regression> >("logistic_regression", init<op_ptr, op_ptr, bool, bool>())
         .def(init<op_ptr, op_ptr, int, bool>())
+        .def(init<>())
+        .def_pickle(bs_pickle_suite<models::logistic_regression>())
         .def_readonly("estimator", &models::logistic_regression::m_estimator)
         .def_readonly("W", &models::logistic_regression::m_W)
         .def_readonly("bias", &models::logistic_regression::m_bias)
@@ -106,6 +156,8 @@ BOOST_PYTHON_MODULE(_pycuvnet)
         ;
 
     class_<models::linear_regression, bases<models::model>, boost::shared_ptr<models::linear_regression> >("linear_regression", init<op_ptr, op_ptr, bool, bool>())
+        .def(init<>())
+        .def_pickle(bs_pickle_suite<models::linear_regression>())
         .def_readonly("W", &models::linear_regression::m_W)
         .def_readonly("bias", &models::linear_regression::m_bias)
         .def_readonly("loss", &models::linear_regression::m_loss)
@@ -125,7 +177,6 @@ BOOST_PYTHON_MODULE(_pycuvnet)
         .def("group", &models::mlp_layer_opts::group, (args("name")="", args("unique")=true), return_internal_reference<>())
         .def("weight_init_std", &models::mlp_layer_opts::weight_init_std, (args("std")), return_internal_reference<>())
         ;
-
 
     class_<models::conv_layer_opts>("conv_layer_opts")
         .def("copy", &models::conv_layer_opts::copy)
@@ -152,6 +203,8 @@ BOOST_PYTHON_MODULE(_pycuvnet)
 
 
     class_<models::mlp_layer, bases<models::model>, boost::shared_ptr<models::mlp_layer>, bases<models::model> >("mlp_layer", init<op_ptr, unsigned int, models::mlp_layer_opts>())
+        .def(init<>())
+        .def_pickle(bs_pickle_suite<models::mlp_layer>())
         .def_readonly("output", &models::mlp_layer::m_output)
         .def_readonly("linear_output", &models::mlp_layer::m_linear_output)
         .def_readonly("weights", &models::mlp_layer::m_W)
@@ -159,6 +212,8 @@ BOOST_PYTHON_MODULE(_pycuvnet)
         ;
 
     class_<models::conv_layer, boost::shared_ptr<models::conv_layer>, bases<models::model> >("conv_layer", init<op_ptr,int,int,const models::conv_layer_opts&>())
+        .def(init<>())
+        .def_pickle(bs_pickle_suite<models::conv_layer>())
         .def_readonly("input", &models::conv_layer::m_input)
         .def_readonly("output", &models::conv_layer::m_output)
         .def_readonly("weights", &models::conv_layer::m_weights)
