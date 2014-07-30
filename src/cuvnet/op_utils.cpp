@@ -1,3 +1,4 @@
+#define BOOST_LEXICAL_CAST_ASSUME_C_LOCALE
 #include <fstream>
 #include <ext/functional>
 #include <boost/lexical_cast.hpp>
@@ -216,7 +217,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
 
             std::string vstr = define_data_ptr(p->value);
             if(vstr.size())
-                m_edge_defs << "edge [style=dotted,dir=none,penwidth=.5,weight=10]" << pstr << " -> "<< vstr << "; "<<std::endl;
+                m_edge_defs << "edge [style=dotted,dir=none,penwidth=1.,weight=10]" << pstr << " -> "<< vstr << "; "<<std::endl;
         }
     }
     // define the results of op
@@ -233,7 +234,7 @@ void define_graphviz_node_visitor::preorder(Op* o){
 
             std::string vstr = define_data_ptr(r->delta);
             if(vstr.size())
-                m_edge_defs << "edge [style=dotted,penwidth=.5,dir=none,weight=10]" << rstr << " -> "<< vstr << "; "<<std::endl;
+                m_edge_defs << "edge [style=dotted,penwidth=1.,dir=none,weight=10]" << rstr << " -> "<< vstr << "; "<<std::endl;
 
             if(current_op()==o){
                 // create node with debug info in label
