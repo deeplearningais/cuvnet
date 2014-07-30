@@ -132,9 +132,13 @@ namespace cuvnet
         BOOST_FOREACH(watchpoint* p, m_impl->m_watchpoints){
             if(p->type == WP_SCALAR_EPOCH_STATS)
             {
-                if(p->sink->cdata().size()==1)
-                    p->scalar_stats((float)p->sink->cdata()[0]);
-                else {
+                if(p->sink->cdata().size()==1){
+                    float f = (float)p->sink->cdata()[0];
+                    if(!std::isfinite(f)){
+                        throw arithmetic_error_stop();
+                    }
+                    p->scalar_stats(f);
+                }else {
                     // TODO: need real stats, not this!
                     p->scalar_stats(cuv::maximum(p->sink->cdata()));
                     p->scalar_stats(cuv::mean(p->sink->cdata()));
