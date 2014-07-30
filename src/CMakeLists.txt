@@ -105,7 +105,7 @@ INSTALL(DIRECTORY ./
 if ( PYTHONLIBS_FOUND )
     include_directories( ${PYTHON_INCLUDE_DIRS} )
     LIST(APPEND CUVNET_SRC cuvnet/tools/python_helper.cpp)
-    add_subdirectory(python/cuvnet EXCLUDE_FROM_ALL)
+    add_subdirectory(python/cuvnet)
 elseif( PYTHONLIBS_FOUND )
     SET(PYTHON_LIBRARIES "")
 endif( PYTHONLIBS_FOUND )
