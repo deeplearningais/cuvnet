@@ -756,7 +756,7 @@ namespace cuvnet
 
         if(perf < m_best_perf) {
             // save the (now best) parameters
-            m_gd.save_current_params();  
+            m_gd.save_current_params();
             improved();
             if(perf < m_perf_thresh){ 
                 // improved by more than thresh
@@ -780,9 +780,17 @@ namespace cuvnet
             }else{
                 LOG4CXX_WARN(log, "DECLR no improvement after " <<current_epoch << " epochs, decreasing learnrate");
                 unsigned int epoch_osp = m_gd.epoch_of_saved_params();
+                //m_val_perfs.clear(); // clear performance measurements
+                // erase performance measurements post best epoch (is there no simple one liner for this operation?)
+                for (auto it = m_val_perfs.begin(); it != m_val_perfs.end(); ) {
+                    if (std::get<0>(*it) > epoch_osp)
+                        it = m_val_perfs.erase(it);
+                    else
+                        it++;
+                }
                 m_gd.load_best_params();
                 m_gd.set_learnrate(m_lr_fact * m_gd.learnrate());
-                m_patience = patience_cmp + m_patience_increase * epoch_osp;  // wait patience_increase times as long as it took to get there
+                m_patience = m_val_perfs.size() * m_patience_increase;  // wait patience_increase times as long as it took to get there
                 m_max_steps--;
             }
         }
