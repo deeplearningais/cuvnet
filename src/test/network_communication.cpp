@@ -203,6 +203,7 @@ struct optimizer{
 
 };
 
+/*
 BOOST_AUTO_TEST_CASE( nc_gd ){
     // plain GD
     optimizer opt;
@@ -237,5 +238,6 @@ BOOST_AUTO_TEST_CASE( nc_gd ){
         BOOST_CHECK_GT(opt.lossval + 0.001, clients[i]->lossval);
     }
 }
+*/
 
 BOOST_AUTO_TEST_SUITE_END()
