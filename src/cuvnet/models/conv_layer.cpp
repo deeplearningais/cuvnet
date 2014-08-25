@@ -38,9 +38,31 @@ namespace cuvnet { namespace models {
         int n_filter_channels = n_srcmaps / cfg.m_n_groups;
         if(cfg.m_random_sparse && cfg.m_n_filter_channels > 0)
             n_filter_channels = cfg.m_n_filter_channels;
-        m_weights = input(cuv::extents[n_filter_channels][n_fltpix][n_out], cfg.m_group_name + "W" + cfg.m_varname_suffix);
+        {     
+        boost::scoped_ptr<op_group> grp;
+         if (cfg.m_group_name_wb!="")
+            grp.reset(new op_group(cfg.m_group_name_wb));
+
+        if (cfg.m_shared_weight)
+        {
+            determine_shapes(*cfg.m_shared_weight);
+            
+            cuvAssert(cfg.m_shared_weight->result()->shape[0] == n_filter_channels);
+            cuvAssert(cfg.m_shared_weight->result()->shape[1] == n_fltpix);
+            cuvAssert(cfg.m_shared_weight->result()->shape[2] == n_out);
+            m_weights = cfg.m_shared_weight;
+        }
+        else
+        {
+            m_weights = input(cuv::extents[n_filter_channels][n_fltpix][n_out], cfg.m_group_name + "W" + cfg.m_varname_suffix);
+        }
+
         if(cfg.m_want_bias){
-            m_bias    = input(cuv::extents[n_out], cfg.m_group_name + "b" + cfg.m_varname_suffix);
+            if (cfg.m_shared_bias)
+                m_bias = cfg.m_shared_bias;
+            else
+                m_bias    = input(cuv::extents[n_out], cfg.m_group_name + "b" + cfg.m_varname_suffix);
+            }
         }
 
         boost::scoped_ptr<op_group> grp;
@@ -132,6 +154,7 @@ namespace cuvnet { namespace models {
         if(cfg.m_want_pooling){
             m_output = local_pool(m_output, cfg.m_pool_size, cfg.m_pool_stride, cfg.m_pool_type);
         }
+
     }
 
 

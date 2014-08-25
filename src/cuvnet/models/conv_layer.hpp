@@ -58,6 +58,9 @@ namespace cuvnet { namespace models {
             ,m_group_name("convlayer")
             ,m_unique_group(true)
             ,m_varname_suffix("")
+            ,m_group_name_wb("")
+            ,m_shared_weight(input_ptr())
+            ,m_shared_bias(input_ptr())
         {}
 
         friend class conv_layer;
@@ -89,6 +92,9 @@ namespace cuvnet { namespace models {
             std::string m_group_name;
             bool m_unique_group;
             std::string m_varname_suffix;
+            std::string m_group_name_wb;
+            input_ptr m_shared_weight;
+            input_ptr m_shared_bias;
         public:
 
         /**
@@ -316,6 +322,9 @@ namespace cuvnet { namespace models {
          * @param std standard deviation
          */
         inline conv_layer_opts& weight_default_std(float std){ m_weight_default_std = std; return *this; }
+        inline conv_layer_opts& group_wb(std::string gwb){ m_group_name_wb = gwb; return *this; }
+        inline conv_layer_opts& shared_weight(input_ptr w){ m_shared_weight = w; return *this; }
+        inline conv_layer_opts& shared_bias(input_ptr b){ m_shared_bias = b; return *this; }
     };
 
 
@@ -347,7 +356,6 @@ namespace cuvnet { namespace models {
             int m_scat_n_inputs, m_scat_J, m_scat_C;
 
             conv_layer(op_ptr inp, int fs, int n_maps, const conv_layer_opts& cfg = conv_layer_opts());
-
             /// empty ctor for serialization
             conv_layer():m_verbose(false){};
 
@@ -361,7 +369,6 @@ namespace cuvnet { namespace models {
             void register_watches(monitor& mon);
             std::vector<Op*> get_params();
             void reset_params();
-
             virtual ~conv_layer();
 
         private:
