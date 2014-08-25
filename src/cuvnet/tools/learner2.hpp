@@ -61,7 +61,7 @@ namespace cuvnet
         struct bergstra_learnrate_schedule : public hyperparam_schedule{
             float initial, anneal_start;
             gradient_descent* gd;
-            boost::signals::scoped_connection con;
+            boost::signals2::scoped_connection con;
             bergstra_learnrate_schedule(gradient_descent* _gd, float begin, float anneal);
             virtual void operator()(unsigned int epoch, unsigned int wups);
         };
