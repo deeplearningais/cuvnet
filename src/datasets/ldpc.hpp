@@ -30,13 +30,13 @@ namespace cuvnet
             cuv::tensor<float,cuv::host_memory_space> traind(cuv::extents[32768][15*2]);
             ftraind.read((char*)traind.ptr(), sizeof(float)*traind.size()); assert(ftraind.good());
 
-            train_data = traind[indices[index_range(0,32768-n_test)][index_range()]];
-            test_data  = traind[indices[index_range(32768-n_test,32768)][index_range()]];
+            train_data = traind[indices[index_range(0,32768-n_test)][index_range()]].copy();
+            test_data  = traind[indices[index_range(32768-n_test,32768)][index_range()]].copy();
 
-            train_labels.resize(cuv::extents[32768-n_test][10]);
-            test_labels.resize( cuv::extents[n_test][10]);
-            train_labels = 0.f;
-            test_labels  = 0.f;
+            //train_labels.resize(cuv::extents[32768-n_test][15]);
+            //test_labels.resize( cuv::extents[n_test][15]);
+            train_labels = train_data[indices[index_range()][index_range(0,15)]].copy();
+            test_labels  = test_data[indices[index_range()][index_range(0,15)]].copy();
 
             channels = 1;
             binary   = true;
