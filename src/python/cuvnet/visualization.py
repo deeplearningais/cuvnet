@@ -46,13 +46,14 @@ def classname(idx):
     return str(idx)
 
 def read_classnames(ds):
-    with open("../data/ds_"+ds+"_train.txt") as f:
+    with open(ds+"_train.txt") as f:
         n = int(f.readline().strip())
         for i in xrange(n):
             g_classes[i] = f.readline().strip()
             idx = g_classes[i].find(",")
             if idx > 0:
-                g_classes[i] = g_classes[i][:idx]
+                name = g_classes[i][:idx]
+                g_classes[i] = name
 
 
 def normalizer(data):
@@ -141,12 +142,13 @@ def visualize_activations(gui, data, sepnorm=False, bboxes=None):
         gui.labels = {}
 
     have_clf = False
-
     if hasattr(gui.od, "logreg") and gui.od.logreg is not None:
-        pass
-        #have_clf = True
-        #logreg_y_hat = gui.od.logreg.estimator.evaluate().np
-        #logreg_y = gui.od.logreg.y.data.np
+        have_clf = True
+        glog.info("Found logistic regression in model")
+        logreg_y_hat = gui.od.logreg.estimator.evaluate().np
+        logreg_y = gui.od.logreg.y.data.np
+    else:
+        glog.info("Found NO logistic regression in model")
 
     for ax, i in zip(gui.axes.flatten(), xrange(np.prod(gui.axes.shape))):
         ax.patches = []  # clear patches (=bounding boxes)
