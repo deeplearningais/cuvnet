@@ -558,21 +558,7 @@ def mnist_filters(data, n_filters_y=9, n_filters_x=16, sepnorm=False, sigm=False
         cfg(ax)
     return fig
 
-import xdot
-import gtk
-import gtk.gdk
 
-
-class MyDotWindow(xdot.DotWindow):
-    def __init__(self, op, visor):
-        self.visor = visor
-        self.op = op
-        xdot.DotWindow.__init__(self)
-        self.widget.connect('clicked', self.on_url_clicked)
-
-    def on_url_clicked(self, widget, url, event):
-        self.visor.click(self.op, widget, url, event)
-        return
 
 
 def show_act(loss, bidx):
@@ -610,7 +596,22 @@ def show_act(loss, bidx):
 
 
 def show_op(op, visor):
+    import gtk
+    import xdot
     dot = op.dot()
+    class MyDotWindow(xdot.DotWindow):
+        def __init__(self, op, visor):
+            import gtk
+            import gtk.gdk
+            self.visor = visor
+            self.op = op
+            xdot.DotWindow.__init__(self)
+            self.widget.connect('clicked', self.on_url_clicked)
+
+        def on_url_clicked(self, widget, url, event):
+            self.visor.click(self.op, widget, url, event)
+            return
+
     window = MyDotWindow(op, visor)
     visor.window = window
     window.set_dotcode(dot)
@@ -618,6 +619,7 @@ def show_op(op, visor):
     gtk.main()
 
 def show_op_plain(op):
+    import gtk, xdot
     dot = op.dot()
     window = xdot.DotWindow()
     window.set_dotcode(dot)
