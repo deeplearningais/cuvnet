@@ -13,8 +13,27 @@ namespace cuvnet
         param_t::element_type&  p1 = *m_params[1];
         result_t::element_type& r0 = *m_results[0];
 
-        value_type inp0 = p0.value.cdata();
-        value_type inp1 = p1.value.cdata();
+        value_type inp0 = p0.value.cdata(); // estimator
+        value_type inp1 = p1.value.cdata(); // teacher
+
+        if(m_no_axis){
+            value_ptr res(new value_type(cuv::extents[1], value_ptr::s_allocator));
+            tensor<unsigned char, value_type::memory_space_type> t_estimator = inp0 > 0.f;
+            tensor<unsigned char, value_type::memory_space_type> t_teacher = inp1 > 0.5f;
+#if 1
+            *res = 1.f - cuv::mean(t_estimator == t_teacher);
+#else
+            cuv::apply_binary_functor(t_estimator, t_estimator, t_teacher, cuv::BF_EQ);
+            value_type col(extents[inp0.shape(0)], value_ptr::s_allocator);
+            reduce_to_col(col, t_estimator);
+            cuv::apply_scalar_functor(col, cuv::SF_LT, (float)inp0.shape(1) - 0.1f); // error when NOT ALL in that line had to be correct!
+            *res = cuv::mean(col); // mean over batch
+#endif
+            r0.push(res);
+            p0.value.reset(); // forget it
+            p1.value.reset(); // forget it
+            return;
+        }
 
         bool ignore = m_params.size() == 3 ? true : false;
 
@@ -88,13 +107,15 @@ namespace cuvnet
         if(!m_results[0]->need_result)
             return;
         assert(m_params[0]->shape == m_params[1]->shape);
-        cuvAssert(m_axis == 0 || m_axis == m_params[0]->shape.size() - 1);
+        if(!m_no_axis){
+            cuvAssert(m_axis == 0 || m_axis == m_params[0]->shape.size() - 1);
 
-        if (m_params.size() == 3) {
-            cuvAssert(m_params[2]->shape[m_axis] == 1);
-            for (unsigned int i = 1; i < m_params[0]->shape.size()-1; i++)
-                cuvAssert(m_params[0]->shape[i] == m_params[2]->shape[i]);
-            // todo check last remaining axis
+            if (m_params.size() == 3) {
+                cuvAssert(m_params[2]->shape[m_axis] == 1);
+                for (unsigned int i = 1; i < m_params[0]->shape.size()-1; i++)
+                    cuvAssert(m_params[0]->shape[i] == m_params[2]->shape[i]);
+                // todo check last remaining axis
+            }
         }
     }
 

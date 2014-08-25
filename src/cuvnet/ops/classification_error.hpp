@@ -27,18 +27,20 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
             private:
                 unsigned int m_axis;
+                bool m_no_axis;
 
             public:
-                ClassificationLoss():Op(2,1){} ///< for serialization
+                ClassificationLoss():Op(2,1),m_no_axis(false){} ///< for serialization
                 /**
                  * ctor.
                  * @param p0 estimator
                  * @param p1 teacher
                  * @param axis axis to use as labels (allowed only the first or last)
                  */
-                ClassificationLoss(result_t& p0, result_t& p1, unsigned int axis = 0)
+                ClassificationLoss(result_t& p0, result_t& p1, int axis = -1)
                     :Op(2,1)
                     ,m_axis(axis)
+                    ,m_no_axis(axis < 0)
                 {
                          add_param(0,p0);
                          add_param(1,p1);
@@ -47,6 +49,7 @@ namespace cuvnet
                 ClassificationLoss(result_t& p0, result_t& p1, result_t& p2, unsigned int axis = 0)
                     :Op(3,1)
                     ,m_axis(axis)
+                    ,m_no_axis(false)
                 {
                     add_param(0,p0);
                     add_param(1,p1);
@@ -65,6 +68,8 @@ namespace cuvnet
                         ar & boost::serialization::base_object<Op>(*this);
                         if (version > 0)
                             ar & m_axis;
+                        if (version > 1)
+                            ar & m_no_axis;
                     }
         };
 
@@ -136,5 +141,5 @@ namespace cuvnet
         };
     
 }
-BOOST_CLASS_VERSION(cuvnet::ClassificationLoss, 1);
+BOOST_CLASS_VERSION(cuvnet::ClassificationLoss, 2);
 #endif /* __CLASSIFICATION_ERROR_HPP__ */

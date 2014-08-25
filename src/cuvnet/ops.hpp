@@ -345,7 +345,7 @@ namespace cuvnet
 
     /// construct a ClassificationLoss object
     inline
-        Op::op_ptr classification_loss(Op::op_ptr x, Op::op_ptr y, unsigned int axis=0){ return boost::make_shared<ClassificationLoss>(x->result(),y->result(),axis); }
+        Op::op_ptr classification_loss(Op::op_ptr x, Op::op_ptr y, int axis=0){ return boost::make_shared<ClassificationLoss>(x->result(),y->result(),axis); }
     inline
         Op::op_ptr classification_loss(Op::op_ptr x, Op::op_ptr y, Op::op_ptr z, unsigned int axis=0){ return boost::make_shared<ClassificationLoss>(x->result(),y->result(),z->result(),axis); }
     /// construct a F2Measure object (including binary confusion matrix)
