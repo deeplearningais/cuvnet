@@ -33,6 +33,7 @@
 #include <cuvnet/ops/concatenate.hpp>
 #include <cuvnet/ops/sum_out_dim.hpp>
 #include <cuvnet/ops/log_add_exp.hpp>
+#include <cuvnet/ops/upscale.hpp>
 
 #ifndef NO_THEANO_WRAPPERS
 #include <cuvnet/ops/theano_ops.hpp>
@@ -402,7 +403,15 @@ namespace cuvnet
     inline
         Op::op_ptr label(const std::string& l, Op::op_ptr x){ x->set_label(l); return x; }
     /// write statistics to log whenever fprop/bprop is called
+    
+    /// construct an Upscale object
     inline
-        Op::op_ptr printer(const std::string& l, Op::op_ptr x, bool fprop=true, bool bprop=true){ return boost::make_shared<Printer>(l,x->result(), fprop, bprop); }
+        Op::op_ptr upscale(Op::op_ptr img, unsigned int factor) { 
+             //boost::shared_ptr<std::vector<Op::result_t> > res(new std::vector<Op::result_t>(2));
+             //(*res)[0] = img1->result();
+             //(*res)[1] = img2->result();
+            return boost::make_shared<Upscale>( img->result(), factor); }
+   inline
+   Op::op_ptr printer(const std::string& l, Op::op_ptr x, bool fprop=true, bool bprop=true){ return boost::make_shared<Printer>(l,x->result(), fprop, bprop); }
 }
 #endif /* __OPS_HPP__ */

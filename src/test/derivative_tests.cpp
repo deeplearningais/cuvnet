@@ -1958,6 +1958,22 @@ BOOST_AUTO_TEST_CASE(theano_shuffle_dim){
         }
 }
 
+BOOST_AUTO_TEST_CASE(upscale){
+    typedef boost::shared_ptr<Op> ptr_t;
+    using namespace cuv;
+    using namespace cuv::misc_conv;
+        {
+            unsigned int nImgChan = 4;     
+            unsigned int nImgPixX = 5;
+            unsigned int nImgPixY = 5;
+            unsigned int nImg     = 3;
+            boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixX][nImgPixY][nImg] , "inputs");
+            ptr_t func = boost::make_shared<Upscale>(inp0->result(), 4);
+            derivative_tester(*func,0,true,.03f);
+        }
+}
+
+
 #endif
 
 
