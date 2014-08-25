@@ -78,6 +78,7 @@ namespace cuvnet
                 else
                     convolve2d(*v, p0.value.cdata(), p1.value.cdata(), m_indices, m_padding_start, m_stride,m_nGroups);
                 r0.push(v);
+
             }else{
                 // Alex' code has some serious restrictions; the one hurting me most
                 // is about the number of output maps (n%16==0).
@@ -188,6 +189,7 @@ namespace cuvnet
 
 
            }else{
+               /* THIS DOES NOT WORK!
                if(p1.can_overwrite_directly()){
                    if(!rnd)
                        d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
@@ -199,7 +201,7 @@ namespace cuvnet
                        d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum, 1.f,1.f);
                    else
                        d_conv2d_dfilt(*p1.overwrite_or_add_value(),*tmp_r0delta,img, m_indices, m_padding_start, m_stride, m_nGroups,m_partial_sum, 1.f,1.f);
-               }else{
+               }else{*/
                    value_type& dflt = *tmp_dw;
                    if(!rnd)
                        d_conv2d_dfilt(dflt,*tmp_r0delta,img, m_padding_start, m_stride, m_nGroups,m_partial_sum);
@@ -207,7 +209,7 @@ namespace cuvnet
                        d_conv2d_dfilt(dflt,*tmp_r0delta,img, m_indices, m_padding_start, m_stride, m_nGroups,m_partial_sum);
                    value_ptr ptr(new value_type(dflt[indices[index_range()][index_range()][index_range(0,nFiltReal)]].copy()));
                    p1.push(ptr);
-               }
+               //}
 
            }
         }
