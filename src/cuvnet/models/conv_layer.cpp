@@ -20,6 +20,7 @@ namespace cuvnet { namespace models {
         ,m_scat_n_inputs(cfg.m_scat_n_inputs)
         ,m_scat_J(cfg.m_scat_J)
         ,m_scat_C(cfg.m_scat_C)
+        ,m_shared_weight(false)
     {
 
         int padding;
@@ -45,6 +46,7 @@ namespace cuvnet { namespace models {
 
         if (cfg.m_shared_weight)
         {
+            m_shared_weight = true;
             determine_shapes(*cfg.m_shared_weight);
             
             cuvAssert(cfg.m_shared_weight->result()->shape[0] == n_filter_channels);
@@ -161,11 +163,14 @@ namespace cuvnet { namespace models {
     void conv_layer::register_watches(monitor& mon){
         if(!m_verbose)
             return;
-
+         
+        if (!m_shared_weight)
+        {
         mon.add(monitor::WP_CONV_WEIGHT_STATS, m_weights, m_weights->name());
 
         mon.add(monitor::WP_SINK_ONCE_STATS,
                 m_linear_output, m_weights->name() + "_linout", 0);
+        }
     }
 
     std::vector<Op*>
