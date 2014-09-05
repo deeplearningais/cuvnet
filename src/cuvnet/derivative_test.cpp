@@ -226,8 +226,8 @@ namespace cuvnet{ namespace derivative_testing {
                 cuv::tensor<float, cuv::host_memory_space> tmp(Jh.shape());
                 if(verbose)
                 {
-                    LOG4CXX_INFO(g_log, "   range(Jh)[finite differences]="<<cuv::maximum(Jh)-cuv::minimum(Jh));
-                    LOG4CXX_INFO(g_log, "   range(J_t)[analytical]       ="<<cuv::maximum(J_t)-cuv::minimum(J_t));
+                    LOG4CXX_INFO(g_log, "   range(Jh)[analytical]="<<cuv::maximum(Jh)-cuv::minimum(Jh));
+                    LOG4CXX_INFO(g_log, "   range(J_t)[finite differences]       ="<<cuv::maximum(J_t)-cuv::minimum(J_t));
                 }
                 cuv::apply_binary_functor(tmp, J_t, Jh, cuv::BF_SUBTRACT);
                 cuv::apply_scalar_functor(tmp, cuv::SF_SQUARE);
