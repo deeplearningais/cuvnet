@@ -14,13 +14,13 @@ namespace cuvnet { namespace models {
 
     conv_layer::conv_layer(op_ptr inp, int fs, int n_out, const conv_layer_opts& cfg)
         :m_input(inp)
+        ,m_shared_weight(false)
         ,m_verbose(cfg.m_verbose)
         ,m_learnrate_factor(cfg.m_learnrate_factor)
         ,m_learnrate_factor_bias(cfg.m_learnrate_factor_bias)
         ,m_scat_n_inputs(cfg.m_scat_n_inputs)
         ,m_scat_J(cfg.m_scat_J)
         ,m_scat_C(cfg.m_scat_C)
-        ,m_shared_weight(false)
     {
 
         int padding;
@@ -36,7 +36,7 @@ namespace cuvnet { namespace models {
 
         cuvAssert(n_srcmaps % cfg.m_n_groups == 0);
         cuvAssert((n_srcmaps < 4) || (n_srcmaps % 4 == 0));
-        int n_filter_channels = n_srcmaps / cfg.m_n_groups;
+        unsigned int n_filter_channels = n_srcmaps / cfg.m_n_groups;
         if(cfg.m_random_sparse && cfg.m_n_filter_channels > 0)
             n_filter_channels = cfg.m_n_filter_channels;
         {     
@@ -51,7 +51,7 @@ namespace cuvnet { namespace models {
             
             cuvAssert(cfg.m_shared_weight->result()->shape[0] == n_filter_channels);
             cuvAssert(cfg.m_shared_weight->result()->shape[1] == n_fltpix);
-            cuvAssert(cfg.m_shared_weight->result()->shape[2] == n_out);
+            cuvAssert(cfg.m_shared_weight->result()->shape[2] == (unsigned int)n_out);
             m_weights = cfg.m_shared_weight;
         }
         else

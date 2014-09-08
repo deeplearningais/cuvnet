@@ -342,8 +342,8 @@ namespace cuvnet { namespace models {
 
             input_ptr m_weights;
             input_ptr m_bias;
-            bool m_shared_weight;
             op_ptr m_input;
+            bool m_shared_weight;
 
             boost::shared_ptr<Noiser> m_noiser;
 
