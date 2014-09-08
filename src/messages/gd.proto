@@ -10,6 +10,7 @@ message EarlyStopper{
     optional int32 patience = 7 [default=100];
     optional int32 max_steps = 8 [default=0];
     optional float lr_fact = 9 [default=0.5];
+    optional int32 batch_size = 10;
 }
 
 message ConvergenceChecker{
@@ -35,12 +36,11 @@ message StoppingCriteria{
 
 message GradientDescent{
     required int32 batch_size = 1 [default=-1];
-    required int32 eval_batch_size = 2 [default=-1];
-    optional float learnrate = 3 [default=0.01];
-    optional float l2decay = 4 [default=0.0];
-    optional int32 verbosity = 5 [default=0];
-    optional int32 start_epoch = 6 [default=0];
-    optional StoppingCriteria stopping_criteria = 7;
+    optional float learnrate = 2 [default=0.01];
+    optional float l2decay = 3 [default=0.0];
+    optional int32 verbosity = 4 [default=0];
+    optional int32 start_epoch = 5 [default=0];
+    optional StoppingCriteria stopping_criteria = 6;
 
     extensions 100 to max;
 }
@@ -148,12 +148,14 @@ message Fit{
     required GradientDescent gd=1;
     optional Monitor monitor=2;
 
+    optional train_dataset=10;
+
     optional NetCom netcom=100;
 }
 
 message EarlyStopperResult {
-    required float best_loss=1;
-    required float optimal_training_error=2;
+    required float best_validation_loss=1;
+    required float optimal_training_loss=2;
 }
 
 message FitResult{
@@ -170,7 +172,57 @@ message FitResult{
 
     required StopReason stop_reason=1 [default=SR_UNKNOWN];
     required int32 result_epoch=2;
+
     optional float loss=3 [default=2147483647];
-    optional EarlyStopperResult early_stopper=4;
-    optional float final_learnrate=5;
+    optional float cerr=4 [default=1.0];
+
+    optional EarlyStopperResult early_stopper=5;
+
+    optional float final_learnrate=100;
+    optional float final_momentum=101;
 }
+
+message Predict{
+    optional Monitor monitor = 1;
+    optional int32 batch_size = 2;
+}
+
+message PredictResult{
+    optional float loss_mean = 1;
+    optional float loss_var = 2;
+    optional float cerr_mean = 3;
+    optional float cerr_var = 4;
+}
+
+message XVal{
+    required Fit fit=1;
+    required Predict predict=2;
+
+    optional bool evaluate_folds_on_test=3 [default=false];
+
+    optional bool retrain_all=4 [default=true];
+    optional float retrain_all_thresh=5;
+
+
+    // possibly configure mongodb so that we can avoid evaluating all folds
+}
+
+message XValResult{
+    message FoldResult{
+        required FitResult fit=1;
+        optional PredictResult val_result=2;
+        optional PredictResult test_result=3;
+    }
+    optional int32 best_fold=1;
+    repeated FoldResult fold=2;
+
+    optional float val_mean = 3;
+    optional float val_var = 4;
+    optional float test_mean = 5;
+    optional float test_var = 6;
+
+    FitResult retrain_all_train = 100;
+    PredictResult retrain_all_test = 101;
+}
+
+

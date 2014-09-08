@@ -11,8 +11,6 @@
 #include <boost/algorithm/string.hpp> 
 
 #include <cuvnet/tools/serialization_helper.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
 
 #include <cuvnet/tools/gradient_descent.hpp>
 #include <cuvnet/tools/monitor.hpp>
@@ -30,8 +28,6 @@
 #include "learner2.hpp"
 
 namespace bfs = boost::filesystem;
-
-typedef boost::property_tree::ptree ptree;
 
 
 BOOST_SERIALIZATION_ASSUME_ABSTRACT(cuvnet::model)
@@ -345,14 +341,10 @@ namespace cuvnet
     }
 
     boost::shared_ptr<monitor> 
-    learner2::get_monitor(model& m, const ptree& cfg){
-        bool verbose = cfg.get("verbose", true);
-        boost::optional<std::string> basepath = cfg.get_optional<std::string>("basepath");
+    learner2::get_monitor(model& m, const msg::Monitor& cfg){
+        bool verbose = cfg.verbose();
         boost::shared_ptr<monitor> mon;
-        if (basepath)
-            mon.reset(new monitor(verbose, *basepath + "/loss.csv"));
-        else
-            mon.reset(new monitor(verbose));
+        mon.reset(new monitor(verbose));
         mon->add(monitor::WP_SCALAR_EPOCH_STATS, m.loss(), "loss");
         if(m.error())
             mon->add(monitor::WP_SCALAR_EPOCH_STATS, m.error(), "cerr");
@@ -361,10 +353,12 @@ namespace cuvnet
     }
     
     void
-    learner2::register_validation_batchsize(model& m , gradient_descent& gd, early_stopper& es, const msg::GradientDescent& cfg){
+    learner2::register_validation_batchsize(model& m , gradient_descent& gd, early_stopper& es,
+            const msg::GradientDescent& cfg,
+            const msg::EarlyStopper& escfg){
         unsigned int bs_train = cfg.batch_size(), bs_valid;
-        if(cfg.has_eval_batch_size())
-            bs_valid = cfg.eval_batch_size();
+        if(escfg.has_batch_size())
+            bs_valid = escfg.batch_size();
         else
             bs_valid = bs_train;
 
@@ -396,11 +390,11 @@ namespace cuvnet
     }
 
     void 
-    learner2::before_predict(model* m, gradient_descent&, const ptree&){
+    learner2::before_predict(model* m, gradient_descent&, const msg::Predict&){
     }
 
     void 
-    learner2::before_learning(model* m, gradient_descent&, cuvnet::early_stopper* es, const ptree&){
+    learner2::before_learning(model* m, gradient_descent&, cuvnet::early_stopper* es, const msg::Fit&){
     }
 
     unsigned int 
@@ -448,7 +442,7 @@ namespace cuvnet
         if(cfg.HasExtension(msg::div_learnrate_schedule)){
             const msg::DivSchedule& s = cfg.GetExtension(msg::div_learnrate_schedule);
 			float initial = s.initial() * gd.learnrate();
-			float anneal_start = s.anneal();
+			float anneal_start = s.annealstart();
 			hs.reset(new schedules::div_learnrate_schedule(&gd, initial, anneal_start));
 			return hs;
 		}
@@ -466,9 +460,9 @@ namespace cuvnet
 
         if(cfg.HasExtension(msg::linear_momentum_schedule)){
             const msg::LinearSchedule& s = cfg.GetExtension(msg::linear_momentum_schedule); 
-            float initial = cfg.initial();
-            float final   = cfg.final();
-            int   duration = cfg.duration();
+            float initial = s.initial();
+            float final   = s.final();
+            int   duration = s.duration();
             LOG4CXX_INFO(g_log_learner2, "Setting up linear momentum schedule (initial: "<<initial
                     << ", final:" << final
                     << ", duration:"<<duration<<")");
@@ -478,30 +472,28 @@ namespace cuvnet
         LOG4CXX_INFO(g_log_learner2, "No Momentum Schedule!");
     }
 
-    ptree 
-    learner2::continue_learning_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result){
+    msg::FitResult
+    learner2::continue_learning_until_previous_loss_reached(model& m, const msg::Fit& cfg, const msg::FitResult& result){
         // - stop when target loss reached
         // - set max_epochs=old_epoch PLUS new max_epochs
         // - let gradient_descent START from a certain number of epochs
-        ptree cfg2 = cfg;
-        cfg2.put("early_stopper.active", false);
-        cfg2.put("min_loss_stopper.active", true);
-        cfg2.put("min_loss_stopper.target_loss", result.get<float>("gd.early_stopper.optimal_training_error"));
-        cfg2.put("gd.start_epoch",    result.get<unsigned int>("gd.result_epoch"));
-        cfg2.put("gd.max_epochs", 8 * result.get<unsigned int>("gd.result_epoch"));
-        ptree res = fit(m, cfg2);
-        return res;
+        msg::Fit cfg2 = cfg;
+        cfg2.mutable_gd()->mutable_stopping_criteria()->mutable_es()->set_active(false);
+        cfg2.mutable_gd()->mutable_stopping_criteria()->set_target_loss(
+                result.early_stopper().optimal_training_loss());
+        cfg2.mutable_gd()->set_start_epoch(result.result_epoch());
+        cfg2.mutable_gd()->mutable_stopping_criteria()->set_max_epochs(
+                result.result_epoch() * 2);
+        return fit(m, cfg2);
     }
-    ptree 
-    learner2::learn_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result){
-        float target_loss = result.get<float>("gd.early_stopper.optimal_training_error");
+    msg::FitResult 
+    learner2::learn_until_previous_loss_reached(model& m, const msg::Fit& cfg, const msg::FitResult& result){
+        float target_loss = result.early_stopper().optimal_training_loss();
         LOG4CXX_INFO(g_log_learner2, "multistage_learner: learn_until_previous_loss_reached, target_loss:"<<target_loss);
-        ptree cfg2 = cfg;
-        cfg2.put("early_stopper.active", false);
-        cfg2.put("min_loss_stopper.active", true);
-        cfg2.put("min_loss_stopper.target_loss", target_loss);
-        ptree res = fit(m, cfg2);
-        return res;
+        msg::Fit cfg2 = cfg;
+        cfg2.mutable_gd()->mutable_stopping_criteria()->mutable_es()->set_active(false);
+        cfg2.mutable_gd()->mutable_stopping_criteria()->set_target_loss(target_loss);
+        return fit(m, cfg2);
     }
 
     unsigned int learner2::n_splits()const{
@@ -524,11 +516,10 @@ namespace cuvnet
             ia >> m;
         }
 
-    ptree 
-    crossvalidator2::fit(learner2& lrn, boost::shared_ptr<model> mptr, const ptree& cfg){
+    msg::XValResult 
+    crossvalidator2::fit(learner2& lrn, boost::shared_ptr<model> mptr, const msg::XVal& cfg){
         model& m = *mptr;
         unsigned int n_splits = lrn.n_splits();
-        ptree result;
         using namespace boost::accumulators;
         namespace ba = boost::accumulators;
         accumulator_set<double, 
@@ -536,61 +527,68 @@ namespace cuvnet
         accumulator_set<double, 
             features<tag::mean, tag::median, tag::variance, tag::min> > s_testperf;
         unsigned int best_split = 0;
-        bfs::path bestfile;
-        ptree best_result;
-        std::string measure_path = cfg.get("xval.measure_path", "gd.early_stopper.best_perf");
+        msg::XValResult result;
         for(unsigned int split = 0; split < n_splits; split ++){
             log4cxx::NDC ndc("split_"+boost::lexical_cast<std::string>(split));
             m.reset_params();
             lrn._switch_dataset(CM_TRAIN, split);
-            ptree res = lrn.fit(m, cfg);
-            if(split == 0 || ba::min(s_valperf) > res.get<float>(measure_path)){
-                bestfile =  bfs::path(res.get<std::string>("path")) / "after_train.ser";
-                lrn.save_model(mptr, bestfile.string());
+            msg::FitResult fit_res = lrn.fit(m, cfg.fit());
+            fold_results.push_back(fit_res);
+            float validation_loss = fit_res.early_stopper().best_validation_loss();
+            if(split == 0 || ba::min(s_valperf) > validation_loss){
+                std::string bestfile =  "after_train.ser";
+                lrn.save_model(mptr, bestfile);
                 best_split = split;
-                best_result = res;
             }
 
-            // evaluate on test set, (not used for model selection!)
-            lrn._switch_dataset(CM_TEST);
-            ptree pres = lrn.predict(m, cfg);
-            res.add_child("testset", pres);
 
+            lrn._switch_dataset(CM_VAL);
+            msg::PredictResult val_result;
+            val_result.set_cerr_mean(validation_loss);
+
+            msg::XValResult::FoldResult fold_result;
+            fold_result.set_fit_result(fit_res);
+            fold_result.set_val_result(val_result);
+
+            if(cfg.evaluate_folds_on_test()){
+                // evaluate on test set, (DO NOT USE for model selection!)
+                lrn._switch_dataset(CM_TEST);
+                msg::PredictResult test_result = lrn.predict(m, cfg.predict());
+                fold_result.set_test_result(test_result);
+
+                if(test_result.has_cerr_mean())
+                    s_testperf(test_result.cerr_mean()); 
+                else
+                    s_testperf(test_result.loss_mean()); 
+            }
 
             // record fold result
-            result.add_child("xval.folds.fold_" + boost::lexical_cast<std::string>(split), res);
-            s_valperf(res.get<float>(measure_path)); 
+            result.add_fold(fold_result);
+            s_valperf(validation_loss); 
 
-            boost::optional<float> predict_loss 
-                = pres.get_optional<float>("cerr_mean");
-            if(predict_loss)
-                s_testperf(*predict_loss); 
-            else
-                s_testperf(pres.get<float>("loss_mean")); 
             // TODO stop evaluating if too bad in comparison with current best?
         }
-        result.put("xval.val_mean", ba::mean(s_valperf));
-        result.put("xval.val_var", ba::variance(s_valperf));
-        result.put("xval.test_mean", ba::mean(s_testperf));
-        result.put("xval.test_var", ba::variance(s_testperf));
-        result.put_child("xval.best_fold", best_result);
+        result.set_val_mean( ba::mean(s_valperf));
+        result.set_val_var(n_splits == 1 ? 0.01 : ba::variance(s_valperf));
+        result.set_val_mean( ba::mean(s_testperf));
+        result.set_val_mean( ba::variance(s_testperf));
+        result.set_best_fold(best_split);
 
         // retrain on all, training + validation, if required.
-        if(cfg.get("xval.retrain_all", false)){
+        if(cfg.retrain_all()){
             log4cxx::NDC ndc("retrain_all");
             float current_loss = ba::mean(s_valperf);
-            float prev_loss = cfg.get("xval.retrain_all_thresh", INT_MAX);
-            if(current_loss < prev_loss){
-                LOG4CXX_INFO(g_log_xval2, "retrain on TRAINVAL, current_loss:"<<current_loss<<", prev_loss:"<<prev_loss);
+            if(!cfg.has_retrain_all_thresh() || current_loss < cfg.retrain_all_thresh()){
+                LOG4CXX_INFO(g_log_xval2, "retrain on TRAINVAL, current_loss:"<<current_loss<<", prev_loss:"<<cfg.retrain_all_thresh());
                 m.reset_params();
-                ptree cfg2 = cfg;
-                cfg2.put("train_dataset", (int)CM_TRAINALL); // required for multi-stage learning
-                ptree tres = lrn.learn_until_previous_loss_reached(m, cfg2, best_result);
+                msg::Fit cfg2 = cfg.fit();
+                cfg2.set_train_dataset((int)CM_TRAINALL); // required for multi-stage learning
+                msg::FitResult tres = lrn.learn_until_previous_loss_reached(m, cfg2, result.fold(best_split));
 
                 lrn._switch_dataset(CM_TEST);
-                ptree pres = lrn.predict(m, cfg2);
-                result.put_child("xval.retrain_all.training", tres);
-                result.put_child("xval.retrain_all.test", pres);
+                msg::PredictResult pres = lrn.predict(m, cfg.predict());
+                result.set_retrain_all_train(tres);
+                result.set_retrain_all_test(pres);
             }else{
                 LOG4CXX_INFO(g_log_xval2, "NO retrain on TRAINVAL, current_loss:"<<current_loss<<", prev_loss:"<<prev_loss);
             }
@@ -599,11 +597,11 @@ namespace cuvnet
         return result;
     }
 
-    ptree learner2::predict(model& m, const ptree& cfg){
+    msg::PredictResult learner2::predict(model& m, const msg::Predict& cfg){
         m_mon
-            = get_monitor(m, cfg.get_child("monitor", ptree()));
+            = get_monitor(m, cfg.monitor());
 
-        int batch_size = cfg.get<int>("batchsize");
+        int batch_size = cfg.batch_size();
         gradient_descent gd(m.loss(), 0, std::vector<Op*>(), 0.0, 0.0);
         this->before_predict(&m, gd, cfg);
         m_mon->register_gd(gd);
@@ -611,26 +609,19 @@ namespace cuvnet
             _load_batch(&m, 0, 0);
             gd.batch_learning(1, INT_MAX);
         }else {
-            int batch_size_test = cfg.get("batchsize_test", batch_size);
-           
-            if(batch_size_test != batch_size){
-                LOG4CXX_INFO(g_log_learner2, "Predict: changing batch_size to: " << batch_size_test);
-                m.set_batchsize(batch_size_test);
-                batch_size = batch_size_test;
-                gd.repair_swiper();
-            }
-
+            m.set_batchsize(batch_size_test);
+            gd.repair_swiper();
             gd.before_batch.connect(boost::bind(&learner2::_load_batch, this, &m, _1, _2));
             gd.current_batch_num = boost::bind(&learner2::_n_batches, this, batch_size);
             gd.minibatch_learning(1, INT_MAX, false); // don't shuffle
         }
-        ptree result;
+        msg::PredictResult result;
         if(m_mon->has("cerr")){
-            result.put("cerr_mean", m_mon->mean("cerr"));
-            result.put("cerr_var", m_mon->var("cerr"));
+            result.set_cerr_mean(m_mon->mean("cerr"));
+            result.set_cerr_var(m_mon->var("cerr"));
         }else{
-            result.put("loss_mean", m_mon->mean("loss"));
-            result.put("loss_var", m_mon->var("loss"));
+            result.set_loss_mean(m_mon->mean("loss"));
+            result.set_loss_var(m_mon->var("loss"));
         }
         return result;
     }
@@ -646,7 +637,7 @@ namespace cuvnet
         if(cfg.gd().stopping_criteria().has_es()){
             es = get_early_stopper(*m_gd, *m_mon, cfg.gd().stopping_criteria().es());
             if(es) {
-                register_validation_batchsize(m, *m_gd, *es, cfg);
+                register_validation_batchsize(m, *m_gd, *es, cfg, cfg.gd().stopping_criteria().es());
                 rotl.reset(new record_optimal_training_loss(*es, *m_mon));
                 m_mon->register_gd(*m_gd, *es);
             }else{
@@ -733,25 +724,26 @@ namespace cuvnet
             this->before_learning(&m, *m_gd, es.get(), cfg);
             m_gd->minibatch_learning(max_epochs, time_limit);
         }
-        ptree result;
-        result.put("gd.result_epoch", m_gd->iters());
-        result.put("gd.stop_reason", (int)m_gd->stop_reason());
-        result.put("path", tmppath.string());
+        FitResult result;
+        result.set_result_epoch(m_gd->iters());
+        result.set_stop_reason((int)m_gd->stop_reason());
         if(learnrate_schedule)
-            result.put("gd.final_learnrate", m_gd->learnrate());
+            result.set_final_learnrate(m_gd->learnrate());
         if(momentum_schedule)
-            result.put("gd.final_momentum", 
+            result.set_final_momentum(
                     boost::dynamic_pointer_cast<momentum_gradient_descent>(m_gd)->momentum());
         if(es){
-            result.put("gd.early_stopper.best_perf", es->best_perf());
+            msg::EarlyStopperResult esr;
+            esr.set_best_validation_loss(es->best_perf());
             if(rotl)
-                result.put("gd.early_stopper.optimal_training_error", rotl->best_training_loss);
+                esr.set_optimal_training_error(rotl->best_training_loss);
             m_es = es; // contains infos that may be valuable to cross-validation etc.
+            result.set_early_stopper(esr);
         }else{
             if(m_mon->has("loss"))
-                result.put("loss", m_mon->mean("loss"));
+                result.set_loss_mean(m_mon->mean("loss"));
             if(m_mon->has("cerr"))
-                result.put("cerr", m_mon->mean("cerr"));
+                result.set_cerr_mean(m_mon->mean("cerr"));
         }
 
         // TODO continue_learning_until_previous_loss_reached would be easier
@@ -1008,7 +1000,7 @@ namespace cuvnet
             float target_loss = result.get<float>(
                 "stage_results."
                 +stage_name
-                +".gd.early_stopper.optimal_training_error");
+                +".gd.early_stopper.best_training_loss");
             ptree stagecfg = cfg.get_child(stage_name, cfg);
             LOG4CXX_INFO(g_log_mslearner, "learn_until_previous_loss_reached "<<stage_name<<", target_loss:"<<target_loss);
             stagecfg.put("early_stopper.active", false);
