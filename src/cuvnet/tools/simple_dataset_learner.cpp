@@ -83,7 +83,7 @@ namespace cuvnet
                 m_splits.init(dsall, nsplits, es_frac);
             }else if (ds == "ldpc"){
                 dataset dsall = ldpc_dataset("/home/local/datasets/LDPC");
-                randomizer().transform(dsall.train_data, dsall.train_labels);
+                //randomizer().transform(dsall.train_data, dsall.train_labels); // ds is already shuffled when generating!
                 if(from < to)
                     dsall = select_training_range(dsall, from, to);
                 // no transformation except randomization needed
