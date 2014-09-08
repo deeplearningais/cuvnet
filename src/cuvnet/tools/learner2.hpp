@@ -6,6 +6,7 @@
 #include <cuvnet/models/models.hpp>
 #include <datasets/dataset.hpp>    /* for cv_mode */
 #include <cuvnet/graph_modifiers.hpp>
+#include <messages/gd.pb.h>
 
 namespace cuvnet
 {
@@ -151,19 +152,19 @@ namespace cuvnet
              */
             virtual
             boost::shared_ptr<gradient_descent> 
-                get_gradient_descent(model& m, const ptree& cfg);
+                get_gradient_descent(model& m, const msg::Fit& cfg);
 
             /**
              * Returns an early stopper or NULL, configured according to the cfg parameter.
              */
             boost::shared_ptr<early_stopper>
-                get_early_stopper(gradient_descent& gd, monitor& mon, const ptree& cfg);
+                get_early_stopper(gradient_descent& gd, monitor& mon, const msg::EarlyStopper& cfg);
 
             /**
              * Returns an convergence checker or NULL, configured according to the cfg parameter.
              */
             boost::shared_ptr<convergence_checker>
-                get_convergence_checker(gradient_descent& gd, boost::shared_ptr<early_stopper> es, monitor& mon, const ptree& cfg);
+                get_convergence_checker(gradient_descent& gd, boost::shared_ptr<early_stopper> es, monitor& mon, const msg::ConvergenceChecker& cfg);
 
             /**
              * Returns a monitor that watches loss and error of the model.
@@ -175,13 +176,13 @@ namespace cuvnet
              * @param cfg the configuration subtree of the monitor
              */
             boost::shared_ptr<monitor> 
-                get_monitor(model& m, const ptree& cfg);
+                get_monitor(model& m, const Fit& cfg);
 
             /**
              * Returns a learnrate schedule, which will be called in the before_epoch event.
              */
             boost::shared_ptr<schedules::hyperparam_schedule> 
-                virtual get_learnrate_schedule(gradient_descent& gd, int max_epochs, ptree cfg);
+                virtual get_learnrate_schedule(gradient_descent& gd, int max_epochs, const msg::GradientDescent& cfg);
 
             /**
              * Returns a momentum schedule, which will be called in the before_epoch event.
@@ -242,7 +243,7 @@ namespace cuvnet
              * @param m the model to be fitted
              * @param cfg parameters for fitting
              */
-            virtual ptree fit(model& m, const ptree& cfg);
+            virtual msg::FitResult fit(model& m, const msg::Fit& cfg);
 
             /**
              * Evaluate the model for the current dataset (one
@@ -313,7 +314,7 @@ namespace cuvnet
              */
             virtual ~learner2();
 
-            void register_validation_batchsize(model& m, gradient_descent& gd, early_stopper& es, const ptree& cfg);
+            void register_validation_batchsize(model& m, gradient_descent& gd, early_stopper& es, const msg::GradientDescent& cfg);
 
             inline 
                 boost::shared_ptr<early_stopper> get_early_stopper(){ return m_es; }

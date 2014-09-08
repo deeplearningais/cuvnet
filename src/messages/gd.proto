@@ -1,9 +1,36 @@
 package cuvnet.msg;
 
+message EarlyStopper{
+    optional bool active = 1 [default=true];
+    optional string watch = 2 [default="cerr"];
+    optional float thresh = 3 [default=0.9995];
+    optional int32 every = 4 [default=1];
+    optional float multiply = 5 [default=2.0];
+    optional int32 boxfilter = 6 [default=1];
+    optional int32 patience = 7 [default=100];
+    optional int32 max_steps = 8 [default=0];
+    optional float lr_fact = 9 [default=0.5];
+}
+
+message ConvergenceChecker{
+    optional bool active = 1 [default=true];
+    optional string watch = 2 [default="cerr"];
+    optional float thresh = 3 [default=0.995];
+    optional int32 min_wups = 4 [default=10];
+    optional float patience_inc_fact = 5 [default=1.2];
+    optional bool use_early_stopper = 6 [default=false];
+    optional int32 max_steps = 7 [default=4];
+    optional float lr_fact = 8 [default=-1.0];
+}
+
+
 message StoppingCriteria{
     optional int32 time_limit = 1 [default=2147483647];
     optional int32 max_epochs = 2 [default=2147483647];
     optional float target_loss = 3 [default=0.0];
+
+    optional ConvergenceChecker cc = 100;
+    optional EarlyStopper es = 101;
 }
 
 message GradientDescent{
@@ -11,13 +38,21 @@ message GradientDescent{
     required int32 eval_batch_size = 2 [default=-1];
     optional float learnrate = 3 [default=0.01];
     optional float l2decay = 4 [default=0.0];
-    optional bool wup_rec = 5 [default=false];
-    optional bool diff_rec = 6 [default=false];
+    optional int32 verbosity = 5 [default=0];
+    optional int32 start_epoch = 6 [default=0];
     optional StoppingCriteria stopping_criteria = 7;
 
     extensions 100 to max;
 }
 
+message WeightUpdateRecorder{
+    optional bool active = 1 [default=true];
+    optional int32 every = 2 [default=1];
+}
+message WeightDiffRecorder{
+    optional bool active = 1 [default=true];
+    optional int32 every = 2 [default=1];
+}
 
 message Momentum {
     required float momentum = 1 [default=0.9];
@@ -33,6 +68,25 @@ message RMSProp {
     optional float delta = 1 [default=0.01];
     optional float grad_avg = 2 [default=0.9];
     optional float l1decay = 3 [default=0.0];
+    optional float eta_p = 4 [default=1.2];
+    optional float eta_m = 5 [default=0.5];
+}
+message RRMSProp {
+    optional float delta = 1 [default=0.01];
+    optional float grad_avg = 2 [default=0.9];
+    optional float l1decay = 3 [default=0.0];
+    optional float eta_p = 4 [default=1.2];
+    optional float eta_m = 5 [default=0.5];
+    optional float delta_min = 6 [default=0.00001];
+    optional float delta_max = 7 [default=5.0];
+}
+
+message NARMSProp {
+    optional float delta = 1 [default=0.01];
+    optional float grad_avg = 2 [default=0.9];
+    optional float step_adapt = 3 [default=0.9];
+    optional float lr_min = 4 [default=0.00001];
+    optional float lr_max = 5 [default=0.1];
 }
 
 message AdaGrad {
@@ -50,39 +104,36 @@ message LinearSchedule{
 message ExponentialSchedule{
     optional float initial = 1 [default=1];
     optional float final = 2 [default=0.001];
-    optional int32 duration = 3 [default=100];
+    optional float t0 = 3 [default=10.0];
+    optional int32 duration = 4 [default=100];
 }
 
 message DivSchedule{
     optional float initial = 1 [default=1];
-    optional float annealstart = 2 [default=0];
+    optional float annealstart = 2 [default=70];
 }
 
 extend GradientDescent{
     optional Momentum momentum_ext = 100;
     optional RMSProp rmsprop_ext   = 101;
-    optional RProp rprop_ext       = 102;
-    optional AdaGrad adagrad_ext   = 103;
+    optional RRMSProp rrmsprop_ext   = 102;
+    optional NARMSProp narmsprop_ext   = 103;
+    optional RProp rprop_ext       = 104;
+    optional AdaGrad adagrad_ext   = 105;
 
-    optional LinearSchedule linear_learnrate_schedule = 104;
-    optional ExponentialSchedule exponential_learnrate_schedule = 105;
-    optional DivSchedule div_learnrate_schedule = 106;
-}
 
-message EarlyStopper{
-    optional bool active = 1;
-    optional string watch = 2 [default="cerr"];
-    optional int32 every = 3 [default=1];
-    optional float multiply = 4 [default=2.0];
-    optional int32 boxfilter = 5 [default=1];
-    optional int32 patience = 6 [default=100];
-    optional int32 max_steps = 7 [default=0];
-    optional float lr_fact = 8 [default=0.5];
+    optional LinearSchedule linear_learnrate_schedule = 201;
+    optional ExponentialSchedule exponential_learnrate_schedule = 202;
+    optional DivSchedule div_learnrate_schedule = 203;
+
+    optional LinearSchedule linear_momentum_schedule = 210;
+
+    optional WeightUpdateRecorder wup_rec_ext = 301;
+    optional WeightDiffRecorder wdiff_rec_ext = 302;
 }
 
 message Monitor{
     optional bool verbose = 1 [default=false];
-    optional string basepath = 2 [default="."];
 }
 
 message NetCom{
@@ -96,6 +147,30 @@ message NetCom{
 message Fit{
     required GradientDescent gd=1;
     optional Monitor monitor=2;
-    optional EarlyStopper es=3;
-    optional NetCom netcom=4;
+
+    optional NetCom netcom=100;
+}
+
+message EarlyStopperResult {
+    required float best_loss=1;
+    required float optimal_training_error=2;
+}
+
+message FitResult{
+    enum StopReason{
+                SR_NAN = 0;
+                SR_NO_IMPROVEMENT = 1;
+                SR_CONVERGENCE = 2;
+                SR_MAX_ITER = 3;
+                SR_TIMEOUT = 4;
+                SR_NETWORK = 5;
+                SR_EXTERNAL_REQUEST = 6;
+                SR_UNKNOWN = 7;
+    };
+
+    required StopReason stop_reason=1 [default=SR_UNKNOWN];
+    required int32 result_epoch=2;
+    optional float loss=3 [default=2147483647];
+    optional EarlyStopperResult early_stopper=4;
+    optional float final_learnrate=5;
 }

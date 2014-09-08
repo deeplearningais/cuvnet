@@ -24,6 +24,7 @@
 #include <cuv/basics/io.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
+#include <messages/gd.pb.h>
 
 #include <cuvnet/common.hpp>
 #include "learner2.hpp"
@@ -110,16 +111,16 @@ namespace cuvnet
                         ));
         }
         /*****************************************
-         * bergstra_learnrate_schedule
+         * div_learnrate_schedule
          *****************************************/
-        bergstra_learnrate_schedule::bergstra_learnrate_schedule(gradient_descent* _gd, float begin, float anneal)
+        div_learnrate_schedule::div_learnrate_schedule(gradient_descent* _gd, float begin, float anneal)
             :initial(begin), anneal_start(anneal), gd(_gd)
         {
             LOG4CXX_WARN(g_log_learner2, "Setting up bergstra learnrate schedule (initial: "<<initial
                     << ", anneal_start:" << anneal_start<<")");
             con = gd->before_epoch.connect(boost::ref(*this));
         }
-        void bergstra_learnrate_schedule::operator()(unsigned int epoch, unsigned int wups)
+        void div_learnrate_schedule::operator()(unsigned int epoch, unsigned int wups)
         {
             gd->set_learnrate(
                     initial * std::min(1.0f, anneal_start / (epoch +1)));
@@ -184,81 +185,78 @@ namespace cuvnet
      * Learner2
      *****************************************/
     boost::shared_ptr<gradient_descent> 
-    learner2::get_gradient_descent(model& m, const ptree& cfg){
-        std::string typ = cfg.get("type", "plain");
-        bool drec = cfg.get("diff_rec", false);
-        bool wrec = cfg.get("wup_rec.active", false);
+    learner2::get_gradient_descent(model& m, const msg::Fit& cfg){
+        const msg::GradientDescent& gdcfg = cfg.gd();
+        bool drec = gdcfg.HasExtension(msg::wup_rec_ext);
+        bool wrec = gdcfg.HasExtension(msg::wdiff_rec_ext);
         if(drec){
             LOG4CXX_INFO(g_log_learner2, "Setting up delta recording for gradient_descent");
         }
         if(wrec){
             LOG4CXX_INFO(g_log_learner2, "Setting up wup recording for gradient_descent");
         }
-        float initial_learnrate = cfg.get("learnrate", 0.01);
-        float initial_momentum = cfg.get("momentum", 0.9);
-        float l2decay = cfg.get("l2decay", 0.0);
-        int verbosity = cfg.get("verbosity", 0);
-        unsigned int start_epoch = cfg.get("start_epoch", 0);
-        if(typ == "plain"){
-            LOG4CXX_INFO(g_log_learner2, "Creating Plain GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
-            MAKE_GD(gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
-            gd->set_epoch(start_epoch);
-            gd->set_verbosity(verbosity);
-            return gd;
-        }else if(typ == "rmsprop"){
-            float delta = cfg.get("delta", 0.01f);
-            float grad_avg = cfg.get("grad_avg", 0.9f);
-            float l1decay = cfg.get("l1decay", 0.f);
-            LOG4CXX_INFO(g_log_learner2, "Creating RMSProp GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", grad_avg:" << grad_avg << ", delta:" << delta << ")");
+        float initial_learnrate = gdcfg.learnrate();
+        float l2decay = gdcfg.l2decay();
+        int verbosity = gdcfg.verbosity();
+        unsigned int start_epoch = gdcfg.start_epoch();
+        float initial_momentum = 0.;
+        if(0){
+        }else if(gdcfg.HasExtension(msg::rmsprop_ext)){
+            float delta = gdcfg.GetExtension(msg::rmsprop_ext).delta();
+            float grad_avg = gdcfg.GetExtension(msg::rmsprop_ext).grad_avg();
+            float l1decay = gdcfg.GetExtension(msg::rmsprop_ext).l1decay();
+            LOG4CXX_INFO(g_log_learner2, "Creating RMSProp gdcfg (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", grad_avg:" << grad_avg << ", delta:" << delta << ")");
             MAKE_GD(rmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
-        }else if(typ == "rprop"){
-            float eta_p = cfg.get("eta_p", 1.2f);
-            float eta_m = cfg.get("eta_m", 0.5f);
-            float l1_penalty = cfg.get("l1_penalty", 0.f);
+        }else if(gdcfg.HasExtension(msg::rmsprop_ext)){
+            float eta_p = gdcfg.GetExtension(msg::rmsprop_ext).eta_p();
+            float eta_m = gdcfg.GetExtension(msg::rmsprop_ext).eta_m();
+            float l1_penalty = gdcfg.GetExtension(msg::rmsprop_ext).l1decay();
             LOG4CXX_INFO(g_log_learner2, "Creating RPROP GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", l1_penalty:"<< l1_penalty << ", eta_p:" << eta_p << ", eta_m:" << eta_m <<")");
             MAKE_GD(rprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, l1_penalty, eta_p, eta_m);
             gd->set_epoch(start_epoch);
             gd->set_update_every(0);
             gd->set_verbosity(verbosity);
             return gd;
-        }else if(typ == "momentum"){
+        }else if(gdcfg.HasExtension(msg::momentum_ext)){
             LOG4CXX_INFO(g_log_learner2, "Creating Momentum GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", momentum: "<< initial_momentum << ")");
+            initial_momentum = gdcfg.GetExtension(msg::momentum_ext).momentum();
             MAKE_GD(momentum_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, initial_momentum);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
-        }else if(typ == "adagrad"){
-            float winsize = cfg.get("winsize", INT_MAX);
-            float l1_penalty = cfg.get("l1_penalty", 0.f);
-            float delta = cfg.get("delta", 0.01f);
+        }else if(gdcfg.HasExtension(msg::adagrad_ext)){
+            float winsize = gdcfg.GetExtension(msg::adagrad_ext).winsize();
+            float l1_penalty = gdcfg.GetExtension(msg::adagrad_ext).l1decay();
+            float delta = gdcfg.GetExtension(msg::adagrad_ext).delta();
             LOG4CXX_INFO(g_log_learner2, "Creating AdaGrad GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", delta:"<< delta 
                 << ", winsize:" << winsize << ", l1_penalty:" << l1_penalty << ")");
             MAKE_GD(adagrad_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  delta, winsize, l1_penalty);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
-        }else if(typ == "na_rmsprop"){
-            float delta = cfg.get("delta", 0.01f);
-            float grad_avg = cfg.get("grad_avg", 0.9f);
-            float step_adapt = cfg.get("step_adapt", 0.9f);
-            float lr_min = cfg.get("lr_min", 0.00001f);
-            float lr_max = cfg.get("lr_max", 0.1f);
+        }else if(gdcfg.HasExtension(msg::narmsprop_ext)){
+            float delta    = gdcfg.GetExtension(msg::narmsprop_ext).delta();
+            float grad_avg = gdcfg.GetExtension(msg::narmsprop_ext).grad_avg();
+            float step_adapt = gdcfg.GetExtension(msg::narmsprop_ext).step_adapt();
+            float lr_min = gdcfg.GetExtension(msg::narmsprop_ext).lr_min();
+            float lr_max = gdcfg.GetExtension(msg::narmsprop_ext).lr_max();
             LOG4CXX_INFO(g_log_learner2, "Creating NA_RMSPROP GD (initial_learnrate:" << initial_learnrate << ", momentum:" << initial_momentum <<", l2decay:" << l2decay << ", delta:" << delta << ", grad_avg:" << grad_avg << ", step_adapt:" << step_adapt << ", lr_min:" << lr_min << ", lr_max:" << lr_max << ")");
             MAKE_GD(na_rmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  initial_momentum, grad_avg,step_adapt,delta,lr_max,lr_min);
             gd->set_epoch(start_epoch);
             gd->set_verbosity(verbosity);
             return gd;
-        }else if(typ == "rrmsprop"){
-            float delta = cfg.get("delta", 0.01f);
-            float grad_avg = cfg.get("grad_avg", 0.9f);
-            float eta_p = cfg.get("eta_p", 1.2f);
-            float eta_m = cfg.get("eta_m", 0.5f);
-            float delta_min = cfg.get("delta_min", 0.00001f);
-            float delta_max = cfg.get("delta_max", 5.0f);
-            float l1_penalty = cfg.get("l1_penalty", 0.f);
+        }else if(gdcfg.HasExtension(msg::rrmsprop_ext)){
+            const msg::RRMSProp& msg = gdcfg.GetExtension(msg::rrmsprop_ext);
+            float delta = msg.delta();
+            float grad_avg = msg.grad_avg();
+            float eta_p = msg.eta_p();
+            float eta_m = msg.eta_m();
+            float delta_min = msg.delta_min();
+            float delta_max = msg.delta_max();
+            float l1_penalty = msg.l1decay();
             LOG4CXX_INFO(g_log_learner2, "Creating RRMSPROP GD (initial_learnrate:" << initial_learnrate << ", l2decay:" << l2decay << ", l1_penalty:"<< l1_penalty <<", delta:" << delta << ", grad_avg:" << grad_avg <<  ", eta_p:" << eta_p << ", eta_m:" << eta_m << ", delta_min:" << delta_min << ", delta_max:" << delta_max << ")");
             MAKE_GD(rrmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, l1_penalty, grad_avg, delta/*, eta_p, eta_m, delta_max, delta_min*/);
             gd->set_epoch(start_epoch);
@@ -268,24 +266,28 @@ namespace cuvnet
 
         }
         else{
-            throw std::runtime_error("unknown/not implemented gd_type: " + typ);
+            LOG4CXX_INFO(g_log_learner2, "Creating Plain GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
+            MAKE_GD(gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
+            gd->set_epoch(start_epoch);
+            gd->set_verbosity(verbosity);
+            return gd;
         }
     }
 
     boost::shared_ptr<early_stopper>
-    learner2::get_early_stopper(gradient_descent& gd, monitor& mon, const ptree& cfg){
+    learner2::get_early_stopper(gradient_descent& gd, monitor& mon, const msg::EarlyStopper& cfg){
         boost::shared_ptr<early_stopper> es;
-        bool active = cfg.get("active", true);
+        bool active = cfg.active();
         if(!active)
             return es;
-        std::string watch = cfg.get("watch", "cerr");
-        float thresh = cfg.get("thresh", 0.995);
-        int every = cfg.get("every", 1);
-        float multiply = cfg.get("multiply", 2.f);
-        int boxfilter = cfg.get("boxfilter", 1);
-        int patience = cfg.get("patience", 100);
-        int max_steps = cfg.get("max_steps", 0);
-        float lr_fact = cfg.get("lr_fact", 0.5f);
+        std::string watch = cfg.watch();
+        float thresh = cfg.thresh();
+        int every = cfg.every();
+        float multiply = cfg.multiply();
+        int boxfilter = cfg.boxfilter();
+        int patience = cfg.patience();
+        int max_steps = cfg.max_steps();
+        float lr_fact = cfg.lr_fact();
         LOG4CXX_INFO(g_log_learner2, "Setting up Early Stopper (watch:"<<watch
                 <<", thresh:"<< thresh
                 << ", every: "<< every 
@@ -309,24 +311,24 @@ namespace cuvnet
     }
 
     boost::shared_ptr<convergence_checker>
-    learner2::get_convergence_checker(gradient_descent& gd, boost::shared_ptr<early_stopper> es, monitor& mon, const ptree& cfg){
+    learner2::get_convergence_checker(gradient_descent& gd, boost::shared_ptr<early_stopper> es, monitor& mon, const msg::ConvergenceChecker& cfg){
         boost::shared_ptr<convergence_checker> cc;
-        bool active = cfg.get("active", true);
+        bool active = cfg.active();
         if (!active)
             return cc;
-        std::string watch = cfg.get("watch", "cerr");
-        float thresh = cfg.get("thresh", 0.995);
-        int min_wups = cfg.get("min_wups", 10);
-        float patience_inc_fact = cfg.get("patience_inc_fact", 1.2);
-        bool use_early_stopper = cfg.get("use_early_stopper", false);
+        std::string watch = cfg.watch();
+        float thresh = cfg.thresh();
+        int min_wups = cfg.min_wups();
+        float patience_inc_fact = cfg.patience_inc_fact();
+        bool use_early_stopper = cfg.use_early_stopper();
         if(use_early_stopper)
             cc.reset(new convergence_checker(gd, *es,
                         boost::bind(&monitor::mean, &mon, watch), thresh, min_wups, patience_inc_fact));
         else
             cc.reset(new convergence_checker(gd,
                         boost::bind(&monitor::mean, &mon, watch), thresh, min_wups, patience_inc_fact));
-        int max_steps = cfg.get("max_steps", 4);
-        float lr_fact = cfg.get("lr_fact", -1.f);
+        int max_steps = cfg.max_steps();
+        float lr_fact = cfg.lr_fact();
         if(lr_fact > 0)
             cc->decrease_lr(max_steps, lr_fact);
         LOG4CXX_INFO(g_log_learner2, "Setting up Convergence Checker ("
@@ -359,9 +361,13 @@ namespace cuvnet
     }
     
     void
-    learner2::register_validation_batchsize(model& m , gradient_descent& gd, early_stopper& es, const ptree& cfg){
-        unsigned int bs_train = cfg.get("batchsize", -1);
-        unsigned int bs_valid = cfg.get("batchsize_valid", bs_train);
+    learner2::register_validation_batchsize(model& m , gradient_descent& gd, early_stopper& es, const msg::GradientDescent& cfg){
+        unsigned int bs_train = cfg.batch_size(), bs_valid;
+        if(cfg.has_eval_batch_size())
+            bs_valid = cfg.eval_batch_size();
+        else
+            bs_valid = bs_train;
+
         LOG4CXX_INFO(g_log_learner2, "Setting up batch sizes, validation: " << bs_valid << " train: "<<bs_train);
 
         gradient_descent* gdp = &gd;
@@ -417,60 +423,59 @@ namespace cuvnet
     learner2::~learner2(){};
 
     boost::shared_ptr<schedules::hyperparam_schedule> 
-    learner2::get_learnrate_schedule(gradient_descent& gd, int max_epochs, ptree cfg){
+    learner2::get_learnrate_schedule(gradient_descent& gd, int max_epochs, const msg::GradientDescent& cfg){
         boost::shared_ptr<schedules::hyperparam_schedule> hs;
-        std::string schedule = cfg.get("type", "constant");
-        if(schedule == "constant")
-            return hs;
-        if(schedule == "linear"){
-            float initial = cfg.get("initial", gd.learnrate());
-            float final   = cfg.get("final", initial * 0.01f);
-            int   duration = cfg.get("duration", max_epochs);
+        if(cfg.HasExtension(msg::linear_learnrate_schedule)){
+            const msg::LinearSchedule& s = cfg.GetExtension(msg::linear_learnrate_schedule);
+            float initial = s.initial() * gd.learnrate();
+            float final   = s.final() * gd.learnrate();
+            int   duration = s.duration();
             LOG4CXX_INFO(g_log_learner2, "Setting up linear learnrate schedule (initial: "<<initial
                     << ", final:" << final
                     << ", duration:"<<duration<<")");
             hs.reset(new schedules::linear_learnrate_schedule(&gd, initial, final, duration));
             return hs;
         }
-        if(schedule == "exponential"){
-            float initial = cfg.get("initial", gd.learnrate());
-            float final   = cfg.get("final", 0.000001f);
-            float t0   = cfg.get("t0", 10.f);
-            int   duration = cfg.get("duration", max_epochs);
+        if(cfg.HasExtension(msg::exponential_learnrate_schedule)){
+            const msg::ExponentialSchedule& s = cfg.GetExtension(msg::exponential_learnrate_schedule);
+            float initial = s.initial() * gd.learnrate();
+            float final   = s.final() * gd.learnrate();
+            float t0   = s.t0();
+            int   duration = s.duration();
             hs.reset(new schedules::exponential_learnrate_schedule(&gd, initial, final, duration, t0));
             return hs;
         }
-        if(schedule == "bergstra"){
-			float initial = cfg.get("initial", gd.learnrate());
-			float anneal_start = cfg.get("anneal", 70.0f);
-			hs.reset(new schedules::bergstra_learnrate_schedule(&gd, initial, anneal_start));
+        if(cfg.HasExtension(msg::div_learnrate_schedule)){
+            const msg::DivSchedule& s = cfg.GetExtension(msg::div_learnrate_schedule);
+			float initial = s.initial() * gd.learnrate();
+			float anneal_start = s.anneal();
+			hs.reset(new schedules::div_learnrate_schedule(&gd, initial, anneal_start));
 			return hs;
 		}
-        throw std::runtime_error("unknown learnrate schedule: " + schedule);
+        LOG4CXX_INFO(g_log_learner2, "No Learnrate Schedule!");
+        return hs;
     }
 
     boost::shared_ptr<schedules::hyperparam_schedule> 
-    learner2::get_momentum_schedule(gradient_descent& pgd, int max_epochs, ptree cfg){
+    learner2::get_momentum_schedule(gradient_descent& pgd, int max_epochs, const msg::GradientDescent& cfg){
         boost::shared_ptr<schedules::hyperparam_schedule> hs;
 
         momentum_gradient_descent* gd = dynamic_cast<momentum_gradient_descent*>(&pgd);
         if(!gd)
             return hs;
 
-        std::string schedule = cfg.get("type", "constant");
-        if(schedule == "constant")
-            return hs;
-        if(schedule == "linear"){
-            float initial = cfg.get("initial", gd->momentum());
-            float final   = cfg.get("final", 0.9f);
-            int   duration = cfg.get("duration", max_epochs);
+        if(cfg.HasExtension(msg::linear_momentum_schedule)){
+            const msg::LinearSchedule& s = cfg.GetExtension(msg::linear_momentum_schedule); 
+            float initial = cfg.initial();
+            float final   = cfg.final();
+            int   duration = cfg.duration();
             LOG4CXX_INFO(g_log_learner2, "Setting up linear momentum schedule (initial: "<<initial
                     << ", final:" << final
                     << ", duration:"<<duration<<")");
             hs.reset(new schedules::linear_momentum_schedule(gd, initial, final, duration));
             return hs;
         }
-        throw std::runtime_error("unknown learnrate schedule: " + schedule);
+        LOG4CXX_INFO(g_log_learner2, "No Momentum Schedule!");
     }
 
     ptree 
@@ -630,26 +635,16 @@ namespace cuvnet
         return result;
     }
 
-    ptree 
-    learner2::fit(model& m, const ptree& cfg)
+    msg::FitResult 
+    learner2::fit(model& m, const msg::Fit& cfg)
     {
-        std::string basepath = cfg.get("basepath", ".");
-        bfs::path tmppath = bfs::path(basepath) / cfg.get("path", ".");
-        boost::filesystem::create_directories(tmppath);
-        std::string uuid = boost::lexical_cast<std::string>(boost::uuids::uuid(boost::uuids::random_generator()()));
-
-        m_gd 
-            = get_gradient_descent(m, cfg.get_child("gd"));
-
-        m_mon
-            = get_monitor(m, cfg.get_child("monitor", cfg));
+        m_gd = get_gradient_descent(m, cfg);
+        m_mon = get_monitor(m, cfg.monitor());
 
         boost::shared_ptr<early_stopper> es;
         boost::shared_ptr<record_optimal_training_loss> rotl;
-        boost::optional<const ptree&> es_cfg 
-            = cfg.get_child_optional("early_stopper");
-        if(es_cfg){
-            es = get_early_stopper(*m_gd, *m_mon, *es_cfg);
+        if(cfg.gd().stopping_criteria().has_es()){
+            es = get_early_stopper(*m_gd, *m_mon, cfg.gd().stopping_criteria().es());
             if(es) {
                 register_validation_batchsize(m, *m_gd, *es, cfg);
                 rotl.reset(new record_optimal_training_loss(*es, *m_mon));
@@ -661,26 +656,25 @@ namespace cuvnet
             m_mon->register_gd(*m_gd);
         }
 
-        boost::optional<const ptree&> nc_cfg
-            = cfg.get_child_optional("netcom");
         boost::shared_ptr<cuvnet::network_communication::client> client;
         boost::shared_ptr<cuvnet::network_communication::param_synchronizer> paramsync;
-        if(nc_cfg){
-            LOG4CXX_INFO(g_log_learner2, "Setting up netcom " <<nc_cfg->get<std::string>("host") << "/"
-                    << nc_cfg->get<std::string>("db")<<"/"
-                    << nc_cfg->get<std::string>("key") << "("
-                    << nc_cfg->get<std::string>("push_steps") << " push, "
-                    << nc_cfg->get<std::string>("pull_steps") << " pull)"
+        if(cfg.has_netcom()){
+            msg::NetCom& ncfg = cfg.netcom();
+            LOG4CXX_INFO(g_log_learner2, "Setting up netcom " <<ncfg.host() << "/"
+                    << ncfg.db()<<"/"
+                    << ncfg.key() << "("
+                    << ncfg.push_steps() << " push, "
+                    << ncfg.pull_steps() << " pull)"
                     );
             client = boost::make_shared<cuvnet::network_communication::client>(
-                    nc_cfg->get<std::string>("host"), 
-                    nc_cfg->get<std::string>("db"),
-                    nc_cfg->get<std::string>("key"),
+                    ncfg.host(), 
+                    ncfg.db(),
+                    ncfg.key(),
                     uuid);
             paramsync = boost::make_shared<cuvnet::network_communication::param_synchronizer>(
                     "stage", *client, 
-                    nc_cfg->get<int>("push_steps"),
-                    nc_cfg->get<int>("pull_steps"),
+                    ncfg.push_steps(),
+                    ncfg.pull_steps(),
                     0, 0,
                     m.get_params()
                     );
@@ -691,28 +685,26 @@ namespace cuvnet
             }
         }
 
-        bool want_wup_rec = cfg.get("gd.wup_rec.active", false);
+        bool want_wup_rec = cfg.gd().HasExtension(msg::wup_rec_ext);
         if(want_wup_rec){
-            unsigned int wup_rec_every = cfg.get("gd.wup_rec.every", 1);
+            unsigned int wup_rec_every = cfg.gd().GetExtension(msg::wup_rec_ext).every();
             ((WRGD<gradient_descent>*)m_gd.get())->set_monitor(*m_mon, wup_rec_every);
         }
 
         boost::shared_ptr<convergence_checker> cc;
-        boost::optional<const ptree&> cc_cfg
-            = cfg.get_child_optional("convergence_checker");
-        if (cc_cfg)
-            cc = get_convergence_checker(*m_gd, es, *m_mon, *cc_cfg);
+        if (cfg.gd().stopping_criteria().has_cc())
+            cc = get_convergence_checker(*m_gd, es, *m_mon, cfg.gd().stopping_criteria().cc());
 
-        int time_limit = cfg.get("time_limit", INT_MAX);
-        int batch_size = cfg.get("batchsize", -1);
-        int max_epochs = cfg.get("gd.max_epochs", 5);
+        int time_limit = cfg.gd().stopping_criteria().time_limit();
+        int max_epochs = cfg.gd().stopping_criteria().max_epochs();
+        int batch_size = cfg.gd().batch_size();
         LOG4CXX_INFO(g_log_learner2, "batchsize:"<< batch_size<< ", max_epochs:"<<max_epochs<<", time_limit:"<<time_limit);
 
         boost::shared_ptr<schedules::hyperparam_schedule> learnrate_schedule =
-            get_learnrate_schedule(*m_gd, max_epochs, cfg.get_child("learnrate_schedule", ptree()));
+            get_learnrate_schedule(*m_gd, max_epochs, cfg.gd());
 
         boost::shared_ptr<schedules::hyperparam_schedule> momentum_schedule =
-            get_momentum_schedule(*m_gd, max_epochs, cfg.get_child("momentum_schedule", ptree()));
+            get_momentum_schedule(*m_gd, max_epochs, cfg.gd());
 
         bool mls_active = cfg.get("min_loss_stopper.active",false);
         boost::optional<float> target_loss;
