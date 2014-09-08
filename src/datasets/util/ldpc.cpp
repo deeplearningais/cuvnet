@@ -51,7 +51,12 @@ float binarize(float f){
 
 template<class T>
 void printmat(std::string name, const T& m){
-    std::cout <<name<<": "<<std::endl;
+    std::string filename = boost::str(boost::format("%s_%dx%d_float32.bin")%name%m.size1()%m.size2());
+    std::ofstream of(filename.c_str());
+    of.write((char*)(&m(0,0)), sizeof(float)*m.size1()*m.size2());
+    std::cout <<name<<": "<< filename << std::endl;
+    return;
+
 
     for (unsigned int i = 0; i < m.size1(); ++i)
     {
@@ -62,6 +67,29 @@ void printmat(std::string name, const T& m){
         printf("\n");
     }
     printf("\n");
+}
+
+template<class T>
+bool eq_row(const T& m, int i, int j){
+    bool same = true;
+    for(unsigned int k=0; k<m.size2(); k++){
+        if(m(i, k) != m(j, k)) {
+            same = false;
+            break;
+        }
+    }
+    return same;
+}
+template<class T>
+bool eq_col(const T& m, int i, int j){
+    bool same = true;
+    for(unsigned int k=0; k<m.size1(); k++){
+        if(m(k, i) != m(k, j)) {
+            same = false;
+            break;
+        }
+    }
+    return same;
 }
 
 
@@ -106,6 +134,39 @@ matrix<float> get_constraint_matrix_old(unsigned int n_variables, unsigned int d
 
 matrix<float> get_constraint_matrix(unsigned int n_variables, unsigned int density){
     matrix<float> H(n_variables,n_variables);
+    for(unsigned int v=0; v< n_variables; v++){
+        while(true){
+            for(unsigned int c=0; c<n_variables; c++)
+                H(v, c) = 0;
+
+            for(unsigned int c=0; c<density;){
+                int pos = (int)(drand48() * n_variables);
+                if(H(v,pos) > 0.5)
+                    continue; // already occupied
+
+                if(sum(column(H, pos)) <= density){
+                    H(v, pos) = 1;
+                    c++;
+                }
+                // too many in this row already, continue
+            }
+            //if(sum(row(H, v)) != density)
+                //continue;
+            bool stop = false;
+            for(unsigned int v2=0; v2< n_variables; v2++){
+                if(eq_row(H, v, v2)){
+                    stop = true;
+                    break;
+                }
+            }
+            if(stop == true)
+                break;
+        }
+    }
+    return H;
+}
+matrix<float> get_constraint_matrix_OLDANDBROKEN(unsigned int n_variables, unsigned int density){
+    matrix<float> H(n_variables,n_variables);
     assert(n_variables % density == 0);
     for (unsigned int i = 0; i < n_variables/density; ++i)
         for (unsigned int  j = i*density; j < i*density+density; ++j)
@@ -129,7 +190,7 @@ matrix<float> get_constraint_matrix(unsigned int n_variables, unsigned int densi
         noalias(A) = prod(H,trans(H));
         pmatrix pm2(n_variables);
         res = lu_factorize(A,pm2);
-        std::cout<<" "<<maxres<<std::flush;
+        std::cout<<" maxres="<<maxres<<std::flush;
         maxres = std::max(maxres,res);
     }while(res!=n_variables/density);
     return H;
@@ -149,10 +210,12 @@ float threshold_or(float f){
 int
 main(int argc, char **argv)
 {
-    unsigned int n_variables   = N_DENSITY*6;
+    unsigned int n_variables   = N_DENSITY*5;
     unsigned int n_constraints = n_variables;
-    srand48(time(NULL));
-    srand(time(NULL));
+    //srand48(time(NULL));
+    //srand(time(NULL));
+    srand48(42);
+    srand(42);
 
     vector<float> variables(n_variables);
     std::generate(variables.begin(),variables.end(),drand48);
@@ -240,8 +303,8 @@ main(int argc, char **argv)
     printmat("wor",wor);
 
     // create dataset
-    //const unsigned int dataset_size = 32768;
-    const unsigned int dataset_size = 60000;
+    const unsigned int dataset_size = 32768;
+    //const unsigned int dataset_size = 60000;
     matrix<float> dataset(dataset_size, n_variables*2); // code + data
     matrix<float> cov = outer_prod(check2,check);
     vector<unsigned int> allvar(pow(2,n_variables));
@@ -281,11 +344,7 @@ main(int argc, char **argv)
 
     }
 
-    {   // dump dataset
-        std::string filename = boost::str(boost::format("/home/local/datasets/LDPC/ds_%dx%d_float32.bin")%dataset.size1()%dataset.size2());
-        std::ofstream of(filename.c_str());
-        of.write((char*)(&dataset(0,0)), sizeof(float)*dataset.size1()*dataset.size2());
-    }
+    printmat("ds", dataset);
     
     float mm = -1;
     for(unsigned int i=0;i<cov.size1();i++)
