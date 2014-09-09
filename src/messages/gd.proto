@@ -145,12 +145,19 @@ message NetCom{
 }
 
 message Fit{
-    required GradientDescent gd=1;
+    optional GradientDescent gd=1;
     optional Monitor monitor=2;
 
-    optional train_dataset=10;
-
     optional NetCom netcom=100;
+
+    extensions 500 to max;
+}
+message MultiStageFit{
+    optional bool switch_stage_with_outputs=1 [default=false];
+    repeated Fit stage=3;
+}
+extend Fit{
+    optional MultiStageFit multistage_ext = 501;
 }
 
 message EarlyStopperResult {
@@ -180,6 +187,8 @@ message FitResult{
 
     optional float final_learnrate=100;
     optional float final_momentum=101;
+
+    repeated FitResult stage = 200;
 }
 
 message Predict{
@@ -209,7 +218,7 @@ message XVal{
 
 message XValResult{
     message FoldResult{
-        required FitResult fit=1;
+        required FitResult fit_result=1;
         optional PredictResult val_result=2;
         optional PredictResult test_result=3;
     }
@@ -221,8 +230,8 @@ message XValResult{
     optional float test_mean = 5;
     optional float test_var = 6;
 
-    FitResult retrain_all_train = 100;
-    PredictResult retrain_all_test = 101;
+    optional FitResult retrain_all_train = 100;
+    optional PredictResult retrain_all_test = 101;
 }
 
 
