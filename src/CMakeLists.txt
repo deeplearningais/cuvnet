@@ -58,7 +58,7 @@ FIND_PACKAGE( tbb )
 FIND_PACKAGE( OpenCV REQUIRED )
 
 FILE(GLOB CUVNET_OPS_SRC cuvnet/ops/*.cpp)
-add_subdirectory(messages)
+add_subdirectory(cuvnet/messages)
 
 SET(CUVNET_SRC 
     #datasets/voc_detection.cpp

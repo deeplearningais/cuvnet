@@ -22,7 +22,6 @@
 #include <cuv/basics/io.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
-#include <messages/gd.pb.h>
 
 #include <cuvnet/common.hpp>
 #include "learner2.hpp"

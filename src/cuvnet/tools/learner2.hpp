@@ -5,7 +5,7 @@
 #include <cuvnet/models/models.hpp>
 #include <datasets/dataset.hpp>    /* for cv_mode */
 #include <cuvnet/graph_modifiers.hpp>
-#include <messages/gd.pb.h>
+#include <cuvnet/messages/gd.pb.h>
 
 namespace cuvnet
 {
