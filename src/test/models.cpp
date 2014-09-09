@@ -125,13 +125,13 @@ BOOST_AUTO_TEST_CASE(learn){
     pt.mutable_gd()->mutable_stopping_criteria()->set_max_epochs(5);
     *pt.mutable_gd()->MutableExtension(msg::linear_learnrate_schedule) = lrsched;
     msg::EarlyStopper& es = *(pt.mutable_gd()->mutable_stopping_criteria()->mutable_es());
-    es.set_watch("cerr");
+    es.set_watch("loss");
     pt.mutable_monitor()->set_verbose(true);
 
     learner2 lrn;
     msg::FitResult result1 = lrn.fit(lr, pt);
     msg::FitResult result2 = lrn.continue_learning_until_previous_loss_reached(lr, pt, result1);
-    BOOST_CHECK_GT( result1.early_stopper().best_validation_loss(), result2.loss());
+    BOOST_CHECK_GE( result1.early_stopper().best_validation_loss(), result2.loss());
 }
 
 BOOST_AUTO_TEST_CASE(learn_multistage){

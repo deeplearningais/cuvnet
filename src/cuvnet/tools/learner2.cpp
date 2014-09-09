@@ -864,7 +864,8 @@ namespace cuvnet
                 std::string next_stage_name = "stage_" + boost::lexical_cast<std::string>(stage + 1);
                 msg::Fit next_stagecfg = 
                     cfg.HasExtension(msg::multistage_ext)
-                    ? cfg.GetExtension(msg::multistage_ext).stage(stage)
+                    && cfg.GetExtension(msg::multistage_ext).stage_size() > (int)stage+1
+                    ? cfg.GetExtension(msg::multistage_ext).stage(stage + 1)
                     : cfg;
                 if(next_stagecfg.GetExtension(msg::multistage_ext).switch_stage_with_outputs())
                 {
