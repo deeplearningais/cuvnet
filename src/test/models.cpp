@@ -1,6 +1,6 @@
 #include <boost/test/unit_test.hpp>
 //#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
+//#include <boost/property_tree/json_parser.hpp>
 #include <cuvnet/ops.hpp>
 #include <cuvnet/tools/gradient_descent.hpp>
 #include <cuvnet/tools/monitor.hpp>
@@ -91,24 +91,21 @@ BOOST_AUTO_TEST_CASE(nenadbug){
     cuv::fill_rnd_uniform(tgt->data());
     tmplogreg lr(inp, tgt);
     
-    using boost::property_tree::ptree;
-    ptree pt;
-    pt.put("fit.gd.learnrate", 0.1f);
-    pt.put("fit.batchsize", bs);
-    pt.put("fit.gd.max_epochs", 5);
-    pt.put("fit.path", ".");
-    pt.put("fit.learnrate_schedule.type", "linear");
-    pt.put("fit.learnrate_schedule.final", 1e-5);
-    pt.put("fit.early_stopper.active", true);
-    pt.put("fit.early_stopper.watch", "loss"); // or cerr
-    pt.put("fit.monitor.verbose", true);
+    msg::Fit pt;
+    pt.mutable_gd()->set_learnrate(0.1);
+    pt.mutable_gd()->set_batch_size(bs);
+    msg::LinearSchedule lrsched;
+    lrsched.set_final(1e-5);
+    pt.mutable_gd()->mutable_stopping_criteria()->set_max_epochs(5);
+    *pt.mutable_gd()->MutableExtension(msg::linear_learnrate_schedule) = lrsched;
+    msg::EarlyStopper& es = *(pt.mutable_gd()->mutable_stopping_criteria()->mutable_es());
+    es.set_watch("cerr");
+    pt.mutable_monitor()->set_verbose(true);
 
     learner2 lrn;
-    ptree result1 = lrn.fit(lr, pt.get_child("fit"));
-    ptree result2 = lrn.continue_learning_until_previous_loss_reached(lr, pt.get_child("fit"), result1);
-    BOOST_CHECK_GT(
-           result1.get<float>("gd.early_stopper.best_perf"),
-           result2.get<float>("cerr"));
+    msg::FitResult result1 = lrn.fit(lr, pt);
+    msg::FitResult result2 = lrn.continue_learning_until_previous_loss_reached(lr, pt, result1);
+    BOOST_CHECK_GT( result1.early_stopper().best_validation_loss(), result2.cerr());
 }
 
 BOOST_AUTO_TEST_CASE(learn){
@@ -120,24 +117,21 @@ BOOST_AUTO_TEST_CASE(learn){
     cuv::fill_rnd_uniform(tgt->data());
     cuvnet::models::linear_regression lr(inp, tgt);
     
-    using boost::property_tree::ptree;
-    ptree pt;
-    pt.put("fit.gd.learnrate", 0.1f);
-    pt.put("fit.batchsize", bs);
-    pt.put("fit.gd.max_epochs", 5);
-    pt.put("fit.path", ".");
-    pt.put("fit.learnrate_schedule.type", "linear");
-    pt.put("fit.learnrate_schedule.final", 1e-5);
-    pt.put("fit.early_stopper.active", true);
-    pt.put("fit.early_stopper.watch", "loss"); // or cerr
-    pt.put("fit.monitor.verbose", true);
+    msg::Fit pt;
+    pt.mutable_gd()->set_learnrate(0.1);
+    pt.mutable_gd()->set_batch_size(bs);
+    msg::LinearSchedule lrsched;
+    lrsched.set_final(1e-5);
+    pt.mutable_gd()->mutable_stopping_criteria()->set_max_epochs(5);
+    *pt.mutable_gd()->MutableExtension(msg::linear_learnrate_schedule) = lrsched;
+    msg::EarlyStopper& es = *(pt.mutable_gd()->mutable_stopping_criteria()->mutable_es());
+    es.set_watch("cerr");
+    pt.mutable_monitor()->set_verbose(true);
 
     learner2 lrn;
-    ptree result1 = lrn.fit(lr, pt.get_child("fit"));
-    ptree result2 = lrn.continue_learning_until_previous_loss_reached(lr, pt.get_child("fit"), result1);
-    BOOST_CHECK_GT(
-           result1.get<float>("gd.early_stopper.optimal_training_error"),
-           result2.get<float>("loss"));
+    msg::FitResult result1 = lrn.fit(lr, pt);
+    msg::FitResult result2 = lrn.continue_learning_until_previous_loss_reached(lr, pt, result1);
+    BOOST_CHECK_GT( result1.early_stopper().best_validation_loss(), result2.loss());
 }
 
 BOOST_AUTO_TEST_CASE(learn_multistage){
@@ -150,24 +144,25 @@ BOOST_AUTO_TEST_CASE(learn_multistage){
     multistage_testmodel mstm(inp, tgt);
     mstm.reset_params();
     
-    using boost::property_tree::ptree;
-    ptree pt;
-    pt.put("fit.gd.learnrate", 0.1f);
-    pt.put("fit.batchsize", bs);
-    pt.put("fit.gd.max_epochs", 5);
-    pt.put("fit.path", ".");
-    pt.put("fit.learnrate_schedule.type", "linear");
-    pt.put("fit.learnrate_schedule.final", 1e-5);
-    pt.put("fit.early_stopper.active", true);
-    pt.put("fit.early_stopper.watch", "loss"); // or cerr
-    pt.put("fit.monitor.verbose", true);
-    pt.put("fit.switch_stage_with_outputs", true);
+    msg::Fit pt;
+    pt.mutable_gd()->set_learnrate(0.1);
+    pt.mutable_gd()->set_batch_size(bs);
+    msg::LinearSchedule lrsched;
+    lrsched.set_final(1e-5);
+    pt.mutable_gd()->mutable_stopping_criteria()->set_max_epochs(5);
+    *pt.mutable_gd()->MutableExtension(msg::linear_learnrate_schedule) = lrsched;
+    msg::EarlyStopper& es = *(pt.mutable_gd()->mutable_stopping_criteria()->mutable_es());
+    es.set_watch("cerr");
+    pt.mutable_monitor()->set_verbose(true);
+    msg::MultiStageFit msf;
+    msf.set_switch_stage_with_outputs(true);
+    *pt.MutableExtension(msg::multistage_ext) = msf;
 
     multistage_learner lrn;
-    ptree result1 = lrn.fit(mstm, pt.get_child("fit"));
-    boost::property_tree::write_json(std::cout, result1);
-    int epochs0 = result1.get<int>("stage_results.stage_0.gd.result_epoch");
-    int epochs1 = result1.get<int>("stage_results.stage_1.gd.result_epoch");
+    msg::FitResult result1 = lrn.fit(mstm, pt);
+    BOOST_REQUIRE(result1.stage_size() == 2);
+    int epochs0 = result1.stage(0).result_epoch();
+    int epochs1 = result1.stage(1).result_epoch();
     BOOST_CHECK_GT(epochs0, 0);
     BOOST_CHECK_GT(epochs1, 0);
 }
@@ -183,22 +178,35 @@ BOOST_AUTO_TEST_CASE(xval_learn){
     boost::shared_ptr<cuvnet::models::linear_regression> lr
     	= boost::make_shared<cuvnet::models::linear_regression>(inp, tgt);
 
-    using boost::property_tree::ptree;
-    ptree pt;
-    pt.put("fit.gd.learnrate", 0.1f);
-    pt.put("fit.batchsize", bs);
-    pt.put("fit.stages", "finetuning");
-    pt.put("fit.gd.max_epochs", 5);
-    pt.put("fit.path", ".");
-    pt.put("fit.learnrate_schedule.type", "linear");
-    pt.put("fit.learnrate_schedule.final", 1e-5);
-    pt.put("fit.early_stopper.active", true);
-    pt.put("fit.early_stopper.watch", "loss"); // or cerr
-    pt.put("fit.monitor.verbose", true);
+    //ptree pt;
+    //pt.put("fit.gd.learnrate", 0.1f);
+    //pt.put("fit.batchsize", bs);
+    //pt.put("fit.stages", "finetuning");
+    //pt.put("fit.gd.max_epochs", 5);
+    //pt.put("fit.path", ".");
+    //pt.put("fit.learnrate_schedule.type", "linear");
+    //pt.put("fit.learnrate_schedule.final", 1e-5);
+    //pt.put("fit.early_stopper.active", true);
+    //pt.put("fit.early_stopper.watch", "loss"); // or cerr
+    //pt.put("fit.monitor.verbose", true);
+
+    msg::Fit pt;
+    pt.mutable_gd()->set_learnrate(0.1);
+    pt.mutable_gd()->set_batch_size(bs);
+    msg::LinearSchedule lrsched;
+    lrsched.set_final(1e-5);
+    pt.mutable_gd()->mutable_stopping_criteria()->set_max_epochs(5);
+    *pt.mutable_gd()->MutableExtension(msg::linear_learnrate_schedule) = lrsched;
+    msg::EarlyStopper& es = *(pt.mutable_gd()->mutable_stopping_criteria()->mutable_es());
+    es.set_watch("loss");
+    pt.mutable_monitor()->set_verbose(true);
+    msg::XVal cfg;
+    *cfg.mutable_fit() = pt;
+    cfg.mutable_predict()->set_batch_size(bs);
 
     crossvalidator2 cval;
     learner2 lrn;
-    ptree result1 = cval.fit(lrn, lr, pt.get_child("fit"));
+    msg::XValResult result1 = cval.fit(lrn, lr, cfg);
     //ptree result2 = lrn.continue_learning_until_previous_loss_reached(lr, pt.get_child("fit"), result1.get_child("xval.best_fold"));
     //BOOST_CHECK_GT(
     //        result1.get<float>("xval.best_fold.gd.early_stopper.best_perf"),

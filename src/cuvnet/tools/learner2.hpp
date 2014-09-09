@@ -2,10 +2,10 @@
 #define __LEARNER2_HPP__
 
 #include <boost/signals2.hpp>
-#include <boost/property_tree/ptree.hpp>
 #include <cuvnet/models/models.hpp>
 #include <datasets/dataset.hpp>    /* for cv_mode */
 #include <cuvnet/graph_modifiers.hpp>
+#include <messages/gd.pb.h>
 
 namespace cuvnet
 {
@@ -54,15 +54,15 @@ namespace cuvnet
             virtual void operator()(unsigned int epoch, unsigned int wups);
         };
         /**
-         * A learnrate schedule by James Bergsra, see:
+         * A hyper-param-friendly learnrate schedule from this hyperopt model search:
          * https://github.com/hyperopt/hyperopt-nnet/blob/master/hpnnet/nnet.py
          * @ingroup learning
          */
-        struct bergstra_learnrate_schedule : public hyperparam_schedule{
+        struct div_learnrate_schedule : public hyperparam_schedule{
             float initial, anneal_start;
             gradient_descent* gd;
             boost::signals2::scoped_connection con;
-            bergstra_learnrate_schedule(gradient_descent* _gd, float begin, float anneal);
+            div_learnrate_schedule(gradient_descent* _gd, float begin, float anneal);
             virtual void operator()(unsigned int epoch, unsigned int wups);
         };
         /**
@@ -112,7 +112,6 @@ namespace cuvnet
             boost::shared_ptr<monitor> m_mon;
         protected:
             typedef models::model model;
-            typedef boost::property_tree::ptree ptree;
 
             /**
              * Overload this to load a specific batch from your dataset into the model.
@@ -130,14 +129,14 @@ namespace cuvnet
              * 
              * Does nothing by default.
              */
-            virtual void before_learning(model* m, gradient_descent& gd, cuvnet::early_stopper* es, const ptree& cfg);
+            virtual void before_learning(model* m, gradient_descent& gd, cuvnet::early_stopper* es, const msg::Fit& cfg);
 
             /**
              * In this hook you can modify the gradient_descent object just before calling predict.
              * 
              * Does nothing by default.
              */
-            virtual void before_predict(model* m, gradient_descent& gd, const ptree& cfg);
+            virtual void before_predict(model* m, gradient_descent& gd, const msg::Predict& cfg);
 
             /**
              * Returns a gradient Gradient Descent object described by the configuration parameter.
@@ -151,19 +150,19 @@ namespace cuvnet
              */
             virtual
             boost::shared_ptr<gradient_descent> 
-                get_gradient_descent(model& m, const ptree& cfg);
+                get_gradient_descent(model& m, const msg::Fit& cfg);
 
             /**
              * Returns an early stopper or NULL, configured according to the cfg parameter.
              */
             boost::shared_ptr<early_stopper>
-                get_early_stopper(gradient_descent& gd, monitor& mon, const ptree& cfg);
+                get_early_stopper(gradient_descent& gd, monitor& mon, const msg::EarlyStopper& cfg);
 
             /**
              * Returns an convergence checker or NULL, configured according to the cfg parameter.
              */
             boost::shared_ptr<convergence_checker>
-                get_convergence_checker(gradient_descent& gd, boost::shared_ptr<early_stopper> es, monitor& mon, const ptree& cfg);
+                get_convergence_checker(gradient_descent& gd, boost::shared_ptr<early_stopper> es, monitor& mon, const msg::ConvergenceChecker& cfg);
 
             /**
              * Returns a monitor that watches loss and error of the model.
@@ -175,19 +174,19 @@ namespace cuvnet
              * @param cfg the configuration subtree of the monitor
              */
             boost::shared_ptr<monitor> 
-                get_monitor(model& m, const ptree& cfg);
+                get_monitor(model& m, const msg::Monitor& cfg);
 
             /**
              * Returns a learnrate schedule, which will be called in the before_epoch event.
              */
             boost::shared_ptr<schedules::hyperparam_schedule> 
-                virtual get_learnrate_schedule(gradient_descent& gd, int max_epochs, ptree cfg);
+                virtual get_learnrate_schedule(gradient_descent& gd, int max_epochs, const msg::GradientDescent& cfg);
 
             /**
              * Returns a momentum schedule, which will be called in the before_epoch event.
              */
             boost::shared_ptr<schedules::hyperparam_schedule> 
-                virtual get_momentum_schedule(gradient_descent& pgd, int max_epochs, ptree cfg);
+                virtual get_momentum_schedule(gradient_descent& pgd, int max_epochs, const msg::GradientDescent& cfg);
 
         public:
 
@@ -242,7 +241,7 @@ namespace cuvnet
              * @param m the model to be fitted
              * @param cfg parameters for fitting
              */
-            virtual ptree fit(model& m, const ptree& cfg);
+            virtual msg::FitResult fit(model& m, const msg::Fit& cfg);
 
             /**
              * Evaluate the model for the current dataset (one
@@ -251,7 +250,7 @@ namespace cuvnet
              * @param m the model to be evaluated
              * @param cfg parameters for evaluation
              */
-            virtual ptree predict(model& m, const ptree& cfg);
+            virtual msg::PredictResult predict(model& m, const msg::Predict& cfg);
 
             /**
              * Continue learning in an already learned model, eg on TRAINVAL instead of on TRAIN.
@@ -260,7 +259,7 @@ namespace cuvnet
              * @param cfg how to train (probably the same thing given to fit() previously)
              * @param result the result of fit(), or the best result of crossvalidation_fit
              */
-            virtual ptree continue_learning_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result);
+            virtual msg::FitResult continue_learning_until_previous_loss_reached(model& m, const msg::Fit& cfg, const msg::FitResult& result);
 
             /**
              * Retrain a model, eg on TRAINVAL instead of on TRAIN, using early-stopping values recorded from eg cross-validation.
@@ -269,7 +268,7 @@ namespace cuvnet
              * @param cfg how to train (probably the same thing given to fit() previously)
              * @param result the result of fit(), or the best result of crossvalidation_fit, with per-stage results
              */
-            virtual ptree learn_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result);
+            virtual msg::FitResult learn_until_previous_loss_reached(model& m, const msg::Fit& cfg, const msg::FitResult& result);
 
             /**
              * Overload this to switch to a different mode on the dataset.
@@ -313,7 +312,8 @@ namespace cuvnet
              */
             virtual ~learner2();
 
-            void register_validation_batchsize(model& m, gradient_descent& gd, early_stopper& es, const ptree& cfg);
+            void register_validation_batchsize(model& m, gradient_descent& gd, early_stopper& es,
+                    const msg::GradientDescent& cfg, const msg::EarlyStopper& escfg);
 
             inline 
                 boost::shared_ptr<early_stopper> get_early_stopper(){ return m_es; }
@@ -326,7 +326,6 @@ namespace cuvnet
     struct crossvalidator2{
         private:
         public:
-            typedef boost::property_tree::ptree ptree;
             typedef models::model model;
             /**
              * Call fit() for a number of splits, saving the best result, and returning the performance on all folds.
@@ -336,7 +335,7 @@ namespace cuvnet
              * @param cfg how to fit the model
              * @return one result for every split
              */
-            ptree fit(learner2& lrn, boost::shared_ptr<model> m, const ptree& cfg);
+            msg::XValResult fit(learner2& lrn, boost::shared_ptr<model> m, const msg::XVal& cfg);
     };
 
     struct multistage_dataset{
@@ -372,9 +371,9 @@ namespace cuvnet
                 boost::shared_ptr<multistage_dataset> >
                 m_stage_datasets;
             boost::shared_ptr<multistage_dataset> m_current_dataset;
+            cv_mode m_current_cvmode;
         public:
             typedef models::multistage_model multistage_model;
-            typedef boost::property_tree::ptree ptree;
 
             /**
              * ctor.
@@ -384,7 +383,7 @@ namespace cuvnet
             /**
              * @overload
              */
-            ptree fit(model& m, const ptree& cfg);
+            msg::FitResult fit(model& m, const msg::Fit& cfg);
 
             /**
              * Switch to a new learning stage.
@@ -426,7 +425,13 @@ namespace cuvnet
              * @param cfg how to train (probably the same thing given to fit() previously)
              * @param result the result of fit(), or the best result of crossvalidation_fit, with per-stage results
              */
-            ptree learn_until_previous_loss_reached(model& m, const ptree& cfg, const ptree& result);
+            msg::FitResult learn_until_previous_loss_reached(model& m, const msg::Fit& cfg, const msg::FitResult& result);
+
+        private:
+            /**
+             * returns the current cross-validation mode for internal purposes.
+             */
+            inline cv_mode current_cvmode()const{return m_current_cvmode;}
     };
 }
 

@@ -1,0 +1,237 @@
+package cuvnet.msg;
+
+message EarlyStopper{
+    optional bool active = 1 [default=true];
+    optional string watch = 2 [default="cerr"];
+    optional float thresh = 3 [default=0.9995];
+    optional int32 every = 4 [default=1];
+    optional float multiply = 5 [default=2.0];
+    optional int32 boxfilter = 6 [default=1];
+    optional int32 patience = 7 [default=100];
+    optional int32 max_steps = 8 [default=0];
+    optional float lr_fact = 9 [default=0.5];
+    optional int32 batch_size = 10;
+}
+
+message ConvergenceChecker{
+    optional bool active = 1 [default=true];
+    optional string watch = 2 [default="cerr"];
+    optional float thresh = 3 [default=0.995];
+    optional int32 min_wups = 4 [default=10];
+    optional float patience_inc_fact = 5 [default=1.2];
+    optional bool use_early_stopper = 6 [default=false];
+    optional int32 max_steps = 7 [default=4];
+    optional float lr_fact = 8 [default=-1.0];
+}
+
+
+message StoppingCriteria{
+    optional int32 time_limit = 1 [default=2147483647];
+    optional int32 max_epochs = 2 [default=2147483647];
+    optional float target_loss = 3 [default=0.0];
+
+    optional ConvergenceChecker cc = 100;
+    optional EarlyStopper es = 101;
+}
+
+message GradientDescent{
+    required int32 batch_size = 1 [default=-1];
+    optional float learnrate = 2 [default=0.01];
+    optional float l2decay = 3 [default=0.0];
+    optional int32 verbosity = 4 [default=0];
+    optional int32 start_epoch = 5 [default=0];
+    optional StoppingCriteria stopping_criteria = 6;
+
+    extensions 100 to max;
+}
+
+message WeightUpdateRecorder{
+    optional bool active = 1 [default=true];
+    optional int32 every = 2 [default=1];
+}
+message WeightDiffRecorder{
+    optional bool active = 1 [default=true];
+    optional int32 every = 2 [default=1];
+}
+
+message Momentum {
+    required float momentum = 1 [default=0.9];
+}
+
+message RProp {
+    optional float eta_p = 1 [default=1.2];
+    optional float eta_m = 2 [default=0.5];
+    optional float l1decay = 3 [default=0.0];
+}
+
+message RMSProp {
+    optional float delta = 1 [default=0.01];
+    optional float grad_avg = 2 [default=0.9];
+    optional float l1decay = 3 [default=0.0];
+    optional float eta_p = 4 [default=1.2];
+    optional float eta_m = 5 [default=0.5];
+}
+message RRMSProp {
+    optional float delta = 1 [default=0.01];
+    optional float grad_avg = 2 [default=0.9];
+    optional float l1decay = 3 [default=0.0];
+    optional float eta_p = 4 [default=1.2];
+    optional float eta_m = 5 [default=0.5];
+    optional float delta_min = 6 [default=0.00001];
+    optional float delta_max = 7 [default=5.0];
+}
+
+message NARMSProp {
+    optional float delta = 1 [default=0.01];
+    optional float grad_avg = 2 [default=0.9];
+    optional float step_adapt = 3 [default=0.9];
+    optional float lr_min = 4 [default=0.00001];
+    optional float lr_max = 5 [default=0.1];
+}
+
+message AdaGrad {
+    optional float delta = 1 [default=0.01];
+    optional float l1decay = 2 [default=0.0];
+    optional int32 winsize = 3 [default=2147483647];
+}
+
+message LinearSchedule{
+    optional float initial = 1 [default=1];
+    optional float final = 2 [default=0.001];
+    optional int32 duration = 3 [default=100];
+}
+
+message ExponentialSchedule{
+    optional float initial = 1 [default=1];
+    optional float final = 2 [default=0.001];
+    optional float t0 = 3 [default=10.0];
+    optional int32 duration = 4 [default=100];
+}
+
+message DivSchedule{
+    optional float initial = 1 [default=1];
+    optional float annealstart = 2 [default=70];
+}
+
+extend GradientDescent{
+    optional Momentum momentum_ext = 100;
+    optional RMSProp rmsprop_ext   = 101;
+    optional RRMSProp rrmsprop_ext   = 102;
+    optional NARMSProp narmsprop_ext   = 103;
+    optional RProp rprop_ext       = 104;
+    optional AdaGrad adagrad_ext   = 105;
+
+
+    optional LinearSchedule linear_learnrate_schedule = 201;
+    optional ExponentialSchedule exponential_learnrate_schedule = 202;
+    optional DivSchedule div_learnrate_schedule = 203;
+
+    optional LinearSchedule linear_momentum_schedule = 210;
+
+    optional WeightUpdateRecorder wup_rec_ext = 301;
+    optional WeightDiffRecorder wdiff_rec_ext = 302;
+}
+
+message Monitor{
+    optional bool verbose = 1 [default=false];
+}
+
+message NetCom{
+    required string db = 1;
+    required string host = 2;
+    required string key = 3;
+    required int32 push_steps = 4;
+    required int32 pull_steps = 5;
+}
+
+message Fit{
+    optional GradientDescent gd=1;
+    optional Monitor monitor=2;
+
+    optional NetCom netcom=100;
+
+    extensions 500 to max;
+}
+message MultiStageFit{
+    optional bool switch_stage_with_outputs=1 [default=false];
+    repeated Fit stage=3;
+}
+extend Fit{
+    optional MultiStageFit multistage_ext = 501;
+}
+
+message EarlyStopperResult {
+    required float best_validation_loss=1;
+    required float optimal_training_loss=2;
+}
+
+message FitResult{
+    enum StopReason{
+                SR_NAN = 0;
+                SR_NO_IMPROVEMENT = 1;
+                SR_CONVERGENCE = 2;
+                SR_MAX_ITER = 3;
+                SR_TIMEOUT = 4;
+                SR_NETWORK = 5;
+                SR_EXTERNAL_REQUEST = 6;
+                SR_UNKNOWN = 7;
+    };
+
+    required StopReason stop_reason=1 [default=SR_UNKNOWN];
+    required int32 result_epoch=2;
+
+    optional float loss=3 [default=2147483647];
+    optional float cerr=4 [default=1.0];
+
+    optional EarlyStopperResult early_stopper=5;
+
+    optional float final_learnrate=100;
+    optional float final_momentum=101;
+
+    repeated FitResult stage = 200;
+}
+
+message Predict{
+    optional Monitor monitor = 1;
+    optional int32 batch_size = 2;
+}
+
+message PredictResult{
+    optional float loss_mean = 1;
+    optional float loss_var = 2;
+    optional float cerr_mean = 3;
+    optional float cerr_var = 4;
+}
+
+message XVal{
+    required Fit fit=1;
+    required Predict predict=2;
+
+    optional bool evaluate_folds_on_test=3 [default=false];
+
+    optional bool retrain_all=4 [default=true];
+    optional float retrain_all_thresh=5;
+
+
+    // possibly configure mongodb so that we can avoid evaluating all folds
+}
+
+message XValResult{
+    message FoldResult{
+        required FitResult fit_result=1;
+        optional PredictResult val_result=2;
+        optional PredictResult test_result=3;
+    }
+    optional int32 best_fold=1;
+    repeated FoldResult fold=2;
+
+    optional float val_mean = 3;
+    optional float val_var = 4;
+    optional float test_mean = 5;
+    optional float test_var = 6;
+
+    optional FitResult retrain_all_train = 100;
+    optional PredictResult retrain_all_test = 101;
+}
+
+

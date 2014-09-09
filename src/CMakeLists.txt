@@ -31,6 +31,10 @@ LINK_DIRECTORIES( ${LAPACK_LIBRARIES} )
 
 FIND_PACKAGE( PythonLibs 2.7 REQUIRED )
 
+FIND_PACKAGE( Protobuf  REQUIRED)
+INCLUDE_DIRECTORIES(${PROTOBUF_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
+
 
 INCLUDE_DIRECTORIES($ENV{HOME}/pool/include/boost-numeric-bindings/)
 LINK_DIRECTORIES(~/lib)
@@ -54,6 +58,7 @@ FIND_PACKAGE( tbb )
 FIND_PACKAGE( OpenCV REQUIRED )
 
 FILE(GLOB CUVNET_OPS_SRC cuvnet/ops/*.cpp)
+add_subdirectory(messages)
 
 SET(CUVNET_SRC 
     #datasets/voc_detection.cpp
@@ -115,7 +120,7 @@ endif( PYTHONLIBS_FOUND )
 
 add_library(cuvnet SHARED ${CUVNET_SRC})
 
-TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES}  ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
+TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES}  ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES} ${PROTOBUF_LIBRARIES} messages)
 
 #add_subdirectory(cuvnet)
 #add_subdirectory(third_party)

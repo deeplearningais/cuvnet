@@ -54,7 +54,7 @@ t_normalization_dim0(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned i
 
     s = 0.f;
 
-    unsigned int cnt = 0;
+    //unsigned int cnt = 0;
     for (unsigned int i = 0; i < m.shape(0); ++i)
     {
         for (unsigned int j = 0; j < m.shape(1); ++j)
@@ -90,7 +90,7 @@ t_normalization_dim2(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned i
 
     s = 0.f;
 
-    unsigned int cnt = 0;
+    //unsigned int cnt = 0;
     for (unsigned int j = 0; j < m.shape(1); ++j)
     {
         for (unsigned int i = 0; i < m.shape(0); ++i)
