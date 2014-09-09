@@ -266,23 +266,27 @@ namespace cuvnet{ namespace derivative_testing {
             }
             {
                 TRACE(g_log, "variant_a");
-                boost::shared_ptr<Op> func = boost::make_shared<Axpby>(otherin->result(), op.result(result), 2.f, 2.f);
-                if(!simple_and_fast)
-                    derivative_tester_impl(*func, 0, verbose, prec, minv, maxv);
-                else{
-                    boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(func->result(0));
-                    derivative_tester_impl(*func2, 0, verbose, prec * factor, minv, maxv);
-                }
+                //boost::shared_ptr<Op> func = boost::make_shared<Axpby>(otherin->result(), op.result(result), 2.f, 2.f);
+                boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(op.result(0));
+                add_to_param(func2, otherin);
+                derivative_tester_impl(*func2, 0, verbose, prec * factor, minv, maxv);
             }
             {
                 TRACE(g_log, "variant_b");
-                boost::shared_ptr<Op> func = boost::make_shared<Axpby>(op.result(result), otherin->result(), 2.f, 2.f);
-                if(!simple_and_fast)
-                    derivative_tester_impl(*func, 0, verbose, prec, minv, maxv);
-                else{
-                    boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(func->result(0));
-                    derivative_tester_impl(*func2, 0, verbose, prec * factor, minv, maxv);
-                }
+                //boost::shared_ptr<Op> func = boost::make_shared<Axpby>(op.result(result), otherin->result(), 2.f, 2.f);
+                boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(otherin->result(0));
+                add_to_param(func2, op.shared_from_this());
+                derivative_tester_impl(*func2, 0, verbose, prec * factor, minv, maxv);
+            }
+            {
+                // TODO put something /before/ the op
+                TRACE(g_log, "variant_c");
+                //boost::shared_ptr<Op> func = boost::make_shared<Axpby>(otherin->result(), op.result(result), 2.f, 2.f);
+                boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(op.result(0));
+                boost::shared_ptr<Sum> func3 = boost::make_shared<Sum>(op.result(0));
+                boost::shared_ptr<Axpby> func4 = boost::make_shared<Axpby>(func2->result(0), func3->result(0));
+
+                derivative_tester_impl(*func4, 0, verbose, prec * factor, minv, maxv);
             }
         }
 } }
