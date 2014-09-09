@@ -94,7 +94,7 @@ namespace cuvnet
                  * @param eg the extents after reshaping.
                  */
                 template<std::size_t D>
-                Reshape(result_t& in, const cuv::extent_gen<D>& eg, bool copy=false)
+                Reshape(result_t& in, const cuv::extent_gen<D>& eg, bool copy=true)
                     :Op(1,1)
                     ,m_shape(D)
                     ,m_copy(copy)
