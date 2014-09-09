@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE(destruction){
 BOOST_AUTO_TEST_CASE(refcounting){
 
     typedef boost::shared_ptr<Op> ptr_t;
-    typedef boost::shared_ptr<Sink> sink_t;
+    //typedef boost::shared_ptr<Sink> sink_t;
 
     boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[10][20], "input");
     ptr_t pow_2                     = boost::make_shared<Pow>(2,inp->result());

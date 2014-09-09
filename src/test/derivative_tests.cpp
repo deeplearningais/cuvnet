@@ -1408,7 +1408,7 @@ BOOST_AUTO_TEST_CASE( sum_out_dim_test_first_dim )
 
             using namespace cuv;
             using namespace cuvnet;
-            typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
+            //typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
             typedef boost::shared_ptr<Op> op_ptr;
             
             //generate all inputs and fill them with rand vals
@@ -1511,7 +1511,7 @@ BOOST_AUTO_TEST_CASE( sum_out_dim_test_last_dim )
 
             using namespace cuv;
             using namespace cuvnet;
-            typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
+            //typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
             typedef boost::shared_ptr<Op> op_ptr;
         
             //generate all inputs and fill them with rand vals
@@ -1562,7 +1562,7 @@ BOOST_AUTO_TEST_CASE( Concatenate_first_dim )
             unsigned int y = 5;
             using namespace cuv;
             using namespace cuvnet;
-            typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
+            //typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
             typedef boost::shared_ptr<Op> op_ptr;
             
             std::vector< op_ptr >  input(n);       
@@ -1657,7 +1657,7 @@ BOOST_AUTO_TEST_CASE( Concatenate_old_interface )
 
             using namespace cuv;
             using namespace cuvnet;
-            typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
+            //typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
             typedef boost::shared_ptr<Op> op_ptr;
             
             boost::shared_ptr<ParameterInput> in1;
@@ -1725,7 +1725,7 @@ BOOST_AUTO_TEST_CASE( Concatenate_N_last_dim )
 
             using namespace cuv;
             using namespace cuvnet;
-            typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
+            //typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
             typedef boost::shared_ptr<Op> op_ptr;
             
             std::vector< op_ptr >  input(n);

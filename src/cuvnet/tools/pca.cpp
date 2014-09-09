@@ -22,13 +22,13 @@ namespace cuvnet
 void pca_whitening::fit(const cuv::tensor<float,cuv::host_memory_space>& train_){
     typedef boost::numeric::ublas::shallow_array_adaptor<real>  ArrayAdaptor; 
     typedef boost::numeric::ublas::matrix<real,boost::numeric::ublas::row_major,ArrayAdaptor>    adaptor_matrix; 
-    typedef boost::numeric::ublas::matrix_column<adaptor_matrix>    acolumn; 
+    //typedef boost::numeric::ublas::matrix_column<adaptor_matrix>    acolumn; 
     typedef boost::numeric::ublas::matrix<real,boost::numeric::ublas::column_major> ubmatrix;
     typedef boost::numeric::ublas::matrix_column<ubmatrix>            column; 
-    typedef boost::numeric::ublas::matrix_column<ubmatrix>            row; 
+    //typedef boost::numeric::ublas::matrix_column<ubmatrix>            row; 
     typedef boost::numeric::ublas::vector<real>                     vector;
-    typedef boost::numeric::ublas::scalar_vector<real>              scalar_vector;
-    typedef boost::numeric::ublas::range                            range;
+    //typedef boost::numeric::ublas::scalar_vector<real>              scalar_vector;
+    //typedef boost::numeric::ublas::range                            range;
 
     boost::numeric::ublas::diagonal_matrix<real> m_diag;
     namespace lapack = boost::numeric::bindings::lapack;

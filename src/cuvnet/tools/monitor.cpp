@@ -334,7 +334,7 @@ namespace cuvnet
 
     void monitor::simple_logging()const{
         std::cout << "\r epoch "<<m_epochs<<":"<<m_batch_presentations<<",  free_mb="<<cuv::getFreeDeviceMemory()/1024/1024<<",  ";
-        typedef std::pair<std::string, std::string> ss_t;
+        //typedef std::pair<std::string, std::string> ss_t;
         //BOOST_FOREACH(const ss_t& p, m_constants){
         //    std::cout << p.first<<"="<<p.second<<" ";
         //}
