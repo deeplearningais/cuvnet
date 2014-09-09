@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE(learn_multistage){
     pt.mutable_gd()->mutable_stopping_criteria()->set_max_epochs(5);
     *pt.mutable_gd()->MutableExtension(msg::linear_learnrate_schedule) = lrsched;
     msg::EarlyStopper& es = *(pt.mutable_gd()->mutable_stopping_criteria()->mutable_es());
-    es.set_watch("cerr");
+    es.set_watch("loss");
     pt.mutable_monitor()->set_verbose(true);
     msg::MultiStageFit msf;
     msf.set_switch_stage_with_outputs(true);

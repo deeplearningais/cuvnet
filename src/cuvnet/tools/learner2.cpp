@@ -853,7 +853,8 @@ namespace cuvnet
             log4cxx::NDC ndc(stage_name);
             LOG4CXX_INFO(g_log_mslearner, "fitting `"<<stage_name<<"'");
             msg::Fit stagecfg = 
-                cfg.HasExtension(msg::multistage_ext)
+                  cfg.HasExtension(msg::multistage_ext) 
+                && cfg.GetExtension(msg::multistage_ext).stage_size() > (int)stage
                 ? cfg.GetExtension(msg::multistage_ext).stage(stage)
                 : cfg;
             msg::FitResult res = learner2::fit(m, stagecfg);
