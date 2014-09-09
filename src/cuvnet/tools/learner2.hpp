@@ -378,7 +378,7 @@ namespace cuvnet
             /**
              * ctor.
              */
-            multistage_learner():m_stage_datasets(4){}
+            multistage_learner():m_stage_datasets(4), m_current_cvmode(CM_TRAIN){}
 
             /**
              * @overload
