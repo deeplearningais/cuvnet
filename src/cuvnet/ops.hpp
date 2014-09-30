@@ -261,12 +261,13 @@ namespace cuvnet
         Op::op_ptr flatten(Op::op_ptr img, unsigned int outdim=1) { return boost::make_shared<Flatten>(img->result(),outdim); }
     /// construct a LocalPooling object
     inline
-        Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, (subsx%2==0?0:subsx/-2)); }
+        //Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, (subsx%2==0?0:subsx/-2)); }
+        Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, 0); }
 
     /// construct a Reshape object
     template<std::size_t D>
     inline
-        Op::op_ptr reshape(Op::op_ptr img, const cuv::extent_gen<D>& eg) { return boost::make_shared<Reshape>(img->result(),eg); }
+        Op::op_ptr reshape(Op::op_ptr img, const cuv::extent_gen<D>& eg, bool copy=true) { return boost::make_shared<Reshape>(img->result(),eg, copy); }
 
 
 #ifndef NO_THEANO_WRAPPERS
