@@ -288,5 +288,12 @@ namespace cuvnet{ namespace derivative_testing {
 
                 derivative_tester_impl(*func4, 0, verbose, prec * factor, minv, maxv);
             }
+            {
+                TRACE(g_log, "variant_d");
+                boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(op.param()->use(0));
+                boost::shared_ptr<Op> func3 = boost::make_shared<Axpby>(op.result(result), func2->result());
+            
+                derivative_tester_impl(*func3, 0, verbose, prec * factor, minv, maxv);
+            }
         }
 } }
