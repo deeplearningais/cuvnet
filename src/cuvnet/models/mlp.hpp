@@ -21,6 +21,7 @@ namespace cuvnet
                 bool m_want_maxout;
                 int m_maxout_N;
                 bool m_want_dropout;
+                bool m_dropout_memopt;
                 std::string m_group_name;
                 bool m_unique_group;
                 float m_learnrate_factor;
@@ -39,6 +40,7 @@ namespace cuvnet
                     ,m_bias_default_value(0.f)
                     ,m_want_maxout(false)
                     ,m_want_dropout(false)
+                    ,m_dropout_memopt(false)
                     ,m_group_name("mlplayer")
                     ,m_unique_group(true)
                     ,m_learnrate_factor(1.f)
@@ -71,9 +73,10 @@ namespace cuvnet
 
                 /**
                  * set rectified linear function as activation function and bias default to 1.
+                 * @param mem_optimized if no-one else needs the result of the matrix product output, this is faster and more memory efficient.
                  */
-                inline mlp_layer_opts& rectified_linear(){
-                    m_nonlinearity = cuvnet::rectified_linear;
+                inline mlp_layer_opts& rectified_linear(bool mem_optimized=false){
+                    m_nonlinearity = boost::bind(cuvnet::rectified_linear, _1, mem_optimized);
                     m_bias_default_value = 1.f;
                     return *this;
                 }
@@ -126,9 +129,11 @@ namespace cuvnet
                 /**
                  * Use dropout after pooling.
                  * @param b if true, use dropout.
+                 * @param mem_optimized if no-one else needs the result of the matrix product output, this is faster and more memory efficient.
                  */
-                inline mlp_layer_opts& dropout(bool b=true){
+                inline mlp_layer_opts& dropout(bool b=true, bool mem_optimized=false){
                     m_want_dropout = b;
+                    m_dropout_memopt = mem_optimized;
                     return *this;
                 }
 

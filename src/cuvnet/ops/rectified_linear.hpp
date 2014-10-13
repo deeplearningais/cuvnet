@@ -26,12 +26,15 @@ namespace cuvnet
 
                 cuv::tensor<unsigned char, matrix::memory_space_type> m_result;
             public:
-                RectifiedLinear(){} ///< for serialization
+                RectifiedLinear():m_mem_optimized(false){} ///< for serialization
                 /**
                  * ctor.
                  * @param p0 input to apply rectification to
                  */
-                RectifiedLinear(result_t& p0):Op(1,2){
+                RectifiedLinear(result_t& p0, bool mem_optimized=false):
+                    Op(1,2),
+                    m_result(cuvnet::get_global_allocator()),
+                    m_mem_optimized(mem_optimized){
                     add_param(0,p0);
                 }
 
@@ -39,11 +42,15 @@ namespace cuvnet
                 void bprop();
                 void _determine_shape();
             private:
+                bool m_mem_optimized;
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
+                        if(version > 0)
+                            ar & m_mem_optimized;
                     }
         };
 }
+BOOST_CLASS_VERSION(cuvnet::RectifiedLinear, 1)
 #endif /* __RECTIFIED_LINEAR_HPP__ */

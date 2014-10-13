@@ -141,7 +141,7 @@ namespace cuvnet
         Op::op_ptr tanh(Op::op_ptr x)                   { return boost::make_shared<Tanh>(x->result()); }
     /// construct a RectifiedLinear object
     inline
-        Op::op_ptr rectified_linear(Op::op_ptr x)       { return boost::make_shared<RectifiedLinear>(x->result()); }
+        Op::op_ptr rectified_linear(Op::op_ptr x, bool mem_optimized)       { return boost::make_shared<RectifiedLinear>(x->result(), mem_optimized); }
     /// construct a Logistic object
     inline
         Op::op_ptr logistic(Op::op_ptr x)               { return boost::make_shared<Logistic>(x->result()); }

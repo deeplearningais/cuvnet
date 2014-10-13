@@ -55,6 +55,7 @@ namespace cuvnet { namespace models {
             ,m_want_maxout(false)
             ,m_want_dropout(false)
             ,m_dropout_rate(0.5)
+            ,m_dropout_memopt(false)
             ,m_group_name("convlayer")
             ,m_unique_group(true)
             ,m_varname_suffix("")
@@ -89,6 +90,7 @@ namespace cuvnet { namespace models {
             int m_maxout_N;
             bool m_want_dropout;
             float m_dropout_rate;
+            float m_dropout_memopt;
             std::string m_group_name;
             bool m_unique_group;
             std::string m_varname_suffix;
@@ -111,9 +113,10 @@ namespace cuvnet { namespace models {
 
         /**
          * set rectified linear function as activation function
+         * @param mem_optimized if no-one else needs the result of the convolution output, this is faster and more memory efficient.
          */
-        inline conv_layer_opts& rectified_linear(){
-            m_nonlinearity = cuvnet::rectified_linear;
+        inline conv_layer_opts& rectified_linear(bool mem_optimized=false){
+            m_nonlinearity = boost::bind(cuvnet::rectified_linear, _1, mem_optimized);
             //m_bias_default_value = 1.f; // annoying in conjunction with "with_bias" as order determines result
             return *this;
         }
@@ -294,10 +297,12 @@ namespace cuvnet { namespace models {
         /**
          * Use dropout after pooling.
          * @param rate if non-zero, apply dropout by setting this fraction to zero.
+         * @param mem_optimized if no-one else needs the result of the convolution output, this is faster and more memory efficient.
          */
-        inline conv_layer_opts& dropout(float rate=0.5f){
+        inline conv_layer_opts& dropout(float rate=0.5f, bool mem_optimized=false){
             m_want_dropout = rate > 0.;
             m_dropout_rate = rate;
+            m_dropout_memopt = mem_optimized;
 
             return *this;
         }

@@ -25,7 +25,7 @@ namespace cuvnet
         result_t::element_type& r0 = *m_results[0];
 
         // construct 2nd matrix with uniform values, binarize
-        value_type rnd(p0.shape);
+        value_type rnd(p0.shape, get_global_allocator());
 
         // salt
         cuv::fill_rnd_uniform(rnd);
@@ -55,23 +55,32 @@ namespace cuvnet
         //const value_type& inp0 = p0.value.cdata();           // original
 
         // construct 2nd matrix with uniform values, binarize
-        value_type rnd(p0.shape);
+        value_type rnd(p0.shape, get_global_allocator());
         cuv::fill_rnd_uniform(rnd);
         m_zero_mask.resize(rnd.shape());
         cuv::apply_scalar_functor(m_zero_mask, rnd, SF_LT, m_param);
 
-        value_type&       res    = p0.value.data();
-        cuv::apply_scalar_functor(res,SF_MULT,0.f,&m_zero_mask);
+        value_type* res;
+        if(m_mem_optimized){
+            res    = p0.value.ptr();
+            cuv::apply_scalar_functor(*res,SF_MULT,0.f,&m_zero_mask);
+            m_zero_mask.dealloc();
+        }else{
+            res    = &p0.value.data();
+            cuv::apply_scalar_functor(*res,SF_MULT,0.f,&m_zero_mask);
+        }
 
         if(m_compensate){
             // remaining units are "amplified", so that during
             // _inactive_ forward pass, the "mass" arriving at the next
             // layer is approximately the same.
-            res *= 1.f/(1.f - m_param); 
+            *res *= 1.f/(1.f - m_param); 
         }
 
         r0.push(p0.value);
-        p0.value.reset();
+        if(!m_mem_optimized  || !p0.need_derivative){
+            p0.value.reset();
+        }
     }
 
     void Noiser::fprop_normal(){
@@ -136,6 +145,12 @@ namespace cuvnet
         else if(m_noisetype == NT_ZERO_OUT){
             const value_type& d_orig = r0.delta.cdata();
 
+            if(m_mem_optimized){
+                // determine values that were zeroed out by looking at our /input/
+                m_zero_mask.resize(p0.shape);
+                apply_scalar_functor(m_zero_mask, p0.value.cdata(), SF_EQ, 0.f);
+            }
+
             // TODO does not account for compensation here!
             if(p0.can_add_directly()){
                 // TODO: add masks for binary ops to CUV
@@ -153,6 +168,7 @@ namespace cuvnet
                 p0.push(r0.delta);
             }
         }
+        p0.value.reset();
         r0.delta.reset();
     }
 }

@@ -34,11 +34,12 @@ namespace cuvnet
                 NoiseType m_noisetype;
                 bool m_active;
                 bool m_compensate;
+                bool m_mem_optimized;
                 
                 cuv::tensor<unsigned char,value_type::memory_space_type> m_zero_mask;
 
             public:
-                Noiser(){} ///< for serialization
+                Noiser():m_mem_optimized(false){} ///< for serialization
                 /**
                  * ctor.
                  * @param p0 the data to apply noise to
@@ -49,7 +50,7 @@ namespace cuvnet
                  *        ones
                  */
                 Noiser(result_t& p0, float param, NoiseType noise_type=NT_NORMAL, bool compensate=true)
-                    :Op(1,1), m_param(param), m_noisetype(noise_type), m_active(true), m_compensate(compensate)
+                    :Op(1,1), m_param(param), m_noisetype(noise_type), m_active(true), m_compensate(compensate), m_zero_mask(cuvnet::get_global_allocator())
                      {
                          add_param(0,p0);
                      }
@@ -59,6 +60,17 @@ namespace cuvnet
                  * @param f how much noise to apply.
                  */
                 inline void set_param(float f){ m_param = f; }
+
+                /**
+                 * set whether to minimize memory impact (destructive!).
+                 * 
+                 * Only applies to zero-out type of noise.
+                 * 
+                 * @warning changes the value /before/ the op. This is useful in many
+                 * neural network scenarios (dropout!), but other readers of the
+                 * value before this Op will get wrong results.
+                 */
+                inline void set_mem_optimized(bool b){ m_mem_optimized = b; }
 
                 /**
                  * tell how much noise is applied
@@ -108,7 +120,10 @@ namespace cuvnet
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_param & m_noisetype & m_active & m_compensate;
+                        if(version > 0)
+                            ar & m_mem_optimized;
                     }
         };
 }
+BOOST_CLASS_VERSION(cuvnet::Noiser, 1)
 #endif /* __OP_NOISER_HPP__ */
