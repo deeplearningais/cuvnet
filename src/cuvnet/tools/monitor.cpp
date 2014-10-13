@@ -346,7 +346,7 @@ namespace cuvnet
     void monitor::simple_logging()const{
         std::cout << "\r";
         if(m_cv_mode == CM_TRAIN)
-            std::cout << "TRAIN";
+            std::cout << "ANY";
         if(m_cv_mode == CM_TRAINALL)
             std::cout << "TRAINALL";
         if(m_cv_mode == CM_VALID)
