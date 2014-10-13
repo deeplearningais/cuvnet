@@ -156,7 +156,7 @@ namespace cuvnet
              * Returns an early stopper or NULL, configured according to the cfg parameter.
              */
             boost::shared_ptr<early_stopper>
-                get_early_stopper(gradient_descent& gd, monitor& mon, const msg::EarlyStopper& cfg);
+                get_early_stopper(model& m, gradient_descent& gd, monitor& mon, const msg::EarlyStopper& cfg);
 
             /**
              * Returns an convergence checker or NULL, configured according to the cfg parameter.

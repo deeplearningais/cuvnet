@@ -55,7 +55,7 @@ message WeightDiffRecorder{
 }
 
 message Momentum {
-    required float momentum = 1 [default=0.9];
+    optional float momentum = 1 [default=0.9];
 }
 
 message RProp {
@@ -134,6 +134,7 @@ extend GradientDescent{
 
 message Monitor{
     optional bool verbose = 1 [default=false];
+    optional int32 every = 2 [default=0];
 }
 
 message NetCom{

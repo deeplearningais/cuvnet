@@ -43,6 +43,9 @@ namespace cuvnet
         private:
             /// counts the number of batches we've seen
             unsigned int m_batch_presentations;
+            
+            /// if non-zero, output information every this many batch presentations
+            unsigned int m_every;
 
             /// keeps all constants
             std::map<std::string,std::string> m_constants; 
@@ -115,12 +118,17 @@ namespace cuvnet
             void set_training_phase(cv_mode mode, int split=0);
 
             /**
+             * tell monitor to log every N iterations.
+             */
+            inline void set_every(int n){m_every=n;}
+
+            /**
              * increases number of batch presentations and updates scalar
              * statistics
              */
             void after_batch(unsigned int, unsigned int);
 
-            /// resets all epoch statistics
+            /// resets stats if m_every is zero
             void before_epoch();
 
             /// increases number of epochs
@@ -165,22 +173,6 @@ namespace cuvnet
              */
             const matrix& operator[](const boost::shared_ptr<Op>& op);
 
-
-            /**
-             * plain text logging of all epochstats to the file 
-             */
-            void log_to_file();
-
-            /**
-             * plain text logging of all epochstats.
-             */
-            void simple_logging()const;
-
-            /**
-             * log via log4cxx.
-             */
-            void standard_logging()const;
-
             /**
              * register the monitor with a gradient_descent object, which needs
              * to provide signals for after_epoch, after_batch and before_epoch.
@@ -200,7 +192,7 @@ namespace cuvnet
             void register_gd(G& gd, ES& es){
                 register_gd(gd);
 
-                es.before_early_stopping_epoch.connect(boost::bind(&monitor::before_epoch,this));
+                es.before_early_stopping_epoch.connect(boost::bind(&monitor::reset,this));
 
                 // do this at front, since it contains the logging and monitor
                 // state (is_training_phase) might be changed with a later
@@ -212,6 +204,29 @@ namespace cuvnet
                 // so that the sinks are updated accordingly.
                 gd.repair_swiper(); 
             }
+
+        private:
+            /**
+             * do the logging by calling appropriate other logging functions below.
+             */
+            void log();
+            /**
+             * plain text logging of all epochstats to the file 
+             */
+            void log_to_file();
+
+            /**
+             * plain text logging of all epochstats.
+             */
+            void simple_logging()const;
+
+            /**
+             * log via log4cxx.
+             */
+            void standard_logging()const;
+
+            /// resets all stats
+            void reset();
     };
 }
 #endif /* __MONITOR_HPP__ */

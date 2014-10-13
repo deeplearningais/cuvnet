@@ -74,12 +74,14 @@ namespace cuvnet
 
     monitor::monitor(bool verbose, const std::string& file_name)
     :m_batch_presentations(0)
+    ,m_every(0)
     ,m_epochs(0)
     ,m_cv_mode(CM_TRAIN)
     ,m_split(0)
     ,m_logfile(file_name.c_str(), std::ios::out | std::ios::app)
     ,need_header_log_file(true)
-    ,m_verbose(verbose){
+    ,m_verbose(verbose)
+    {
         m_impl.reset(new monitor_impl());
     }
 
@@ -127,6 +129,11 @@ namespace cuvnet
             acc(*ptr);
     }
     void monitor::after_batch(unsigned int epoch, unsigned int bid){
+        if(m_every > 0 && m_batch_presentations % m_every == 0){
+            // we have logged everything in the previous step
+            reset();
+        }
+        // TODO reset this to value before eval epoch???
         m_batch_presentations ++;
 
         BOOST_FOREACH(watchpoint* p, m_impl->m_watchpoints){
@@ -167,42 +174,42 @@ namespace cuvnet
                 update_stats(p->scalar_stats, p->sink->cdata());
             }
         }
+        if(m_every > 0 && m_batch_presentations % m_every == 0)
+            log();
     }
-    void monitor::before_epoch(){
+    void monitor::log(){
+        if(m_verbose)
+            simple_logging();
+        standard_logging();
+        if(m_logfile.is_open())
+            log_to_file();
+    }
+    void monitor::reset(){
         BOOST_FOREACH(watchpoint* p, m_impl->m_watchpoints){
             switch(p->type){
                 case WP_SCALAR_EPOCH_STATS:
                 case WP_FUNC_SCALAR_EPOCH_STATS:
                     p->scalar_stats = acc_t();
                     break;
-                default:
-                    break;
-            }
-        }
 
-    }
-    void monitor::after_epoch(){
-        BOOST_FOREACH(watchpoint* p, m_impl->m_watchpoints){
-            switch(p->type){
                 case WP_FULL_WEIGHT_STATS:
                 case WP_CONV_WEIGHT_STATS:
                     update_stats(p->scalar_stats, boost::dynamic_pointer_cast<ParameterInput>(p->op)->data());
                     break;
-                //case WP_SINK_ONCE_STATS:
-                //    update_stats(p->scalar_stats, p->sink->cdata());
-                //    break;
+                    //case WP_SINK_ONCE_STATS:
+                    //    update_stats(p->scalar_stats, p->sink->cdata());
+                    //    break;
                 default:
                     break;
             }
         }
+    }
+    void monitor::after_epoch(){
         if(m_cv_mode == CM_TRAIN || m_cv_mode == CM_TRAINALL)
             m_epochs ++;
-        if(m_verbose)
-            simple_logging();
-        standard_logging();
-        if(m_logfile.is_open())
-            log_to_file();
-        m_batch_presentations = 0;
+
+        if(m_cv_mode == CM_VALID || m_every == 0)
+            log();
     }
     bool monitor::has(const std::string& name)const{
         std::map<std::string, watchpoint*>::const_iterator it 
@@ -311,10 +318,14 @@ namespace cuvnet
         }
 
     }
+    void monitor::before_epoch(){
+        if(m_every == 0)
+            reset();
+    }
     void monitor::register_gd(gradient_descent& gd){
         gd.after_epoch.connect( boost::bind(&monitor::after_epoch,this));
         gd.after_batch.connect( boost::bind(&monitor::after_batch,this, _1, _2));
-        gd.before_epoch.connect(boost::bind(&monitor::before_epoch,this));
+        gd.before_epoch.connect( boost::bind(&monitor::before_epoch,this));
 
         BOOST_FOREACH(watchpoint* p, m_impl->m_watchpoints){
             switch(p->type){
@@ -333,7 +344,23 @@ namespace cuvnet
     }
 
     void monitor::simple_logging()const{
-        std::cout << "\r epoch "<<m_epochs<<":"<<m_batch_presentations<<",  free_mb="<<cuv::getFreeDeviceMemory()/1024/1024<<",  ";
+        std::cout << "\r";
+        if(m_cv_mode == CM_TRAIN)
+            std::cout << "TRAIN";
+        if(m_cv_mode == CM_TRAINALL)
+            std::cout << "TRAINALL";
+        if(m_cv_mode == CM_VALID)
+            std::cout << "VAL";
+        if(m_cv_mode == CM_TEST)
+            std::cout << "TEST";
+        int n_denominator = 0;
+        BOOST_FOREACH(const watchpoint* p, m_impl->m_watchpoints){
+            if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS || p->type == WP_FULL_WEIGHT_STATS  || p->type == WP_CONV_WEIGHT_STATS){
+                n_denominator = boost::accumulators::count(p->scalar_stats);
+                break;
+            }
+        }
+        std::cout << " epoch "<<m_epochs<<":"<<m_batch_presentations<<"("<<n_denominator<<")"<<", ";
         //typedef std::pair<std::string, std::string> ss_t;
         //BOOST_FOREACH(const ss_t& p, m_constants){
         //    std::cout << p.first<<"="<<p.second<<" ";
@@ -341,11 +368,14 @@ namespace cuvnet
         BOOST_FOREACH(const watchpoint* p, m_impl->m_watchpoints){
             if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS || p->type == WP_FULL_WEIGHT_STATS  || p->type == WP_CONV_WEIGHT_STATS){
                 std::cout  << p->name<<"="
-                    << std::left << std::setprecision(4) << mean(p->name) <<",\t"//<<" ("
+                    << std::left << std::setprecision(4) << mean(p->name) <<", "//<<" ("
                     //<< std::left << std::setprecision(4) << stddev(p->name)<<"),  "
                     ;
             }
         }
-        std::cout << "           " << std::flush;
+        if(m_cv_mode == CM_VALID || m_cv_mode == CM_TEST)
+            std::cout << "           " << std::endl;
+        else
+            std::cout << "           " << std::flush;
     }
 }

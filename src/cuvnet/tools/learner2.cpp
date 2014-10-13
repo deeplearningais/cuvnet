@@ -270,7 +270,7 @@ namespace cuvnet
     }
 
     boost::shared_ptr<early_stopper>
-    learner2::get_early_stopper(gradient_descent& gd, monitor& mon, const msg::EarlyStopper& cfg){
+    learner2::get_early_stopper(model& m, gradient_descent& gd, monitor& mon, const msg::EarlyStopper& cfg){
         boost::shared_ptr<early_stopper> es;
         bool active = cfg.active();
         if(!active)
@@ -294,7 +294,9 @@ namespace cuvnet
                 << ")");
         es.reset(new early_stopper(gd, boost::bind(&monitor::mean, &mon, watch), thresh, every, multiply, boxfilter));
         es->before_early_stopping_epoch.connect(boost::bind(&learner2::_switch_dataset, this, CM_VALID, 0));
+        es->before_early_stopping_epoch.connect(boost::bind(&model::set_predict_mode, &m, true));
         es->after_early_stopping_epoch.connect(boost::bind(&learner2::_switch_dataset, this, CM_TRAIN, 0));
+        es->after_early_stopping_epoch.connect(boost::bind(&model::set_predict_mode, &m, false));
         if(max_steps > 0){
             es->decrease_lr(max_steps, lr_fact);
         }
@@ -345,6 +347,7 @@ namespace cuvnet
         boost::shared_ptr<monitor> mon;
         mon.reset(new monitor(verbose));
         mon->add(monitor::WP_SCALAR_EPOCH_STATS, m.loss(), "loss");
+        mon->set_every(cfg.every());
         if(m.error())
             mon->add(monitor::WP_SCALAR_EPOCH_STATS, m.error(), "cerr");
         m.register_watches(*mon);
@@ -390,10 +393,12 @@ namespace cuvnet
 
     void 
     learner2::before_predict(model* m, gradient_descent&, const msg::Predict&){
+        m->set_predict_mode(true);
     }
 
     void 
     learner2::before_learning(model* m, gradient_descent&, cuvnet::early_stopper* es, const msg::Fit&){
+        m->set_predict_mode(false);
     }
 
     unsigned int 
@@ -634,7 +639,7 @@ namespace cuvnet
         boost::shared_ptr<early_stopper> es;
         boost::shared_ptr<record_optimal_training_loss> rotl;
         if(cfg.gd().stopping_criteria().has_es()){
-            es = get_early_stopper(*m_gd, *m_mon, cfg.gd().stopping_criteria().es());
+            es = get_early_stopper(m, *m_gd, *m_mon, cfg.gd().stopping_criteria().es());
             if(es) {
                 register_validation_batchsize(m, *m_gd, *es, cfg.gd(), cfg.gd().stopping_criteria().es());
                 rotl.reset(new record_optimal_training_loss(*es, *m_mon));
