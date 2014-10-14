@@ -59,6 +59,7 @@ FIND_PACKAGE( OpenCV REQUIRED )
 
 FILE(GLOB CUVNET_OPS_SRC cuvnet/ops/*.cpp)
 add_subdirectory(cuvnet/messages)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/cuvnet/messages)
 
 SET(CUVNET_SRC 
     #datasets/voc_detection.cpp
