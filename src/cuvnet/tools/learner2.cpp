@@ -182,8 +182,8 @@ namespace cuvnet
     boost::shared_ptr<gradient_descent> 
     learner2::get_gradient_descent(model& m, const msg::Fit& cfg){
         const msg::GradientDescent& gdcfg = cfg.gd();
-        bool drec = gdcfg.HasExtension(msg::wup_rec_ext);
-        bool wrec = gdcfg.HasExtension(msg::wdiff_rec_ext);
+        bool wrec = gdcfg.HasExtension(msg::wup_rec_ext);
+        bool drec = gdcfg.HasExtension(msg::wdiff_rec_ext);
         if(drec){
             LOG4CXX_INFO(g_log_learner2, "Setting up delta recording for gradient_descent");
         }
