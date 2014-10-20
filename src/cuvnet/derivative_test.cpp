@@ -134,32 +134,106 @@ namespace cuvnet{ namespace derivative_testing {
             }
         }
 
-        void derivative_tester_impl(Op& op, int result, bool verbose, double prec, float minv, float maxv){
-            // assumption: op has only one result
-            boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op.result(result));
-
+        derivative_tester::derivative_tester(Op& op):m_op(op){
             // tell that we want derivative w.r.t. all params
             param_collector_visitor pcv;
-            op.visit(pcv);
+            m_op.visit(pcv);
             BOOST_CHECK(pcv.plist.size()>0);
-
 
             // find only those parameters which we can derive for
             // (the others are needed since they need to be initialized above)
-            std::vector<Op*> derivable_params;
+            //std::vector<Op*> derivable_params;
             std::remove_copy_if(     // think of it as "copy except"
                     pcv.plist.begin(), pcv.plist.end(),
-                    std::back_inserter(derivable_params),
+                    std::back_inserter(m_derivable_params),
                     std::not1( // not [  cast_to_input(op)->derivable()   ]
                         __gnu_cxx::compose1(
                             std::mem_fun( &ParameterInput::derivable ),
                             ptr_caster<Op,ParameterInput>()))
                     );
-            BOOST_CHECK(derivable_params.size() > 0);
+            BOOST_CHECK(m_derivable_params.size() > 0);
+        }
+
+        void derivative_tester::test() {
+            determine_shapes(m_op);
+            bool simple_and_fast = true;
+            std::vector<unsigned int> shape = m_op.result(m_result)->shape;
+            boost::shared_ptr<ParameterInput> otherin = boost::make_shared<ParameterInput>(shape, "dummy_input");
+            unsigned int factor = std::accumulate(shape.begin(), shape.end(), 1u, std::multiplies<unsigned int>());
+            factor = std::min(factor, 10u); // give it some leeway in case we're summing over outputs.
+            otherin->set_derivable(false);
+            {
+                TRACE(g_log, "plain");
+                if(!simple_and_fast){
+                    test_all(m_op, m_result, m_derivable_params, m_verbose, m_prec, m_minv, m_maxv);
+                }
+                else{
+                    boost::shared_ptr<Op> func = boost::make_shared<Sum>(m_op.result(m_result));
+                    func = label("variant_plain", func);
+                    test_all(*func, 0, m_derivable_params,  m_verbose, m_prec * factor, m_minv, m_maxv);
+                }
+            }
+            {
+                TRACE(g_log, "variant_a");
+                //boost::shared_ptr<Op> func = boost::make_shared<Axpby>(otherin->result(), op.result(m_result), 2.f, 2.f);
+                boost::shared_ptr<Op> func2 = boost::make_shared<Sum>(m_op.result(m_result));
+                add_to_param(func2, otherin);
+                func2 = label("variant_a", func2);
+                test_all(*func2, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv);
+            }
+            {
+                TRACE(g_log, "variant_b");
+                //boost::shared_ptr<Op> func = boost::make_shared<Axpby>(op.result(m_result), otherin->result(), 2.f, 2.f);
+                boost::shared_ptr<Op> func2 = boost::make_shared<Sum>(otherin->result(0));
+                add_to_param(func2, m_op.shared_from_this());
+                func2 = label("variant_b", func2);
+                test_all(*func2, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv);
+            }
+            {
+                TRACE(g_log, "variant_c");
+                //boost::shared_ptr<Op> func = boost::make_shared<Axpby>(otherin->result(), op.result(m_result), 2.f, 2.f);
+                boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(m_op.result(m_result));
+                boost::shared_ptr<Sum> func3 = boost::make_shared<Sum>(m_op.result(m_result));
+                boost::shared_ptr<Op> func4 = boost::make_shared<Axpby>(func2->result(0), func3->result(0));
+
+                func4 = label("variant_c", func4);
+                test_all(*func4, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv);
+            }
+            {
+                param_collector_visitor pcv;
+                m_op.visit(pcv);
+                BOOST_CHECK(pcv.plist.size()>0);
+                for (unsigned int i = 0; i < pcv.plist.size(); i++) {
+                    if (((ParameterInput*) pcv.plist[i])->derivable()) {
+                        //BOOST_CHECK(pcv.plist[i]->result()->n_uses() == 1);
+                        
+                        TRACE(g_log, "variant_d" + boost::lexical_cast<std::string>(i));
+                        boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(pcv.plist[i]->result());
+                       
+                        std::swap(pcv.plist[i]->result()->result_uses.front(), pcv.plist[i]->result()->result_uses.back());
+                        boost::shared_ptr<Op>  func3 = boost::make_shared<Axpby>(m_op.result(m_result), func2->result());
+                    
+                        func3 = label("variant_d" + boost::lexical_cast<std::string>(i), func3);
+                        //derivative_tester_impl(*func3, 0, verbose, prec * factor, minv, maxv);
+                        
+                        test_all(*func3, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv);
+                        
+                        std::swap(pcv.plist[i]->result()->result_uses.front(), pcv.plist[i]->result()->result_uses.back());
+                    }
+                }
+            }
+        }
+
+        void derivative_tester::test_all(Op& op, int result, std::vector<Op*>& derivable_params, bool verbose, double prec, float minv, float maxv) {
+            // assumption: op has only one result
+            boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op.result(result));
 
             swiper swipe(op, result, derivable_params);
-            swipe.dump("derivative_tester.dot", true);
+            if(verbose)
+                swipe.dump("derivative_tester.dot", true);
 
+            param_collector_visitor pcv;
+            op.visit(pcv);
             initialize_inputs(pcv, minv, maxv);
             {
                 if(verbose)
@@ -169,131 +243,98 @@ namespace cuvnet{ namespace derivative_testing {
             }
 
 
-            BOOST_FOREACH(Op* raw, derivable_params){
-                ParameterInput* param = dynamic_cast<ParameterInput*>(raw);
-                BOOST_CHECK(param!=NULL);
-                if(!param->derivable())
-                    continue;
-                unsigned int n_inputs  = param->data().size();
-                unsigned int n_outputs = prod(op.result(result)->shape);
-                matrix J(n_outputs, n_inputs); J = 0.f;
-                TRACE(g_log, "wrt_" + param->name());
-                if(verbose)
-                {
-                    LOG4CXX_INFO(g_log, "  -testing derivative w.r.t. "<<param->name());
-                    LOG4CXX_INFO(g_log, "   Jacobi dims: "<<n_outputs<<" x "<<n_inputs);
-                }
-                for(unsigned int out=0;out<n_outputs;out++){
-                    swipe.fprop();
-                    cuvAssert(!cuv::has_nan(out_op->cdata()));
-                    cuvAssert(!cuv::has_inf(out_op->cdata()));
-                    set_delta_to_unit_vec(op,result,out);
-                    param->reset_delta();
-                    swipe.bprop(false);
-
-                    // set row in J to the backpropagated value
-                    matrix d_in = param->delta();
-                    cuvAssert(!cuv::has_nan(d_in));
-                    cuvAssert(!cuv::has_inf(d_in));
-                    d_in.reshape(cuv::extents[n_inputs]);
-                    J[cuv::indices[cuv::index_range(out,out+1)][cuv::index_range()]] = d_in;
-                }
-                cuv::tensor<float,cuv::host_memory_space> Jh = J; J.dealloc(); // save device space
-
-                matrix J_(n_inputs,n_outputs); J_ = 0.f;
-                for (unsigned int in = 0; in < n_inputs; ++in) {
-                    static const double eps = 0.001;
-                    float v = param->data()[in];
-                    param->data()[in] = (float)((double)v + eps);
-                    swipe.fprop();
-                    matrix o_plus     = out_op->cdata().copy();
-                    param->data()[in] = (float)((double)v - eps);
-                    swipe.fprop();
-                    matrix o_minus    = out_op->cdata().copy();
-                    param->data()[in] = v;
-
-                    o_plus .reshape(cuv::extents[n_outputs]);
-                    o_minus.reshape(cuv::extents[n_outputs]);
-                    o_plus -= o_minus;
-                    o_plus /= (float)(2.0*eps);
-
-                    // set row in J_ to finite-difference approximation
-                    J_[cuv::indices[cuv::index_range(in,in+1)][cuv::index_range()]] = o_plus;
-                }
-                cuv::tensor<float,cuv::host_memory_space> J_h = J_; J_.dealloc(); // save device space
-                cuv::tensor<float,cuv::host_memory_space> J_t(n_outputs, n_inputs);
-                cuv::transpose(J_t,J_h); J_h.dealloc();
-                cuv::tensor<float, cuv::host_memory_space> tmp(Jh.shape());
-                if(verbose)
-                {
-                    LOG4CXX_INFO(g_log, "   range(Jh)[analytical]="<<cuv::maximum(Jh)-cuv::minimum(Jh));
-                    LOG4CXX_INFO(g_log, "   range(J_t)[finite differences]       ="<<cuv::maximum(J_t)-cuv::minimum(J_t));
-                }
-                cuv::apply_binary_functor(tmp, J_t, Jh, cuv::BF_SUBTRACT);
-                cuv::apply_scalar_functor(tmp, cuv::SF_SQUARE);
-                double maxdiff = cuv::maximum(tmp);    // squared(!)
-                double prec_  = prec * prec;                       // square precision, too
-                if(verbose)
-                {
-                    LOG4CXX_INFO(g_log, "   maxdiff="<<maxdiff<<", prec_="<<prec_);
-                    LOG4CXX_INFO(g_log, "   range(differences)="<<cuv::maximum(tmp)-cuv::minimum(tmp));
-                }
-                if(maxdiff>prec_){
-                    LOG4CXX_WARN(g_log, "   maxdiff="<<maxdiff<<", prec_="<<prec_ << " dumping Jacobi matrices (analyticalJ.npy, finitediffJ.npy)");
-                    tofile("analyticalJ.npy", Jh);
-                    tofile("finitediffJ.npy", J_t);
-                }
-                BOOST_CHECK_LT(maxdiff, prec_ );
+            //BOOST_FOREACH(Op* raw, m_derivable_params){
+            for (unsigned int i = 0; i < derivable_params.size(); i++) {
+                Op* raw = derivable_params[i];
+                //Op* first = derivable_params.back();
+                std::swap(derivable_params[i], derivable_params[0]);
+                //ParameterInput* pi = dynamic_cast<ParameterInput*>(raw);
+                //BOOST_CHECK(pi != NULL);
+                test_wrt(op, result, derivable_params, raw, verbose, prec);
+                //std::swap(first, raw);
+                std::swap(derivable_params[i], derivable_params[0]);
             }
         }
-
-        void derivative_tester(Op& op, int result, bool verbose, double prec, float minv, float maxv){
-            determine_shapes(op);
-            bool simple_and_fast = true;
-            std::vector<unsigned int> shape = op.result(result)->shape;
-            boost::shared_ptr<ParameterInput> otherin = boost::make_shared<ParameterInput>(shape, "dummy_input");
-            unsigned int factor = std::accumulate(shape.begin(), shape.end(), 1u, std::multiplies<unsigned int>());
-            factor = std::min(factor, 10u); // give it some leeway in case we're summing over outputs.
-            otherin->set_derivable(false);
-            {
-                TRACE(g_log, "plain");
-                if(!simple_and_fast)
-                    derivative_tester_impl(op, result, verbose, prec, minv, maxv);
-                else{
-                    boost::shared_ptr<Sum> func = boost::make_shared<Sum>(op.result(result));
-                    derivative_tester_impl(*func, 0, verbose, prec * factor, minv, maxv);
-                }
-            }
-            {
-                TRACE(g_log, "variant_a");
-                //boost::shared_ptr<Op> func = boost::make_shared<Axpby>(otherin->result(), op.result(result), 2.f, 2.f);
-                boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(op.result(0));
-                add_to_param(func2, otherin);
-                derivative_tester_impl(*func2, 0, verbose, prec * factor, minv, maxv);
-            }
-            {
-                TRACE(g_log, "variant_b");
-                //boost::shared_ptr<Op> func = boost::make_shared<Axpby>(op.result(result), otherin->result(), 2.f, 2.f);
-                boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(otherin->result(0));
-                add_to_param(func2, op.shared_from_this());
-                derivative_tester_impl(*func2, 0, verbose, prec * factor, minv, maxv);
-            }
-            {
-                // TODO put something /before/ the op
-                TRACE(g_log, "variant_c");
-                //boost::shared_ptr<Op> func = boost::make_shared<Axpby>(otherin->result(), op.result(result), 2.f, 2.f);
-                boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(op.result(0));
-                boost::shared_ptr<Sum> func3 = boost::make_shared<Sum>(op.result(0));
-                boost::shared_ptr<Axpby> func4 = boost::make_shared<Axpby>(func2->result(0), func3->result(0));
-
-                derivative_tester_impl(*func4, 0, verbose, prec * factor, minv, maxv);
-            }
-            {
-                TRACE(g_log, "variant_d");
-                boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(op.param()->use(0));
-                boost::shared_ptr<Op> func3 = boost::make_shared<Axpby>(op.result(result), func2->result());
+        
+        void derivative_tester::test_wrt(Op& op, int result, std::vector<Op*>& derivable_params, Op* raw, bool verbose, double prec){
+            boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op.result(result));
             
-                derivative_tester_impl(*func3, 0, verbose, prec * factor, minv, maxv);
+            swiper swipe(op, result, derivable_params);
+            swipe.dump("derivative_tester_wrt.dot", true);
+            
+            ParameterInput* param = dynamic_cast<ParameterInput*>(raw);
+            BOOST_CHECK(param != NULL);
+            if(!param->derivable())
+                return; // why is this necessary?
+            unsigned int n_inputs  = param->data().size();
+            unsigned int n_outputs = prod(op.result(result)->shape);
+            matrix J(n_outputs, n_inputs); J = 0.f;
+            TRACE(g_log, "wrt_" + param->name());
+            if(verbose)
+            {
+                LOG4CXX_INFO(g_log, "  -testing derivative w.r.t. "<<param->name());
+                LOG4CXX_INFO(g_log, "   Jacobi dims: "<<n_outputs<<" x "<<n_inputs);
             }
+            for(unsigned int out=0;out<n_outputs;out++){
+                swipe.fprop();
+                cuvAssert(!cuv::has_nan(out_op->cdata()));
+                cuvAssert(!cuv::has_inf(out_op->cdata()));
+                set_delta_to_unit_vec(op,result,out);
+                param->reset_delta();
+                swipe.bprop(false);
+
+                // set row in J to the backpropagated value
+                matrix d_in = param->delta();
+                cuvAssert(!cuv::has_nan(d_in));
+                cuvAssert(!cuv::has_inf(d_in));
+                d_in.reshape(cuv::extents[n_inputs]);
+                J[cuv::indices[cuv::index_range(out,out+1)][cuv::index_range()]] = d_in;
+            }
+            cuv::tensor<float,cuv::host_memory_space> Jh = J; J.dealloc(); // save device space
+
+            matrix J_(n_inputs,n_outputs); J_ = 0.f;
+            for (unsigned int in = 0; in < n_inputs; ++in) {
+                static const double eps = 0.001;
+                float v = param->data()[in];
+                param->data()[in] = (float)((double)v + eps);
+                swipe.fprop();
+                matrix o_plus     = out_op->cdata().copy();
+                param->data()[in] = (float)((double)v - eps);
+                swipe.fprop();
+                matrix o_minus    = out_op->cdata().copy();
+                param->data()[in] = v;
+
+                o_plus .reshape(cuv::extents[n_outputs]);
+                o_minus.reshape(cuv::extents[n_outputs]);
+                o_plus -= o_minus;
+                o_plus /= (float)(2.0*eps);
+
+                // set row in J_ to finite-difference approximation
+                J_[cuv::indices[cuv::index_range(in,in+1)][cuv::index_range()]] = o_plus;
+            }
+            cuv::tensor<float,cuv::host_memory_space> J_h = J_; J_.dealloc(); // save device space
+            cuv::tensor<float,cuv::host_memory_space> J_t(n_outputs, n_inputs);
+            cuv::transpose(J_t,J_h); J_h.dealloc();
+            cuv::tensor<float, cuv::host_memory_space> tmp(Jh.shape());
+            if(verbose)
+            {
+                LOG4CXX_INFO(g_log, "   range(Jh)[analytical]="<<cuv::maximum(Jh)-cuv::minimum(Jh));
+                LOG4CXX_INFO(g_log, "   range(J_t)[finite differences]       ="<<cuv::maximum(J_t)-cuv::minimum(J_t));
+            }
+            cuv::apply_binary_functor(tmp, J_t, Jh, cuv::BF_SUBTRACT);
+            cuv::apply_scalar_functor(tmp, cuv::SF_SQUARE);
+            double maxdiff = cuv::maximum(tmp);    // squared(!)
+            double prec_  = prec * prec;                       // square precision, too
+            if(verbose)
+            {
+                LOG4CXX_INFO(g_log, "   maxdiff="<<maxdiff<<", prec_="<<prec_);
+                LOG4CXX_INFO(g_log, "   range(differences)="<<cuv::maximum(tmp)-cuv::minimum(tmp));
+            }
+            if(maxdiff>prec_){
+                LOG4CXX_WARN(g_log, "   maxdiff="<<maxdiff<<", prec_="<<prec_ << " dumping Jacobi matrices (analyticalJ.npy, finitediffJ.npy)");
+                tofile("analyticalJ.npy", Jh);
+                tofile("finitediffJ.npy", J_t);
+            }
+            BOOST_CHECK_LT(maxdiff, prec_ );
         }
 } }
