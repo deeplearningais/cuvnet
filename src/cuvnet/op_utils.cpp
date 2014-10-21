@@ -70,6 +70,8 @@ void define_graphviz_node_visitor::preorder(Op* o){
             n.fillcolor = "lightcyan";
     }
 	o->_graphviz_node_desc(n);
+    if(o->need_result())
+        n.label = n.label + "*";
     if(m_verbose)
     n.label += " } | {" + boost::lexical_cast<std::string>(o);
     if(o->get_label().size())
