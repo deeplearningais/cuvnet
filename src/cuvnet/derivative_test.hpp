@@ -44,6 +44,7 @@ namespace cuvnet
                 double m_prec = 0.003;
                 float m_minv = -1.0, m_maxv = 1.0;
                 std::vector<Op*> m_derivable_params;
+                bool m_simple_and_fast = true;
 
                 inline derivative_tester& precision(double d){m_prec = d; return *this;}
                 inline derivative_tester& result(int i){m_result = i; return *this;}

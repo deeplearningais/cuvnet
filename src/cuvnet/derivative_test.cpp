@@ -156,7 +156,7 @@ namespace cuvnet{ namespace derivative_testing {
 
         void derivative_tester::test() {
             determine_shapes(m_op);
-            bool simple_and_fast = true;
+            //bool simple_and_fast = true;
             std::vector<unsigned int> shape = m_op.result(m_result)->shape;
             boost::shared_ptr<ParameterInput> otherin = boost::make_shared<ParameterInput>(shape, "dummy_input");
             unsigned int factor = std::accumulate(shape.begin(), shape.end(), 1u, std::multiplies<unsigned int>());
@@ -164,7 +164,7 @@ namespace cuvnet{ namespace derivative_testing {
             otherin->set_derivable(false);
             {
                 TRACE(g_log, "plain");
-                if(!simple_and_fast){
+                if(!m_simple_and_fast){
                     test_all(m_op, m_result, m_derivable_params, m_verbose, m_prec, m_minv, m_maxv);
                 }
                 else{
@@ -214,7 +214,6 @@ namespace cuvnet{ namespace derivative_testing {
                         boost::shared_ptr<Op>  func3 = boost::make_shared<Axpby>(m_op.result(m_result), func2->result());
                     
                         func3 = label("variant_d" + boost::lexical_cast<std::string>(i), func3);
-                        //derivative_tester_impl(*func3, 0, verbose, prec * factor, minv, maxv);
                         
                         test_all(*func3, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv);
                         
@@ -246,12 +245,12 @@ namespace cuvnet{ namespace derivative_testing {
             //BOOST_FOREACH(Op* raw, m_derivable_params){
             for (unsigned int i = 0; i < derivable_params.size(); i++) {
                 Op* raw = derivable_params[i];
-                //Op* first = derivable_params.back();
                 std::swap(derivable_params[i], derivable_params[0]);
+                
                 //ParameterInput* pi = dynamic_cast<ParameterInput*>(raw);
                 //BOOST_CHECK(pi != NULL);
                 test_wrt(op, result, derivable_params, raw, verbose, prec);
-                //std::swap(first, raw);
+                
                 std::swap(derivable_params[i], derivable_params[0]);
             }
         }
