@@ -12,22 +12,28 @@
 
 namespace {
     log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("derivative_tester"));
+    log4cxx::LoggerPtr g_enslog(log4cxx::Logger::getLogger("ensure_no_state"));
 }
 
 namespace cuvnet{ namespace derivative_testing {
 
     void ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params, bool verbose){
-        Tracer t_top(g_log, "ensure_no_state");
-        { // forward pass
-            TRACE(g_log, "fprop");
+        double epsilon = 0.00000001;
+        { TRACE(g_enslog, "fprop");
             using namespace cuv;
-            swp.fprop();
+            {
+                TRACE(g_enslog, "A");
+                swp.fprop();
+            }
             tensor<float,host_memory_space> r0 = out->cdata().copy();
-            swp.fprop();
+            {
+                TRACE(g_enslog, "B");
+                swp.fprop();
+            }
             tensor<float,host_memory_space> r1 = out->cdata().copy();
 
             if(verbose)
-                LOG4CXX_INFO(g_log, "-- Checking Results; cuv::minimum(r0):" << cuv::minimum(r0) << " cuv::maximum(r0):" << cuv::maximum(r0));
+                LOG4CXX_INFO(g_enslog, "-- Checking Results; cuv::minimum(r0):" << cuv::minimum(r0) << " cuv::maximum(r0):" << cuv::maximum(r0));
 
             BOOST_CHECK(out->result()->shape == r0.shape()); // shape should be as advertised by determine_shapes
             BOOST_CHECK(equal_shape(r0,r1));
@@ -35,9 +41,14 @@ namespace cuvnet{ namespace derivative_testing {
             tensor<float,host_memory_space> rdiff(r0.shape());
             apply_binary_functor(rdiff, r0, r1, BF_SUBTRACT);
             apply_scalar_functor(rdiff, SF_ABS);
-            BOOST_CHECK_LT(maximum(rdiff), 0.00000001);
+            double fprop_error = maximum(rdiff);
+            if(fprop_error > epsilon){
+                LOG4CXX_ERROR(g_enslog, " fprop error greater epsilon: "<< fprop_error);
+            }
+
+            BOOST_CHECK_LT(fprop_error, epsilon);
         }
-        Tracer t_bprop(g_log, "bprop");
+        Tracer t_bprop(g_enslog, "bprop");
         BOOST_FOREACH(Op* raw, params){
             using namespace cuv;
             ParameterInput* pi = dynamic_cast<ParameterInput*>(raw);
@@ -55,13 +66,17 @@ namespace cuvnet{ namespace derivative_testing {
             pi->reset_delta();
 
             if(verbose)
-                LOG4CXX_INFO(g_log, "-- Checking Gradients of `" << pi->name() << "'; cuv::minimum(r0):" << cuv::minimum(r0) << " cuv::maximum(r0):" << cuv::maximum(r0));
+                LOG4CXX_INFO(g_enslog, "-- Checking Gradients of `" << pi->name() << "'; cuv::minimum(r0):" << cuv::minimum(r0) << " cuv::maximum(r0):" << cuv::maximum(r0));
 
             BOOST_CHECK(equal_shape(r0,r1));
             tensor<float,host_memory_space> rdiff(r0.shape());
             apply_binary_functor(rdiff, r0, r1, BF_SUBTRACT);
             apply_scalar_functor(rdiff, SF_ABS);
-            BOOST_CHECK_LT(maximum(rdiff), 0.00000001);
+            double bprop_error = maximum(rdiff);
+            if(bprop_error > epsilon){
+                LOG4CXX_ERROR(g_enslog, " bprop error greater epsilon: "<< bprop_error);
+            }
+            BOOST_CHECK_LT(bprop_error, epsilon);
         }
     }
 
