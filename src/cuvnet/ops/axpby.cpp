@@ -29,16 +29,21 @@ namespace cuvnet
         const value_type& inp0 = p0.value.cdata();           // original
         const value_type& inp1 = p1.value.cdata();           // original
         bool write_to_p0 = p0.value.unique() && (p0.shape == r0.shape);
+        bool write_to_p1 = !write_to_p0 && p1.value.unique() && (p1.shape == r0.shape);
 
         if(r0.can_overwrite_directly()){
-            apply_binary_functor(r0.overwrite_or_add_value().data(), inp0, inp1, BF_AXPBY, m_fact_a, m_fact_b);
-        }else{
+            apply_binary_functor(r0.overwrite_or_add_value().data_onlyshape(), inp0, inp1, BF_AXPBY, m_fact_a, m_fact_b);
+        }else if(write_to_p0 || write_to_p1){
             value_type&  outp  = write_to_p0
                 ? p0.value.data_onlyshape()
                 : p1.value.data_onlyshape();  
-            outp.resize(r0.shape);
             apply_binary_functor(outp, inp0, inp1, BF_AXPBY, m_fact_a, m_fact_b);
             r0.push(write_to_p0 ? p0.value : p1.value);
+        }else {
+            value_ptr outpp(new value_type(r0.shape));
+            value_type&  outp  = *outpp;
+            apply_binary_functor(outp, inp0, inp1, BF_AXPBY, m_fact_a, m_fact_b);
+            r0.push(outpp);
         }
         p0.value.reset(); // forget it
         p1.value.reset(); // forget it
