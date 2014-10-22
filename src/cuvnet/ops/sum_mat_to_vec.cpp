@@ -125,7 +125,7 @@ namespace cuvnet
                 matrix_op_vec(
                         *p0.overwrite_or_add_value(), 
                         *p0.overwrite_or_add_value(), 
-                        r0.delta.cdata(), m_axis, BF_ADD, fact_new, 1.f);
+                        r0.delta.cdata(), m_axis, BF_2ND, fact_new, 1.f); // 0: BF_ADD already adds!
             }else{
                 value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
                 matrix_op_vec(
