@@ -789,47 +789,57 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
     using namespace cuv::alex_conv;
 
     {
-       LOG4CXX_DEBUG(g_log, "in first case tuplewise op");
+       LOG4CXX_WARN(g_log, "in first case tuplewise op");
        unsigned int sub_size = 3;
        unsigned int nImgChan = 2 * sub_size;      // must be divisible by nGroups
-       unsigned int nImgPixX = 8;
-       unsigned int nImgPixY = 8;
-       unsigned int nImg     = 4;
+       unsigned int nImgPixX = 2;
+       unsigned int nImgPixY = 2;
+       unsigned int nImg     = 2;
 
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg], "inputs");
        ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 0, sub_size, to, 0.0001f);
 
        fill_with_permuted_sequence(inp0->data());
+       if(to != cuv::alex_conv::TO_MAX){
+           inp0->data() *= 4.f / cuv::maximum(inp0->data());
+           inp0->data() -= 2.f;
+       }
     
        derivative_tester dt(*func);
        if(reinit)
            dt.test();
        else
-           dt.precision(0.03).values(0, 0).test();
+           dt.precision(0.03).values(0, 0).full_jacobian().test();
     }
 
 
 
     {
-        LOG4CXX_DEBUG(g_log, "in 2nd case tuplewise op" );
+        LOG4CXX_WARN(g_log, "in 2nd case tuplewise op" );
         unsigned int sub_size = 3;
         unsigned int nImgChan = 2 * sub_size;      // must be divisible by nGroups
-        unsigned int nImgPixX = 8;
-        unsigned int nImgPixY = 8;
-        unsigned int nImg     = 4;
+        unsigned int nImgPixX = 2;
+        unsigned int nImgPixY = 2;
+        unsigned int nImg     = 2;
 
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgPixY][nImgPixX][nImg][nImgChan], "inputs");
         ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 3, sub_size, to, 0.0001f);
+
+        fill_with_permuted_sequence(inp0->data());
+        if(to != cuv::alex_conv::TO_MAX){
+            inp0->data() *= 0.1f / cuv::maximum(inp0->data());
+            inp0->data() -= 0.05f;
+        }
 
         derivative_tester dt(*func);
        if(reinit)
            dt.test();
        else
-           dt.precision(0.03).values(0, 0).test();
+           dt.precision(0.03).values(0, 0).full_jacobian().test();
     }
 
     {
-        LOG4CXX_DEBUG(g_log, "in 3rd case tuplewise op" );
+        LOG4CXX_WARN(g_log, "in 3rd case tuplewise op" );
         unsigned int sub_size = 3;
         unsigned int nImgChan = 2 * sub_size;      // must be divisible by nGroups
         unsigned int nImg     = 8;
@@ -838,11 +848,15 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
         ptr_t func   = boost::make_shared<Tuplewise_op>(inp0->result(), 1, sub_size, to, 0.0001f);
 
         fill_with_permuted_sequence(inp0->data());
+        if(to != cuv::alex_conv::TO_MAX){
+            inp0->data() *= 4.f / cuv::maximum(inp0->data());
+            inp0->data() -= 2.f;
+        }
         derivative_tester dt(*func);
        if(reinit)
            dt.test();
        else
-           dt.precision(0.03).values(0, 0).test();
+           dt.precision(0.03).values(0, 0).full_jacobian().test();
     }
 
 }
@@ -854,12 +868,12 @@ BOOST_AUTO_TEST_CASE(derivative_test_tuplewise_max){
     test_derivative_test_tuple_ops(cuv::alex_conv::TO_MAX);
 }
 
-BOOST_AUTO_TEST_CASE(derivative_test_tuplewise_mean){
-    test_derivative_test_tuple_ops(cuv::alex_conv::TO_MEAN);
-}
-BOOST_AUTO_TEST_CASE(derivative_test_tuplewise_subsample){
-    test_derivative_test_tuple_ops(cuv::alex_conv::TO_SUBSAMPLE);
-}
+//BOOST_AUTO_TEST_CASE(derivative_test_tuplewise_mean){
+    //test_derivative_test_tuple_ops(cuv::alex_conv::TO_MEAN);
+//}
+//BOOST_AUTO_TEST_CASE(derivative_test_tuplewise_subsample){
+//    test_derivative_test_tuple_ops(cuv::alex_conv::TO_SUBSAMPLE);
+//}
 BOOST_AUTO_TEST_CASE(derivative_test_tuplewise_add_squared){
     test_derivative_test_tuple_ops(cuv::alex_conv::TO_ADD_SQUARED);
 }
