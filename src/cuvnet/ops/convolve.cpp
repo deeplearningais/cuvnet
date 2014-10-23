@@ -1300,6 +1300,7 @@ namespace cuvnet
             tuplewise_op(*v, p0.value.cdata(), m_dim, m_subspace_size, m_to, m_epsilon);
             r0.push(v);
         }
+        // keep p0.value!
     }
 
     void Tuplewise_op::bprop(){
@@ -1310,12 +1311,10 @@ namespace cuvnet
         if(p0.can_overwrite_directly()){
             tuplewise_op_grad(*p0.overwrite_or_add_value(), p0.value.cdata(), r0.delta.cdata(), m_dim, m_subspace_size, m_to, m_epsilon);
         }else{
-            value_ptr ptr = p0.value;
-            p0.value.reset();       // try to overwrite input activations
-            const matrix& oldvalue = ptr.cdata();
-            value_type& v = ptr.data_onlyshape();
+            const matrix& oldvalue = p0.value.cdata();
+            value_type& v = p0.value.data_onlyshape();
             tuplewise_op_grad(v, oldvalue, r0.delta.cdata(), m_dim, m_subspace_size, m_to, m_epsilon);
-            p0.push(ptr);
+            p0.push(p0.value);
         }
         p0.value.reset();
         r0.delta.reset();
