@@ -145,7 +145,8 @@ namespace cuvnet
                 p0.value.reset();   // avoid copy if it is not needed anymore
             cuv::matrix_op_vec(*r0.overwrite_or_add_value(),*r0.overwrite_or_add_value(), p1.value.cdata(), m_axis, BF_MULT);
         }
-        else if(r0.can_add_directly()){
+        else if(0 && r0.can_add_directly()){
+            // BROKEN: can't add to a value that's already there and /then/ multiply! use generic case below instead.
             *r0.overwrite_or_add_value() += p0.value.cdata();
             cuv::matrix_op_vec(*r0.overwrite_or_add_value(),*r0.overwrite_or_add_value(), p1.value.cdata(), m_axis, BF_MULT, 1.f, 1.f);
         }else{
@@ -269,7 +270,8 @@ namespace cuvnet
                 p0.value.reset();   // avoid copy if it is not needed anymore
             cuv::matrix_op_vec(*r0.overwrite_or_add_value(),*r0.overwrite_or_add_value(), p1.value.cdata(), m_axis, BF_DIV);
         }
-        else if(r0.can_add_directly()){
+        else if(0 && r0.can_add_directly()){
+            // BROKEN: we can't add first and then divide!
             *r0.overwrite_or_add_value() += p0.value.cdata();
             cuv::matrix_op_vec(*r0.overwrite_or_add_value(),*r0.overwrite_or_add_value(), p1.value.cdata(), m_axis, BF_DIV, 1.f, 1.f);
         }else{
