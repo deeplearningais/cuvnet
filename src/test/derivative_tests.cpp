@@ -123,9 +123,8 @@ BOOST_AUTO_TEST_CASE(derivative_test_abs){
 BOOST_AUTO_TEST_CASE(derivative_test_log){
    typedef boost::shared_ptr<Op> ptr_t;
    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
-   boost::shared_ptr<Pow>    pw  = boost::make_shared<Pow>(2, inp->result());
-   ptr_t func                    = boost::make_shared<Log>(pw->result());
-   derivative_tester(*func).test();
+   ptr_t func                    = boost::make_shared<Log>(inp->result());
+   derivative_tester(*func).values(0.1, 2.).test();
 }
 
 BOOST_AUTO_TEST_CASE(derivative_test_mean){
