@@ -186,7 +186,6 @@ namespace cuvnet{ namespace derivative_testing {
             unsigned int factor = std::accumulate(shape.begin(), shape.end(), 1u, std::multiplies<unsigned int>());
             factor = std::min(factor, 10u); // give it some leeway in case we're summing over outputs.
             otherin->set_derivable(false);
-            {
             if(m_variant_filter & 1){
                 TRACE(g_log, "plain");
                 if(!m_simple_and_fast){
