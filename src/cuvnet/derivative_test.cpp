@@ -149,7 +149,16 @@ namespace cuvnet{ namespace derivative_testing {
             }
         }
 
-        derivative_tester::derivative_tester(Op& op):m_op(op){
+        derivative_tester::derivative_tester(Op& op)
+            :m_op(op)
+            ,m_result(0)
+            ,m_verbose(false)
+            ,m_prec(0.003)
+            ,m_minv(-1.)
+            ,m_maxv(1.)
+            ,m_simple_and_fast(true)
+            ,m_variant_filter(~0)
+        {
             // tell that we want derivative w.r.t. all params
             param_collector_visitor pcv;
             m_op.visit(pcv);
@@ -178,6 +187,7 @@ namespace cuvnet{ namespace derivative_testing {
             factor = std::min(factor, 10u); // give it some leeway in case we're summing over outputs.
             otherin->set_derivable(false);
             {
+            if(m_variant_filter & 1){
                 TRACE(g_log, "plain");
                 if(!m_simple_and_fast){
                     test_all(m_op, m_result, m_derivable_params, m_verbose, m_prec, m_minv, m_maxv);
@@ -188,23 +198,23 @@ namespace cuvnet{ namespace derivative_testing {
                     test_all(*func, 0, m_derivable_params,  m_verbose, m_prec * factor, m_minv, m_maxv);
                 }
             }
-            {
+            if(m_variant_filter & 2){
                 TRACE(g_log, "variant_a");
                 //boost::shared_ptr<Op> func = boost::make_shared<Axpby>(otherin->result(), op.result(m_result), 2.f, 2.f);
-                boost::shared_ptr<Op> func2 = boost::make_shared<Sum>(m_op.result(m_result));
+                boost::shared_ptr<Op> func2 = boost::make_shared<AddScalar>(m_op.result(m_result),1.f);
                 add_to_param(func2, otherin);
                 func2 = label("variant_a", func2);
                 test_all(*func2, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv);
             }
-            {
+            if(m_variant_filter & 4){
                 TRACE(g_log, "variant_b");
                 //boost::shared_ptr<Op> func = boost::make_shared<Axpby>(op.result(m_result), otherin->result(), 2.f, 2.f);
-                boost::shared_ptr<Op> func2 = boost::make_shared<Sum>(otherin->result(0));
+                boost::shared_ptr<Op> func2 = boost::make_shared<AddScalar>(otherin->result(0), 1.f);
                 add_to_param(func2, m_op.shared_from_this());
                 func2 = label("variant_b", func2);
                 test_all(*func2, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv);
             }
-            {
+            if(m_variant_filter & 8){
                 TRACE(g_log, "variant_c");
                 //boost::shared_ptr<Op> func = boost::make_shared<Axpby>(otherin->result(), op.result(m_result), 2.f, 2.f);
                 boost::shared_ptr<Sum> func2 = boost::make_shared<Sum>(m_op.result(m_result));
@@ -214,7 +224,7 @@ namespace cuvnet{ namespace derivative_testing {
                 func4 = label("variant_c", func4);
                 test_all(*func4, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv);
             }
-            {
+            if(m_variant_filter & 16){
                 param_collector_visitor pcv;
                 m_op.visit(pcv);
                 BOOST_CHECK(pcv.plist.size()>0);

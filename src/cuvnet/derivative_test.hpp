@@ -39,17 +39,21 @@ namespace cuvnet
         //namespace impl {
             struct derivative_tester{
                 Op& m_op;
-                int m_result = 0;
-                bool m_verbose = false;
-                double m_prec = 0.003;
-                float m_minv = -1.0, m_maxv = 1.0;
+                int m_result;
+                bool m_verbose;
+                double m_prec;
+                float m_minv, m_maxv;
                 std::vector<Op*> m_derivable_params;
-                bool m_simple_and_fast = true;
+                bool m_simple_and_fast;
+                unsigned int m_variant_filter;
 
                 inline derivative_tester& precision(double d){m_prec = d; return *this;}
                 inline derivative_tester& result(int i){m_result = i; return *this;}
                 inline derivative_tester& values(float minv, float maxv){m_minv = minv; m_maxv = maxv; return *this;}
                 inline derivative_tester& verbose(bool verbose = true){m_verbose = verbose; return *this;}
+                inline derivative_tester& full_jacobian(bool b = true){m_simple_and_fast = !b; return *this;}
+                inline derivative_tester& only_variant(int filter){m_variant_filter = filter; return *this;}
+                inline derivative_tester& without_variant(int filter){m_variant_filter &= ~filter; return *this;}
 
                 derivative_tester(Op& op);
                 void test();
