@@ -8,6 +8,7 @@
 #include <cuvnet/models/mlp.hpp>
 #include <cuvnet/models/linear_regression.hpp>
 
+#include <cuvnet/derivative_test.hpp>
 
 BOOST_CLASS_EXPORT(cuvnet::models::linear_regression);
 
@@ -20,6 +21,16 @@ BOOST_AUTO_TEST_SUITE( t_mlp )
         cuvnet::models::mlp_classifier mlp(inp, tgt, hls);
         gradient_descent gd(mlp.loss(), 0, mlp.get_params(), 0.01f);
         gd.batch_learning(1);
+    }
+
+    BOOST_AUTO_TEST_CASE(mlp_derivative){
+        using namespace cuvnet;
+        boost::shared_ptr<ParameterInput> inp = input(cuv::extents[10][15]);
+        boost::shared_ptr<ParameterInput> tgt = input(cuv::extents[10][2]);
+        tgt->set_derivable(false);
+        std::vector<unsigned int> hls(2, 4);
+        cuvnet::models::mlp_classifier mlp(inp, tgt, hls);
+        derivative_testing::derivative_tester(*mlp.loss()).epsilon(0.001).precision(0.003).test();
     }
 
 struct tmplogreg : public cuvnet::models::logistic_regression{
