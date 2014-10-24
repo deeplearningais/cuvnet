@@ -93,7 +93,7 @@ namespace cuvnet
             m_layers.resize(hlsizes.size());
             op_ptr o = X;
             for(unsigned int i=0; i< hlsizes.size(); i++) {
-                m_layers[i] = mlp_layer(o, hlsizes[i]);
+                m_layers[i] = mlp_layer(o, hlsizes[i], mlp_layer_opts().rectified_linear());
                 register_submodel(m_layers[i]);
                 o = m_layers[i].m_output;
             }
