@@ -1,3 +1,4 @@
+#include <boost/regex.hpp>
 #include "derivative_test.hpp"
 #include <ext/functional>
 
@@ -158,6 +159,7 @@ namespace cuvnet{ namespace derivative_testing {
             ,m_maxv(1.)
             ,m_simple_and_fast(true)
             ,m_variant_filter(~0)
+            ,m_epsilon(0.001)
         {
             // tell that we want derivative w.r.t. all params
             param_collector_visitor pcv;
@@ -189,29 +191,37 @@ namespace cuvnet{ namespace derivative_testing {
             if(m_variant_filter & 1){
                 TRACE(g_log, "plain");
                 if(!m_simple_and_fast){
-                    test_all(m_op, m_result, m_derivable_params, m_verbose, m_prec, m_minv, m_maxv);
+                    test_all(m_op, m_result, m_derivable_params, m_verbose, m_prec, m_minv, m_maxv, m_epsilon);
                 }
                 else{
                     boost::shared_ptr<Op> func = boost::make_shared<Sum>(m_op.result(m_result));
                     func = label("variant_plain", func);
-                    test_all(*func, 0, m_derivable_params,  m_verbose, m_prec * factor, m_minv, m_maxv);
+                    test_all(*func, 0, m_derivable_params,  m_verbose, m_prec * factor, m_minv, m_maxv, m_epsilon);
                 }
             }
             if(m_variant_filter & 2){
                 TRACE(g_log, "variant_a");
                 //boost::shared_ptr<Op> func = boost::make_shared<Axpby>(otherin->result(), op.result(m_result), 2.f, 2.f);
-                boost::shared_ptr<Op> func2 = boost::make_shared<AddScalar>(m_op.result(m_result),1.f);
+                boost::shared_ptr<Op> func2;
+                if(!m_simple_and_fast)
+                    func2 = boost::make_shared<AddScalar>(m_op.result(m_result),1.f);
+                else
+                    func2 = boost::make_shared<Sum>(m_op.result(m_result));
                 add_to_param(func2, otherin);
                 func2 = label("variant_a", func2);
-                test_all(*func2, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv);
+                test_all(*func2, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv, m_epsilon);
             }
             if(m_variant_filter & 4){
                 TRACE(g_log, "variant_b");
                 //boost::shared_ptr<Op> func = boost::make_shared<Axpby>(op.result(m_result), otherin->result(), 2.f, 2.f);
-                boost::shared_ptr<Op> func2 = boost::make_shared<AddScalar>(otherin->result(0), 1.f);
-                add_to_param(func2, m_op.shared_from_this());
-                func2 = label("variant_b", func2);
-                test_all(*func2, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv);
+                boost::shared_ptr<Op> func;
+                if(!m_simple_and_fast)
+                    func = boost::make_shared<AddScalar>(otherin->result(0), 1.f);
+                else
+                    func = boost::make_shared<Sum>(otherin->result(0));
+                add_to_param(func, m_op.shared_from_this());
+                func = label("variant_b", func);
+                test_all(*func, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv, m_epsilon);
             }
             if(m_variant_filter & 8){
                 TRACE(g_log, "variant_c");
@@ -221,7 +231,7 @@ namespace cuvnet{ namespace derivative_testing {
                 boost::shared_ptr<Op> func4 = boost::make_shared<Axpby>(func2->result(0), func3->result(0));
 
                 func4 = label("variant_c", func4);
-                test_all(*func4, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv);
+                test_all(*func4, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv, m_epsilon);
             }
             if(m_variant_filter & 16){
                 param_collector_visitor pcv;
@@ -239,7 +249,7 @@ namespace cuvnet{ namespace derivative_testing {
                     
                         func3 = label("variant_d" + boost::lexical_cast<std::string>(i), func3);
                         
-                        test_all(*func3, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv);
+                        test_all(*func3, 0, m_derivable_params, m_verbose, m_prec * factor, m_minv, m_maxv, m_epsilon);
                         
                         std::swap(pcv.plist[i]->result()->result_uses.front(), pcv.plist[i]->result()->result_uses.back());
                     }
@@ -247,7 +257,7 @@ namespace cuvnet{ namespace derivative_testing {
             }
         }
 
-        void derivative_tester::test_all(Op& op, int result, std::vector<Op*>& derivable_params, bool verbose, double prec, float minv, float maxv) {
+        void derivative_tester::test_all(Op& op, int result, std::vector<Op*>& derivable_params, bool verbose, double prec, float minv, float maxv, double epsilon) {
             // assumption: op has only one result
             boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op.result(result));
 
@@ -269,17 +279,23 @@ namespace cuvnet{ namespace derivative_testing {
             //BOOST_FOREACH(Op* raw, m_derivable_params){
             for (unsigned int i = 0; i < derivable_params.size(); i++) {
                 Op* raw = derivable_params[i];
+                ParameterInput* pi = dynamic_cast<ParameterInput*>(raw);
+                if(pi && m_parameter_filter.size()){
+                    boost::regex e(m_parameter_filter);
+                    if(!boost::regex_match(pi->name(), e))
+                        continue;
+                }
                 std::swap(derivable_params[i], derivable_params[0]);
                 
                 //ParameterInput* pi = dynamic_cast<ParameterInput*>(raw);
                 //BOOST_CHECK(pi != NULL);
-                test_wrt(op, result, derivable_params, raw, verbose, prec);
+                test_wrt(op, result, derivable_params, raw, verbose, prec, epsilon);
                 
                 std::swap(derivable_params[i], derivable_params[0]);
             }
         }
         
-        void derivative_tester::test_wrt(Op& op, int result, std::vector<Op*>& derivable_params, Op* raw, bool verbose, double prec){
+        void derivative_tester::test_wrt(Op& op, int result, std::vector<Op*>& derivable_params, Op* raw, bool verbose, double prec, double eps){
             boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op.result(result));
             
             swiper swipe(op, result, derivable_params);
@@ -317,7 +333,6 @@ namespace cuvnet{ namespace derivative_testing {
 
             matrix J_(n_inputs,n_outputs); J_ = 0.f;
             for (unsigned int in = 0; in < n_inputs; ++in) {
-                static const double eps = 0.001;
                 float v = param->data()[in];
                 param->data()[in] = (float)((double)v + eps);
                 swipe.fprop();

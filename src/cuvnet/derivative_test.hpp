@@ -46,12 +46,16 @@ namespace cuvnet
                 std::vector<Op*> m_derivable_params;
                 bool m_simple_and_fast;
                 unsigned int m_variant_filter;
+                std::string m_parameter_filter;
+                double m_epsilon;
 
                 inline derivative_tester& precision(double d){m_prec = d; return *this;}
+                inline derivative_tester& epsilon(double d){m_epsilon = d; return *this;}
                 inline derivative_tester& result(int i){m_result = i; return *this;}
                 inline derivative_tester& values(float minv, float maxv){m_minv = minv; m_maxv = maxv; return *this;}
                 inline derivative_tester& verbose(bool verbose = true){m_verbose = verbose; return *this;}
                 inline derivative_tester& full_jacobian(bool b = true){m_simple_and_fast = !b; return *this;}
+                inline derivative_tester& only_param(std::string s){m_parameter_filter = s; return *this;}
                 inline derivative_tester& only_variant(int filter){m_variant_filter = filter; return *this;}
                 inline derivative_tester& without_variant(int filter){m_variant_filter &= ~filter; return *this;}
 
@@ -61,11 +65,11 @@ namespace cuvnet
             private:
 
                 // calls derivative_test_wrt
-                static void test_all(Op& op, int result, std::vector<Op*>& derivable_params, bool verbose, double prec, float minv, float maxv);
+                void test_all(Op& op, int result, std::vector<Op*>& derivable_params, bool verbose, double prec, float minv, float maxv, double epsilon);
                 
                 // tests the derivative of op w.r.t. pi.
                 // (calculates /all/ params, but checks only one)
-                static void test_wrt(Op& op, int result, std::vector<Op*>& derivable_params, Op* raw, bool verbose, double prec);
+                void test_wrt(Op& op, int result, std::vector<Op*>& derivable_params, Op* raw, bool verbose, double prec, double epsilon);
             };
         //}
 
