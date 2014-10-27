@@ -96,6 +96,7 @@ SET(CUVNET_SRC
     cuvnet/models/linear_regression.cpp
     cuvnet/models/mlp.cpp
     cuvnet/models/conv_layer.cpp
+    cuvnet/models/inception.cpp
 
     third_party/libnpy-0.5/src/npy.c
     third_party/cnpy/cnpy.cpp

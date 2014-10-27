@@ -27,7 +27,10 @@ namespace cuvnet
 
         mlp_layer::mlp_layer(mlp_layer::op_ptr X, unsigned int size, mlp_layer_opts args){
             determine_shapes(*X);
-            m_W    = input(cuv::extents[X->result()->shape[1]][size], args.m_group_name + "W");
+            if(args.m_weights_left)
+                m_W    = input(cuv::extents[size][X->result()->shape[0]], args.m_group_name + "W");
+            else
+                m_W    = input(cuv::extents[X->result()->shape[1]][size], args.m_group_name + "W");
             m_W->set_learnrate_factor(args.m_learnrate_factor);
 
             boost::scoped_ptr<op_group> grp;
@@ -41,13 +44,19 @@ namespace cuvnet
                 m_bias = input(cuv::extents[size], args.m_group_name + "b");
                 m_bias->set_learnrate_factor(args.m_learnrate_factor_bias);
 
-                m_linear_output = mat_plus_vec(
-                        prod(X, m_W), m_bias, 1);
-            }else
-                m_linear_output = prod(X, m_W);
+                if(args.m_weights_left)
+                    m_linear_output = mat_plus_vec( prod(m_W, X), m_bias, 0);
+                else
+                    m_linear_output = mat_plus_vec( prod(X, m_W), m_bias, 1);
+            }else{
+                if(args.m_weights_left)
+                    m_linear_output = prod(m_W, X);
+                else
+                    m_linear_output = prod(X, m_W);
+            }
 
             if(args.m_want_maxout)
-                m_linear_output = tuplewise_op(m_linear_output, 1, 
+                m_linear_output = tuplewise_op(m_linear_output, args.m_weights_left ? 0 : 1, 
                         args.m_maxout_N, cuv::alex_conv::TO_MAX);
 
             if(args.m_nonlinearity)
