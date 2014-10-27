@@ -1,10 +1,12 @@
 #add_executable(hyperopt hyperopt.cpp )
 link_directories(/usr/local/cuda/lib)
 
-#add_executable(linear_regression linear_regression.cpp)
-#add_executable(logistic_regression logistic_regression.cpp)
+add_executable(lenet lenet.cpp)
+add_executable(svm svm.cpp)
+add_executable(linear_regression linear_regression.cpp)
+add_executable(logistic_regression logistic_regression.cpp)
 
-#add_executable(minibatch_learning minibatch_learning.cpp)
+add_executable(minibatch_learning minibatch_learning.cpp)
 
 SET(EXAMPLE_LIBS cuvnet cuv mdbq ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} pthread)
 
@@ -12,6 +14,8 @@ SET(EXAMPLE_LIBS cuvnet cuv mdbq ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} pthread)
 #target_link_libraries(linear_regression  ${EXAMPLE_LIBS})
 #target_link_libraries(logistic_regression  ${EXAMPLE_LIBS})
 #target_link_libraries(minibatch_learning  ${EXAMPLE_LIBS})
+target_link_libraries(lenet  ${EXAMPLE_LIBS})
+target_link_libraries(svm  ${EXAMPLE_LIBS})
 
 if ( PYTHONLIBS_FOUND )
     include_directories( ${PYTHON_INCLUDE_DIRS} )
