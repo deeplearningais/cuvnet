@@ -11,7 +11,7 @@
 #include <log4cxx/logger.h>
 namespace cuvnet
 {
-    class monitor; // used in weighted_sub_tensor_op
+    class monitor; // used in WeightedSubtensor
 
     /**
      * convolve a set of images using a set of filters.
@@ -68,8 +68,8 @@ namespace cuvnet
                     ,m_nGroups(ngroups)
                     ,m_partial_sum(partial_sum)
                     ,m_padding_start(padding)
-                	,m_padding_size(padding_size)
-                	,m_stride(stride)
+                    ,m_padding_size(padding_size)
+                    ,m_stride(stride)
                 {
                     add_param(0,images);
                     add_param(1,filters);
@@ -747,7 +747,7 @@ namespace cuvnet
          *
          * @ingroup Ops
          */
-        class Weighted_Sub_Tensor_op
+        class WeightedSubtensor
             : public Op{
                 public:
                     typedef Op::value_type    value_type;
@@ -764,18 +764,19 @@ namespace cuvnet
                     cow_ptr<char_matrix>  m_max_idx;
                     value_ptr    m_lae;
                     boost::shared_ptr<cuvnet::monitor> m_S;     
-                    cuv::alex_conv::weighted_sub_tensor_op_functor m_to;
+                    cuv::alex_conv::weighted_subtensor_functor m_to;
                     float m_eps;
                     bool m_spn;
                     bool m_memory_flag;
                 private:
                 public:
-                    Weighted_Sub_Tensor_op() :Op(2,1){} ///< for serialization
+                    WeightedSubtensor() :Op(2,1){} ///< for serialization
                     /**
                      * ctor.
                      * @param images the input images
                      */
-                    Weighted_Sub_Tensor_op(result_t& images, result_t& m_W, boost::shared_ptr<cuvnet::monitor> S, unsigned int size, unsigned int stride, unsigned int subspace_size, cuv::alex_conv::weighted_sub_tensor_op_functor to, float eps, bool spn)
+                    WeightedSubtensor(result_t& images, result_t& m_W, unsigned int size, unsigned int stride, 
+                            unsigned int subspace_size, cuv::alex_conv::weighted_subtensor_functor to, float eps, bool spn)
                         :Op(2,1),
                         m_size(size),
                         m_subspace_size(subspace_size),
@@ -792,7 +793,7 @@ namespace cuvnet
                         value_ptr z(new value_type(0, value_ptr::s_allocator));
                         m_lae = z;
                         
-                        m_S = S;
+                        //m_S = S;
                         m_memory_flag = false;
                         //generate dummy tensor ( empty ) to avoid null pointer exceptions
                         cow_ptr<char_matrix> m(new char_matrix(0, value_ptr::s_allocator));

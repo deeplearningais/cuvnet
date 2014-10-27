@@ -121,6 +121,7 @@ BOOST_CLASS_EXPORT_KEY(cuvnet::SeparableFilter);
 BOOST_CLASS_EXPORT_KEY(cuvnet::SeparableFilter1d);
 BOOST_CLASS_EXPORT_KEY(cuvnet::ResizeBilinear);
 BOOST_CLASS_EXPORT_KEY(cuvnet::Tuplewise_op);
+BOOST_CLASS_EXPORT_KEY(cuvnet::WeightedSubtensor);
 BOOST_CLASS_EXPORT_KEY(cuvnet::Subtensor);
 BOOST_CLASS_EXPORT_KEY(cuvnet::BedOfNails);
 
@@ -142,6 +143,6 @@ BOOST_CLASS_EXPORT_KEY(cuvnet::ShuffleDim);
 BOOST_CLASS_EXPORT_KEY(cuvnet::Convolve2dTheano);
 #endif
 
-BOOST_CLASS_EXPORT_KEY(cuvnet::Sum_Out_Dim);
+BOOST_CLASS_EXPORT_KEY(cuvnet::SumOutDim);
 BOOST_CLASS_EXPORT_KEY(cuvnet::Upscale);
 #endif /* __OP_IO_HPP__ */

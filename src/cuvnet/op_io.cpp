@@ -117,5 +117,5 @@ BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::ShuffleDim);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::Convolve2dTheano);
 #endif
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::Upscale);
-BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::Sum_Out_Dim);
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::SumOutDim);
 //int dummy::bogus::bogus_method() { return 0;}
