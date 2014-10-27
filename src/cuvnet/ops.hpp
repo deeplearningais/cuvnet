@@ -191,12 +191,15 @@ namespace cuvnet
     inline
         Op::op_ptr sum_to_vec(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<SumMatToVec>(x->result(), ax ); }
 
+    /// construct a sum_out_dim object
+    inline
+        Op::op_ptr sum(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<SumOutDim>(x->result(), ax, false, false ); }
     /// construct a sum object (python style)
     inline
-        Op::op_ptr sum(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<Sum_Out_Dim>(x->result(), ax, false, false ); }
-    /// construct a mean object (python style)
+        Op::op_ptr mean(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<SumOutDim>(x->result(), ax, true, false ); }
+    // construct sum_out_dim in logspace (logaddexp)
     inline
-        Op::op_ptr mean(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<Sum_Out_Dim>(x->result(), ax, true, false ); }
+        Op::op_ptr lae(Op::op_ptr x, unsigned int ax)   { return boost::make_shared<SumOutDim>(x->result(), ax, false, false, true ); }
 
         /// construct a Mean object
     inline
@@ -206,7 +209,7 @@ namespace cuvnet
         Op::op_ptr var(Op::op_ptr x)                   { return mean(square(x)) - square(mean(x)); }
     /// construct a MatPlusVec object
     inline
-        Op::op_ptr mat_plus_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax, bool subtract_mean=false) { return boost::make_shared<MatPlusVec>(x->result(),v->result(), ax, subtract_mean); }
+        Op::op_ptr mat_plus_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax) { return boost::make_shared<MatPlusVec>(x->result(),v->result(), ax); }
     /// construct a MatTimesVec object
     inline
         Op::op_ptr mat_times_vec(Op::op_ptr x, Op::op_ptr v, unsigned int ax) { return boost::make_shared<MatTimesVec>(x->result(),v->result(), ax); }
@@ -216,9 +219,12 @@ namespace cuvnet
     /// construct a Tuplewise_op object
     inline
         Op::op_ptr tuplewise_op(Op::op_ptr img, unsigned int dim, unsigned int sub_size=2, cuv::alex_conv::tuplewise_op_functor to = cuv::alex_conv::TO_NORM, float epsilon=0.f) { return boost::make_shared<Tuplewise_op>(img->result(), dim, sub_size, to, epsilon); }
+    /// construct a weighted_sub_tensor_op object
+    inline
+        boost::shared_ptr<Weighted_Sub_Tensor_op> weighted_sub_tensor_op(Op::op_ptr img, Op::op_ptr m_W, boost::shared_ptr<cuvnet::monitor> S, unsigned int size, unsigned int stride, unsigned int sub_size=2, cuv::alex_conv::weighted_sub_tensor_op_functor to = cuv::alex_conv::TO_LOGWADDEXP, float eps = 0.00001f, bool spn=false) { return boost::make_shared<Weighted_Sub_Tensor_op>(img->result(), m_W->result(), S, size, stride, sub_size, to, eps, spn); }
     /// construct a Convolve object
     inline
-        boost::shared_ptr<Convolve> convolve(Op::op_ptr img, Op::op_ptr flt, bool padding, int padding_size, int stride, int ngroups, int partialSum=4) { return boost::make_shared<Convolve>(img->result(),flt->result(), padding, padding_size, stride, ngroups, partialSum); }
+        Op::op_ptr convolve(Op::op_ptr img, Op::op_ptr flt, bool padding, int padding_size, int stride, int ngroups, int partialSum=4) { return boost::make_shared<Convolve>(img->result(),flt->result(), padding, padding_size, stride, ngroups, partialSum); }
 #ifndef NO_THEANO_WRAPPERS
     /// construct a Convolve theano object
     inline
@@ -412,7 +418,7 @@ namespace cuvnet
              //(*res)[0] = img1->result();
              //(*res)[1] = img2->result();
             return boost::make_shared<Upscale>( img->result(), factor); }
-   inline
-   Op::op_ptr printer(const std::string& l, Op::op_ptr x, bool fprop=true, bool bprop=true){ return boost::make_shared<Printer>(l,x->result(), fprop, bprop); }
+    inline
+        Op::op_ptr printer(const std::string& l, Op::op_ptr x, bool fprop=true, bool bprop=true){ return boost::make_shared<Printer>(l,x->result(), fprop, bprop); }
 }
 #endif /* __OPS_HPP__ */
