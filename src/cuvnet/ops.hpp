@@ -258,7 +258,7 @@ namespace cuvnet
         Op::op_ptr separable_filter1d(Op::op_ptr img, const cuv::tensor<float,cuv::host_memory_space>& kernel, unsigned int dim = 0) { return boost::make_shared<SeparableFilter1d>(img->result(), kernel, dim); }
     /// construct a Flatten object
     inline
-        Op::op_ptr flatten(Op::op_ptr img, unsigned int outdim=1) { return boost::make_shared<Flatten>(img->result(),outdim); }
+        Op::op_ptr flatten(Op::op_ptr img, unsigned int outdim=1, bool copy=true) { return boost::make_shared<Flatten>(img->result(),outdim, copy); }
     /// construct a LocalPooling object
     inline
         //Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, (subsx%2==0?0:subsx/-2)); }
