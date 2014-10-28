@@ -356,13 +356,23 @@ namespace cuvnet{ namespace derivative_testing {
             cuv::tensor<float, cuv::host_memory_space> tmp(Jh.shape());
             if(verbose)
             {
-                LOG4CXX_INFO(g_log, "   range(Jh)[analytical]="<<cuv::maximum(Jh)-cuv::minimum(Jh));
-                LOG4CXX_INFO(g_log, "   range(J_t)[finite differences]       ="<<cuv::maximum(J_t)-cuv::minimum(J_t));
+                LOG4CXX_INFO(g_log, "   range(Jh)[analytical]          ="<<cuv::maximum(Jh )-cuv::minimum(Jh )<<" min:"<<cuv::minimum(Jh )<<" max:"<<cuv::maximum(Jh ));
+                LOG4CXX_INFO(g_log, "   range(J_t)[finite differences] ="<<cuv::maximum(J_t)-cuv::minimum(J_t)<<" min:"<<cuv::minimum(J_t)<<" max:"<<cuv::maximum(J_t));
             }
             cuv::apply_binary_functor(tmp, J_t, Jh, cuv::BF_SUBTRACT);
-            cuv::apply_scalar_functor(tmp, cuv::SF_SQUARE);
-            double maxdiff = cuv::maximum(tmp);    // squared(!)
-            double prec_  = prec * prec;                       // square precision, too
+            LOG4CXX_INFO(g_log, "   range(diff) ="<<cuv::maximum(tmp)-cuv::minimum(tmp));
+            {
+                //float fact = std::max(cuv::maximum(J_t), std::max(abs(cuv::minimum(J_t)), cuv::maximum(J_t) - cuv::minimum(J_t))) + 0.001f;
+                float fact = std::max(cuv::maximum(J_t), std::abs(cuv::minimum(J_t))) + 0.001f;
+                //tmp /= cuv::maximum(J_t) - cuv::minimum(J_t) + 0.001f;
+                tmp /= fact;
+                LOG4CXX_INFO(g_log, "   diff factor =" << fact);
+            }
+            //cuv::apply_scalar_functor(tmp, cuv::SF_SQUARE);
+            //double maxdiff = cuv::maximum(tmp);    // squared(!)
+            double maxdiff = std::max(cuv::maximum(tmp), std::abs(cuv::minimum(tmp)));    // squared(!)
+            //double prec_  = prec * prec;                       // square precision, too
+            double prec_  = prec;                       // square precision, too
             if(verbose)
             {
                 LOG4CXX_INFO(g_log, "   maxdiff="<<maxdiff<<", prec_="<<prec_);
