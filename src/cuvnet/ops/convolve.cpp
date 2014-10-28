@@ -312,16 +312,17 @@ namespace cuvnet
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
         LOG4CXX_WARN(log, "Convolving image of shape ("
-                + boost::lexical_cast<std::string>(nFilt)
-                + " x " + boost::lexical_cast<std::string>(nImgPixY)
-                + " x " + boost::lexical_cast<std::string>(nImgPixX)
-                + " x " + boost::lexical_cast<std::string>(img[3])
-                + ") to shape ("
-                + boost::lexical_cast<std::string>(nFilt)
-                + " x " + boost::lexical_cast<std::string>(nOutPixY)
-                + " x " + boost::lexical_cast<std::string>(nOutPixX)
-                + " x " + boost::lexical_cast<std::string>(img[3])
-                + ") using filters of size " + boost::lexical_cast<std::string>(nFltPixX));
+                << boost::lexical_cast<std::string>(nFilt)
+                << " x " << boost::lexical_cast<std::string>(nImgPixY)
+                << " x " << boost::lexical_cast<std::string>(nImgPixX)
+                << " x " << boost::lexical_cast<std::string>(img[3])
+                << ") to shape ("
+                << boost::lexical_cast<std::string>(nFilt)
+                << " x " << boost::lexical_cast<std::string>(nOutPixY)
+                << " x " << boost::lexical_cast<std::string>(nOutPixX)
+                << " x " << boost::lexical_cast<std::string>(img[3])
+                << ") using filters of size " << boost::lexical_cast<std::string>(nFltPixX)
+                << "padsize: " << padsize << " padstart: " << m_padding_start);
 
         dst[0] = nFilt;
         dst[1] = nOutPixY;
