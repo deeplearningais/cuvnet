@@ -32,13 +32,13 @@ namespace cuvnet
                  * @param in the input
                  * @param dim the dimension along which the inputs are concatenated
                  */
-                Concatenate(boost::shared_ptr<std::vector<result_t> > & in, unsigned int dim)
-                    :Op(in->size(),1),
+                Concatenate(std::vector<result_t> in, unsigned int dim)
+                    :Op(in.size(),1),
                     m_dim(dim),
-                    m_n(in->size())
+                    m_n(in.size())
                 {
                     //add all n params
-                    for ( unsigned int i = 0; i < in->size() ; i++) add_param(i, (*in)[i]);
+                    for ( unsigned int i = 0; i < in.size() ; i++) add_param(i, in[i]);
                 }
                 void fprop();
                 void bprop();
@@ -46,7 +46,7 @@ namespace cuvnet
                 void _determine_shapes();
                 value_type get_subtensor(const value_type &v, unsigned int position);
             protected:
-                    boost::shared_ptr<std::vector<unsigned int> > get_pi_shape(value_type & vi);
+                    std::vector<unsigned int> get_pi_shape(value_type & vi);
             private:
                 friend class boost::serialization::access;
                 template<class Archive>
