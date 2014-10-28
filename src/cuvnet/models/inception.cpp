@@ -13,7 +13,14 @@ namespace cuvnet { namespace models {
             int n_dst = it->get<2>();
 
             determine_shapes(*in);
-            int n_src_maps = in->result()->shape[0];
+            int n_src_maps  = in->result()->shape[0];
+            int n_src_pix_y = in->result()->shape[1];
+            int n_src_pix_x = in->result()->shape[2];
+            //int n_batch     = in->result()->shape[3];
+
+            bool copy = false;
+
+            op_ptr flat_input = flatten(m_input, 2, copy);
 
             op_ptr o;
             if(fs < 0){
@@ -21,17 +28,18 @@ namespace cuvnet { namespace models {
                 o = local_pool(m_input, compress, compress, cuv::alex_conv::PT_MAX);
             }else if(fs == 1){
                 cuvAssert(n_src_maps > 1);
-                m_fclayers.push_back(boost::make_shared<mlp_layer>(m_input, n_dst, 
+                m_fclayers.push_back(boost::make_shared<mlp_layer>(flat_input, n_dst, 
                             mlp_layer_opts().rectified_linear().weights_left()));
                 register_submodel(*m_fclayers.back());
-                o = m_fclayers.back()->m_output;
+                o = reshape(m_fclayers.back()->m_output, cuv::extents[n_dst][n_src_pix_y][n_src_pix_x][-1], copy);
             }else{
                 cuvAssert(n_src_maps > 1);
-                m_fclayers.push_back(boost::make_shared<mlp_layer>(m_input, compress, 
+                m_fclayers.push_back(boost::make_shared<mlp_layer>(flat_input, compress, 
                             mlp_layer_opts().weights_left()));
                 register_submodel(*m_fclayers.back());
-                m_convlayers.push_back(boost::make_shared<conv_layer>(m_input,
-                            fs, n_dst, conv_layer_opts().rectified_linear().symmetric_padding()));
+                o = reshape(m_fclayers.back()->m_output, cuv::extents[compress][n_src_pix_y][n_src_pix_x][-1], copy);
+                m_convlayers.push_back(boost::make_shared<conv_layer>(o,
+                            fs, n_dst, conv_layer_opts().rectified_linear().symmetric_padding(-1)));
                 register_submodel(*m_convlayers.back());
                 o = m_convlayers.back()->m_output;
             }
