@@ -84,6 +84,7 @@ namespace cuvnet { namespace models {
         LOG4CXX_WARN(g_log, "#srcmaps: "<<n_srcmaps << ", #out: "<<n_out 
                 << ", #params: " << m_weights->data().size() + (m_bias ? m_bias->data().size(): 0)
                 << ", #neuron: " << conv->result()->shape[1] * conv->result()->shape[2] * n_out
+                << ", #padding: " << padding << (cfg.m_symmetric_padding?" (symmetric)" : " (asymmetric)")
                 );
 
         int partial_sum = cfg.m_partial_sum;
