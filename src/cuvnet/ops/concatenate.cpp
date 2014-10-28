@@ -45,8 +45,6 @@ namespace cuvnet
         result_t::element_type& r0 = *m_results[0];
 
         if(r0.can_overwrite_directly()){
-            //std:: cout << "can overwrite" << std::endl;
-
             value_type v = *r0.overwrite_or_add_value(); // NOTE: copies meta-info!
             if (m_reshape) v.reshape(  m_tmp_shape );    // ... so we can reshape without reshaping back
             
@@ -63,7 +61,6 @@ namespace cuvnet
                 dst_i.copy_memory(vi, false, 0);                
             }
         }else{
-           // std:: cout << "else " << std::endl;
             value_ptr v1 = value_ptr(new value_type(r0.shape, value_ptr::s_allocator));
             
             value_type v = *v1;
@@ -154,15 +151,12 @@ namespace cuvnet
         
         if ( ( m_dim != 0 ) && ( m_dim != size -1) ) 
             throw std::runtime_error("This type of concatenation is not yet implemented ( since the copy memory operation is not yet implemented)\nIf memcopy for generic shapes is implemented now, please just remove this assertion\n");
-        std::cout << "Concatenate::determine_shapes()"<<std::endl;
         
         //assert that all concat elements have the same size
         for ( unsigned int i = 1; i < m_params.size(); i++){
             cuvAssert( m_params[0]->shape.size() == m_params[i]->shape.size() );
             //arrays must have same shape ( except in dimension, which is concatenated
-            std::cout << "p"<<i<<": "<<std::endl;
             for (unsigned int j = 0; j < m_params[0]->shape.size(); j++){
-                std::cout << "("<< m_params[0]->shape[j] <<", "<< m_params[i]->shape[j]<<"), "<<std::endl;
                 if ( j != m_dim)
                     cuvAssert(m_params[0]->shape[j] == m_params[i]->shape[j] );
             }
