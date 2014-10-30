@@ -65,11 +65,11 @@ namespace cuvnet
             private:
 
                 // calls derivative_test_wrt
-                void test_all(Op& op, int result, std::vector<Op*>& derivable_params, bool verbose, double prec, float minv, float maxv, double epsilon);
+                void test_all(Op& op, int result, std::vector<Op*>& derivable_params, double prec, float minv, float maxv, double epsilon);
                 
                 // tests the derivative of op w.r.t. pi.
                 // (calculates /all/ params, but checks only one)
-                void test_wrt(Op& op, int result, std::vector<Op*>& derivable_params, Op* raw, bool verbose, double prec, double epsilon);
+                void test_wrt(Op& op, int result, std::vector<Op*>& derivable_params, Op* raw, double prec, double epsilon);
             };
         //}
 
