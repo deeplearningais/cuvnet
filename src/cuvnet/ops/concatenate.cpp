@@ -60,7 +60,7 @@ namespace cuvnet
                     std::vector<unsigned int> pi_shape = get_pi_shape(vi);                     
                     vi.reshape( pi_shape );
                 }
-                *static_cast<view_of<value_type>::type*>(&dst_i) = vi;                
+                dst_i.copy_memory(vi, false, 0);                
             }
         }else{
            // std:: cout << "else " << std::endl;
@@ -81,7 +81,7 @@ namespace cuvnet
                     std::vector<unsigned int> pi_shape = get_pi_shape(vi);                     
                     vi.reshape( pi_shape );
                 }
-                *static_cast<view_of<value_type>::type*>(&dst_i) = vi;                
+                dst_i.copy_memory(vi, false, 0);                
             }
             r0.push(v1);
         }
@@ -118,21 +118,29 @@ namespace cuvnet
                     if (m_reshape) {
                         //get desired shape
                         std::vector<unsigned int> pi_shape = get_pi_shape(vi);                     
+                        assert(vi.is_c_contiguous());
                         vi.reshape( pi_shape );
                     }
-                    *static_cast<view_of<value_type>::type*>(&vi) = get_subtensor(v, i);
+                    vi.copy_memory(get_subtensor(v, i), false, 0);
                 }else if(pi.can_add_directly()){
-                    value_type vi = *pi.overwrite_or_add_value();
+                    value_type dsti = *pi.overwrite_or_add_value();
                     if (m_reshape) {
                         //get desired shape
-                        std::vector<unsigned int> pi_shape = get_pi_shape(vi);                     
-                        vi.reshape( pi_shape );
+                        std::vector<unsigned int> pi_shape = get_pi_shape(dsti);                     
+                        assert(dsti.is_c_contiguous());
+                        dsti.reshape( pi_shape );
                     }
-                    vi += get_subtensor(v, i);
+                    value_type vi = get_subtensor(v, i);
+                    if(!vi.is_c_contiguous())
+                        dsti += vi.copy();
+                    else
+                        dsti += vi;
                 }else{
                     value_ptr vd(new value_type(get_subtensor(v,i).copy()));
-                    if(m_reshape)
+                    if(m_reshape){
+                        assert(vd->is_c_contiguous());
                         vd->reshape(pi.shape);
+                    }
                     pi.push(vd);
                 }            
             }
