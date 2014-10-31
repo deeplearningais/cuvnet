@@ -41,6 +41,8 @@ namespace cuvnet
                 Op& m_op;
                 int m_result;
                 bool m_verbose;
+                bool m_spread;
+                std::string m_spread_filter;
                 double m_prec;
                 float m_minv, m_maxv;
                 std::vector<Op*> m_derivable_params;
@@ -58,6 +60,7 @@ namespace cuvnet
                 inline derivative_tester& only_param(std::string s){m_parameter_filter = s; return *this;}
                 inline derivative_tester& only_variant(int filter){m_variant_filter = filter; return *this;}
                 inline derivative_tester& without_variant(int filter){m_variant_filter &= ~filter; return *this;}
+                inline derivative_tester& spread_values(bool b=true, std::string filter=""){m_spread = b; m_spread_filter=filter; return *this;}
 
                 derivative_tester(Op& op);
                 void test();
@@ -65,7 +68,7 @@ namespace cuvnet
             private:
 
                 // calls derivative_test_wrt
-                void test_all(Op& op, int result, std::vector<Op*>& derivable_params, double prec, float minv, float maxv, double epsilon);
+                void test_all(Op& op, int result, std::vector<Op*>& derivable_params, double prec, float minv, float maxv, bool spread, double epsilon);
                 
                 // tests the derivative of op w.r.t. pi.
                 // (calculates /all/ params, but checks only one)
