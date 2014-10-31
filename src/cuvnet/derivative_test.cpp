@@ -326,10 +326,11 @@ namespace cuvnet{ namespace derivative_testing {
         void derivative_tester::test_wrt(Op& op, int result, std::vector<Op*>& derivable_params, Op* raw, double prec, double eps){
             boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op.result(result));
             
-            swiper swipe(op, result, derivable_params);
-            swipe.dump("derivative_tester_wrt.dot", true);
-            
             ParameterInput* param = dynamic_cast<ParameterInput*>(raw);
+            
+            swiper swipe(op, result, derivable_params);
+            swipe.dump("derivative_tester_wrt_"+param->name()+".dot", true);
+
             BOOST_CHECK(param != NULL);
             if(!param->derivable())
                 return; // why is this necessary?
