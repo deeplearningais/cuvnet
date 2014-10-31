@@ -267,8 +267,8 @@ namespace cuvnet
         Op::op_ptr flatten(Op::op_ptr img, unsigned int outdim=1, bool copy=true) { return boost::make_shared<Flatten>(img->result(),outdim, copy); }
     /// construct a LocalPooling object
     inline
-        //Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, (subsx%2==0?0:subsx/-2)); }
-        Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, 0); }
+        Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, (subsx%2==0?0:subsx/-2)); }
+        //Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, 0); }
 
     /// construct a Reshape object
     template<std::size_t D>
