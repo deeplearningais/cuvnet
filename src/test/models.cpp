@@ -229,13 +229,13 @@ BOOST_AUTO_TEST_SUITE_END()
 BOOST_AUTO_TEST_SUITE( t_inception )
     BOOST_AUTO_TEST_CASE(inception_derivative){
         using namespace cuvnet;
-        boost::shared_ptr<ParameterInput> inp = input(cuv::extents[3][4][4][4], "img");
+        boost::shared_ptr<ParameterInput> inp = input(cuv::extents[4][4][4][4], "img");
         std::vector<boost::tuple<int,int,int> > m{
             {-1, 3, 3},  // max-pooling -> 3 maps
             {5, 3, 16},   // 3 maps, then 5x5 filter to 16 maps
             {3, 1, 16},   // 1 map, then 3x3 filter to 16 maps
         };
         cuvnet::models::inception_layer inc(inp, m);
-        derivative_testing::derivative_tester(*inc.m_output).values(0.1, 1.0).full_jacobian(false).verbose(true).test();
+        derivative_testing::derivative_tester(*inc.m_output).precision(0.05).values(0.0, 4.0).spread_values(true, "^img$").full_jacobian(true).only_param(".*").verbose(true).test();
     }
 BOOST_AUTO_TEST_SUITE_END()
