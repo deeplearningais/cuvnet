@@ -9,21 +9,21 @@ namespace cuvnet
         typedef cuv::tensor_view<typename T::value_type, typename T::memory_space_type, typename T::memory_layout_type> type;
     };
 
-    boost::shared_ptr<std::vector<unsigned int> > Concatenate::get_pi_shape(value_type & vi){
-        boost::shared_ptr<std::vector<unsigned int> > pi_shape(new std::vector<unsigned int>());
+    std::vector<unsigned int> Concatenate::get_pi_shape(value_type & vi){
+        std::vector<unsigned int> pi_shape;
         if (m_dim == 0) {
-            pi_shape->resize(2);
-            (*pi_shape)[0] = vi.shape(m_dim); 
-            (*pi_shape)[1] = m_tmp_shape[1];
+            pi_shape.resize(2);
+            pi_shape[0] = vi.shape(m_dim); 
+            pi_shape[1] = m_tmp_shape[1];
         }else if (m_dim < (m_params[0]->shape.size() -1)){
-            pi_shape->resize(3);
-            (*pi_shape)[0] = m_tmp_shape[0]; 
-            (*pi_shape)[1] = vi.shape(m_dim);
-            (*pi_shape)[2] = m_tmp_shape[2];                        
+            pi_shape.resize(3);
+            pi_shape[0] = m_tmp_shape[0]; 
+            pi_shape[1] = vi.shape(m_dim);
+            pi_shape[2] = m_tmp_shape[2];                        
         } else{
-            pi_shape->resize(2);
-            (*pi_shape)[0] = m_tmp_shape[0]; 
-            (*pi_shape)[1] = vi.shape(m_dim);                        
+            pi_shape.resize(2);
+            pi_shape[0] = m_tmp_shape[0]; 
+            pi_shape[1] = vi.shape(m_dim);                        
         }
         return pi_shape;
     }
@@ -45,26 +45,23 @@ namespace cuvnet
         result_t::element_type& r0 = *m_results[0];
 
         if(r0.can_overwrite_directly()){
-            //std:: cout << "can overwrite" << std::endl;
-
-            value_type v = *r0.overwrite_or_add_value();
-            if (m_reshape) v.reshape(  m_tmp_shape );
+            value_type v = *r0.overwrite_or_add_value(); // NOTE: copies meta-info!
+            if (m_reshape) v.reshape(  m_tmp_shape );    // ... so we can reshape without reshaping back
             
             for (unsigned int i = 0; i < m_n; i++){
                 param_t::element_type&  pi = *m_params[i];
-                value_type part_i = get_subtensor(v, i);
+                value_type dst_i = get_subtensor(v, i);
                 //reshape input i
                 value_type vi = pi.value.cdata();
                 if (m_reshape) {
                     //get desired shape
-                    boost::shared_ptr<std::vector<unsigned int> > pi_shape = get_pi_shape(vi);                     
-                    vi.reshape( *pi_shape );
+                    std::vector<unsigned int> pi_shape = get_pi_shape(vi);                     
+                    vi.reshape( pi_shape );
                 }
-                *static_cast<view_of<value_type>::type*>(&part_i) = vi;                
+                dst_i.copy_memory(vi, false, 0);                
             }
         }else{
-           // std:: cout << "else " << std::endl;
-            value_ptr v1 = value_ptr(new value_type(r0.shape, value_ptr::s_allocator)); // this safer but slower
+            value_ptr v1 = value_ptr(new value_type(r0.shape, value_ptr::s_allocator));
             
             value_type v = *v1;
             if (m_reshape){ 
@@ -73,15 +70,15 @@ namespace cuvnet
             
             for (unsigned int i = 0; i < m_n; i++){        
                 param_t::element_type&  pi = *m_params[i];                      
-                value_type part_i = get_subtensor(v, i);   
+                value_type dst_i = get_subtensor(v, i);   
                 //reshape input i
                 value_type vi = pi.value.cdata();
                 if (m_reshape) {
                     //get desired shape
-                    boost::shared_ptr<std::vector<unsigned int> > pi_shape = get_pi_shape(vi);                     
-                    vi.reshape( *pi_shape );
+                    std::vector<unsigned int> pi_shape = get_pi_shape(vi);                     
+                    vi.reshape( pi_shape );
                 }
-                *static_cast<view_of<value_type>::type*>(&part_i) = vi;                
+                dst_i.copy_memory(vi, false, 0);                
             }
             r0.push(v1);
         }
@@ -117,29 +114,30 @@ namespace cuvnet
                     value_type vi = *pi.overwrite_or_add_value();
                     if (m_reshape) {
                         //get desired shape
-                        boost::shared_ptr<std::vector<unsigned int> > pi_shape = get_pi_shape(vi);                     
-                        vi.reshape( *pi_shape );
+                        std::vector<unsigned int> pi_shape = get_pi_shape(vi);                     
+                        assert(vi.is_c_contiguous());
+                        vi.reshape( pi_shape );
                     }
-                    *static_cast<view_of<value_type>::type*>(&vi) = get_subtensor(v, i);
+                    vi.copy_memory(get_subtensor(v, i), false, 0);
                 }else if(pi.can_add_directly()){
-                    value_type vi = *pi.overwrite_or_add_value();
+                    value_type dsti = *pi.overwrite_or_add_value();
                     if (m_reshape) {
                         //get desired shape
-                        boost::shared_ptr<std::vector<unsigned int> > pi_shape = get_pi_shape(vi);                     
-                        vi.reshape( *pi_shape );
+                        std::vector<unsigned int> pi_shape = get_pi_shape(dsti);                     
+                        assert(dsti.is_c_contiguous());
+                        dsti.reshape( pi_shape );
                     }
-                    vi += get_subtensor(v, i);
+                    value_type vi = get_subtensor(v, i);
+                    if(!vi.is_c_contiguous())
+                        dsti += vi.copy();
+                    else
+                        dsti += vi;
                 }else{
-                    value_ptr vd(new value_type(pi.shape, value_ptr::s_allocator));
-                    //cuv::fill(*vd, 0.f);
-                    
-                    value_type vi = *vd;
-                    if (m_reshape) {
-                        //get desired shape
-                        boost::shared_ptr<std::vector<unsigned int> > pi_shape = get_pi_shape(vi);                     
-                        vi.reshape( *pi_shape );
-                    }                    
-                    *static_cast<view_of<value_type>::type*>(&vi) = get_subtensor(v, i);
+                    value_ptr vd(new value_type(get_subtensor(v,i).copy()));
+                    if(m_reshape){
+                        assert(vd->is_c_contiguous());
+                        vd->reshape(pi.shape);
+                    }
                     pi.push(vd);
                 }            
             }
@@ -151,15 +149,17 @@ namespace cuvnet
         param_t&  p0 = m_params[0];
         unsigned int size = p0->shape.size();
         
-        if ( ( m_dim != 0 ) && ( m_dim != size -1) ) throw std::runtime_error("This type of concatenation is not yet implemented ( since the copy memory operation is not yet implemented)\nIf memcopy for generic shapes is implemented now, please just remove this assertion\n");
+        if ( ( m_dim != 0 ) && ( m_dim != size -1) ) 
+            throw std::runtime_error("This type of concatenation is not yet implemented ( since the copy memory operation is not yet implemented)\nIf memcopy for generic shapes is implemented now, please just remove this assertion\n");
         
         //assert that all concat elements have the same size
         for ( unsigned int i = 1; i < m_params.size(); i++){
             cuvAssert( m_params[0]->shape.size() == m_params[i]->shape.size() );
             //arrays must have same shape ( except in dimension, which is concatenated
-            for (unsigned int j = 0; j < m_params[0]->shape.size(); j++)
+            for (unsigned int j = 0; j < m_params[0]->shape.size(); j++){
                 if ( j != m_dim)
                     cuvAssert(m_params[0]->shape[j] == m_params[i]->shape[j] );
+            }
         }
                    
         m_pi_shape.resize( m_n, std::vector<int>( size , 0) );
@@ -174,10 +174,10 @@ namespace cuvnet
         m_results[0]->shape.resize(size);
         for(unsigned int i = 0; i < size; i++){
             if(i == m_dim){
-                m_results[0]->shape[i] = 0;
-                for ( unsigned int s = 0; s < m_n; s++){
-                    m_results[0]->shape[i] += m_pi_shape[s][m_dim];
-                }
+                unsigned int n = 0;
+                for ( unsigned int s = 0; s < m_n; s++)
+                    n += m_pi_shape[s][m_dim];
+                m_results[0]->shape[i] = n;
             }else{
                 m_results[0]->shape[i] = p0->shape[i];
             }

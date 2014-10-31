@@ -267,8 +267,8 @@ namespace cuvnet
         Op::op_ptr flatten(Op::op_ptr img, unsigned int outdim=1, bool copy=true) { return boost::make_shared<Flatten>(img->result(),outdim, copy); }
     /// construct a LocalPooling object
     inline
-        //Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, (subsx%2==0?0:subsx/-2)); }
-        Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, 0); }
+        Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, (subsx%2==0?0:subsx/-2)); }
+        //Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, 0); }
 
     /// construct a Reshape object
     template<std::size_t D>
@@ -297,17 +297,17 @@ namespace cuvnet
     /// construct a Concatenate object
     inline
         Op::op_ptr concatenate(Op::op_ptr img1, Op::op_ptr img2, unsigned int dim) { 
-             boost::shared_ptr<std::vector<Op::result_t> > res(new std::vector<Op::result_t>(2));
-             (*res)[0] = img1->result();
-             (*res)[1] = img2->result();
+             std::vector<Op::result_t> res(2);
+             res[0] = img1->result();
+             res[1] = img2->result();
             return boost::make_shared<Concatenate>( res, dim); }
 
     /// construct a Concatenate_n object, which concatenates n input matrices
     inline
         Op::op_ptr concatenate(std::vector<Op::op_ptr> in, unsigned int dim) { 
             unsigned int size = in.size();
-             boost::shared_ptr<std::vector<Op::result_t> > res(new std::vector<Op::result_t>(size));
-            for ( unsigned int i = 0; i < size; i++) (*res)[i] = in[i]->result();
+            std::vector<Op::result_t> res(size);
+            for ( unsigned int i = 0; i < size; i++) res[i] = in[i]->result();
             return boost::make_shared<Concatenate>( res, dim); 
         }
         

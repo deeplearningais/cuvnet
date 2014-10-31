@@ -16,6 +16,7 @@ namespace cuvnet
             private:
                 typedef boost::shared_ptr<Op> op_ptr;
                 boost::function<op_ptr(op_ptr)> m_nonlinearity;
+                bool m_weights_left;
                 bool m_want_bias;
                 float m_bias_default_value;
                 bool m_want_maxout;
@@ -36,7 +37,8 @@ namespace cuvnet
                  * @param size number of neurons in the mlp layer
                  */
                 mlp_layer_opts()
-                    :m_want_bias(true)
+                    :m_weights_left(false)
+                    ,m_want_bias(true)
                     ,m_bias_default_value(0.f)
                     ,m_want_maxout(false)
                     ,m_want_dropout(false)
@@ -48,6 +50,14 @@ namespace cuvnet
                     ,m_verbose(false)
                     ,m_weight_init_std(-1.f)
                 {
+                }
+                /**
+                 * set that weights are multiplied from left
+                 * @param b verbosity
+                 */
+                inline mlp_layer_opts& weights_left(bool b=true){
+                    m_weights_left = b;
+                    return *this;
                 }
 
                 /**

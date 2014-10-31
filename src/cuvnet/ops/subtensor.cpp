@@ -53,21 +53,28 @@ namespace cuvnet
             value_type v = p0.value.cdata();
             get_subtensor(v);
             if(m_copy){
-                r0.overwrite_or_add_value() = v.copy();
+                // enforce copying by casting LHS to view
+                // (in numpy slightly easier as lhs[:] = v)
+                r0.overwrite_or_add_value()->copy_memory(v, false, 0);
+                // semantically equivalent:
+                //r0.overwrite_or_add_value() = v.copy();
             }
             else{
+                // much faster, but unsafe since memory could be shared w/o cow_ptr guards
                 r0.overwrite_or_add_value() = v;
             }
-        }else{
-            value_ptr v;
-            if(m_copy){
-                v = value_ptr(new value_type(p0.value.cdata().copy())); // this safer but slower
+        }
+        else{
+            value_type v = p0.value.cdata();
+            get_subtensor(v);
+
+            if(m_copy || !v.is_c_contiguous()){
+                value_ptr vp = value_ptr(new value_type(v.copy())); 
+                r0.push(vp);
+            }else{
+                value_ptr vp = value_ptr(new value_type(v)); 
+                r0.push(vp);
             }
-            else{
-                v = value_ptr(new value_type(p0.value.cdata())); // this safer but slower
-            }
-            get_subtensor(*v);
-            r0.push(v);
         }
         p0.value.reset();
     }
@@ -80,22 +87,27 @@ namespace cuvnet
 
         if(p0.can_overwrite_directly()){
             value_type v = *p0.overwrite_or_add_value();
-            v = 0.f;
+            v = 0.f;  // in case the input tensor is larger than the output tensor
             get_subtensor(v);
             // needs cast because memory is copied instead of copying pointer
-            *static_cast<view_of<value_type>::type*>(&v) = r0.delta.cdata();
+            v.copy_memory(r0.delta.cdata(), false, 0);
         }else if(p0.can_add_directly()){
             value_type v = *p0.overwrite_or_add_value();
             get_subtensor(v);
-            // needs cast because memory is copied instead of copying pointer
-            v += r0.delta.cdata();
+            if(v.is_c_contiguous())
+                v += r0.delta.cdata();
+            else{
+                value_type v2 = v.copy();
+                v2 += r0.delta.cdata();
+                v.copy_memory(v2, false, 0);
+            }
         }else{
             value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
-            *v = 0.f;
+            *v = 0.f;  // in case the input tensor is larger than the output tensor
             value_type w = *v;
             // needs cast because memory is copied instead of copying pointer
             get_subtensor(w);
-            *static_cast<view_of<value_type>::type*>(&w) = r0.delta.cdata();
+            w.copy_memory(r0.delta.cdata(), false, 0);
             p0.push(v);
         }
         r0.delta.reset();

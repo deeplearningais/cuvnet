@@ -312,16 +312,17 @@ namespace cuvnet
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
         LOG4CXX_WARN(log, "Convolving image of shape ("
-                + boost::lexical_cast<std::string>(nFilt)
-                + " x " + boost::lexical_cast<std::string>(nImgPixY)
-                + " x " + boost::lexical_cast<std::string>(nImgPixX)
-                + " x " + boost::lexical_cast<std::string>(img[3])
-                + ") to shape ("
-                + boost::lexical_cast<std::string>(nFilt)
-                + " x " + boost::lexical_cast<std::string>(nOutPixY)
-                + " x " + boost::lexical_cast<std::string>(nOutPixX)
-                + " x " + boost::lexical_cast<std::string>(img[3])
-                + ") using filters of size " + boost::lexical_cast<std::string>(nFltPixX));
+                << boost::lexical_cast<std::string>(nFilt)
+                << " x " << boost::lexical_cast<std::string>(nImgPixY)
+                << " x " << boost::lexical_cast<std::string>(nImgPixX)
+                << " x " << boost::lexical_cast<std::string>(img[3])
+                << ") to shape ("
+                << boost::lexical_cast<std::string>(nFilt)
+                << " x " << boost::lexical_cast<std::string>(nOutPixY)
+                << " x " << boost::lexical_cast<std::string>(nOutPixX)
+                << " x " << boost::lexical_cast<std::string>(img[3])
+                << ") using filters of size " << boost::lexical_cast<std::string>(nFltPixX)
+                << "padsize: " << padsize << " padstart: " << m_padding_start);
 
         dst[0] = nFilt;
         dst[1] = nOutPixY;
@@ -1148,33 +1149,24 @@ namespace cuvnet
         std::vector<unsigned int> img = m_params[0]->shape;
         std::vector<unsigned int> dst(4);
         dst[0] = img[0];
-        if ( img[1] <= m_subsx ){
-            dst[1] = 1;
-            m_subsx -= m_subsx - img[1];
-        }
-        else
-            dst[1] = (img[1] - m_startx) / m_stridex;
-
-        if ( img[2] <= m_subsx ){
-            dst[2] = 1;
-            m_subsx -= m_subsx - img[2];
-        }
-        else
-            dst[2] = (img[2] - m_startx) / m_stridex;
         dst[3] = img[3];
+
+        dst[1] = DIVUP(img[1]-2*m_startx-m_subsx, m_stridex)+1;
+        dst[2] = DIVUP(img[2]-2*m_startx-m_subsx, m_stridex)+1;
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
         LOG4CXX_WARN(log, "Pooling image of shape ("
-                +         boost::lexical_cast<std::string>(img[0])
-                + " x " + boost::lexical_cast<std::string>(img[1])
-                + " x " + boost::lexical_cast<std::string>(img[2])
-                + " x " + boost::lexical_cast<std::string>(img[3])
-                + ") to shape ("
-                +         boost::lexical_cast<std::string>(dst[0])
-                + " x " + boost::lexical_cast<std::string>(dst[1])
-                + " x " + boost::lexical_cast<std::string>(dst[2])
-                + " x " + boost::lexical_cast<std::string>(dst[3])
-                + ")");
+                <<         boost::lexical_cast<std::string>(img[0])
+                << " x " << boost::lexical_cast<std::string>(img[1])
+                << " x " << boost::lexical_cast<std::string>(img[2])
+                << " x " << boost::lexical_cast<std::string>(img[3])
+                << ") to shape ("
+                <<         boost::lexical_cast<std::string>(dst[0])
+                << " x " << boost::lexical_cast<std::string>(dst[1])
+                << " x " << boost::lexical_cast<std::string>(dst[2])
+                << " x " << boost::lexical_cast<std::string>(dst[3])
+                << ")"
+                << " padding:" << -m_startx << " stride:"<<m_stridex);
 
         cuvAssert(img[1]==img[2]); // currently, cudaConv2 only supports square images for pooling
 //        if(m_subsx * dst[1] != img[1]){
