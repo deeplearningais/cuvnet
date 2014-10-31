@@ -1153,18 +1153,20 @@ namespace cuvnet
 
         dst[1] = DIVUP(img[1]-2*m_startx-m_subsx, m_stridex)+1;
         dst[2] = DIVUP(img[2]-2*m_startx-m_subsx, m_stridex)+1;
+
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
         LOG4CXX_WARN(log, "Pooling image of shape ("
-                +         boost::lexical_cast<std::string>(img[0])
-                + " x " + boost::lexical_cast<std::string>(img[1])
-                + " x " + boost::lexical_cast<std::string>(img[2])
-                + " x " + boost::lexical_cast<std::string>(img[3])
-                + ") to shape ("
-                +         boost::lexical_cast<std::string>(dst[0])
-                + " x " + boost::lexical_cast<std::string>(dst[1])
-                + " x " + boost::lexical_cast<std::string>(dst[2])
-                + " x " + boost::lexical_cast<std::string>(dst[3])
-                + ")");
+                <<         boost::lexical_cast<std::string>(img[0])
+                << " x " << boost::lexical_cast<std::string>(img[1])
+                << " x " << boost::lexical_cast<std::string>(img[2])
+                << " x " << boost::lexical_cast<std::string>(img[3])
+                << ") to shape ("
+                <<         boost::lexical_cast<std::string>(dst[0])
+                << " x " << boost::lexical_cast<std::string>(dst[1])
+                << " x " << boost::lexical_cast<std::string>(dst[2])
+                << " x " << boost::lexical_cast<std::string>(dst[3])
+                << ")"
+                << " padding:" << -m_startx << " stride:"<<m_stridex);
 
         cuvAssert(img[1]==img[2]); // currently, cudaConv2 only supports square images for pooling
 //        if(m_subsx * dst[1] != img[1]){
