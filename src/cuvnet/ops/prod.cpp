@@ -1,3 +1,4 @@
+#include <cuvnet/tools/logging.hpp>
 #include "prod.hpp"
 
 namespace cuvnet
@@ -128,14 +129,17 @@ namespace cuvnet
         unsigned int n = m_p0t=='n' ? p0->shape[0] : p0->shape[1];
         unsigned int m = m_p1t=='n' ? p1->shape[1] : p1->shape[0];
 
-#ifndef NDEBUG
         unsigned int k0 = m_p0t=='n' ? p0->shape[1] : p0->shape[0];
         unsigned int k1 = m_p1t=='n' ? p1->shape[0] : p1->shape[1];
-        assert(k0==k1);
-#endif
+        cuvAssert(k0==k1);
         m_results[0]->shape.resize(2);
         m_results[0]->shape[0] = n;
         m_results[0]->shape[1] = m;
+
+        log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
+        LOG4CXX_WARN(log, "matrix product ("<<n<<"x"<<k0<<") * ("
+                <<k1<<"x"<<m<<") --> "
+                <<"("<<n<<"x"<<m<<")");
     }
 
 }
