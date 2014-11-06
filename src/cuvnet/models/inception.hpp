@@ -1,3 +1,6 @@
+#ifndef INCEPTION_HPP__38264823
+#define INCEPTION_HPP__38264823
+
 #include <boost/tuple/tuple.hpp>
 #include <cuvnet/tools/monitor.hpp>
 #include <cuvnet/models/models.hpp>
@@ -26,14 +29,31 @@ namespace cuvnet { namespace models {
              */
             inception_layer(op_ptr input, const std::vector<boost::tuple<int,int,int> >& m);
 
+            /**
+             * standard configuration constructor (1x1, 3x3, 5x5 and max-pooling layer)
+             *
+             * @param input source layer
+             * @param n_dst_maps number of destination maps for each of the components
+             */
+            inception_layer(op_ptr input, int n_dst_maps);
+
+            /**
+             * default ctor, for serialization.
+             */
+            inception_layer(){}
+
         private:
+            void init(op_ptr input, const std::vector<boost::tuple<int,int,int> >& m);
             friend class boost::serialization::access;
             template <class Archive>
                 void serialize(Archive& ar, const unsigned int){
                     ar & boost::serialization::base_object<metamodel<model> >(*this);
-                    ar & m_convlayers, m_fclayers;
+                    ar & m_convlayers& m_fclayers;
+                    ar & m_weights & m_input & m_output;
                 }
 
     };
 
 }}
+BOOST_CLASS_EXPORT_KEY(cuvnet::models::inception_layer);
+#endif /* INCEPTION_HPP__38264823 */
