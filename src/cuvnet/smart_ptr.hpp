@@ -5,6 +5,7 @@
 #include <vector>
 #include <boost/lexical_cast.hpp>
 #include <boost/serialization/base_object.hpp>
+#include <boost/serialization/version.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <cuv/basics/tensor.hpp>
@@ -14,18 +15,41 @@ namespace cuvnet
     namespace detail {
         template<class T>
             struct cow_ptr_traits{
+                typedef void unload_t;
                 static T* clone(const T& t){ return new T(t); }
+                static unload_t* unload_from_dev(T& t){
+                    throw std::runtime_error("unload from dev not implemented for this type");
+                }
                 static void check(const T*){}
+                template<class Archive>
+                static void serialize_host(Archive& ar, boost::shared_ptr<void>&){}
             };
         template<class V, class M, class L>
             struct cow_ptr_traits<cuv::tensor<V,M,L> >{
                 typedef cuv::tensor<V,M,L> T;
+                typedef cuv::tensor<V,cuv::host_memory_space,L> OT;
+                typedef OT unload_t;
                 static T* clone(const T& t); // { return new T(t,cuv::linear_memory_tag()); }
                 static void check(const T* t){
                     if(t){
                         cuvAssert(!cuv::has_nan(*t));
                         cuvAssert(!cuv::has_inf(*t));
                     }
+                }
+                static unload_t* unload_from_dev(boost::shared_ptr<cuv::tensor<V,cuv::host_memory_space,L> >& t){
+                    return NULL;
+                }
+                static unload_t* unload_from_dev(boost::shared_ptr<cuv::tensor<V,cuv::dev_memory_space,L> >& t){
+                    unload_t* ot = new unload_t(*t);
+                    t.reset();
+                    return ot;
+                }
+                template<class Archive, class OT, class OL>
+                static void serialize_host(Archive& ar, boost::shared_ptr<void>&){}
+
+                template<class Archive, class OT, class OL>
+                static void serialize_host(Archive& ar, boost::shared_ptr<cuv::tensor<OT, cuv::host_memory_space, OL> >& ot){
+                    ar & ot;
                 }
             };
     }
@@ -55,7 +79,7 @@ namespace cuvnet
 
                 /// @name constructors
                 /// @{
-                
+
                 /// constructor (does nothing)
                 cow_ptr( ){}
                 /// copy constructor (cheap)
@@ -89,19 +113,19 @@ namespace cuvnet
 
                 /// @name copying
                 /// @{
-                
+
                 /// assignment operator (other cow_ptr)
                 cow_ptr& operator=(const cow_ptr& o){ m_ptr = o.m_ptr; return *this;}
                 /// assignment operator (reference, copies! --> expensive)
-                cow_ptr& operator=(const T& t){ 
-                    if(!m_ptr) 
+                cow_ptr& operator=(const T& t){
+                    if(!m_ptr)
                         m_ptr.reset(new T(t)); //  nothing was set--> store new obj
                     else if(m_ptr.unique())
                         *m_ptr = t;            //  sole owner changes ptr-->overwrite
                     else{
                         m_ptr.reset(new T(t)); // multiple owners, change only this copy
                     }
-                    
+
                     return *this;
                 }
                 /// @}
@@ -129,15 +153,42 @@ namespace cuvnet
                 operator T& ()  { detach(); return *m_ptr; } ///< conversion to contained data, detaches if needed
                 /// @}
 
+                /** \name saving memory on GPU: unloading to host (costs time!)
+                 *
+                 * to avoid a constant overhead, you have to do this /explicitly/.
+                 * Also, it only works if there is just one referrer to avoid
+                 * arbitrary numbers of copies.
+                 * @{
+                 */
+                void unload_from_dev(){
+                    if(!unique())
+                        return;
+                    m_host_ptr.reset(detail::cow_ptr_traits<T>::unload_from_dev(m_ptr));
+                }
+                void ensure_on_dev(){
+                    if(m_ptr)
+                        return;
+                    assert(m_host_ptr);
+                    m_ptr.reset(new T(*m_host_ptr));
+                }
+                /**
+                 * @}
+                 */
+
                 template<class U>
                 friend std::ostream& operator<< (std::ostream &o, const cow_ptr<U>&);
 
             private:
                 ref_ptr m_ptr;
+                typedef typename detail::cow_ptr_traits<T>::unload_t host_ptr_value_type;
+                typedef boost::shared_ptr<host_ptr_value_type> host_ptr;
+                host_ptr m_host_ptr;
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & m_ptr;
+                        if(version > 0)
+                            detail::cow_ptr_traits<T>::serialize_host(ar, m_host_ptr);
                     }
         };
 
@@ -149,7 +200,7 @@ namespace cuvnet
         cow_ptr<T>::s_allocator(get_global_allocator());
 
         template<class T>
-        std::ostream& 
+        std::ostream&
         operator<< (std::ostream &o, const cow_ptr<T>& p){
             o << (T)p; return o;
         }
@@ -159,10 +210,33 @@ namespace cuvnet
             template<class V, class M, class L>
                 cuv::tensor<V,M,L>* cow_ptr_traits<cuv::tensor<V,M,L> >::
                 clone(const cuv::tensor<V,M,L> & t)
-                { 
+                {
                     // the linear_memory_tag argument forces a copy of memory
-                    return new cuv::tensor<V,M,L>(t,  cuv::linear_memory_tag()); 
+                    return new cuv::tensor<V,M,L>(t,  cuv::linear_memory_tag());
                 }
         }
+
+        template<class T, class Arg>
+        cow_ptr<T> make_cow_ptr(const Arg& a){
+            return cow_ptr<T>(new T(a));
+        }
 }
+namespace boost {
+namespace serialization {
+template<class T>
+struct version< cuvnet::cow_ptr<T> >
+{
+    typedef mpl::int_<1> type;
+    typedef mpl::integral_c_tag tag;
+    BOOST_STATIC_CONSTANT(int, value = version::type::value);
+    BOOST_MPL_ASSERT((
+        boost::mpl::less<
+            boost::mpl::int_<1>,
+            boost::mpl::int_<256>
+        >
+    ));
+};
+}
+}
+
 #endif /* __CUVNET_SMART_PTR_HPP__ */
