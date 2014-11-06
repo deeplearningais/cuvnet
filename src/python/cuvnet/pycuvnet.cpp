@@ -11,6 +11,7 @@
 #include <cuvnet/models/linear_regression.hpp>
 #include <cuvnet/models/logistic_regression.hpp>
 #include <cuvnet/models/mlp.hpp>
+#include <cuvnet/models/inception.hpp>
 #include <cuvnet/ops.hpp>
 
 
@@ -219,5 +220,15 @@ BOOST_PYTHON_MODULE(_pycuvnet)
         .def_readonly("output", &models::conv_layer::m_output)
         .def_readonly("weights", &models::conv_layer::m_weights)
         .def_readonly("bias", &models::conv_layer::m_bias)
+        ;
+
+    class_<models::inception_layer, boost::shared_ptr<models::inception_layer>, bases<models::model> >("inception_layer", no_init)
+        .def(init<>())
+        .def_pickle(bs_pickle_suite<models::conv_layer>())
+        .def_readonly("input", &models::inception_layer::m_input)
+        .def_readonly("output", &models::inception_layer::m_output)
+        .def_readonly("weights", &models::inception_layer::m_weights)
+        .def_readonly("convlayers", &models::inception_layer::m_convlayers)
+        .def_readonly("fclayers", &models::inception_layer::m_fclayers)
         ;
 }
