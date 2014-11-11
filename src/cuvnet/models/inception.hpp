@@ -26,8 +26,10 @@ namespace cuvnet { namespace models {
              *          - (3, 64, 28) means that the input is compressed to 64 dimensions, then convolved by a 3x3 convolution to 28 maps
              *          - (-1, 3,  X) means that the input is ran through a max-pooling with stride=poolsize=3
              *          X denote values which are ignored.
+             * @param label an identifier for this layer
+             * @param copy if false, try to be more memory efficient. The user has to make sure that results are unaffected in a larger network.
              */
-            inception_layer(op_ptr input, const std::vector<boost::tuple<int,int,int> >& m);
+            inception_layer(op_ptr input, const std::vector<boost::tuple<int,int,int> >& m, const std::string& label="", bool copy=true);
 
             /**
              * standard configuration constructor (1x1, 3x3, 5x5 and max-pooling layer)
@@ -43,7 +45,7 @@ namespace cuvnet { namespace models {
             inception_layer(){}
 
         private:
-            void init(op_ptr input, const std::vector<boost::tuple<int,int,int> >& m);
+            void init(op_ptr input, const std::vector<boost::tuple<int,int,int> >& m, const std::string& label="", bool copy=true);
             friend class boost::serialization::access;
             template <class Archive>
                 void serialize(Archive& ar, const unsigned int){
