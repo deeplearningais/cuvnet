@@ -227,6 +227,32 @@ BOOST_AUTO_TEST_CASE(xval_learn){
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE( t_inception )
+    BOOST_AUTO_TEST_CASE(inception_copy){
+        using namespace cuvnet;
+        boost::shared_ptr<ParameterInput> inp = input(cuv::extents[4][4][4][4], "img");
+        std::vector<boost::tuple<int,int,int> > m{
+            {-1, 3, 3},  // max-pooling -> 3 maps
+            {5, 3, 16},   // 3 maps, then 5x5 filter to 16 maps
+            {3, 1, 16},   // 1 map, then 3x3 filter to 16 maps
+        };
+        cuvnet::models::inception_layer inc1(inp, m, "il1", true);
+        cuv::initialize_mersenne_twister_seeds(42);
+        inc1.reset_params();
+        std::vector<cuv::tensor<float, cuv::host_memory_space> > res_copy
+            = derivative_testing::all_outcomes(inc1.m_output);
+
+        cuvnet::models::inception_layer inc2(inp, m, "il2", false);
+        cuv::initialize_mersenne_twister_seeds(42);
+        inc2.reset_params();
+        std::vector<cuv::tensor<float, cuv::host_memory_space> > res_nocopy
+            = derivative_testing::all_outcomes(inc2.m_output);
+
+        BOOST_CHECK(res_copy.size() == res_nocopy.size());
+        for(unsigned int i=0; i<res_copy.size(); i++){
+            double diff = cuv::norm1(res_copy[i] - res_nocopy[i]);
+            BOOST_CHECK_LT(diff, 0.01);
+        }
+    }
     BOOST_AUTO_TEST_CASE(inception_derivative){
         using namespace cuvnet;
         boost::shared_ptr<ParameterInput> inp = input(cuv::extents[4][4][4][4], "img");
