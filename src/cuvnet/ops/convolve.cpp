@@ -310,6 +310,11 @@ namespace cuvnet
             ? DIVUP(nImgPixY+padsize-nFltPixX, m_stride)+1
             : DIVUP(nImgPixY        -nFltPixX, m_stride)+1;
 
+        if(m_stride != 1){
+            nOutPixX -= 1;
+            nOutPixY -= 1;
+        }
+
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
         LOG4CXX_WARN(log, "Convolving image of shape ("
                 << boost::lexical_cast<std::string>(img[0])
@@ -1153,6 +1158,11 @@ namespace cuvnet
 
         dst[1] = DIVUP(img[1]-2*m_startx-m_subsx, m_stridex)+1;
         dst[2] = DIVUP(img[2]-2*m_startx-m_subsx, m_stridex)+1;
+
+        if(m_stridex != 1){
+            dst[1] -= 1;
+            dst[2] -= 1;
+        }
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
         LOG4CXX_WARN(log, "Pooling image of shape ("
