@@ -312,7 +312,7 @@ namespace cuvnet
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
         LOG4CXX_WARN(log, "Convolving image of shape ("
-                << boost::lexical_cast<std::string>(nFilt)
+                << boost::lexical_cast<std::string>(img[0])
                 << " x " << boost::lexical_cast<std::string>(nImgPixY)
                 << " x " << boost::lexical_cast<std::string>(nImgPixX)
                 << " x " << boost::lexical_cast<std::string>(img[3])
