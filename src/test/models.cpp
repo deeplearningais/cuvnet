@@ -5,6 +5,7 @@
 #include <cuvnet/tools/gradient_descent.hpp>
 #include <cuvnet/tools/monitor.hpp>
 #include <cuvnet/tools/learner2.hpp>
+#include <cuvnet/tools/matwrite.hpp>
 #include <cuvnet/models/mlp.hpp>
 #include <cuvnet/models/linear_regression.hpp>
 #include <cuvnet/models/inception.hpp>
@@ -235,22 +236,40 @@ BOOST_AUTO_TEST_SUITE( t_inception )
             {5, 3, 16},   // 3 maps, then 5x5 filter to 16 maps
             {3, 1, 16},   // 1 map, then 3x3 filter to 16 maps
         };
+        bool pm = false;
         cuvnet::models::inception_layer inc1(inp, m, "il1", true);
+        inc1.set_predict_mode(pm);
         cuv::initialize_mersenne_twister_seeds(42);
+        cuv::fill_rnd_uniform(inp->data());
         inc1.reset_params();
-        std::vector<cuv::tensor<float, cuv::host_memory_space> > res_copy
+        std::vector<std::pair<std::string, cuv::tensor<float, cuv::host_memory_space> > > res_copy
             = derivative_testing::all_outcomes(inc1.m_output);
 
         cuvnet::models::inception_layer inc2(inp, m, "il2", false);
+        inc2.set_predict_mode(pm);
         cuv::initialize_mersenne_twister_seeds(42);
+        cuv::fill_rnd_uniform(inp->data());
         inc2.reset_params();
-        std::vector<cuv::tensor<float, cuv::host_memory_space> > res_nocopy
+        std::vector<std::pair<std::string, cuv::tensor<float, cuv::host_memory_space> > > res_nocopy
             = derivative_testing::all_outcomes(inc2.m_output);
 
         BOOST_CHECK(res_copy.size() == res_nocopy.size());
         for(unsigned int i=0; i<res_copy.size(); i++){
-            double diff = cuv::norm1(res_copy[i] - res_nocopy[i]);
-            BOOST_CHECK_LT(diff, 0.01);
+            std::cout << "Checking `"<<res_copy[i].first<<"'..."<<std::endl;
+            auto D = res_copy[i].second.copy();
+            D -= res_nocopy[i].second;
+            cuv::apply_scalar_functor(D, cuv::SF_ABS);
+            double diff0 = cuv::sum(D);
+            double diff = cuv::norm1(res_copy[i].second - res_nocopy[i].second);
+            if(diff >= 0.01)
+            {
+                std::cout <<" Failing comparison, two copies written to `copy.npy' and `nocopy.npy'"<<std::endl;
+                std::cout <<" diff0: " << diff0<<std::endl;
+                cuvnet::tofile("copy.npy", res_copy[i].second);
+                cuvnet::tofile("nocopy.npy", res_nocopy[i].second);
+                cuvnet::tofile("D.npy", D);
+            }
+            BOOST_REQUIRE_LT(diff, 0.01);
         }
     }
     BOOST_AUTO_TEST_CASE(inception_derivative){

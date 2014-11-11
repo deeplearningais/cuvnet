@@ -18,12 +18,12 @@ namespace {
 
 namespace cuvnet{ namespace derivative_testing {
 
-    std::vector<cuv::tensor<float, cuv::host_memory_space> >
+    std::vector<std::pair<std::string, cuv::tensor<float, cuv::host_memory_space> > >
         all_outcomes(boost::shared_ptr<Op> op){
-            std::vector<cuv::tensor<float, cuv::host_memory_space> > results;
+            std::vector<std::pair<std::string, cuv::tensor<float, cuv::host_memory_space> > > results;
             cuvnet::function f(op, 0);
             cuv::tensor<float, cuv::host_memory_space> hr(f.evaluate());
-            results.push_back(hr);
+            results.push_back(std::make_pair("output", hr));
             param_collector_visitor pcv;
             op->visit(pcv);
             std::vector<Op*> params;
@@ -32,12 +32,13 @@ namespace cuvnet{ namespace derivative_testing {
                     continue;
                 params.push_back(pcv.plist[i]);
             }
-            swiper swipe(*op, 0, params);
+            swiper swipe(*op, 0, params, 2);
             swipe.fprop();
             swipe.bprop();
             for (unsigned int i = 0; i < params.size(); i++) {
-                cuv::tensor<float, cuv::host_memory_space> hr(((ParameterInput*)params[i])->delta());
-                results.push_back(hr);
+                ParameterInput* pi = (ParameterInput*)params[i];
+                cuv::tensor<float, cuv::host_memory_space> hr(pi->delta());
+                results.push_back(std::make_pair(pi->name(), hr));
             }
             return results;
         }

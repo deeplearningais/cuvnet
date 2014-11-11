@@ -28,7 +28,7 @@ namespace cuvnet
         /**
          * determine output and all derivatives of an op, for comparison with another configuration.
          */
-        std::vector<cuv::tensor<float, cuv::host_memory_space> >
+        std::vector<std::pair<std::string, cuv::tensor<float, cuv::host_memory_space> > >
             all_outcomes(boost::shared_ptr<Op> op);
 
 #define derivative_tester_verbose(X, R) \
