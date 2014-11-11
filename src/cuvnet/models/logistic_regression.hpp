@@ -38,18 +38,18 @@ namespace cuvnet
              * @param X the estimator input
              * @param Y the target value
              * @param degenerate if true, assume is already estimator
-             * @param dropout if true, apply dropout to inputs
+             * @param dropout_rate sets some inputs to zero randomly
              */
-            logistic_regression(op_ptr X, op_ptr Y, bool degenerate=false, bool dropout=false);
+            logistic_regression(op_ptr X, op_ptr Y, bool degenerate=false, double dropout_rate=0.);
 
             /**
              * logistic regression ctor using class id coding in Y.
              * @param X the estimator input
              * @param Y the target value
-             * @param n_classes the number of classes (ignored if degenerate is true)
-             * @param dropout if true, apply dropout to inputs
+             * @param n_classes the number of classes (ignored if degenerate is true):
+             * @param dropout_rate sets some inputs to zero randomly
              */
-            logistic_regression(op_ptr X, op_ptr Y, int n_classes, bool dropout=false);
+            logistic_regression(op_ptr X, op_ptr Y, int n_classes, double dropout_rate=0.);
 
             virtual std::vector<Op*> get_params();
             virtual void reset_params();

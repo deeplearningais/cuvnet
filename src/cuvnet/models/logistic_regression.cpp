@@ -21,10 +21,10 @@ namespace cuvnet
         logistic_regression::op_ptr logistic_regression::loss()const{ return m_loss; }
         logistic_regression::op_ptr logistic_regression::error()const{ return m_classloss; }
 
-        logistic_regression::logistic_regression(op_ptr X, op_ptr Y, bool degenerate, bool dropout){
+        logistic_regression::logistic_regression(op_ptr X, op_ptr Y, bool degenerate, double dropout_rate){
             m_X = X;
-            if(dropout)
-                X = m_noiser = zero_out(X, 0.5f);
+            if(dropout_rate > 0.0)
+                X = m_noiser = zero_out(X, dropout_rate, true);
             m_Y = boost::dynamic_pointer_cast<ParameterInput>(Y);
 
             determine_shapes(*X);
@@ -32,8 +32,9 @@ namespace cuvnet
 
             if(!degenerate) {
                 m_W = input(cuv::extents[X->result()->shape[1]][Y->result()->shape[1]], "logreg_W");
-                m_bias = input(cuv::extents[Y->result()->shape[1]], "logreg_b");
-                m_estimator = mat_plus_vec(prod(X, m_W), m_bias, 1);
+                //m_bias = input(cuv::extents[Y->result()->shape[1]], "logreg_b");
+                //m_estimator = mat_plus_vec(prod(X, m_W), m_bias, 1);
+                m_estimator = prod(X, m_W);
                 m_estimator_sink = sink("logreg_est", m_estimator);
             }
             else
@@ -46,10 +47,10 @@ namespace cuvnet
             m_classloss = classification_loss(m_estimator, Y);
         }
 
-        logistic_regression::logistic_regression(op_ptr X, op_ptr Y, int n_classes, bool dropout){
+        logistic_regression::logistic_regression(op_ptr X, op_ptr Y, int n_classes, double dropout_rate){
             m_X = X;
-            if(dropout)
-                X = m_noiser = zero_out(X, 0.5f);
+            if(dropout_rate > 0.)
+                X = m_noiser = zero_out(X, dropout_rate);
             m_Y = boost::dynamic_pointer_cast<ParameterInput>(Y);
 
             determine_shapes(*X);
