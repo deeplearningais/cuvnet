@@ -143,8 +143,8 @@ BOOST_PYTHON_MODULE(_pycuvnet)
         .def("clear_submodels", &metamodel::clear_submodels)
         ;
 
-    class_<models::logistic_regression, bases<models::model>, boost::shared_ptr<models::logistic_regression> >("logistic_regression", init<op_ptr, op_ptr, bool, bool>())
-        .def(init<op_ptr, op_ptr, int, bool>())
+    class_<models::logistic_regression, bases<models::model>, boost::shared_ptr<models::logistic_regression> >("logistic_regression", init<op_ptr, op_ptr, bool, double>())
+        .def(init<op_ptr, op_ptr, int, double>())
         .def(init<>())
         .def_pickle(bs_pickle_suite<models::logistic_regression>())
         .def_readonly("estimator", &models::logistic_regression::m_estimator)
