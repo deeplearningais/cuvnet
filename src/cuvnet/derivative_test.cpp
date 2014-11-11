@@ -18,6 +18,30 @@ namespace {
 
 namespace cuvnet{ namespace derivative_testing {
 
+    std::vector<cuv::tensor<float, cuv::host_memory_space> >
+        all_outcomes(boost::shared_ptr<Op> op){
+            std::vector<cuv::tensor<float, cuv::host_memory_space> > results;
+            cuvnet::function f(op, 0);
+            cuv::tensor<float, cuv::host_memory_space> hr(f.evaluate());
+            results.push_back(hr);
+            param_collector_visitor pcv;
+            op->visit(pcv);
+            std::vector<Op*> params;
+            for (unsigned int i = 0; i < pcv.plist.size(); i++) {
+                if (!((ParameterInput*) pcv.plist[i])->derivable())
+                    continue;
+                params.push_back(pcv.plist[i]);
+            }
+            swiper swipe(*op, 0, params);
+            swipe.fprop();
+            swipe.bprop();
+            for (unsigned int i = 0; i < params.size(); i++) {
+                cuv::tensor<float, cuv::host_memory_space> hr(((ParameterInput*)params[i])->delta());
+                results.push_back(hr);
+            }
+            return results;
+        }
+
     void ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params, bool verbose){
         double epsilon = 0.00000001;
         { TRACE(g_enslog, "fprop");

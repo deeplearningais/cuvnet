@@ -25,6 +25,12 @@ namespace cuvnet
          */
         void ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params);
 
+        /**
+         * determine output and all derivatives of an op, for comparison with another configuration.
+         */
+        std::vector<cuv::tensor<float, cuv::host_memory_space> >
+            all_outcomes(boost::shared_ptr<Op> op);
+
 #define derivative_tester_verbose(X, R) \
         std::cout << "Testing derivative of "<<#X<<":"<<std::endl; \
         cuvnet::derivative_testing::derivative_tester(X,R,true); \
