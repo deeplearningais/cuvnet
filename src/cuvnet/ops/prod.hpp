@@ -43,6 +43,7 @@ namespace cuvnet
                 void _determine_shapes();
                 virtual void _graphviz_node_desc(detail::graphviz_node& desc)const;
             private:
+                std::vector<unsigned int> m_sp0, m_sp1, m_sr;
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){

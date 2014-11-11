@@ -30,7 +30,7 @@ namespace cuvnet
             if(args.m_weights_left)
                 m_W    = input(cuv::extents[size][X->result()->shape[0]], args.m_group_name + "W");
             else
-                m_W    = input(cuv::extents[X->result()->shape[1]][size], args.m_group_name + "W");
+                m_W    = input(cuv::extents[X->result()->shape.back()][size], args.m_group_name + "W");
             m_W->set_learnrate_factor(args.m_learnrate_factor);
 
             boost::scoped_ptr<op_group> grp;
@@ -55,8 +55,9 @@ namespace cuvnet
                     m_linear_output = prod(X, m_W);
             }
 
+            unsigned int ndim = X->result()->shape.size();
             if(args.m_want_maxout)
-                m_linear_output = tuplewise_op(m_linear_output, args.m_weights_left ? 0 : 1, 
+                m_linear_output = tuplewise_op(m_linear_output, args.m_weights_left ? 0 : ndim-1, 
                         args.m_maxout_N, cuv::alex_conv::TO_MAX);
 
             if(args.m_nonlinearity)
@@ -68,7 +69,7 @@ namespace cuvnet
             m_weight_init_std = args.m_weight_init_std;
             m_verbose = args.m_verbose;
             if(m_verbose){
-                LOG4CXX_WARN(g_log, "#in: "<< m_W->data().shape(0) << ", #out: " << m_W->data().shape(0)
+                LOG4CXX_WARN(g_log, "#in: "<< m_W->data().shape(0) << ", #out: " << m_W->data().shape(1)
                         << ", #params: " 
                         << m_W->data().size() + (m_bias ? m_bias->data().size(): 0));
             }

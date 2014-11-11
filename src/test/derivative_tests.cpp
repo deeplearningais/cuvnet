@@ -427,6 +427,59 @@ BOOST_AUTO_TEST_CASE(derivative_test_prod){
     }
 }
 
+BOOST_AUTO_TEST_CASE(derivative_test_prod_reshape){
+    typedef boost::shared_ptr<Op> ptr_t;
+    double eps = 1.0; // everything is linear!
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[5][2][3]);
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][2][8]);
+        ptr_t func		     = boost::make_shared<Prod>(inp0->result(), inp1->result());
+        determine_shapes(*func);
+        BOOST_REQUIRE_EQUAL(func->result()->shape.size(), 4);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[0], 5);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[1], 2);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[2], 2);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[3], 8);
+        derivative_tester(*func).epsilon(eps).test();
+    }
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][2][5]);
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3][2][8]);
+        ptr_t func		     = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t');
+        determine_shapes(*func);
+        BOOST_REQUIRE_EQUAL(func->result()->shape.size(), 4);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[0], 5);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[1], 2);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[2], 2);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[3], 8);
+        derivative_tester(*func).epsilon(eps).test();
+    }
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[5][2][3]);
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8][2][3]);
+        ptr_t func		     = boost::make_shared<Prod>(inp0->result(), inp1->result(),'n','t');
+        determine_shapes(*func);
+        BOOST_REQUIRE_EQUAL(func->result()->shape.size(), 4);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[0], 5);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[1], 2);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[2], 2);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[3], 8);
+        derivative_tester(*func).epsilon(eps).test();
+    }
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][2][5]);
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8][2][3]);
+        ptr_t func		     = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
+        determine_shapes(*func);
+        BOOST_REQUIRE_EQUAL(func->result()->shape.size(), 4);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[0], 5);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[1], 2);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[2], 2);
+        BOOST_REQUIRE_EQUAL(func->result()->shape[3], 8);
+        derivative_tester(*func).epsilon(eps).test();
+    }
+}
+
 BOOST_AUTO_TEST_CASE(derivative_test_sq_axpby){
     typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
