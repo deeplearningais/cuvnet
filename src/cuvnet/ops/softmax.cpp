@@ -706,26 +706,27 @@ namespace cuvnet
         using namespace cuv::libs::opt;
         param_t::element_type&  p0 = *m_params[0]; // estimator
         param_t::element_type&  p1 = *m_params[1]; // labels
-        //result_t::element_type& r0 = *m_results[0];
+        result_t::element_type& r0 = *m_results[0];
         //result_t::element_type& r1 = *m_results[1];
         //result_t::element_type& r2 = *m_results[2];
         assert( p0.need_derivative);
         assert(!p1.need_derivative); // cannot do that currently. Why should we? :)
 
+        float f = r0.delta.cdata()[0];
         if(p0.can_overwrite_directly()){
             multinomial_logistic_loss_grad(*p0.overwrite_or_add_value(),
                     m_softmaxed.cdata(), p1.value.cdata(),
-                    m_pattern_axis, false);
-        }else if(p0.can_add_directly()){
+                    m_pattern_axis, f, false);
+        }else if(p0.can_add_directly()){ 
             multinomial_logistic_loss_grad(*p0.overwrite_or_add_value(),
                     m_softmaxed.cdata(), p1.value.cdata(),
-                    m_pattern_axis, true);
+                    m_pattern_axis, f, true);
         }else{
             // try to overwrite the softmaxed activations
             const value_type& sm = m_softmaxed.cdata();
             multinomial_logistic_loss_grad(m_softmaxed.data_onlyshape(),
                     sm, p1.value.cdata(),
-                    m_pattern_axis, false);
+                    m_pattern_axis, f, false);
             p0.push(m_softmaxed);
         }
         m_softmaxed.reset();
