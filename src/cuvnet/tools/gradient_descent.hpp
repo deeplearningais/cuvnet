@@ -1017,8 +1017,8 @@ namespace cuvnet
                     m_active_ = true;
 
                     BaseGradientDescent::before_batch.connect(boost::bind(&my_class::run_before_batch, this, _2));
-                    BaseGradientDescent::after_epoch.connect(boost::bind(&my_class::run_after_epoch, this));
-                    BaseGradientDescent::before_epoch.connect(boost::bind(&my_class::run_before_epoch, this));
+                    //BaseGradientDescent::after_epoch.connect(boost::bind(&my_class::run_after_epoch, this));
+                    //BaseGradientDescent::before_epoch.connect(boost::bind(&my_class::run_before_epoch, this));
                 }
 
             void set_monitor(monitor& mon, unsigned int every = 1){
@@ -1060,6 +1060,11 @@ namespace cuvnet
                     m_avgnorm_[inp] += cuv::norm1(upit->second) / upit->second.size();
                     m_vars_[inp] += cuv::var(upit->second);
                     m_n_rec_ ++;
+                }
+
+                if(m_active_ && (m_current_batch_ % m_every_ == 0) && m_mon_){
+                    run_after_epoch();
+                    run_before_epoch();
                 }
             }
 
