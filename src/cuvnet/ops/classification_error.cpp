@@ -54,28 +54,25 @@ namespace cuvnet
 
         // Apply ignore mask if needed
         value_type& inp0src = inp0;
-        float cf = 0;
+        float avg_ign = 0;
+        matrix a_ign ( batch_size, cuvnet::get_global_allocator() );
         if (ignore) {
             param_t::element_type& p2 = *m_params[2];
             value_type inp2 = p2.value.cdata();
-            if (m_axis == 0)
-                inp2.reshape(dim_other_axes, 1);
-            else
-                inp2.reshape(1, dim_other_axes);
-            value_type& inp0ign = p0.value.data_onlyshape();
-            inp0ign.reshape(inp0.shape(0), inp0.shape(1));
 
-            // apply ignore mask
-            cuv::matrix_op_vec(inp0ign, inp0, inp2, m_axis == 0 ? 0 : 1, BF_MULT);
-            inp0src = inp0ign;
+            // reduce ignore term over classes.
+            // TODO the ignore input should NOT have multiple classes!!!
+            if (m_axis == 0) inp2.reshape(dim_other_axes, 1);
+            else             inp2.reshape(1, dim_other_axes);
+            if(m_axis == 0)  cuv::reduce_to_col(a_ign, inp2, cuv::RF_MEAN);
+            else             cuv::reduce_to_row(a_ign, inp2, cuv::RF_MEAN);
 
             // determine amount of ignored part
-            int c = cuv::count(inp2, (float) 0);
-            cf = c / (inp2.shape(0)*inp2.shape(1));
+            avg_ign = cuv::mean(a_ign);
         }
 
-        cuv::tensor<int,Op::value_type::memory_space_type> a1 ( batch_size );
-        cuv::tensor<int,Op::value_type::memory_space_type> a2 ( batch_size );
+        matrix a1 ( batch_size, cuvnet::get_global_allocator() );
+        matrix a2 ( batch_size, cuvnet::get_global_allocator() );
         if(m_axis == 0) {
             cuv::reduce_to_col(a1, inp0src,cuv::RF_ARGMAX);
             cuv::reduce_to_col(a2, inp1,cuv::RF_ARGMAX);
@@ -85,12 +82,18 @@ namespace cuvnet
         }
 
         a1 -= a2;
-        int n_wrong = batch_size - cuv::count(a1,0);
+        cuv::apply_scalar_functor(a1, cuv::SF_ABS);
+        cuv::apply_scalar_functor(a1, cuv::SF_GT, 0.5f);
+        if(ignore)
+            a1 *= a_ign;
+
+        float n_wrong = cuv::sum(a1);
 
         value_ptr res(new value_type(cuv::extents[1], value_ptr::s_allocator));
-        *res = n_wrong/(float)batch_size;
-        if (ignore && cf < 1) // stretch error wrt to ignored input portion
-            *res /= (1 - cf);
+        if(!ignore || avg_ign == 0)
+            *res = n_wrong/(float)batch_size;
+        else
+            *res = n_wrong / (float)batch_size / avg_ign;
 
         r0.push(res);
 
