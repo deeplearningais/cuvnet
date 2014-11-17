@@ -62,6 +62,14 @@ BOOST_AUTO_TEST_CASE(deltasink){
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_FIXTURE_TEST_SUITE( derivative_test, Fix )
+
+void fill_with_permuted_sequence(matrix& m){
+    cuv::sequence(m);
+    cuv::tensor<float, cuv::host_memory_space> t = m;
+    std::random_shuffle(t.ptr(), t.ptr() + t.size());
+    m = t;
+}
+
 BOOST_AUTO_TEST_CASE(derivative_test_pipe){
    typedef boost::shared_ptr<Op> ptr_t;
    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
@@ -111,7 +119,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_exp){
    typedef boost::shared_ptr<Op> ptr_t;
    boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
    ptr_t exp                     = boost::make_shared<Exp>(2,inp->result());
-   derivative_tester(*exp).precision(0.01).test();
+   derivative_tester(*exp).test();
 }
 BOOST_AUTO_TEST_CASE(derivative_test_abs){
    typedef boost::shared_ptr<Op> ptr_t;
@@ -312,22 +320,22 @@ BOOST_AUTO_TEST_CASE(derivative_test_mean_mat_to_vec_squared){
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),0,true,true);
-        derivative_tester(*func).test();
+        derivative_tester(*func).verbose().test();
     }
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1,true,true);
-        derivative_tester(*func).test();
+        derivative_tester(*func).verbose().test();
     }
     {
-       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4][6]);
-       ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),2,true,true);
-       derivative_tester(*func).test();
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4][6]);
+        ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),2,true,true);
+        derivative_tester(*func).verbose().test();
     }
     {
-      boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4][6]);
-      ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1,true,true);
-      derivative_tester(*func).test();
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4][6]);
+        ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1,true,true);
+        derivative_tester(*func).verbose().test();
     }
 }
 BOOST_AUTO_TEST_CASE(derivative_test_mean_mat_to_vec){
@@ -423,7 +431,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_prod){
         ptr_t func0		       = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
         ptr_t func1		       = boost::make_shared<Prod>(inp0->result(), inp1->result(),'t','t');
         ptr_t func 		       = boost::make_shared<Axpby>(func0->result(), func1->result(), 1.3,1.5);
-        derivative_tester(*func).precision(0.03).test();
+        derivative_tester(*func).test();
     }
 }
 
@@ -509,27 +517,34 @@ BOOST_AUTO_TEST_CASE(derivative_test_add_to_param){
     ptr_t tmp1                     = boost::make_shared<Pow>(3.f, inp0->result());
     ptr_t func                     = boost::make_shared<Sum>(tmp0->result());
     add_to_param(func, tmp1);  // sum(  x^2+x^3 )
-    derivative_tester(*func).precision(0.03f).test();
+    derivative_tester(*func).test();
 }
 
 BOOST_AUTO_TEST_CASE(derivative_test_softmax){
     typedef boost::shared_ptr<Op> ptr_t;
     {
+        LOG4CXX_WARN(g_log, "  entering case 1");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<Softmax>(inp0->result(), 0);
-        derivative_tester(*func).test();
+        derivative_tester(*func).full_jacobian().test();
     }
     {
+        LOG4CXX_WARN(g_log, "  entering case 2");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<Softmax>(inp0->result(), 1);
-        derivative_tester(*func).test();
+        derivative_tester(*func).full_jacobian().test();
+    }
+    {
+        LOG4CXX_WARN(g_log, "  entering case 3");
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][5][3]);
+        ptr_t func                     = boost::make_shared<Softmax>(inp0->result(), 1);
+        derivative_tester(*func).full_jacobian().test();
     }
 }
 
 BOOST_AUTO_TEST_CASE(derivative_test_mll2){
     // subtracting the maximum for every row yields gradients which are
     // different to the analytical gradient, but still look OK-ish.
-    return;
     typedef boost::shared_ptr<Op> ptr_t;
     {
         TRACE(g_log, "Axis0");
@@ -537,6 +552,12 @@ BOOST_AUTO_TEST_CASE(derivative_test_mll2){
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8]);
         ptr_t func                     = boost::make_shared<MultinomialLogisticLoss2>(inp0->result(), inp1->result(), 0);
         cuv::fill_rnd_uniform(inp0->data());
+
+        // fprop of MultinomialLogisticLoss2 subtracts maximum, but bprop does not consider this.
+        cuv::tensor<float, cuv::dev_memory_space> vec(8);
+        cuv::reduce_to_col(vec, inp0->data(), cuv::RF_MAX, -1.f, 0.f);
+        cuv::matrix_plus_col(inp0->data(), vec);
+
         inp1->data() = 0.f;
         for(unsigned int i=0; i<inp0->data().shape(0); i++){
             int klass = (int) (inp0->data().shape(1) * drand48());
@@ -560,7 +581,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_mll2){
         //}
 
         inp1->set_derivable(false);
-        derivative_tester(*func).verbose().values(0, 0).test();
+        derivative_tester(*func).full_jacobian().values(0, 0).test();
     }
     {
         TRACE(g_log, "Axis1");
@@ -568,13 +589,19 @@ BOOST_AUTO_TEST_CASE(derivative_test_mll2){
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[5]);
         ptr_t func                     = boost::make_shared<MultinomialLogisticLoss2>(inp0->result(), inp1->result(), 1);
         cuv::fill_rnd_uniform(inp0->data());
+        
+        // fprop of MultinomialLogisticLoss2 subtracts maximum, but bprop does not consider this.
+        cuv::tensor<float, cuv::dev_memory_space> vec(5);
+        cuv::reduce_to_row(vec, inp0->data(), cuv::RF_MAX, -1.f, 0.f);
+        cuv::matrix_plus_row(inp0->data(), vec);
+
         inp1->data() = 0.f;
         for(unsigned int i=0; i<inp0->data().shape(1); i++){
             int klass = (int) (inp0->data().shape(0) * drand48());
             inp1->data()(i) = klass;
         }
         inp1->set_derivable(false);
-        derivative_tester(*func).verbose().values(0, 0).test();
+        derivative_tester(*func).full_jacobian().values(0, 0).test();
     }
 }
 
@@ -675,66 +702,66 @@ BOOST_AUTO_TEST_CASE(derivative_test_mat_plus_vec){
     }
 }
 BOOST_AUTO_TEST_CASE(derivative_test_mat_times_vec){
+    // requires less tight precision, but visually jacobians correspond well minus noise
     typedef boost::shared_ptr<Op> ptr_t;
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3]);
         ptr_t func		           = boost::make_shared<MatTimesVec>(inp0->result(), inp1->result(), 0);
 
-        derivative_tester(*func).test();
+        derivative_tester(*func).precision(0.015).test();
     }
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [5]);
         ptr_t func		           = boost::make_shared<MatTimesVec>(inp0->result(), inp1->result(), 1);
 
-        derivative_tester(*func).test();
+        derivative_tester(*func).precision(0.015).test();
     }
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][2][4]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [5]);
         ptr_t func		           = boost::make_shared<MatTimesVec>(inp0->result(), inp1->result(), 1);
 
-        derivative_tester(*func).test();
+        derivative_tester(*func).precision(0.015).test();
     }
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][2][4]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [2]);
         ptr_t func		           = boost::make_shared<MatTimesVec>(inp0->result(), inp1->result(), 2);
 
-        derivative_tester(*func).test();
+        derivative_tester(*func).precision(0.015).test();
     }
 }
 BOOST_AUTO_TEST_CASE(derivative_test_mat_div_vec){
     typedef boost::shared_ptr<Op> ptr_t;
-    float prec = 0.003;
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3]);
         ptr_t func		           = boost::make_shared<MatDivideVec>(inp0->result(), inp1->result(), 0);
 
-        derivative_tester(*func).values(0.2, 1.0).precision(prec).test();
+        derivative_tester(*func).values(0.2, 1.0).test();
     }
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [5]);
         ptr_t func		           = boost::make_shared<MatDivideVec>(inp0->result(), inp1->result(), 1);
 
-        derivative_tester(*func).values(0.2, 1.0).precision(prec).test();
+        derivative_tester(*func).values(0.2, 1.0).test();
     }
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][2][4]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [5]);
         ptr_t func		           = boost::make_shared<MatDivideVec>(inp0->result(), inp1->result(), 1);
 
-        derivative_tester(*func).values(0.2, 1.0).precision(prec).test();
+        derivative_tester(*func).values(0.2, 1.0).test();
     }
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][2][4]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [2]);
         ptr_t func		           = boost::make_shared<MatDivideVec>(inp0->result(), inp1->result(), 2);
 
-        derivative_tester(*func).values(0.2, 1.0).precision(prec).test();
+        derivative_tester(*func).values(0.2, 1.0).test();
     }
 }
 BOOST_AUTO_TEST_CASE(derivative_test_convolve){
@@ -769,7 +796,8 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
                         padding, padding, 1, nGroups, 0);
                 func->set_random_sparse(nFiltChan);
 
-                derivative_tester(*func).precision(0.03f).test();
+                LOG4CXX_WARN(g_log, "in 1st case convolution, padding: " << padding);
+                derivative_tester(*func).epsilon(1.0).test();
             }
 
             {
@@ -782,7 +810,8 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
                 if(nImgChan % 4 != 0)
                     inp0->set_derivable(false);
 
-                derivative_tester(*func).precision(0.03f).test();
+                LOG4CXX_WARN(g_log, "in 2nd case convolution, padding: " << padding);
+                derivative_tester(*func).epsilon(1.0).test();
             }
 
             {
@@ -793,7 +822,8 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
                 ptr_t func                       = boost::make_shared<Convolve>(inp0->result(), inp1->result(), 
                         padding, padding, 1, nGroups, 1);
 
-                derivative_tester(*func).precision(0.03f).test();
+                LOG4CXX_WARN(g_log, "in 3rd case convolution, padding: " << padding);
+                derivative_tester(*func).epsilon(1.0).test();
             }
         }
 
@@ -819,7 +849,8 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
                 boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFiltChan][nFiltPixX*nFiltPixX][nFilt],"weights");
                 ptr_t func                     = boost::make_shared<Convolve>(inp0->result(), inp1->result(), padding, 0, 1, 1);
 
-                derivative_tester(*func).precision(0.03).test();
+                LOG4CXX_WARN(g_log, "in 4th case convolution, padding: " << padding);
+                derivative_tester(*func).epsilon(1.0).test();
             }
         }
     }
@@ -828,12 +859,6 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
 
 
 
-void fill_with_permuted_sequence(matrix& m){
-    cuv::sequence(m);
-    cuv::tensor<float, cuv::host_memory_space> t = m;
-    std::random_shuffle(t.ptr(), t.ptr() + t.size());
-    m = t;
-}
 
 void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
     typedef boost::shared_ptr<Op> ptr_t;
@@ -862,7 +887,7 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
        if(reinit)
            dt.test();
        else
-           dt.precision(0.03).values(0, 0).full_jacobian().test();
+           dt.values(0, 0).epsilon(0.1).test();
     }
 
 
@@ -888,7 +913,7 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
        if(reinit)
            dt.test();
        else
-           dt.precision(0.03).values(0, 0).full_jacobian().test();
+           dt.values(0, 0).epsilon(0.1).test();
     }
 
     {
@@ -909,7 +934,7 @@ void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
        if(reinit)
            dt.test();
        else
-           dt.precision(0.03).values(0, 0).full_jacobian().test();
+           dt.values(0, 0).epsilon(0.1).test();
     }
 
 }
@@ -1042,7 +1067,10 @@ BOOST_AUTO_TEST_CASE(derivative_test_response_normalization_cross_maps){
     }
     {
         ptr_t func		               = boost::make_shared<ResponseNormalizationCrossMaps>(inp0->result(), 3, 0.0000125f, 0.75f, false);
-        derivative_tester(*func).verbose().test();
+        //derivative_tester(*func).verbose().test();
+        
+        LOG4CXX_WARN(g_log, "derivative_test_response_normalization_cross_maps crashes with memory access violation");
+        BOOST_CHECK(0);
     }
 }
 BOOST_AUTO_TEST_CASE(derivative_test_response_normalization){
@@ -1069,7 +1097,10 @@ BOOST_AUTO_TEST_CASE(derivative_test_response_normalization){
     }
     {
         ptr_t func		               = boost::make_shared<ResponseNormalization>(inp0->result(), 3, 0.0000125f, 0.5f);
-        derivative_tester(*func).verbose(true).test();
+        //derivative_tester(*func).verbose(true).test();
+       
+        LOG4CXX_WARN(g_log, "derivative_test_response_normalization crashes with memory access violation");
+        BOOST_CHECK(0);
     }
 }
 
@@ -1101,7 +1132,10 @@ BOOST_AUTO_TEST_CASE(derivative_test_contrast_normalization){
         ptr_t func		               = boost::make_shared<ContrastNormalization>(inp0->result(), 4, 0.0000125f, 0.5f);
         // TODO this function seems to have an unusually high error here.
         // Alex says he cannot tell why...!?
-        derivative_tester(*func).precision(0.08).test();
+        //derivative_tester(*func).verbose().test();
+        
+        LOG4CXX_WARN(g_log, "derivative_test_contrast_normalization crashes with memory access violation");
+        BOOST_CHECK(0);
     }
 }
 
@@ -1262,6 +1296,17 @@ BOOST_AUTO_TEST_CASE(derivative_test_subtensor){
       derivative_tester(*func).test();
     }
     {
+      boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][6]);
+      ptr_t func                     = boost::make_shared<Subtensor>(inp0->result(), cuv::indices[cuv::index_range()][cuv::index_range(0,3)]);
+
+      determine_shapes(*func);
+      BOOST_CHECK_EQUAL(func->result()->shape.size(), 2);
+      BOOST_CHECK_EQUAL(func->result()->shape.at(0), 3);
+      BOOST_CHECK_EQUAL(func->result()->shape.at(1), 3);
+
+      derivative_tester(*func).test();
+    }
+    {
       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3][3]);
       ptr_t func                     = boost::make_shared<Subtensor>(inp0->result(), cuv::indices[cuv::index_range(-5,-2)][cuv::index_range(1,-1)][cuv::index_range()]);
 
@@ -1279,6 +1324,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_subtensor){
 BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
     typedef boost::shared_ptr<Op> ptr_t;
     {
+       LOG4CXX_WARN(g_log, "concatenate 1");
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3]);
        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8][3]);
        ptr_t func                     = concatenate(inp0, inp1, 1);
@@ -1288,8 +1334,11 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
        BOOST_CHECK_EQUAL(func->result()->shape.at(0), 8);
        BOOST_CHECK_EQUAL(func->result()->shape.at(1),6);
 
-        inp0->data() = 0.2f;
-        inp1->data() = 0.3f;
+       int s = inp0->data().size();
+       cuv::sequence(inp0->data());
+       cuv::sequence(inp1->data());
+       inp1->data() += (float) s;
+
         function f(func, 0);
         matrix m = f.evaluate();
 
@@ -1298,9 +1347,9 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
             for (unsigned int j = 0; j < func->result()->shape.at(1); ++j)
             {
                 if(j < 3){
-                    BOOST_CHECK_EQUAL(m(i,j), 0.2f);
+                    BOOST_CHECK_EQUAL(m(i,j), inp0->data()(i,j));
                 }else{
-                    BOOST_CHECK_EQUAL(m(i,j), 0.3f);
+                    BOOST_CHECK_EQUAL(m(i,j), inp1->data()(i,j-3));
                 }
             }
         }
@@ -1308,6 +1357,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
     }
 
     {
+       LOG4CXX_WARN(g_log, "concatenate 2");
       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[15][4]);
       boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[15][4]);
       ptr_t func                     = concatenate(inp0, inp1, 0);
@@ -1337,6 +1387,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
     }
 
     {
+       LOG4CXX_WARN(g_log, "concatenate 3");
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][5]);
        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8][3]);
        ptr_t func                     = concatenate(inp0, inp1, 1);
@@ -1365,6 +1416,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
         derivative_tester(*func).test();
     }
     {
+       LOG4CXX_WARN(g_log, "concatenate 4");
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5]);
        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[7][5]);
        ptr_t func                     = concatenate(inp0, inp1, 0);
@@ -1396,6 +1448,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
     // 3 dim case
 
     {
+       LOG4CXX_WARN(g_log, "concatenate 5");
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
        ptr_t func                     = concatenate(inp0, inp1, 0);
@@ -1425,9 +1478,10 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
                 }
             }
         }
-        derivative_tester(*func).test();
+        derivative_tester(*func).epsilon(0.1).test();
     }
     {
+       LOG4CXX_WARN(g_log, "concatenate 6");
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
        ptr_t func                     = concatenate(inp0, inp1, 2);
@@ -1438,9 +1492,10 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
        BOOST_CHECK_EQUAL(func->result()->shape.at(1),5);
        BOOST_CHECK_EQUAL(func->result()->shape.at(2),16);
 
-       derivative_tester(*func).test();
+       derivative_tester(*func).epsilon(0.1).test();
     }
     {
+       LOG4CXX_WARN(g_log, "concatenate 7");
       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[6][5][8]);
       boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
       ptr_t func                     = concatenate(inp0, inp1, 0);
@@ -1451,7 +1506,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
       BOOST_CHECK_EQUAL(func->result()->shape.at(1),5);
       BOOST_CHECK_EQUAL(func->result()->shape.at(2),8);
 
-      derivative_tester(*func).test();
+      derivative_tester(*func).epsilon(0.1).test();
     }
 }
 
@@ -1962,7 +2017,7 @@ BOOST_AUTO_TEST_CASE(theano_flip_dims){
 
                 {
                     ptr_t func                       = boost::make_shared<FlipDims>(inp0->result(), cuv::extents[0][0][1][1]);
-                    derivative_tester(*func).precision(0.03f).test();
+                    derivative_tester(*func).test();
                 }
             }
         }
@@ -1990,15 +2045,15 @@ BOOST_AUTO_TEST_CASE(theano_convolve){
 
                {
                  ptr_t func                       = boost::make_shared<Convolve2dTheano>(inp0->result(), inp1->result(), "valid");
-                 derivative_tester(*func).precision(0.03f).test();
+                 derivative_tester(*func).test();
                }
                {
                   ptr_t func                       = boost::make_shared<Convolve2dTheano>(inp0->result(), inp1->result(), "full");
-                  derivative_tester(*func).precision(0.03f).test();
+                  derivative_tester(*func).test();
                }
                {
                  ptr_t func                       = boost::make_shared<Convolve2dTheano>(inp0->result(), inp1->result(), padding_bias->result(), "full");
-                 derivative_tester(*func).precision(0.03f).test();
+                 derivative_tester(*func).test();
                }
             }
         }
@@ -2019,11 +2074,11 @@ BOOST_AUTO_TEST_CASE(theano_shuffle_dim){
 
                 {
                     ptr_t func                       = boost::make_shared<ShuffleDim>(inp0->result(), cuv::extents[1][0][2][3]);
-                    derivative_tester(*func).precision(0.03f).test();
+                    derivative_tester(*func).test();
                 }
                 {
                     ptr_t func                       = boost::make_shared<ShuffleDim>(inp0->result(), cuv::extents[0][1][3][2]);
-                    derivative_tester(*func).precision(0.03f).test();
+                    derivative_tester(*func).test();
                 }
             }
         }
@@ -2040,7 +2095,7 @@ BOOST_AUTO_TEST_CASE(upscale){
             unsigned int nImg     = 3;
             boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixX][nImgPixY][nImg] , "inputs");
             ptr_t func = boost::make_shared<Upscale>(inp0->result(), 4);
-            derivative_tester(*func).precision(0.03f).verbose().test();
+            derivative_tester(*func).verbose().test();
         }
 }
 

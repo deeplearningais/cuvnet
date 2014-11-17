@@ -293,7 +293,7 @@ namespace cuvnet{ namespace derivative_testing {
                 for (unsigned int i = 0; i < pcv.plist.size(); i++) {
                     if (((ParameterInput*) pcv.plist[i])->derivable()) {
                         TRACE(g_log, "variant_d" + boost::lexical_cast<std::string>(i));
-                        boost::shared_ptr<Sum> func1 = boost::make_shared<Sum>(pcv.plist[i]->result());
+                        boost::shared_ptr<Op> func1 = boost::make_shared<Sum>(pcv.plist[i]->result());
                        
                         std::swap(pcv.plist[i]->result()->result_uses.front(), pcv.plist[i]->result()->result_uses.back());
                         boost::shared_ptr<Op> func2 = boost::make_shared<Axpby>(m_op.result(m_result), func1->result());
