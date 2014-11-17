@@ -1159,10 +1159,12 @@ namespace cuvnet
         dst[1] = DIVUP(img[1]-2*m_startx-m_subsx, m_stridex)+1;
         dst[2] = DIVUP(img[2]-2*m_startx-m_subsx, m_stridex)+1;
 
-        if(m_stridex != 1){
+        bool defaultcase = m_stridex == m_subsx && m_startx == 0 && (img[1] % m_subsx == 0);
+        if(m_stridex != 1 && !defaultcase){
             dst[1] -= 1;
             dst[2] -= 1;
         }
+
 
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
         LOG4CXX_WARN(log, "Pooling image of shape ("
