@@ -12,7 +12,7 @@ namespace cuvnet
      * @param m the values to be summed
      */
     template <class T>
-        double kahan_summation(const T& m) {
+        double kahan_summation(const cuv::tensor<T, cuv::host_memory_space>& m) {
             double result = 0.f;
 
             double c = 0.f;
@@ -23,6 +23,10 @@ namespace cuvnet
                 result = t;
             }
             return result;
+        }
+    template <class T>
+        double kahan_summation(const cuv::tensor<T, cuv::dev_memory_space>& m) {
+            return kahan_summation(cuv::tensor<T, cuv::host_memory_space>(m));
         }
     /**
      * Sums over all entries in its argument.

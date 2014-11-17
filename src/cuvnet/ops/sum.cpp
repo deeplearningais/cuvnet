@@ -29,7 +29,7 @@ namespace cuvnet
             v.data()[0] = sum;
             r0.push(v);
         }
-        // don't delete p0, instead overwrite it in bprop
+        p0.value.reset();
     }
 
     void Sum::bprop(){
@@ -43,17 +43,13 @@ namespace cuvnet
         }
 
         if(p0.can_overwrite_directly()){
-            value_ptr& v = p0.overwrite_or_add_value();
-            v  = p0.value;     // only ptr is copied
-            p0.value.reset();  // try overwriting p0
-            v.data_onlyshape() = r0.delta.cdata()[0];
+            value_type& v = *p0.overwrite_or_add_value();
+            v = r0.delta.cdata()[0];
         }else if(p0.can_add_directly()){
-            value_ptr& v = p0.overwrite_or_add_value();
-            *v += (float)r0.delta.cdata()[0];
-            p0.value.reset(); // try overwriting p0
+            value_type& v = *p0.overwrite_or_add_value();
+            v += (float)r0.delta.cdata()[0];
         }else{
-            value_ptr v = p0.value; // try overwriting p0
-            p0.value.reset();
+            value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
             *v = (float)r0.delta.cdata()[0];
             p0.push(v);
         }
