@@ -607,8 +607,9 @@ namespace cuvnet
 
         int batch_size = cfg.batch_size();
         gradient_descent gd(m.loss(), 0, std::vector<Op*>(), 0.0, 0.0);
-        this->before_predict(&m, gd, cfg);
+        m.register_watches(*m_mon);
         m_mon->register_gd(gd);
+        this->before_predict(&m, gd, cfg);
         if(batch_size < 0){
             _load_batch(&m, 0, 0);
             gd.batch_learning(1, INT_MAX);
