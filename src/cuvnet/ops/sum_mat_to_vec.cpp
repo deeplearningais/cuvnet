@@ -72,7 +72,7 @@ namespace cuvnet
                 value_type v(shape_before * size_axis);
                 value_type r = p0.value.cdata();
                 r.reshape(cuv::extents[shape_before * size_axis][shape_after]);
-                reduce_to_col(v, r,red_func,1.f, 1.f);
+                reduce_to_col(v, r,red_func,1.f, 0.f);
                 v.reshape(cuv::extents[shape_before][size_axis]);
                 reduce_to_row(*r0.overwrite_or_add_value(), v,RF_ADD,fact_new, 1.f);
             }
