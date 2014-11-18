@@ -711,32 +711,32 @@ BOOST_AUTO_TEST_CASE(derivative_test_mll){
 BOOST_AUTO_TEST_CASE(derivative_test_mat_plus_vec){
     typedef boost::shared_ptr<Op> ptr_t;
     {
-        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
-        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3]);
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5], "mat");
+        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3], "vec");
         ptr_t func		           = boost::make_shared<MatPlusVec>(inp0->result(), inp1->result(), 0);
 
-        derivative_tester(*func).test();
+        derivative_tester(*func).epsilon(10.).test();
     }
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [5]);
         ptr_t func		           = boost::make_shared<MatPlusVec>(inp0->result(), inp1->result(), 1);
 
-        derivative_tester(*func).test();
+        derivative_tester(*func).epsilon(10.).test();
     }
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][2][6]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [5]);
         ptr_t func		           = boost::make_shared<MatPlusVec>(inp0->result(), inp1->result(), 1);
 
-        derivative_tester(*func).test();
+        derivative_tester(*func).epsilon(10.).test();
     }
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][2][6]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [2]);
         ptr_t func		           = boost::make_shared<MatPlusVec>(inp0->result(), inp1->result(), 2);
 
-        derivative_tester(*func).test();
+        derivative_tester(*func).epsilon(10.).test();
     }
 }
 BOOST_AUTO_TEST_CASE(derivative_test_mat_times_vec){
@@ -747,28 +747,28 @@ BOOST_AUTO_TEST_CASE(derivative_test_mat_times_vec){
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[3]);
         ptr_t func		           = boost::make_shared<MatTimesVec>(inp0->result(), inp1->result(), 0);
 
-        derivative_tester(*func).precision(0.015).test();
+        derivative_tester(*func).epsilon(10.).precision(0.015).test();
     }
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [5]);
         ptr_t func		           = boost::make_shared<MatTimesVec>(inp0->result(), inp1->result(), 1);
 
-        derivative_tester(*func).precision(0.015).test();
+        derivative_tester(*func).epsilon(10.).precision(0.015).test();
     }
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][2][4]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [5]);
         ptr_t func		           = boost::make_shared<MatTimesVec>(inp0->result(), inp1->result(), 1);
 
-        derivative_tester(*func).precision(0.015).test();
+        derivative_tester(*func).epsilon(10.).precision(0.015).test();
     }
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][2][4]);
         boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents   [2]);
         ptr_t func		           = boost::make_shared<MatTimesVec>(inp0->result(), inp1->result(), 2);
 
-        derivative_tester(*func).precision(0.015).test();
+        derivative_tester(*func).epsilon(10.).precision(0.015).test();
     }
 }
 BOOST_AUTO_TEST_CASE(derivative_test_mat_div_vec){
