@@ -476,7 +476,7 @@ namespace cuvnet { namespace network_communication {
                 ParameterInput* inp = dynamic_cast<ParameterInput*>(op);
                 assert(inp);
                 std::string name = m_stage + inp->name() + boost::lexical_cast<std::string>(idx);
-                htensor_t m = inp->data();
+                //htensor_t m = inp->data();
                 std::map<Op*, cuv::tensor<float, cuv::host_memory_space> >::iterator 
                     it = updates->find(inp);
                 if(it != updates->end()){
