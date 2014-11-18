@@ -11,13 +11,12 @@ namespace cuvnet
         const value_type& inp = p0.value.cdata();
 
         if(m_mem_optimized){
-            // assume that before this operation there's been a convolution.
-            // therefore, the p0.value has to be kept anyway
-            // and we can utilize(!) it to save the signbit by modifying it
-            // directly.
+            // assume that we're the only one reading from p0.
+            // therefore, the p0 gradient is the same if we set p0 to zero
+            // directly or in a copy.
 
-            // NOTE that ANYONE ELSE using the linear output of the convolution
-            // will get WRONG results now!
+            // NOTE that ANYONE ELSE also reading from p0 might
+            // get WRONG results afterwards!
             apply_scalar_functor( *p0.value.ptr(), inp, SF_MAX, 0.f);
 
             if(r1.need_result){
