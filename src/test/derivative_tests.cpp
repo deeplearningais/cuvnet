@@ -1385,8 +1385,9 @@ BOOST_AUTO_TEST_CASE(derivative_test_subtensor){
 
 BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
     typedef boost::shared_ptr<Op> ptr_t;
+    double epsilon = 1.0;
     {
-       LOG4CXX_WARN(g_log, "concatenate 1");
+       TRACE(g_log, "dim2along1a");
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][3]);
        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8][3]);
        ptr_t func                     = concatenate(inp0, inp1, 1);
@@ -1415,11 +1416,11 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
                 }
             }
         }
-        derivative_tester(*func).test();
+        derivative_tester(*func).epsilon(epsilon).test();
     }
 
     {
-       LOG4CXX_WARN(g_log, "concatenate 2");
+       TRACE(g_log, "dim2along0a");
       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[15][4]);
       boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[15][4]);
       ptr_t func                     = concatenate(inp0, inp1, 0);
@@ -1445,11 +1446,11 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
                }
            }
        }
-       derivative_tester(*func).test();
+       derivative_tester(*func).epsilon(epsilon).test();
     }
 
     {
-       LOG4CXX_WARN(g_log, "concatenate 3");
+       TRACE(g_log, "dim2along1b");
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[8][5]);
        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[8][3]);
        ptr_t func                     = concatenate(inp0, inp1, 1);
@@ -1475,10 +1476,10 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
                 }
             }
         }
-        derivative_tester(*func).test();
+        derivative_tester(*func).epsilon(epsilon).test();
     }
     {
-       LOG4CXX_WARN(g_log, "concatenate 4");
+       TRACE(g_log, "dim2along0b");
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5]);
        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[7][5]);
        ptr_t func                     = concatenate(inp0, inp1, 0);
@@ -1504,13 +1505,13 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
                 }
             }
         }
-        derivative_tester(*func).test();
+        derivative_tester(*func).epsilon(epsilon).test();
     }
 
     // 3 dim case
 
     {
-       LOG4CXX_WARN(g_log, "concatenate 5");
+       TRACE(g_log, "dim3along0a");
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
        ptr_t func                     = concatenate(inp0, inp1, 0);
@@ -1540,10 +1541,10 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
                 }
             }
         }
-        derivative_tester(*func).epsilon(0.1).test();
+        derivative_tester(*func).epsilon(epsilon).test();
     }
     {
-       LOG4CXX_WARN(g_log, "concatenate 6");
+       TRACE(g_log, "dim3along2");
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
        boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
        ptr_t func                     = concatenate(inp0, inp1, 2);
@@ -1554,10 +1555,10 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
        BOOST_CHECK_EQUAL(func->result()->shape.at(1),5);
        BOOST_CHECK_EQUAL(func->result()->shape.at(2),16);
 
-       derivative_tester(*func).epsilon(0.1).test();
+       derivative_tester(*func).epsilon(epsilon).test();
     }
     {
-       LOG4CXX_WARN(g_log, "concatenate 7");
+       TRACE(g_log, "dim3along0b");
       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[6][5][8]);
       boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[4][5][8]);
       ptr_t func                     = concatenate(inp0, inp1, 0);
@@ -1568,7 +1569,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_concatenate){
       BOOST_CHECK_EQUAL(func->result()->shape.at(1),5);
       BOOST_CHECK_EQUAL(func->result()->shape.at(2),8);
 
-      derivative_tester(*func).epsilon(0.1).test();
+      derivative_tester(*func).epsilon(epsilon).test();
     }
 }
 
