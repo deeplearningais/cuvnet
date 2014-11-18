@@ -277,21 +277,25 @@ BOOST_AUTO_TEST_CASE(derivative_test_axpby_broadcast){
 BOOST_AUTO_TEST_CASE(derivative_test_sum_mat_to_vec_squared){
     typedef boost::shared_ptr<Op> ptr_t;
     {
+        TRACE(g_log, "dim1of2");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),0,false,true);
         derivative_tester(*func).test();
     }
     {
+        TRACE(g_log, "dim2of2");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1,false,true);
         derivative_tester(*func).test();
     }
     {
+        TRACE(g_log, "dim3of4");
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4][6]);
        ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),2,false,true);
        derivative_tester(*func).test();
     }
     {
+        TRACE(g_log, "dim2of4");
       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4][6]);
       ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1,false,true);
       derivative_tester(*func).test();
@@ -300,39 +304,46 @@ BOOST_AUTO_TEST_CASE(derivative_test_sum_mat_to_vec_squared){
 BOOST_AUTO_TEST_CASE(derivative_test_sum_mat_to_vec){
     typedef boost::shared_ptr<Op> ptr_t;
     {
+        TRACE(g_log, "dim1of2");
       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
       ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),0);
       derivative_tester(*func).test();
     }
     {
+        TRACE(g_log, "dim2of2");
       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
       ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1);
       derivative_tester(*func).test();
     }
     {
+        TRACE(g_log, "dim2of3");
       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][4][5]);
-      ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1, true, true);
-      derivative_tester(*func).test();
+      ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1, false, false);
+      derivative_tester(*func).only_variant(4).test();
     }
 }
 BOOST_AUTO_TEST_CASE(derivative_test_mean_mat_to_vec_squared){
     typedef boost::shared_ptr<Op> ptr_t;
     {
+        TRACE(g_log, "dim1of2");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),0,true,true);
         derivative_tester(*func).verbose().test();
     }
     {
+        TRACE(g_log, "dim2of2");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1,true,true);
         derivative_tester(*func).verbose().test();
     }
     {
+        TRACE(g_log, "dim3of4");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4][6]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),2,true,true);
         derivative_tester(*func).verbose().test();
     }
     {
+        TRACE(g_log, "dim2of4");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4][6]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1,true,true);
         derivative_tester(*func).verbose().test();
@@ -341,21 +352,25 @@ BOOST_AUTO_TEST_CASE(derivative_test_mean_mat_to_vec_squared){
 BOOST_AUTO_TEST_CASE(derivative_test_mean_mat_to_vec){
     typedef boost::shared_ptr<Op> ptr_t;
     {
+        TRACE(g_log, "dim1of2");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),0,true);
         derivative_tester(*func).test();
     }
     {
+        TRACE(g_log, "dim2of2");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1,true);
         derivative_tester(*func).test();
     }
     {
+        TRACE(g_log, "dim3of4");
        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4][6]);
        ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),2,true);
        derivative_tester(*func).test();
     }
     {
+        TRACE(g_log, "dim2of4");
       boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4][6]);
       ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),1,true);
       derivative_tester(*func).test();
@@ -364,13 +379,13 @@ BOOST_AUTO_TEST_CASE(derivative_test_mean_mat_to_vec){
 BOOST_AUTO_TEST_CASE(derivative_test_sum_mat_to_vec3d){
     typedef boost::shared_ptr<Op> ptr_t;
     {
-        //std::cout << "axis=0" << std::endl;
+        TRACE(g_log, "dim1of3");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),0);
         derivative_tester(*func).test();
     }
     {
-        //std::cout << "axis=1" << std::endl;
+        TRACE(g_log, "dim3of3");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][4]);
         ptr_t func                     = boost::make_shared<SumMatToVec>(inp0->result(),2);
         derivative_tester(*func).test();
@@ -546,19 +561,19 @@ BOOST_AUTO_TEST_CASE(derivative_test_add_to_param){
 BOOST_AUTO_TEST_CASE(derivative_test_softmax){
     typedef boost::shared_ptr<Op> ptr_t;
     {
-        LOG4CXX_WARN(g_log, "  entering case 1");
+        TRACE(g_log, "dim0");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<Softmax>(inp0->result(), 0);
         derivative_tester(*func).full_jacobian().test();
     }
     {
-        LOG4CXX_WARN(g_log, "  entering case 2");
+        TRACE(g_log, "dim1");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
         ptr_t func                     = boost::make_shared<Softmax>(inp0->result(), 1);
         derivative_tester(*func).full_jacobian().test();
     }
     {
-        LOG4CXX_WARN(g_log, "  entering case 3");
+        TRACE(g_log, "dim2of4");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][5][3]);
         ptr_t func                     = boost::make_shared<Softmax>(inp0->result(), 1);
         derivative_tester(*func).full_jacobian().test();
