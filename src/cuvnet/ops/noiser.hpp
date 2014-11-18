@@ -35,11 +35,12 @@ namespace cuvnet
                 bool m_active;
                 bool m_compensate;
                 bool m_mem_optimized;
+                bool m_force_mem_optimized;
                 
                 cuv::tensor<unsigned char,value_type::memory_space_type> m_zero_mask;
 
             public:
-                Noiser():m_mem_optimized(false){} ///< for serialization
+                Noiser():m_force_mem_optimized(false){} ///< for serialization
                 /**
                  * ctor.
                  * @param p0 the data to apply noise to
@@ -53,7 +54,7 @@ namespace cuvnet
                     :Op(1,1), m_param(param), m_noisetype(noise_type), m_active(true), m_compensate(compensate), m_zero_mask(cuvnet::get_global_allocator())
                      {
                          add_param(0,p0);
-                         m_mem_optimized = false;
+                         m_force_mem_optimized = false;
                      }
 
                 /**
@@ -71,7 +72,7 @@ namespace cuvnet
                  * neural network scenarios (dropout!), but other readers of the
                  * value before this Op will get wrong results.
                  */
-                inline void set_mem_optimized(bool b){ m_mem_optimized = b; }
+                inline void set_mem_optimized(bool b){ m_force_mem_optimized = b; }
 
                 /**
                  * tell how much noise is applied
@@ -115,6 +116,7 @@ namespace cuvnet
             public:
                 void fprop();
                 void bprop();
+                void _determine_shapes();
             private:
                 friend class boost::serialization::access;
                 template<class Archive>
@@ -122,7 +124,7 @@ namespace cuvnet
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_param & m_noisetype & m_active & m_compensate;
                         if(version > 0)
-                            ar & m_mem_optimized;
+                            ar & m_force_mem_optimized;
                     }
         };
 }
