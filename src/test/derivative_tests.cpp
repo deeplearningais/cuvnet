@@ -860,6 +860,30 @@ BOOST_AUTO_TEST_CASE(derivative_test_convolve){
 
 
 
+BOOST_AUTO_TEST_CASE(test_derivative_select_entry){
+    typedef boost::shared_ptr<Op> ptr_t;
+
+    boost::shared_ptr<ParameterInput>  mat = boost::make_shared<ParameterInput>(cuv::extents[20][10], "mat");
+    boost::shared_ptr<ParameterInput>  vec = boost::make_shared<ParameterInput>(cuv::extents[20], "vec");
+    vec->set_derivable(false);
+
+    cuv::fill_rnd_uniform(mat->data());
+    for(unsigned int i=0; i< 20; i++){
+        vec->data()[i] = (float)(int)(drand48()*10.0);
+    }
+
+    {
+        ptr_t func   = boost::make_shared<RemoveEntryInEveryRow>(mat->result(), vec->result());
+        derivative_tester dt(*func);
+        dt.precision(0.03).epsilon(1).values(0, 0).full_jacobian().test();
+    }
+    {
+        ptr_t func   = boost::make_shared<SelectEntryInEveryRow>(mat->result(), vec->result());
+        derivative_tester dt(*func);
+        dt.precision(0.03).epsilon(1).values(0, 0).full_jacobian().test();
+    }
+}
+
 void test_derivative_test_tuple_ops(cuv::alex_conv::tuplewise_op_functor to){
     typedef boost::shared_ptr<Op> ptr_t;
 
