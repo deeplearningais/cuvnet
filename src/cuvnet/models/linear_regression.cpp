@@ -18,22 +18,24 @@ namespace cuvnet
         linear_regression::op_ptr linear_regression::loss()const{ return m_loss; }
 
         linear_regression::linear_regression(op_ptr X, op_ptr Y, bool degenerate, bool dropout){
+            m_X = X;
+            m_Y = Y;
+
             if(dropout)
                 X = m_noiser = zero_out(X, 0.5f);
 
             determine_shapes(*Y);
             determine_shapes(*X);
 
-            op_ptr estimator;
             if(!degenerate) {
                 m_W = input(cuv::extents[X->result()->shape[1]][Y->result()->shape[1]]);
                 m_bias = input(cuv::extents[Y->result()->shape[1]]);
-                estimator = mat_plus_vec(prod(X, m_W), m_bias, 1);
+                m_estimator = mat_plus_vec(prod(X, m_W), m_bias, 1);
             }
             else
-                estimator = X;
+                m_estimator = X;
 
-            m_loss = mean(sum_to_vec(square(estimator-Y), 0));
+            m_loss = mean(sum_to_vec(square(m_estimator-Y), 0));
         }
         void linear_regression::set_predict_mode(bool b){
             if(m_noiser)

@@ -42,6 +42,9 @@ namespace cuvnet
             virtual void set_predict_mode(bool b=true);
 
             virtual ~linear_regression(){}
+
+            op_ptr m_estimator, m_Y, m_X;
+
             private:
             friend class boost::serialization::access;                                                                 
             template<class Archive>                                                                                    
@@ -50,9 +53,11 @@ namespace cuvnet
                     ar & m_loss & m_W & m_bias;
                     if(version > 0)
                         ar & m_noiser;
+                    if(version > 1)
+                        ar & m_estimator & m_X & m_Y;
                 };
         };
     }
 }
-BOOST_CLASS_VERSION(cuvnet::models::linear_regression, 1);
+BOOST_CLASS_VERSION(cuvnet::models::linear_regression, 2);
 #endif /* __CUVNET_LINREG_HPP__ */
