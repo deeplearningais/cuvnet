@@ -376,16 +376,20 @@ BOOST_AUTO_TEST_CASE(derivative_test_sum_mat_to_vec3d){
         derivative_tester(*func).test();
     }
 }
-/*
- * // does not make much sense to test this
- *BOOST_AUTO_TEST_CASE(derivative_test_noiser){
- *        cuv::initialize_mersenne_twister_seeds();
- *        typedef boost::shared_ptr<Op> ptr_t;
- *    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5]);
- *    ptr_t func                     = boost::make_shared<Noiser>(inp0->result());
- *    derivative_tester(*func).test();
- *}
- */
+BOOST_AUTO_TEST_CASE(derivative_test_noiser_dropout){
+        cuv::initialize_mersenne_twister_seeds(12);
+        typedef boost::shared_ptr<Noiser> ptr_t;
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[6]);
+        for(int compensate=0; compensate<2; compensate++){
+            ptr_t func                     = boost::make_shared<Noiser>(inp0->result(), 0.5, Noiser::NT_ZERO_OUT, compensate);
+            LOG4CXX_WARN(g_log, "active: false" << "compensate: " << compensate);
+            func->set_active(false);
+            derivative_tester(*func).epsilon(1.).test();
+            LOG4CXX_WARN(g_log, "active: true" << "compensate: " << compensate);
+            func->set_active(true);
+            derivative_tester(*func).epsilon(1.).test();
+        }
+}
 BOOST_AUTO_TEST_CASE(derivative_test_sum){
     typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[2][2]);
