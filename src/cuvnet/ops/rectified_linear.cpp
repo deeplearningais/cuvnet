@@ -77,10 +77,19 @@ namespace cuvnet
         r0.delta.reset();
     }
 
-    void RectifiedLinear::_determine_shape(){
+    void RectifiedLinear::_determine_shapes(){
         param_t::element_type& p0  = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
         result_t::element_type& r1 = *m_results[1];
+
+        m_mem_optimized = false;
+        if(p0.n_uses() == 1){
+            if(p0.use(0)->m_single_result != p0.use(0)->result_uses.end())
+                m_mem_optimized = false;
+        }
+        if(m_force_mem_optimized)
+            m_mem_optimized = true;
+        
         r0.shape = p0.shape;
         r1.shape = p0.shape;
     }
