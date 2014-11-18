@@ -13,14 +13,12 @@ namespace cuvnet
             cuv::matrix_op_vec(*r0.overwrite_or_add_value(),*r0.overwrite_or_add_value(), p1.value.cdata(), m_axis, BF_ADD);
         }
         else if(r0.can_add_directly()){
-            *r0.overwrite_or_add_value() += p0.value.cdata();
-            cuv::matrix_op_vec(*r0.overwrite_or_add_value(),*r0.overwrite_or_add_value(), p1.value.cdata(), m_axis, BF_ADD, 1.f, 1.f);
+            cuv::matrix_op_vec(*r0.overwrite_or_add_value(),p0.value.cdata(), p1.value.cdata(), m_axis, BF_ADD, 1.f, 0.f);
         }else{
             // reallocate *sigh*
-            value_ptr v = p0.value;
-            p0.value.reset(); // try to overwrite p0
-            cuv::matrix_op_vec(*v,*v, p1.value.cdata(), m_axis, BF_ADD);
-            r0.push(v);
+            const value_type& v = p0.value.cdata();
+            cuv::matrix_op_vec(p0.value.data_onlyshape(),v, p1.value.cdata(), m_axis, BF_ADD);
+            r0.push(p0.value);
         }
         p0.value.reset();
         p1.value.reset();
