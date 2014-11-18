@@ -44,7 +44,7 @@ namespace cuvnet
             m_loss = mean(
                     multinomial_logistic_loss(
                         m_estimator, Y, 1));
-            m_classloss = classification_loss(m_estimator, Y);
+            m_classloss = classification_loss(m_estimator, Y, 0); // 1: labels are in 2nd dimension
         }
 
         logistic_regression::logistic_regression(op_ptr X, op_ptr Y, int n_classes, double dropout_rate){
