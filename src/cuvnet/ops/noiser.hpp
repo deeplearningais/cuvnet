@@ -53,6 +53,7 @@ namespace cuvnet
                     :Op(1,1), m_param(param), m_noisetype(noise_type), m_active(true), m_compensate(compensate), m_zero_mask(cuvnet::get_global_allocator())
                      {
                          add_param(0,p0);
+                         m_mem_optimized = false;
                      }
 
                 /**
