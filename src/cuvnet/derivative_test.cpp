@@ -112,7 +112,9 @@ namespace cuvnet{ namespace derivative_testing {
             apply_scalar_functor(rdiff, SF_ABS);
             double fprop_error = maximum(rdiff);
             if(fprop_error > epsilon){
-                LOG4CXX_ERROR(g_enslog, " fprop error greater epsilon: "<< fprop_error);
+                LOG4CXX_ERROR(g_enslog, " fprop error greater epsilon: "<< fprop_error << ".  Writing two results to r0.npy and r1.npy.");
+                tofile("r0.npy", r0);
+                tofile("r1.npy", r1);
             }
 
             BOOST_CHECK_LT(fprop_error, epsilon);
