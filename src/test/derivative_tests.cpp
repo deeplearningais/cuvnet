@@ -183,14 +183,14 @@ BOOST_AUTO_TEST_CASE(derivative_test_subtract_from_scalar){
 BOOST_AUTO_TEST_CASE(derivative_test_rectified_linear){
     typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
-    ptr_t func                    = boost::make_shared<RectifiedLinear>(inp->result());
+    float epsilon = 1.0;
+    for(unsigned int memopt=0; memopt<2; memopt++)
     {
-        derivative_tester(*func).test();
-
-    }
-    {
-        ptr_t f2 = boost::make_shared<Axpby>(func->result(0),func->result(1));
-        derivative_tester(*f2).test();
+        ptr_t func                    = boost::make_shared<RectifiedLinear>(inp->result(), memopt);
+        LOG4CXX_WARN(g_log, "memopt:"<<memopt<<" positive");
+        derivative_tester(*func).epsilon(epsilon).values(epsilon,2.*epsilon).test();
+        LOG4CXX_WARN(g_log, "memopt:"<<memopt<<" negative");
+        derivative_tester(*func).full_jacobian().epsilon(epsilon).values(-3.*epsilon,-2*epsilon).only_variant(1).test();
     }
 }
 
