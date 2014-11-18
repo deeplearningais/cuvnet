@@ -390,6 +390,25 @@ BOOST_AUTO_TEST_CASE(derivative_test_noiser_dropout){
             derivative_tester(*func).epsilon(1.).test();
         }
 }
+BOOST_AUTO_TEST_CASE(derivative_test_noiser_salt_and_pepper){
+        cuv::initialize_mersenne_twister_seeds();
+        typedef boost::shared_ptr<Op> ptr_t;
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5]);
+        inp0->set_derivable(false); // this function does not implement bprop
+        {
+            ptr_t func                     = boost::make_shared<Noiser>(inp0->result(), 0.5, Noiser::NT_SALT_AND_PEPPER, false);
+            derivative_tester(*func).epsilon(1).test();
+        }
+}
+BOOST_AUTO_TEST_CASE(derivative_test_noiser_normal){
+        cuv::initialize_mersenne_twister_seeds();
+        typedef boost::shared_ptr<Op> ptr_t;
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5]);
+        {
+            ptr_t func                     = boost::make_shared<Noiser>(inp0->result(), 0.5, Noiser::NT_NORMAL, false);
+            derivative_tester(*func).epsilon(1).test();
+        }
+}
 BOOST_AUTO_TEST_CASE(derivative_test_sum){
     typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[2][2]);
