@@ -156,15 +156,21 @@ namespace cuvnet
                 // TODO: add masks for binary ops to CUV
                 value_type& d_res = r0.delta.data_onlyshape();
                 cuv::apply_scalar_functor(d_res,d_orig,SF_MULT,0.f,&m_zero_mask);
+                if(m_compensate)
+                    d_res *= 1.f/(1.f - m_param); 
                 p0.overwrite_or_add_value().data() += d_res;
             }else if(p0.can_overwrite_directly()){
                 value_type& dst = *p0.overwrite_or_add_value();
                 cuv::apply_scalar_functor(dst,d_orig,SF_COPY);
                 cuv::apply_scalar_functor(dst,SF_MULT,0.f,&m_zero_mask);
+                if(m_compensate)
+                    dst *= 1.f/(1.f - m_param); 
             }else{
                 // try to overwrite r0.delta
                 value_type& d_res = r0.delta.data(); // COPY if not unique!
                 cuv::apply_scalar_functor(d_res,d_orig,SF_MULT,0.f,&m_zero_mask);
+                if(m_compensate)
+                    d_res *= 1.f/(1.f - m_param); 
                 p0.push(r0.delta);
             }
         }
