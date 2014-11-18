@@ -83,10 +83,11 @@ namespace cuvnet
      * @param W weight matrix to be adjusted
      * @param axis the axis to be adjusted
      * @param thresh size of the ball
-     * @param logspace ( weights are in logspace => expf(w) i projected
+     * @param logspace weights are in logspace => expf(w) i projected
+     * @param surface if true, project to surface of ball, not inside ball
      */
     template<class M>
-        void project_on_unit_ball(cuv::tensor<float, M>& W, int axis, float thresh, bool logspace){
+        void project_on_unit_ball(cuv::tensor<float, M>& W, int axis, float thresh, bool logspace, bool surface=false){
             cuv::tensor<float, M> C = W;
 
             if(axis < 0)
@@ -122,10 +123,17 @@ namespace cuvnet
             if(axis == 1)     { cuv::reduce_to_row(ax, C, cuv::RF_ADD_SQUARED); }
             else if(axis == 0){ cuv::reduce_to_col(ax, C, cuv::RF_ADD_SQUARED); }
 
+            cuv::tensor<unsigned char, M> over_thresh(ax_shape);
+            cuv::apply_scalar_functor(over_thresh, ax, cuv::SF_GT, thresh * thresh);
             cuv::apply_scalar_functor(ax, cuv::SF_SQRT);
-
-            if(thresh != 1.f)
+            if(!surface){
+                cuv::apply_scalar_functor(ax, cuv::SF_MULT, 1.f / thresh);      // ax[over_thresh] *= 1/thresh
+                over_thresh = !over_thresh;    // 
+                cuv::apply_scalar_functor(ax, cuv::SF_MULT, 0.f, &over_thresh); // ax[!over_thresh] = 0
+                cuv::apply_scalar_functor(ax, cuv::SF_ADD , 1.f, &over_thresh); // ax[!over_thresh] += 1
+            }else if(thresh != 1.f){
                 cuv::apply_scalar_functor(ax, cuv::SF_MULT, 1.f / thresh); // ax[over_thresh] *= 1/thresh
+            }
 
             if(axis == 1)     { cuv::matrix_divide_row(C, ax); }
             else if(axis == 0){ cuv::matrix_divide_col(C, ax); }
