@@ -232,7 +232,7 @@ namespace cuvnet{ namespace derivative_testing {
                             std::mem_fun( &ParameterInput::derivable ),
                             ptr_caster<Op,ParameterInput>()))
                     );
-            BOOST_CHECK(m_derivable_params.size() > 0);
+            //BOOST_CHECK(m_derivable_params.size() > 0);
         }
 
         void derivative_tester::test() {
