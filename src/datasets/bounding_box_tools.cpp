@@ -99,6 +99,7 @@ namespace cuvnet { namespace bbtools {
         int w = pos.xmax - pos.xmin;
         int h = pos.ymax - pos.ymin;
 
+#if 0
         // define square in the center, of which we'll pick the fraction
         int sq_size = std::min(w, h);
         int sq_xoff = w/2 - sq_size/2;
@@ -111,6 +112,17 @@ namespace cuvnet { namespace bbtools {
         pos.xmax = pos.xmin + small_sq_size;
         pos.ymin += sq_yoff + rnd_yoff;
         pos.ymax = pos.ymin + small_sq_size;
+#else
+        int sq_size = std::min(w, h);
+        int small_sq_size = frac * sq_size;
+
+        int rnd_xoff = drand48() * (w - small_sq_size);
+        int rnd_yoff = drand48() * (h - small_sq_size);
+        pos.xmin += rnd_xoff;
+        pos.xmax = pos.xmin + small_sq_size;
+        pos.ymin += rnd_yoff;
+        pos.ymax = pos.ymin + small_sq_size;
+#endif
         return *this;
     }
 
