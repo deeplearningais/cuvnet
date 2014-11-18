@@ -405,6 +405,13 @@ namespace cuvnet
             return snk;
         }
     /// @}
+    
+    /// remove one entry per row (useful for crammer-singer loss)
+    inline Op::op_ptr
+        remove_entry_per_row(Op::op_ptr mat, Op::op_ptr idx){ return boost::make_shared<RemoveEntryInEveryRow>(mat->result(), idx->result());}
+    /// select one entry per row (useful for crammer-singer loss)
+    inline Op::op_ptr
+        select_entry_per_row(Op::op_ptr mat, Op::op_ptr idx){ return boost::make_shared<SelectEntryInEveryRow>(mat->result(), idx->result());}
 
     /// annotate the given operator with a label
     inline

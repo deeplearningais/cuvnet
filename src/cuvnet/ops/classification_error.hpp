@@ -74,6 +74,86 @@ namespace cuvnet
         };
 
     /**
+     * \brief in every row, remove specified entry.
+     * 
+     * This is helpful e.g. for implementing Crammer-Singer SVM.
+     */
+    class RemoveEntryInEveryRow
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            public:
+                RemoveEntryInEveryRow():Op(2,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 matrix
+                 * @param p1 vector with one entry per row
+                 */
+                RemoveEntryInEveryRow(result_t& p0, result_t& p1)
+                    :Op(2,1)
+                {
+                         add_param(0,p0);
+                         add_param(1,p1);
+                }
+
+                void fprop();
+                void bprop();
+                void _determine_shapes();
+            private:
+                std::vector<std::pair<int,int> > m_confusion;
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                    }
+        };
+
+    /**
+     * \brief in every row, select specified entry.
+     * 
+     * results in a vector.
+     * 
+     * This is helpful e.g. for implementing Crammer-Singer SVM.
+     */
+    class SelectEntryInEveryRow
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            public:
+                SelectEntryInEveryRow():Op(2,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param p0 matrix
+                 * @param p1 vector with one entry per row
+                 */
+                SelectEntryInEveryRow(result_t& p0, result_t& p1)
+                    :Op(2,1)
+                {
+                         add_param(0,p0);
+                         add_param(1,p1);
+                }
+
+                void fprop();
+                void bprop();
+                void _determine_shapes();
+            private:
+                std::vector<std::pair<int,int> > m_confusion;
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                    }
+        };
+
+    /**
      * \brief calculates the F2-measure for binary classification problems
      *
      * @note there is no derivative for defined for this operator. 

@@ -211,4 +211,94 @@ namespace cuvnet
     void F2Measure::_graphviz_node_desc(detail::graphviz_node& desc)const{
         desc.label = "F2Measure";
     }
+
+    void RemoveEntryInEveryRow::fprop(){
+        param_t::element_type&  p0 = *m_params[0];
+        param_t::element_type&  p1 = *m_params[1];
+        result_t::element_type& r0 = *m_results[0];
+
+        host_matrix h(r0.shape);
+        h = 0.f;
+        matrix p0h = p0.value.cdata();
+        for(unsigned int i=0; i<p0h.shape(0); i++)
+        {
+            unsigned int k = p1.value.cdata()[i];
+            assert(k < p0h.shape(1));
+            if(k>0)
+                h[cuv::indices[i][cuv::index_range(0,k)]] = p0h[cuv::indices[i][cuv::index_range(0,k)]];
+            if(k<r0.shape[1])
+                h[cuv::indices[i][cuv::index_range().start(k)]] = p0h[cuv::indices[i][cuv::index_range().start(k+1)]];
+        }
+        r0.push(value_ptr(new value_type(h)));
+        p0.value.reset();
+    }
+    void RemoveEntryInEveryRow::bprop(){
+        param_t::element_type&  p0 = *m_params[0];
+        param_t::element_type&  p1 = *m_params[1];
+        result_t::element_type& r0 = *m_results[0];
+
+        matrix h(p0.shape);
+        h = 0.f;
+        host_matrix r0h = r0.delta.cdata();
+        for(unsigned int i=0; i<r0h.shape(0); i++)
+        {
+            unsigned int k = p1.value.cdata()[i];
+            assert(k <= r0h.shape(1));
+            if(k>0)
+                h[cuv::indices[i][cuv::index_range(0,k)]] = r0h[cuv::indices[i][cuv::index_range(0,k)]];
+            if(k<r0.shape[1])
+                h[cuv::indices[i][cuv::index_range().start(k+1)]] = r0h[cuv::indices[i][cuv::index_range().start(k)]];
+        }
+        p0.push(value_ptr(new value_type(h)));
+        r0.delta.reset();
+    }
+    void RemoveEntryInEveryRow::_determine_shapes(){
+        param_t::element_type&  p0 = *m_params[0];
+        result_t::element_type& r0 = *m_results[0];
+        std::vector<unsigned int> shape = p0.shape;
+        shape[1] -= 1;
+        r0.shape = shape;
+    }
+
+    void SelectEntryInEveryRow::fprop(){
+        param_t::element_type&  p0 = *m_params[0];
+        param_t::element_type&  p1 = *m_params[1];
+        result_t::element_type& r0 = *m_results[0];
+
+        host_matrix h(r0.shape);
+        h = 0.f;
+        host_matrix p0h = p0.value.cdata();
+        for(unsigned int i=0; i<p0h.shape(0); i++)
+        {
+            int k = p1.value.cdata()[i];
+            assert(k < p0h.shape(1));
+            h[i] = p0h(i,k);
+        }
+        r0.push(value_ptr(new value_type(h)));
+        p0.value.reset();
+    }
+    void SelectEntryInEveryRow::bprop(){
+        param_t::element_type&  p0 = *m_params[0];
+        param_t::element_type&  p1 = *m_params[1];
+        result_t::element_type& r0 = *m_results[0];
+
+        host_matrix h(p0.shape);
+        h = 0.f;
+        host_matrix r0h = r0.delta.cdata();
+        for(unsigned int i=0; i<r0h.shape(0); i++)
+        {
+            int k = p1.value.cdata()[i];
+            assert(k < h.shape(1));
+            h(i, k) = r0h(i);
+        }
+        p0.push(value_ptr(new value_type(h)));
+        r0.delta.reset();
+    }
+    void SelectEntryInEveryRow::_determine_shapes(){
+        param_t::element_type&  p0 = *m_params[0];
+        result_t::element_type& r0 = *m_results[0];
+        std::vector<unsigned int> shape = p0.shape;
+        shape.pop_back();
+        r0.shape = shape;
+    }
 }
