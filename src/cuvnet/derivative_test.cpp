@@ -18,6 +18,43 @@ namespace {
 
 namespace cuvnet{ namespace derivative_testing {
 
+    void initialize_inputs(param_collector_visitor& pcv, float minv, float maxv, bool spread, std::string spread_filter){
+        // fill all params with random numbers
+        BOOST_FOREACH(Op* raw, pcv.plist){
+            ParameterInput* param = dynamic_cast<ParameterInput*>(raw);
+            if(spread){
+                bool matches = true;
+                if(spread_filter.size()){
+                    boost::regex e(spread_filter);
+                    if(!boost::regex_match(param->name(), e))
+                        matches = false;
+                }
+                if(matches){
+                    if(maxv != minv){
+                        cuv::tensor<float, cuv::host_memory_space> t = param->data();
+                        cuv::sequence(t);
+                        std::random_shuffle(t.ptr(), t.ptr() + t.size());
+                        t /= (float) t.size();
+                        t *= maxv-minv;
+                        t += minv;
+                        param->data() = t;
+                    }
+                    continue;
+                }
+            }
+
+            BOOST_CHECK(param!=NULL);
+            if(maxv>minv){
+                cuv::fill_rnd_uniform(param->data());
+                param->data() *= (float)(maxv-minv);
+                param->data() += (float)(minv);
+            }else{
+                // assume params are initialized already
+            }
+        }
+    }
+
+
     std::vector<std::pair<std::string, cuv::tensor<float, cuv::host_memory_space> > >
         all_outcomes(boost::shared_ptr<Op> op){
             std::vector<std::pair<std::string, cuv::tensor<float, cuv::host_memory_space> > > results;
@@ -43,16 +80,22 @@ namespace cuvnet{ namespace derivative_testing {
             return results;
         }
 
-    void ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params, bool verbose){
+    void derivative_tester::ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params, bool verbose, int seed){
         double epsilon = 0.00000001;
+        param_collector_visitor pcv;
+        out->visit(pcv);
         { TRACE(g_enslog, "fprop");
             using namespace cuv;
             {
+                cuv::initialize_mersenne_twister_seeds(seed);
+                initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
                 TRACE(g_enslog, "A");
                 swp.fprop();
             }
             tensor<float,host_memory_space> r0 = out->cdata().copy();
             {
+                cuv::initialize_mersenne_twister_seeds(seed);
+                initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
                 TRACE(g_enslog, "B");
                 swp.fprop();
             }
@@ -81,11 +124,15 @@ namespace cuvnet{ namespace derivative_testing {
             TRACE(g_log, "param_" + pi->name())
             BOOST_CHECK(pi != NULL);
             pi->reset_delta();
+            cuv::initialize_mersenne_twister_seeds(seed);
+            initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
             swp.fprop();
             swp.bprop();
             BOOST_CHECK(pi->data().shape() == pi->delta().shape());
             tensor<float,host_memory_space> r0 = pi->delta().copy();
             pi->reset_delta();
+            cuv::initialize_mersenne_twister_seeds(seed);
+            initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
             swp.fprop();
             swp.bprop();
             tensor<float,host_memory_space> r1 = pi->delta().copy();
@@ -156,46 +203,6 @@ namespace cuvnet{ namespace derivative_testing {
             ResultType* operator()(ArgumentType*s)const{ return (ResultType*)s; }
         };
 
-        void initialize_inputs(param_collector_visitor& pcv, float minv, float maxv, bool spread, std::string spread_filter){
-            // fill all params with random numbers
-            BOOST_FOREACH(Op* raw, pcv.plist){
-                ParameterInput* param = dynamic_cast<ParameterInput*>(raw);
-                if(spread){
-                    bool matches = true;
-                    if(spread_filter.size()){
-                        boost::regex e(spread_filter);
-                        if(!boost::regex_match(param->name(), e))
-                            matches = false;
-                    }
-                    if(matches){
-                        if(maxv != minv){
-                            cuv::tensor<float, cuv::host_memory_space> t = param->data();
-                            cuv::sequence(t);
-                            std::random_shuffle(t.ptr(), t.ptr() + t.size());
-                            t /= (float) t.size();
-                            t *= maxv-minv;
-                            t += minv;
-                            param->data() = t;
-                        }
-                        continue;
-                    }
-                }
-
-                BOOST_CHECK(param!=NULL);
-                for (unsigned int i = 0; i < param->data().size(); ++i)
-                {
-                    //param->data()[i] = 2.f;
-                    if(maxv>minv){
-                        param->data()[i] = (float)((maxv-minv)*drand48()+minv);
-                    }else if(maxv==minv){
-                        // assume params are initialized already
-                    }else{
-                        param->data()[i] = (float)(0.1f + 0.9f*drand48()) * (drand48()<.5?-1.f:1.f); // avoid values around 0
-                    }
-                }
-            }
-        }
-
         derivative_tester::derivative_tester(Op& op)
             :m_op(op)
             ,m_result(0)
@@ -207,6 +214,7 @@ namespace cuvnet{ namespace derivative_testing {
             ,m_simple_and_fast(true)
             ,m_variant_filter(~0)
             ,m_epsilon(0.001)
+            ,m_seed(12)
         {
             // tell that we want derivative w.r.t. all params
             param_collector_visitor pcv;
@@ -243,6 +251,7 @@ namespace cuvnet{ namespace derivative_testing {
                     boost::shared_ptr<Op> func = boost::make_shared<Sum>(m_op.result(m_result));
                     func = label("variant_plain", func);
                     test_all(*func, 0, m_derivable_params, m_prec * factor, m_minv, m_maxv, m_spread, m_epsilon);
+                    func->detach_from_params();
                 }
             }
             if(m_variant_filter & 2){
@@ -256,6 +265,7 @@ namespace cuvnet{ namespace derivative_testing {
                 add_to_param(func2, otherin);
                 func2 = label("variant_a", func2);
                 test_all(*func2, 0, m_derivable_params, m_prec, m_minv, m_maxv, m_spread, m_epsilon);
+                func2->detach_from_params();
             }
             if(m_variant_filter & 4){
                 TRACE(g_log, "variant_b");
@@ -268,6 +278,7 @@ namespace cuvnet{ namespace derivative_testing {
                 add_to_param(func, m_op.shared_from_this());
                 func = label("variant_b", func);
                 test_all(*func, 0, m_derivable_params, m_prec, m_minv, m_maxv, m_spread, m_epsilon);
+                func->detach_from_params();
             }
             if(m_variant_filter & 8){
                 TRACE(g_log, "variant_c");
@@ -285,8 +296,12 @@ namespace cuvnet{ namespace derivative_testing {
 
                 func3 = label("variant_c", func3);
                 test_all(*func3, 0, m_derivable_params, m_prec, m_minv, m_maxv, m_spread, m_epsilon);
+                func1->detach_from_params();
+                func2->detach_from_params();
+                func3->detach_from_params();
             }
             if(m_variant_filter & 16){
+                //m_op.detach_from_results();
                 param_collector_visitor pcv;
                 m_op.visit(pcv);
                 BOOST_CHECK(pcv.plist.size()>0);
@@ -320,13 +335,14 @@ namespace cuvnet{ namespace derivative_testing {
 
             param_collector_visitor pcv;
             op.visit(pcv);
-            initialize_inputs(pcv, minv, maxv, spread, m_spread_filter);
             {
                 if(m_verbose)
                     LOG4CXX_INFO(g_log, "  -ensuring function is stateless");
                 boost::shared_ptr<Op> p = op.shared_from_this();
-                ensure_no_state(out_op, swipe, derivable_params, m_verbose);
+                ensure_no_state(out_op, swipe, derivable_params, m_verbose, m_seed);
             }
+            cuv::initialize_mersenne_twister_seeds(m_seed);
+            initialize_inputs(pcv, minv, maxv, spread, m_spread_filter);
 
 
             //BOOST_FOREACH(Op* raw, m_derivable_params){
@@ -340,6 +356,7 @@ namespace cuvnet{ namespace derivative_testing {
                 }
                 std::swap(derivable_params[i], derivable_params[0]);
                 
+                initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
                 //ParameterInput* pi = dynamic_cast<ParameterInput*>(raw);
                 //BOOST_CHECK(pi != NULL);
                 test_wrt(op, result, derivable_params, raw, prec, epsilon);
@@ -352,6 +369,7 @@ namespace cuvnet{ namespace derivative_testing {
             boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op.result(result));
             
             ParameterInput* param = dynamic_cast<ParameterInput*>(raw);
+            host_matrix original_input = param->data();
             
             swiper swipe(op, result, derivable_params);
             swipe.dump("derivative_tester_wrt_"+param->name()+".dot", true);
@@ -369,6 +387,8 @@ namespace cuvnet{ namespace derivative_testing {
                 LOG4CXX_INFO(g_log, "   Jacobi dims: "<<n_outputs<<" x "<<n_inputs);
             }
             for(unsigned int out=0;out<n_outputs;out++){
+                cuv::initialize_mersenne_twister_seeds(m_seed);
+                param->data() = original_input.copy();
                 swipe.fprop();
                 cuvAssert(!cuv::has_nan(out_op->cdata()));
                 cuvAssert(!cuv::has_inf(out_op->cdata()));
@@ -387,11 +407,14 @@ namespace cuvnet{ namespace derivative_testing {
 
             matrix J_(n_inputs,n_outputs); J_ = 0.f;
             for (unsigned int in = 0; in < n_inputs; ++in) {
+                param->data() = original_input.copy();
                 float v = param->data()[in];
                 param->data()[in] = (float)((double)v + eps);
+                cuv::initialize_mersenne_twister_seeds(m_seed);
                 swipe.fprop();
                 matrix o_plus     = out_op->cdata().copy();
                 param->data()[in] = (float)((double)v - eps);
+                cuv::initialize_mersenne_twister_seeds(m_seed);
                 swipe.fprop();
                 matrix o_minus    = out_op->cdata().copy();
                 param->data()[in] = v;

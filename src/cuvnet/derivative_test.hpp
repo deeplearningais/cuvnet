@@ -19,13 +19,6 @@ namespace cuvnet
         unsigned int prod(const std::vector<unsigned int>& v);
 
         /**
-         * ensure that a function does not have a state
-         * by executing it twice in succession
-         * and checking whether results are equal.
-         */
-        void ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params);
-
-        /**
          * determine output and all derivatives of an op, for comparison with another configuration.
          */
         std::vector<std::pair<std::string, cuv::tensor<float, cuv::host_memory_space> > >
@@ -56,7 +49,9 @@ namespace cuvnet
                 unsigned int m_variant_filter;
                 std::string m_parameter_filter;
                 double m_epsilon;
+                int m_seed;
 
+                inline derivative_tester& seed(int seed){m_seed = seed; return *this;}
                 inline derivative_tester& precision(double d){m_prec = d; return *this;}
                 inline derivative_tester& epsilon(double d){m_epsilon = d; return *this;}
                 inline derivative_tester& result(int i){m_result = i; return *this;}
@@ -70,8 +65,16 @@ namespace cuvnet
 
                 derivative_tester(Op& op);
                 void test();
-                
+
             private:
+
+                /**
+                 * ensure that a function does not have a state
+                 * by executing it twice in succession
+                 * and checking whether results are equal.
+                 */
+                void ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params, bool verbose, int seed);
+                
 
                 // calls derivative_test_wrt
                 void test_all(Op& op, int result, std::vector<Op*>& derivable_params, double prec, float minv, float maxv, bool spread, double epsilon);
