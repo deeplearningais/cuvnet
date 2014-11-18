@@ -9,7 +9,7 @@ namespace cuvnet
         }
         if(m_axis == 0)
             desc.label = "reduce..col";
-        else if(m_axis == 1)
+        else if(m_axis == m_params[0]->shape.size()-1)
             desc.label = "reduce..row";
         else 
             desc.label = "reduce.." + boost::lexical_cast<std::string>(m_axis);
