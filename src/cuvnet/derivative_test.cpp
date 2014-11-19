@@ -94,14 +94,18 @@ namespace cuvnet{ namespace derivative_testing {
             using namespace cuv;
             tensor<float,host_memory_space> r0, r1;
             {
-                cuv::initialize_mersenne_twister_seeds(seed);
-                initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
+                if(m_reinit) {
+                    cuv::initialize_mersenne_twister_seeds(seed);
+                    initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
+                }
                 TRACE(g_enslog, "A");
                 r0 = func.evaluate(true);
             }
             {
-                cuv::initialize_mersenne_twister_seeds(seed);
-                initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
+                if(m_reinit) {
+                    cuv::initialize_mersenne_twister_seeds(seed);
+                    initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
+                }
                 TRACE(g_enslog, "B");
                 r1 = func.evaluate(false);
             }
@@ -132,15 +136,19 @@ namespace cuvnet{ namespace derivative_testing {
             TRACE(g_log, "param_" + pi->name())
             BOOST_CHECK(pi != NULL);
             pi->reset_delta();
-            cuv::initialize_mersenne_twister_seeds(seed);
-            initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
+            if(m_reinit){
+                cuv::initialize_mersenne_twister_seeds(seed);
+                initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
+            }
             swp.fprop();
             swp.bprop();
             BOOST_CHECK(pi->data().shape() == pi->delta().shape());
             tensor<float,host_memory_space> r0 = pi->delta().copy();
             pi->reset_delta();
-            cuv::initialize_mersenne_twister_seeds(seed);
-            initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
+            if(m_reinit){
+                cuv::initialize_mersenne_twister_seeds(seed);
+                initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
+            }
             swp.fprop();
             swp.bprop();
             tensor<float,host_memory_space> r1 = pi->delta().copy();
@@ -223,6 +231,7 @@ namespace cuvnet{ namespace derivative_testing {
             ,m_variant_filter(~0)
             ,m_epsilon(0.001)
             ,m_seed(12)
+            ,m_reinit(false)
         {
             // tell that we want derivative w.r.t. all params
             param_collector_visitor pcv;

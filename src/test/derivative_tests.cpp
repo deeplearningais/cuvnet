@@ -146,7 +146,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_tanh){
     typedef boost::shared_ptr<Op> ptr_t;
     boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[3][5]);
     ptr_t func                    = boost::make_shared<Tanh>(inp->result());
-    derivative_tester(*func).test();
+    derivative_tester(*func).verbose().test();
 }
 BOOST_AUTO_TEST_CASE(derivative_test_sin){
     typedef boost::shared_ptr<Op> ptr_t;
@@ -188,9 +188,9 @@ BOOST_AUTO_TEST_CASE(derivative_test_rectified_linear){
     {
         ptr_t func                    = boost::make_shared<RectifiedLinear>(inp->result(), memopt);
         LOG4CXX_WARN(g_log, "memopt:"<<memopt<<" positive");
-        derivative_tester(*func).epsilon(epsilon).values(epsilon,2.*epsilon).test();
+        derivative_tester(*func).epsilon(epsilon).values(epsilon,2.*epsilon).reinit(memopt).test();
         LOG4CXX_WARN(g_log, "memopt:"<<memopt<<" negative");
-        derivative_tester(*func).full_jacobian().epsilon(epsilon).values(-3.*epsilon,-2*epsilon).only_variant(1).test();
+        derivative_tester(*func).full_jacobian().epsilon(epsilon).values(-3.*epsilon,-2*epsilon).only_variant(1).reinit(memopt).test();
     }
 }
 
@@ -399,10 +399,10 @@ BOOST_AUTO_TEST_CASE(derivative_test_noiser_dropout){
             ptr_t func                     = boost::make_shared<Noiser>(inp0->result(), 0.5, Noiser::NT_ZERO_OUT, compensate);
             LOG4CXX_WARN(g_log, "active: false" << "compensate: " << compensate);
             func->set_active(false);
-            derivative_tester(*func).epsilon(1.).test();
+            derivative_tester(*func).epsilon(1.).reinit(true).test();
             LOG4CXX_WARN(g_log, "active: true" << "compensate: " << compensate);
             func->set_active(true);
-            derivative_tester(*func).epsilon(1.).test();
+            derivative_tester(*func).epsilon(1.).reinit(true).test();
         }
 }
 BOOST_AUTO_TEST_CASE(derivative_test_noiser_salt_and_pepper){
@@ -412,7 +412,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_noiser_salt_and_pepper){
         inp0->set_derivable(false); // this function does not implement bprop
         {
             ptr_t func                     = boost::make_shared<Noiser>(inp0->result(), 0.5, Noiser::NT_SALT_AND_PEPPER, false);
-            derivative_tester(*func).epsilon(1).test();
+            derivative_tester(*func).epsilon(1).reinit(true).test();
         }
 }
 BOOST_AUTO_TEST_CASE(derivative_test_noiser_normal){
@@ -421,7 +421,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_noiser_normal){
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[4][5]);
         {
             ptr_t func                     = boost::make_shared<Noiser>(inp0->result(), 0.5, Noiser::NT_NORMAL, false);
-            derivative_tester(*func).epsilon(1).test();
+            derivative_tester(*func).epsilon(1).reinit(true).test();
         }
 }
 BOOST_AUTO_TEST_CASE(derivative_test_sum){

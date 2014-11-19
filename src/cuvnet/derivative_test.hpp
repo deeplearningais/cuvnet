@@ -50,6 +50,7 @@ namespace cuvnet
                 std::string m_parameter_filter;
                 double m_epsilon;
                 int m_seed;
+                bool m_reinit; ///< useful if testing ops which change their inputs (for speed optimizations)
 
                 inline derivative_tester& seed(int seed){m_seed = seed; return *this;}
                 inline derivative_tester& precision(double d){m_prec = d; return *this;}
@@ -62,6 +63,7 @@ namespace cuvnet
                 inline derivative_tester& only_variant(int filter){m_variant_filter = filter; return *this;}
                 inline derivative_tester& without_variant(int filter){m_variant_filter &= ~filter; return *this;}
                 inline derivative_tester& spread_values(bool b=true, std::string filter=""){m_spread = b; m_spread_filter=filter; return *this;}
+                inline derivative_tester& reinit(bool b=true){m_reinit = b; return *this;}
 
                 derivative_tester(Op& op);
                 void test();
