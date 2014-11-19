@@ -58,7 +58,7 @@ namespace cuvnet{ namespace derivative_testing {
     std::vector<std::pair<std::string, cuv::tensor<float, cuv::host_memory_space> > >
         all_outcomes(boost::shared_ptr<Op> op){
             std::vector<std::pair<std::string, cuv::tensor<float, cuv::host_memory_space> > > results;
-            cuvnet::function f(op, 0);
+            cuvnet::function f(op, 0, "allout");
             cuv::tensor<float, cuv::host_memory_space> hr(f.evaluate());
             results.push_back(std::make_pair("output", hr));
             param_collector_visitor pcv;
@@ -368,7 +368,7 @@ namespace cuvnet{ namespace derivative_testing {
         }
         
         void derivative_tester::test_wrt(Op& op, int result, std::vector<Op*>& derivable_params, Op* raw, double prec, double eps){
-            boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op.result(result));
+            boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>("testwrt", op.result(result));
             
             ParameterInput* param = dynamic_cast<ParameterInput*>(raw);
             host_matrix original_input = param->data();
