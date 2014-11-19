@@ -79,8 +79,9 @@ namespace cuvnet
              *
              * @return the value returned by the function
              */
-            const matrix& evaluate(){
-                repair_swiper();
+            const matrix& evaluate(bool reinitialize=true){
+                if(reinitialize)
+                    repair_swiper();
                 m_swiper->fprop();
                 return m_sink->cdata();
             }

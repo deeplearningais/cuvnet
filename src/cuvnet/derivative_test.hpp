@@ -73,7 +73,7 @@ namespace cuvnet
                  * by executing it twice in succession
                  * and checking whether results are equal.
                  */
-                void ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params, bool verbose, int seed);
+                void ensure_no_state(boost::shared_ptr<Op> out, int result, const std::vector<Op*>& params, bool verbose, int seed);
                 
 
                 // calls derivative_test_wrt

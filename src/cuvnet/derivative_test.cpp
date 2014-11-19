@@ -80,31 +80,36 @@ namespace cuvnet{ namespace derivative_testing {
             return results;
         }
 
-    void derivative_tester::ensure_no_state(boost::shared_ptr<Sink> out, swiper& swp, const std::vector<Op*>& params, bool verbose, int seed){
+    void derivative_tester::ensure_no_state(boost::shared_ptr<Op> out_, int result, const std::vector<Op*>& params, bool verbose, int seed){
         double epsilon = 0.00000001;
         param_collector_visitor pcv;
-        out->visit(pcv);
+        out_->visit(pcv);
+        if(m_verbose)
+        {
+            std::ofstream os("derivative_tester.dot");
+            write_graphviz(*out_, os, m_verbose);
+        }
         { TRACE(g_enslog, "fprop");
+            cuvnet::function func(out_);
             using namespace cuv;
+            tensor<float,host_memory_space> r0, r1;
             {
                 cuv::initialize_mersenne_twister_seeds(seed);
                 initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
                 TRACE(g_enslog, "A");
-                swp.fprop();
+                r0 = func.evaluate(true);
             }
-            tensor<float,host_memory_space> r0 = out->cdata().copy();
             {
                 cuv::initialize_mersenne_twister_seeds(seed);
                 initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
                 TRACE(g_enslog, "B");
-                swp.fprop();
+                r1 = func.evaluate(false);
             }
-            tensor<float,host_memory_space> r1 = out->cdata().copy();
 
             if(verbose)
                 LOG4CXX_INFO(g_enslog, "-- Checking Results; cuv::minimum(r0):" << cuv::minimum(r0) << " cuv::maximum(r0):" << cuv::maximum(r0));
 
-            BOOST_CHECK(out->result()->shape == r0.shape()); // shape should be as advertised by determine_shapes
+            BOOST_CHECK(out_->result()->shape == r0.shape()); // shape should be as advertised by determine_shapes
             BOOST_CHECK(equal_shape(r0,r1));
 
             tensor<float,host_memory_space> rdiff(r0.shape());
@@ -119,6 +124,7 @@ namespace cuvnet{ namespace derivative_testing {
 
             BOOST_CHECK_LT(fprop_error, epsilon);
         }
+        swiper swp(*out_, result, params);
         Tracer t_bprop(g_enslog, "bprop");
         BOOST_FOREACH(Op* raw, params){
             using namespace cuv;
@@ -239,21 +245,24 @@ namespace cuvnet{ namespace derivative_testing {
 
         void derivative_tester::test() {
             determine_shapes(m_op);
+            boost::shared_ptr<Op> mopptr = m_op.shared_from_this();
             
             std::vector<unsigned int> shape = m_op.result(m_result)->shape;
             boost::shared_ptr<ParameterInput> otherin = boost::make_shared<ParameterInput>(shape, "dummy_input");
-            unsigned int factor = std::accumulate(shape.begin(), shape.end(), 1u, std::multiplies<unsigned int>());
-            factor = std::min(factor, 10u); // give it some leeway in case we're summing over outputs.
+            //unsigned int factor = std::accumulate(shape.begin(), shape.end(), 1u, std::multiplies<unsigned int>());
+            //factor = std::min(factor, 10u); // give it some leeway in case we're summing over outputs.
             otherin->set_derivable(false);
             if(m_variant_filter & 1){
                 TRACE(g_log, "plain");
                 if(!m_simple_and_fast){
                     test_all(m_op, m_result, m_derivable_params, m_prec, m_minv, m_maxv, m_spread, m_epsilon);
                 } else {
-                    boost::shared_ptr<Op> func = boost::make_shared<Sum>(m_op.result(m_result));
+                    boost::shared_ptr<Op> func = boost::make_shared<Sum>(mopptr->result(m_result));
                     func = label("variant_plain", func);
-                    test_all(*func, 0, m_derivable_params, m_prec * factor, m_minv, m_maxv, m_spread, m_epsilon);
-                    func->detach_from_params();
+                    BOOST_CHECK_EQUAL(func.use_count(), 1);
+                    test_all(*func, 0, m_derivable_params, m_prec, m_minv, m_maxv, m_spread, m_epsilon);
+                    //BOOST_CHECK_EQUAL(func->result()->n_uses(), 0);
+                    BOOST_CHECK_EQUAL(func.use_count(), 1);
                 }
             }
             if(m_variant_filter & 2){
@@ -267,7 +276,8 @@ namespace cuvnet{ namespace derivative_testing {
                 add_to_param(func2, otherin);
                 func2 = label("variant_a", func2);
                 test_all(*func2, 0, m_derivable_params, m_prec, m_minv, m_maxv, m_spread, m_epsilon);
-                func2->detach_from_params();
+                //func2->detach_from_params();
+                BOOST_CHECK_EQUAL(func2.use_count(), 1);
             }
             if(m_variant_filter & 4){
                 TRACE(g_log, "variant_b");
@@ -280,7 +290,8 @@ namespace cuvnet{ namespace derivative_testing {
                 add_to_param(func, m_op.shared_from_this());
                 func = label("variant_b", func);
                 test_all(*func, 0, m_derivable_params, m_prec, m_minv, m_maxv, m_spread, m_epsilon);
-                func->detach_from_params();
+                //func->detach_from_params();
+                BOOST_CHECK_EQUAL(func.use_count(), 1);
             }
             if(m_variant_filter & 8){
                 TRACE(g_log, "variant_c");
@@ -298,9 +309,10 @@ namespace cuvnet{ namespace derivative_testing {
 
                 func3 = label("variant_c", func3);
                 test_all(*func3, 0, m_derivable_params, m_prec, m_minv, m_maxv, m_spread, m_epsilon);
-                func1->detach_from_params();
-                func2->detach_from_params();
-                func3->detach_from_params();
+                //func1->detach_from_params();
+                //func2->detach_from_params();
+                //func3->detach_from_params();
+                BOOST_CHECK_EQUAL(func3.use_count(), 1);
             }
             if(m_variant_filter & 16){
                 //m_op.detach_from_results();
@@ -322,29 +334,26 @@ namespace cuvnet{ namespace derivative_testing {
                         test_all(*func2, 0, m_derivable_params, m_prec, m_minv, m_maxv, m_spread, m_epsilon);
                         
                         std::swap(pcv.plist[i]->result()->result_uses.front(), pcv.plist[i]->result()->result_uses.back());
+                        //func1->detach_from_params();
+                        //func2->detach_from_params();
+                        BOOST_CHECK_EQUAL(func2.use_count(), 1);
                     }
                 }
             }
         }
 
         void derivative_tester::test_all(Op& op, int result, std::vector<Op*>& derivable_params, double prec, float minv, float maxv, bool spread, double epsilon) {
-            // assumption: op has only one result
-            boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op.result(result));
-
-            swiper swipe(op, result, derivable_params);
-            if(m_verbose)
-                swipe.dump("derivative_tester.dot", true);
-
             param_collector_visitor pcv;
             op.visit(pcv);
             {
-                if(m_verbose)
-                    LOG4CXX_INFO(g_log, "  -ensuring function is stateless");
-                boost::shared_ptr<Op> p = op.shared_from_this();
-                ensure_no_state(out_op, swipe, derivable_params, m_verbose, m_seed);
+
+                {
+                    if(m_verbose)
+                        LOG4CXX_INFO(g_log, "  -ensuring function is stateless");
+                    boost::shared_ptr<Op> p = op.shared_from_this();
+                    ensure_no_state(p, result, derivable_params, m_verbose, m_seed);
+                }
             }
-            cuv::initialize_mersenne_twister_seeds(m_seed);
-            initialize_inputs(pcv, minv, maxv, spread, m_spread_filter);
 
 
             //BOOST_FOREACH(Op* raw, m_derivable_params){
@@ -358,6 +367,7 @@ namespace cuvnet{ namespace derivative_testing {
                 }
                 std::swap(derivable_params[i], derivable_params[0]);
                 
+                cuv::initialize_mersenne_twister_seeds(m_seed);
                 initialize_inputs(pcv, m_minv, m_maxv, m_spread, m_spread_filter);
                 //ParameterInput* pi = dynamic_cast<ParameterInput*>(raw);
                 //BOOST_CHECK(pi != NULL);
@@ -389,8 +399,10 @@ namespace cuvnet{ namespace derivative_testing {
                 LOG4CXX_INFO(g_log, "   Jacobi dims: "<<n_outputs<<" x "<<n_inputs);
             }
             for(unsigned int out=0;out<n_outputs;out++){
-                cuv::initialize_mersenne_twister_seeds(m_seed);
-                param->data() = original_input.copy();
+                if(m_reinit){
+                    cuv::initialize_mersenne_twister_seeds(m_seed);
+                    param->data() = original_input.copy();
+                }
                 swipe.fprop();
                 cuvAssert(!cuv::has_nan(out_op->cdata()));
                 cuvAssert(!cuv::has_inf(out_op->cdata()));
@@ -409,14 +421,20 @@ namespace cuvnet{ namespace derivative_testing {
 
             matrix J_(n_inputs,n_outputs); J_ = 0.f;
             for (unsigned int in = 0; in < n_inputs; ++in) {
-                param->data() = original_input.copy();
+                if(m_reinit){
+                    cuv::initialize_mersenne_twister_seeds(m_seed);
+                    param->data() = original_input.copy();
+                }
                 float v = param->data()[in];
                 param->data()[in] = (float)((double)v + eps);
-                cuv::initialize_mersenne_twister_seeds(m_seed);
                 swipe.fprop();
                 matrix o_plus     = out_op->cdata().copy();
+
+                if(m_reinit){
+                    cuv::initialize_mersenne_twister_seeds(m_seed);
+                    param->data() = original_input.copy();
+                }
                 param->data()[in] = (float)((double)v - eps);
-                cuv::initialize_mersenne_twister_seeds(m_seed);
                 swipe.fprop();
                 matrix o_minus    = out_op->cdata().copy();
                 param->data()[in] = v;
