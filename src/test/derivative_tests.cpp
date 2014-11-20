@@ -2060,8 +2060,148 @@ BOOST_AUTO_TEST_CASE(LOGADDEXP){
    cuv::safeThreadSync();    
 }
 
-#ifndef NO_THEANO_WRAPPERS
+BOOST_AUTO_TEST_CASE(classloss) {
+	typedef boost::shared_ptr<ParameterInput> inp_ptr_t;
+	typedef boost::shared_ptr<Op> op_ptr_t;
+   
+    for (int i = 0; i < 4; i++) // iterate over 4 subcases
+    {
+        bool use_ignore = i%2;
+        bool first = i < 2;
+        LOG4CXX_WARN(g_log, "2 dimensions, first: " << first << ", ignore: " << use_ignore  );
 
+        int n_class = 3;
+        int n_batch = 5;
+        inp_ptr_t out, tch, ign;
+        if (first) {
+            out = boost::make_shared<ParameterInput>(cuv::extents[n_class][n_batch]);
+            tch = boost::make_shared<ParameterInput>(cuv::extents[n_class][n_batch]);
+            ign = boost::make_shared<ParameterInput>(cuv::extents[1      ][n_batch]);
+        } else {
+            out = boost::make_shared<ParameterInput>(cuv::extents[n_batch][n_class]);
+            tch = boost::make_shared<ParameterInput>(cuv::extents[n_batch][n_class]);
+            ign = boost::make_shared<ParameterInput>(cuv::extents[n_batch][1      ]);
+        }
+
+        out->set_derivable(false);
+        tch->set_derivable(false);
+        ign->set_derivable(false);
+
+        op_ptr_t loss;
+        if (use_ignore)
+            loss = boost::make_shared<ClassificationLoss>(out->result(), tch->result(), ign->result(), first ? 0 : 1);
+        else
+            loss = boost::make_shared<ClassificationLoss>(out->result(), tch->result(), first ? 0 : 1);
+
+        out->data() = 0.f;
+        tch->data() = 0.f;
+        double tot = 0;
+        double pos = 0;
+
+        for (int b = 0; b < n_batch; b++) {
+            int t = rand() % n_class;
+            int o = rand() % n_class;
+            float i = drand48();
+
+            if (first) {
+                out->data()(o, b) = 1.0f;
+                tch->data()(t, b) = 1.0f;
+                ign->data()(0, b) = (float) i;
+            } else {
+                out->data()(b, o) = 1.0f;
+                tch->data()(b, t) = 1.0f;
+                ign->data()(b, 0) = (float) i;
+            }
+
+            if (use_ignore) {
+                tot += i;
+                pos += i * (t == o);
+            } else {
+                tot += 1;
+                pos += t == o;
+            }
+        }
+
+        function func(loss, 0);
+        func.evaluate();
+        
+        BOOST_CHECK_CLOSE((float) func.result()(0), 1.f - ((float) pos / tot), 0.001 );
+        derivative_tester(*loss).test();
+    }
+    
+    for (int i = 0; i < 4; i++) // iterate over 4 subcases
+    {
+        bool use_ignore = i%2;
+        bool first = i < 2;
+        LOG4CXX_WARN(g_log, "4 dimensions, first: " << first << ", ignore: " << use_ignore  );
+
+        int n_class = 3;
+        int n_pixel = 4;
+        int n_batch = 5;
+        inp_ptr_t out, tch, ign;
+        if (first) {
+            out = boost::make_shared<ParameterInput>(cuv::extents[n_class][n_pixel][n_pixel][n_batch]);
+            tch = boost::make_shared<ParameterInput>(cuv::extents[n_class][n_pixel][n_pixel][n_batch]);
+            ign = boost::make_shared<ParameterInput>(cuv::extents[1      ][n_pixel][n_pixel][n_batch]);
+        } else {
+            out = boost::make_shared<ParameterInput>(cuv::extents[n_batch][n_pixel][n_pixel][n_class]);
+            tch = boost::make_shared<ParameterInput>(cuv::extents[n_batch][n_pixel][n_pixel][n_class]);
+            ign = boost::make_shared<ParameterInput>(cuv::extents[n_batch][n_pixel][n_pixel][1      ]);
+        }
+
+        out->set_derivable(false);
+        tch->set_derivable(false);
+        ign->set_derivable(false);
+
+        op_ptr_t loss;
+        if (use_ignore)
+            loss = boost::make_shared<ClassificationLoss>(out->result(), tch->result(), ign->result(), first ? 0 : 3);
+        else
+            loss = boost::make_shared<ClassificationLoss>(out->result(), tch->result(), first ? 0 : 3);
+
+        out->data() = 0.f;
+        tch->data() = 0.f;
+        double tot = 0;
+        double pos = 0;
+
+        for (int b = 0; b < n_batch; b++) {
+            for (int p1 = 0; p1 < n_pixel; p1++) {
+                for (int p2 = 0; p2 < n_pixel; p2++) {
+                    int t = rand() % n_class;
+                    int o = rand() % n_class;
+                    float i = drand48();
+
+                    if (first) {
+                        out->data()(o, p1, p2, b) = 1.0f;
+                        tch->data()(t, p1, p2, b) = 1.0f;
+                        ign->data()(0, p1, p2, b) = (float) i;
+                    } else {
+                        out->data()(b, p1, p2, o) = 1.0f;
+                        tch->data()(b, p1, p2, t) = 1.0f;
+                        ign->data()(b, p1, p2, 0) = (float) i;
+                    }
+
+                    if (use_ignore) {
+                        tot += i;
+                        pos += i * (t == o);
+                    } else {
+                        tot += 1;
+                        pos += t == o;
+                    }
+                }
+            }
+        }
+
+        function func(loss, 0);
+        func.evaluate();
+        
+        BOOST_CHECK_CLOSE((float) func.result()(0), 1.f - ((float) pos / tot), 0.001 );
+        derivative_tester(*loss).test();
+    }
+}
+
+
+#ifndef NO_THEANO_WRAPPERS
 
 BOOST_AUTO_TEST_CASE(theano_flip_dims){
     typedef boost::shared_ptr<Op> ptr_t;
