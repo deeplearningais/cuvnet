@@ -198,6 +198,7 @@ namespace cuvnet
      * matrix, depending on the second parameter.
      *
      * @ingroup Ops
+     * @param m_axis axis of classes, currently only first or last
      */
     class Softmax
         : public Op{
@@ -219,7 +220,7 @@ namespace cuvnet
                  */
                 Softmax(result_t& p0, unsigned int axis)
                     :Op(1,1)
-                    ,m_axis(1-axis)
+                    ,m_axis(axis)
                 {
                     add_param(0,p0);
                 }
