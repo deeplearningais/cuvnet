@@ -573,9 +573,65 @@ BOOST_AUTO_TEST_CASE(derivative_test_softmax){
         derivative_tester(*func).full_jacobian().test();
     }
     {
+        TRACE(g_log, "dim1of4");
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][5][3]);
+        ptr_t func                     = boost::make_shared<Softmax>(inp0->result(), 0);
+       
+        cuv::fill_rnd_uniform(inp0->data());
+        function f(func, 0);
+        matrix res = f.evaluate();
+
+        // checking fprop
+        cuv::tensor<float, cuv::dev_memory_space> ref(cuv::extents[3][5][5][3]);
+        for (int a = 0; a < 5; a++) {
+            for (int b = 0; b < 5; b++) {
+                for (int c = 0; c < 3; c++) {
+                    double sum = 0;
+                    for (int x = 0; x < 3; x++) {
+                        double tmp = std::exp(inp0->data()(x,a,b,c));
+                        ref(x,a,b,c) = tmp;
+                        sum += tmp;
+                    }
+                    for (int x = 0; x < 3; x++) {
+                        ref(x,a,b,c) /= sum;
+
+                        BOOST_REQUIRE_CLOSE((float) ref(x,a,b,c), (float) res(x,a,b,c), 0.001);
+                    }
+                }
+            }
+        }
+        
+        derivative_tester(*func).full_jacobian().test();
+    }
+    {
         TRACE(g_log, "dim2of4");
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[3][5][5][3]);
         ptr_t func                     = boost::make_shared<Softmax>(inp0->result(), 1);
+
+        cuv::fill_rnd_uniform(inp0->data());
+        function f(func, 0);
+        matrix res = f.evaluate();
+
+        // checking fprop 
+        cuv::tensor<float, cuv::dev_memory_space> ref(cuv::extents[3][5][5][3]);
+        for (int a = 0; a < 3; a++) {
+            for (int b = 0; b < 5; b++) {
+                for (int c = 0; c < 5; c++) {
+                    double sum = 0;
+                    for (int x = 0; x < 3; x++) {
+                        double tmp = std::exp(inp0->data()(a,b,c,x));
+                        ref(a,b,c,x) = tmp;
+                        sum += tmp;
+                    }
+                    for (int x = 0; x < 3; x++) {
+                        ref(a,b,c,x) /= sum;
+
+                        BOOST_REQUIRE_CLOSE((float) ref(a,b,c,x), (float) res(a,b,c,x), 0.001);
+                    }
+                }
+            }
+        }
+
         derivative_tester(*func).full_jacobian().test();
     }
 }
