@@ -397,7 +397,7 @@ namespace cuvnet
         inp.reshape(shape);
         if(r0.can_overwrite_directly()){
             value_type& v = *r0.overwrite_or_add_value();
-            v.reshape(shape);
+            //v.reshape(shape);
             v = 0.f; // required by cuv
             //softmax(v,p0.value.cdata(), m_axis);
             softmax(v, inp, 1-m_axis);
@@ -419,7 +419,7 @@ namespace cuvnet
             dst.reshape(shape);
             softmax(dst,src,1-m_axis);
             m_result = p0.value;
-            dst.reshape(r0.shape);
+            //dst.reshape(r0.shape);
             r0.push(p0.value);
         }
         p0.value.reset();
@@ -447,12 +447,12 @@ namespace cuvnet
         //inp.reshape(shape);
         delta.reshape(shape);
         value_type res = m_result.cdata();
-        res.reshape(shape);
+        //res.reshape(shape);
         
         assert(p0.need_derivative);
         if(p0.can_overwrite_directly()){
             value_type& v = *p0.overwrite_or_add_value();
-            v.reshape(shape);
+            //v.reshape(shape);
             //softmax_derivative(v,m_result.cdata(),r0.delta.cdata(), m_axis);
             softmax_derivative(v,res, delta, 1-m_axis, 0.f);
             v.reshape(r0.shape);
@@ -461,7 +461,7 @@ namespace cuvnet
 
             //value_type v(p0.overwrite_or_add_value()->shape()); v=0.f;
             value_type& v = *p0.overwrite_or_add_value();
-            v.reshape(shape);
+            //v.reshape(shape);
             //softmax_derivative(v,m_result.cdata(),r0.delta.cdata(), m_axis);
             softmax_derivative(v,res, delta, 1-m_axis, 1.f); // 1.f: fact_old
             v.reshape(r0.shape);
