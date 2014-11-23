@@ -394,6 +394,14 @@ namespace cuvnet
                     LOG4CXX_INFO(m_log, "finished");
                 }
 
+                /**
+                 * join all threads
+                 */
+                void stop(){
+                    request_stop();
+                    m_asio_queue.stop();
+                }
+
                 /// dtor.
                 ~loader_pool(){
                     request_stop();
