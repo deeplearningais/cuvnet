@@ -390,7 +390,8 @@ namespace cuvnet{ namespace derivative_testing {
             boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>("testwrt", op.result(result));
             
             ParameterInput* param = dynamic_cast<ParameterInput*>(raw);
-            host_matrix original_input = param->data();
+            host_matrix original_input = param->data().copy();
+            //LOG4CXX_WARN(g_log, "original input shape: " << original_input.info().host_shape);
             
             swiper swipe(op, result, derivable_params);
             swipe.dump("derivative_tester_wrt_"+param->name()+".dot", true);
