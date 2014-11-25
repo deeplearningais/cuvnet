@@ -162,11 +162,9 @@ namespace cuvnet
 
                 /**
                  * Get a pattern from the queue.
-                 * Blocks when queue size is less than n.
-                 * You're responsible for deleting them once you're done.
+                 * Blocks when queue is empty.
                  *
                  * @param dest where to put the patterns
-                 * @param n the number of patterns to get
                  */
                 boost::shared_ptr<pattern_type> 
                 pop(){
@@ -426,6 +424,11 @@ namespace cuvnet
                                 cnt = (cnt+1) % m_dataset->size();
                                 if(cnt == 0){
                                     LOG4CXX_INFO(m_log, "Roundtrip through dataset (" << m_dataset->size()<< ") completed.");
+                                    // additionally queue an "end" marker
+                                    boost::shared_ptr<patternset_type> end_marker
+                                        = boost::make_shared<patternset_type>(m_result_queue);
+                                    end_marker->set_done_generating();
+                                    m_result_queue->push(end_marker);
                                     m_dataset->shuffle();
                                 }
                             }
