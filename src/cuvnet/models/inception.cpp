@@ -2,13 +2,13 @@
 #include "inception.hpp"
 
 namespace cuvnet { namespace models {
-    inception_layer::inception_layer(op_ptr in, const std::vector<boost::tuple<int,int,int> >& m, const std::string& label, bool copy)
+    inception_layer::inception_layer(op_ptr in, const std::vector<boost::tuple<int,int,int> >& m, const std::string& label, bool copy, bool nonlinear)
         : m_input(in)
     {
-        init(in, m, label, copy);
+        init(in, m, label, copy, nonlinear);
     }
     void
-        inception_layer::init(op_ptr in, const std::vector<boost::tuple<int,int,int> >& m, const std::string& label, bool copy)
+        inception_layer::init(op_ptr in, const std::vector<boost::tuple<int,int,int> >& m, const std::string& label, bool copy, bool nonlinear)
     {
         std::vector<op_ptr> stackable;
         std::vector<boost::tuple<int, int, int> >::const_iterator it;
@@ -35,7 +35,7 @@ namespace cuvnet { namespace models {
                 // max-pooling, then 1x1 convolution
                 o = local_pool(m_input, compress, 1, cuv::alex_conv::PT_MAX);
                 m_fclayers.push_back(boost::make_shared<mlp_layer>(o, n_dst, 
-                            mlp_layer_opts().with_bias(with_bias,bias).weights_left().rectified_linear(!copy).group(lstr, true).verbose(verbose)));
+                            mlp_layer_opts().with_bias(with_bias,bias).weights_left().group(lstr, true).verbose(verbose)));
                 o = m_fclayers.back()->m_output;
                 register_submodel(*m_fclayers.back());
             }else if(fs == 0){
@@ -53,13 +53,13 @@ namespace cuvnet { namespace models {
                 o = flatten(o, 2, copy);
 
                 m_fclayers.push_back(boost::make_shared<mlp_layer>(o, n_dst, 
-                            mlp_layer_opts().with_bias(with_bias,bias).rectified_linear(!copy).group(lstr, true).verbose(verbose)));
+                            mlp_layer_opts().with_bias(with_bias,bias).group(lstr, true).verbose(verbose)));
                 register_submodel(*m_fclayers.back());
                 o = m_fclayers.back()->m_output;
             }else if(fs == 1){
                 cuvAssert(n_src_maps > 1);
                 m_fclayers.push_back(boost::make_shared<mlp_layer>(m_input, n_dst, 
-                            mlp_layer_opts().with_bias(with_bias,bias).rectified_linear(!copy).weights_left().group(lstr, true).verbose(verbose)));
+                            mlp_layer_opts().with_bias(with_bias,bias).weights_left().group(lstr, true).verbose(verbose)));
                 o = m_fclayers.back()->m_output;
                 register_submodel(*m_fclayers.back());
             }else{
@@ -68,16 +68,16 @@ namespace cuvnet { namespace models {
                             mlp_layer_opts().with_bias(with_bias,bias).weights_left().rectified_linear(!copy).group(lstr,true).verbose(verbose)));
                 register_submodel(*m_fclayers.back());
                 m_convlayers.push_back(boost::make_shared<conv_layer>(m_fclayers.back()->m_output,
-                            fs, n_dst, conv_layer_opts().with_bias(with_bias,bias).rectified_linear(!copy).symmetric_padding(-1).group(lstr, true).verbose(verbose)));
+                            fs, n_dst, conv_layer_opts().with_bias(with_bias,bias).symmetric_padding(-1).group(lstr, true).verbose(verbose)));
                 register_submodel(*m_convlayers.back());
                 o = m_convlayers.back()->m_output;
             }
             stackable.push_back(o);
         }
         if(stackable.size() == 1)
-            m_output = stackable.front();
+            m_output = nonlinear ? rectified_linear(stackable.front(), !copy) : stackable.front();
         else
-            m_output = concatenate(stackable, 0);
+            m_output = nonlinear ? rectified_linear(concatenate(stackable, 0), !copy) : concatenate(stackable, 0);
     }
 }}
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::models::inception_layer);
