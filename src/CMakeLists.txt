@@ -47,6 +47,10 @@ CONFIGURE_FILE( ${CMAKE_CURRENT_SOURCE_DIR}/datasets/util/lena.jpg ${CMAKE_BINAR
 INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libnpy-0.5/include )
 INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ )
 
+INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cudnn-6.5-linux-R1 )
+LINK_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/third_party/cudnn-6.5-linux-R1)
+
+
 OPTION(USE_OPENCV "Use OpenCV if available" OFF)
 OPTION(USE_THEANO_WRAPPERS "Use Theano wrappers (requires CUV to be compiled with python support" ON)
 IF(USE_THEANO_WRAPPERS)
@@ -122,7 +126,7 @@ endif( PYTHONLIBS_FOUND )
 
 add_library(cuvnet SHARED ${CUVNET_SRC})
 
-TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES}  ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES} ${PROTOBUF_LIBRARIES} messages)
+TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES}  ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES} ${PROTOBUF_LIBRARIES} messages cudnn)
 
 #add_subdirectory(cuvnet)
 #add_subdirectory(third_party)

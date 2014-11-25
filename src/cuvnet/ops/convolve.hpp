@@ -204,6 +204,38 @@ namespace cuvnet
 #endif
 
 
+    class ConvolvecuDNN
+       :public Op{
+           public:
+               typedef Op::value_type    value_type;
+               typedef Op::op_ptr        op_ptr;
+               typedef Op::value_ptr     value_ptr;
+               typedef Op::param_t       param_t;
+               typedef Op::result_t      result_t;
+           private:
+           public:
+
+                /**
+                 * constructor.
+                 *
+                 * @param images nImages x nChannels x nPixels x nPixels
+                 * @param filters nFilt x nFiltChannels x nFiltPix x nFiltPix
+                 */
+               ConvolvecuDNN(result_t& images, result_t& filters, std::string mode = "valid")
+                   :Op(2,1)
+               {
+                   add_param(0,images);
+                   add_param(1,filters);
+               }
+
+
+               void fprop();
+               void bprop();
+               void _determine_shapes();
+
+       };
+
+
     /**
      * Bed-of-nails subsampling (take every n-th value in the input maps)
      *
