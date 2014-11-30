@@ -351,6 +351,10 @@ namespace cuvnet
     void Convolve2dTheano::fprop(){
        using namespace cuv;
        using namespace cuv::theano_conv;
+       using namespace std;
+
+       cout<<"theano fprop beginning"<<endl;
+
        param_t::element_type&  p0 = *m_params[0];
        param_t::element_type&  p1 = *m_params[1];
        result_t::element_type& r0 = *m_results[0];
@@ -401,12 +405,17 @@ namespace cuvnet
            p0.value.reset();
            p1.value.reset();
        }
+
+       cout<<"theano fprop end"<<endl;
     }
 
 
     void Convolve2dTheano::bprop(){
        using namespace cuv;
        using namespace cuv::theano_conv;
+       using namespace std;
+
+       cout<<"theano backprop"<<endl;
 
        param_t::element_type&  p0 = *m_params[0];
        param_t::element_type&  p1 = *m_params[1];
@@ -416,7 +425,7 @@ namespace cuvnet
        cuvAssert(r0.delta.cdata().is_c_contiguous());
 
 
-       if(p1.need_derivative){
+    /*   if(p1.need_derivative){
            // calculate p1 first, then we don't need activations
            // anymore and can overwrite them. They are usually
            // larger than the weights, so it should be better in this order.
@@ -446,8 +455,8 @@ namespace cuvnet
                d_convolve_d_images(v,delta,flt, m_mode);
                p0.push(ptr);
            }
-       }
-       if(m_use_bias){
+       }*/
+   /*    if(m_use_bias){
           param_t::element_type&  p2 = *m_params[2];
           const value_type& delta = r0.delta.cdata();
 
@@ -497,7 +506,7 @@ namespace cuvnet
 
           }
           p2.value.reset();
-       }
+       }*/
 
 
        p0.value.reset();
@@ -525,7 +534,7 @@ namespace cuvnet
        unsigned int nOutPixX = m_mode == "valid" ? nImgPixX+1-nFltPixX :  nImgPixX - 1 + nFltPixX;
        unsigned int nOutPixY = m_mode == "valid" ? nImgPixY+1-nFltPixY :  nImgPixY - 1 + nFltPixY;
 
-       if(m_use_bias){
+   /*    if(m_use_bias){
            // create mask, which is used for delta calcualtion of bias
            unsigned int width_x = nFltPixX-1;
            unsigned int width_y = nFltPixY-1;
@@ -549,7 +558,7 @@ namespace cuvnet
            m_extended.reshape(cuv::extents[img[0]][nFilt * mask_size_y * mask_size_x]);
 
            m_extended_orig.reshape(cuv::extents[img[0]][nFilt][mask_size_y][mask_size_x]);
-       }
+       }*/
 
        dst[0] = img[0];
        dst[1] = nFilt;
@@ -578,11 +587,16 @@ namespace cuvnet
     void ConvolvecuDNN::fprop(){
 
        using namespace cuv;
-
+       using namespace std;
+       cout<<"cuDNN fprop beginning"<<endl;
        param_t::element_type&  p0 = *m_params[0];
        param_t::element_type&  p1 = *m_params[1];
        result_t::element_type& r0 = *m_results[0];
        cuvAssert(p0.value.cdata().is_c_contiguous());
+
+       if(r0.can_overwrite_directly()){
+    	   cout<<"----passed r0.can_overwrite_directly()"<<endl;
+       }
 
        cudnnTensor4dDescriptor_t InputDesc;
        cudnnFilterDescriptor_t FilterDesc;
@@ -596,75 +610,107 @@ namespace cuvnet
        cudnnTensor4dDescriptor_t OutputDesc;
        cudnnHandle_t handle;
 
+       cout<<"here3"<<endl;
 
-    //   const float* ImageBatchOut = *r0.overwrite_or_add_value().ptr();
 
-       float* ImageBatchOut = (*r0.overwrite_or_add_value()).ptr();
        const float* ImageInBatch = p0.value.cdata().ptr();
        const float* Filter = p1.value.cdata().ptr();
 
+ //     tensor<float, dev_memory_space> te = r0.overwrite_or_add_value();
 
+       cudnnStatus_t status;
+
+       cout<<"here4"<<endl;
+
+    //    float* ImageBatchOut = r0.overwrite_or_add_value().data().ptr();
        //TODO: check all error/success return values
-      cudnnCreate(&handle);
+       status = cudnnCreate(&handle);
+      if (status != CUDNN_STATUS_SUCCESS)
+    	  cout<<"---ERROR cudnnCreate status  "<<status<<endl;
+
+      cout<<"here5"<<endl;
+
+
+      cout<<"----shape  "<<r0.shape[0]<<endl;
 
 
 
-      /*
-      CudaNdarray *cimages, *ckern, *cout;
-      view(cimages, p0.value.cdata());
-      view(ckern, p1.value.cdata());
-      view(cout, *r0.overwrite_or_add_value());
-      cimages->devdata;*/
+	   //   cudnnDataType_t dtype = CUDNN_DATA_FLOAT;
+	   cudnnDataType_t dtype = cudnn_data_type<matrix>();
+
+	   // Set decriptors
+	   status = cudnnSetTensor4dDescriptor(InputDesc, CUDNN_TENSOR_NCHW, dtype, p0.shape[0], p0.shape[1], p0.shape[2], p0.shape[3]);
+	   if (status != CUDNN_STATUS_SUCCESS)
+	    	  cout<<"---ERROR cudnnSetTensor4dDescriptor status  "<<status<<endl;
+
+	   status = cudnnSetFilterDescriptor(FilterDesc, dtype, p1.shape[0], p1.shape[1], p1.shape[2], p1.shape[3]);
+	   if (status != CUDNN_STATUS_SUCCESS)
+	    	  cout<<"---ERROR cudnnSetFilterDescriptor status  "<<status<<endl;
+
+	   status = cudnnSetConvolutionDescriptor(convDesc, InputDesc, FilterDesc,
+	                                 pad_x, pad_y, 2, 2, 1, 1, CUDNN_CONVOLUTION);
+	   if (status != CUDNN_STATUS_SUCCESS)
+	    	  cout<<"---ERROR cudnnSetConvolutionDescriptor status  "<<status<<endl;
+
+	   // query output layout
+	   status = cudnnGetOutputTensor4dDim(convDesc, CUDNN_CONVOLUTION_FWD, &n_out, &c_out,
+	                             &h_out, &w_out);
+	   if (status != CUDNN_STATUS_SUCCESS)
+	    	  cout<<"---ERROR cudnnGetOutputTensor4dDim status  "<<status<<endl;
+
+	   // Set and allocate output tensor descriptor
+	   //changed from &OutputDesc to OutputDesc
+	   status = cudnnSetTensor4dDescriptor(OutputDesc, CUDNN_TENSOR_NCHW, dtype, n_out, c_out,
+	                              h_out, w_out);
+	       if (status != CUDNN_STATUS_SUCCESS)
+	     	  cout<<"---ERROR cudnnSetTensor4dDescriptor status  "<<status<<endl;
+
+
+	       cout<<"here51111"<<endl;
 
        if(r0.can_overwrite_directly()){
+   //   if(true){
+    	   cout<<"here51"<<endl;
 
+    	   cout<<"here566"<<endl;
     	   //TODO:: if bias is used ...
-    	   cudnnDataType_t dtype = cudnn_data_type<matrix>();
-    	//   cudnnDataType_t dtype = CUDNN_DATA_FLOAT;
 
-    	   // Set decriptors
-    	   cudnnSetTensor4dDescriptor(InputDesc, CUDNN_TENSOR_NCHW, dtype, p0.shape[0], p0.shape[1], p0.shape[2], p0.shape[3]);
-    	   cudnnSetFilterDescriptor(FilterDesc, dtype, p1.shape[0], p1.shape[1], p1.shape[2], p1.shape[3]);
-    	   cudnnSetConvolutionDescriptor(convDesc, InputDesc, FilterDesc,
-    	                                 pad_x, pad_y, 2, 2, 1, 1, CUDNN_CONVOLUTION);
 
-    	   // query output layout
-    	   cudnnGetOutputTensor4dDim(convDesc, CUDNN_CONVOLUTION_FWD, &n_out, &c_out,
-    	                             &h_out, &w_out);
+  	  	//   cudaMalloc(&ImageBatchOut, n_out*c_out*h_out*w_out * sizeof(float));
+  	     float* ImageBatchOut = r0.overwrite_or_add_value()->ptr();
 
-    	   // Set and allocate output tensor descriptor
-    	   //changed from &OutputDesc to OutputDesc
-  	       cudnnSetTensor4dDescriptor(OutputDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, n_out, c_out,
-    	                              h_out, w_out);
-  	  	   cudaMalloc(&ImageBatchOut, n_out*c_out*h_out*w_out * sizeof(float));
+  	     cout<<"here52"<<endl;
+
+
+  	 //  value_ptr v(new value_type(r0.shape));
+
 
     	   // launch convolution on GPU
-    	   cudnnConvolutionForward(handle, InputDesc, ImageInBatch, FilterDesc,
+  	   status = cudnnConvolutionForward(handle, InputDesc, ImageInBatch, FilterDesc,
     	                           Filter, convDesc, OutputDesc, ImageBatchOut,
     	                           CUDNN_RESULT_NO_ACCUMULATE);
+    	   if (status != CUDNN_STATUS_SUCCESS)
+    	    	  cout<<"---ERROR cudnnConvolutionForward status  "<<status<<endl;
 
+    	//   	 r0.push(v);
+    	   cout<<"here6"<<endl;
 
 
        }else{
            // reallocate *sigh*
-  /*         value_ptr v(new value_type(r0.shape));
-           if (m_use_bias){
-               param_t::element_type&  p2 = *m_params[2];
-               value_type extended(m_extended.shape());
-               value_type r(r0.shape);
-               convolve_2d(r, p0.value.cdata(), p1.value.cdata(), m_mode);
+           value_ptr v(new value_type(r0.shape));
 
-               value_type bias = p2.value.cdata();
-               bias.reshape(cuv::extents[r.shape(1) * r.shape(2) * r.shape(3)]);
+         float* ImageBatchOut = v->ptr();
 
-               cuv::matrix_op_vec(extended,m_extended, bias, 1, BF_MULT);
-               extended.reshape(r.shape());
+         cout<<"before convolution"<<endl;
 
-               cuv::apply_binary_functor(*v, r, extended, cuv::BF_ADD);
-           }
-           else
-               convolve_2d(*v, p0.value.cdata(), p1.value.cdata(), m_mode);
-           r0.push(v);*/
+         status = cudnnConvolutionForward(handle, InputDesc, ImageInBatch, FilterDesc,
+        	                           Filter, convDesc, OutputDesc, ImageBatchOut,
+        	                           CUDNN_RESULT_NO_ACCUMULATE);
+         if (status != CUDNN_STATUS_SUCCESS)
+       	  cout<<"---ERROR cudnnConvolutionForward status  "<<status<<endl;
+
+           r0.push(v);
        }
        if(!p0.need_derivative && !p1.need_derivative)
        {
@@ -673,11 +719,16 @@ namespace cuvnet
        }
 
        cudnnDestroy(handle);
+
+       cout<<"cuDNN fprop end"<<endl;
     }
 
 
     void ConvolvecuDNN::bprop(){
        using namespace cuv;
+       using namespace std;
+
+       cout<<"cuDNN backprop"<<endl;
 
        param_t::element_type&  p0 = *m_params[0];
         param_t::element_type&  p1 = *m_params[1];
@@ -689,54 +740,115 @@ namespace cuvnet
         cudnnHandle_t handle;
         cudnnCreate(&handle);
 
+        cudnnDataType_t dtype = cudnn_data_type<matrix>();
 
-   /*     if(p1.need_derivative){
-            // calculate p1 first, then we don't need activations
-            // anymore and can overwrite them. They are usually
-            // larger than the weights, so it should be better in this order.
-            const value_type& delta = r0.delta.cdata();
-            const value_type& img   = p0.value.cdata();
-            if(p1.can_overwrite_directly()){
-                d_convolve_d_kern(*p1.overwrite_or_add_value(),img, delta,  m_mode);
-            }
-            else{
-                value_ptr ptr(new value_type(p1.shape, value_ptr::s_allocator));
-                value_type& dflt = *ptr;
-                d_convolve_d_kern(dflt,img, delta,  m_mode);
-                p1.push(ptr);
-            }
-        }*/
+        cudnnTensor4dDescriptor_t diffDesc;
+        cudnnFilterDescriptor_t filterDesc;
+        cudnnTensor4dDescriptor_t srcDesc;
+        cudnnConvolutionDescriptor_t convDesc;
+
+        int pad_x = 0; //TODO: use parameters
+        int pad_y = 0;
+        int n_out;
+        int c_out;
+        int h_out;
+        int w_out;
+
+        //TODO: p1.need_derivative
+
+        if(p1.need_derivative){
+               // calculate p1 first, then we don't need activations
+               // anymore and can overwrite them. They are usually
+               // larger than the weights, so it should be better in this order.
+
+
+            //   const value_type& delta = r0.delta.cdata();
+             //  const value_type& img   = p0.value.cdata();
+
+        		//Todo: float?
+               const float* srcData = p0.value.cdata().ptr();   //images
+               const float* diffData = r0.delta.cdata().ptr();
+
+               cudnnFilterDescriptor_t gradDesc;
+
+               cudnnSetFilterDescriptor(filterDesc, dtype, p1.shape[0], p1.shape[1], p1.shape[2], p1.shape[3]);
+               cudnnSetTensor4dDescriptor(diffDesc, CUDNN_TENSOR_NCHW, dtype, r0.shape[0], r0.shape[1], r0.shape[2], r0.shape[3]);
+
+               cudnnSetConvolutionDescriptor(convDesc, diffDesc, filterDesc,
+            	                                 pad_x, pad_y, 2, 2, 1, 1, CUDNN_CONVOLUTION);
+            	   // query output layout
+            	cudnnGetOutputTensor4dDim(convDesc, CUDNN_CONVOLUTION_WEIGHT_GRAD, &n_out, &c_out,
+            	                             &h_out, &w_out);
+
+         	 //   cudnnSetTensor4dDescriptor(gradDesc, CUDNN_TENSOR_NCHW, dtype, n_out, c_out,
+           	 //                             h_out, w_out);
+            	cudnnSetFilterDescriptor(gradDesc, dtype, n_out, c_out,
+            	           	                              h_out, w_out);
+
+               if(p1.can_overwrite_directly()){
+
+            	   float* gradData = (*p1.overwrite_or_add_value()).ptr();
+
+            	    //TODO: there is also cudnnConvolutionBackwardBias
+
+            	   cudnnConvolutionBackwardFilter(handle,
+            	   srcDesc,
+            	   srcData,
+            	   diffDesc,
+            	   diffData,
+            	   convDesc,
+            	   gradDesc,
+            	   gradData,
+            	   CUDNN_RESULT_NO_ACCUMULATE );   //TODO: accumulate?
+
+            	   cout<<"p1 overwrite true"<<endl;
+               }
+               else{
+                   value_ptr ptr(new value_type(p1.shape, value_ptr::s_allocator));
+                //   value_type& dflt = *ptr;
+
+                   float* gradData = (*ptr).ptr();
+
+             	   cudnnConvolutionBackwardFilter(handle,
+             	   srcDesc,
+             	   srcData,
+             	   diffDesc,
+             	   diffData,
+             	   convDesc,
+             	   gradDesc,
+             	   gradData,
+             	   CUDNN_RESULT_NO_ACCUMULATE );
+
+                   p1.push(ptr);
+
+                   cout<<"p1 overwrite false"<<endl;
+               }
+           }
+
         if(p0.need_derivative){
             // derivative w.r.t. images
+
+
+            const float* filterData = p1.value.cdata().ptr();
+            const float* diffData = r0.delta.cdata().ptr();
+
+            cudnnTensor4dDescriptor_t gradDesc;
+
+            cudnnSetFilterDescriptor(filterDesc, dtype, p1.shape[0], p1.shape[1], p1.shape[2], p1.shape[3]);
+            cudnnSetTensor4dDescriptor(diffDesc, CUDNN_TENSOR_NCHW, dtype, r0.shape[0], r0.shape[1], r0.shape[2], r0.shape[3]);
+
+            cudnnSetConvolutionDescriptor(convDesc, diffDesc, filterDesc,
+         	                                 pad_x, pad_y, 2, 2, 1, 1, CUDNN_CONVOLUTION);
+         	   // query output layout
+         	cudnnGetOutputTensor4dDim(convDesc, CUDNN_CONVOLUTION_DATA_GRAD, &n_out, &c_out,
+         	                             &h_out, &w_out);
+
+      	    cudnnSetTensor4dDescriptor(gradDesc, CUDNN_TENSOR_NCHW, dtype, n_out, c_out,
+        	                              h_out, w_out);
+
             if(p0.can_overwrite_directly()){
 
-                cudnnTensor4dDescriptor_t diffDesc;
-                cudnnFilterDescriptor_t filterDesc;
-                cudnnConvolutionDescriptor_t convDesc;
-                cudnnTensor4dDescriptor_t gradDesc;
-                int pad_x = 0; //TODO: use parameters
-                int pad_y = 0;
-                int n_out;
-                int c_out;
-                int h_out;
-                int w_out;
-
-
-                const float* filterData = p1.value.cdata().ptr();
-                const float* diffData = r0.delta.cdata().ptr();
-                float* gradData = (*p0.overwrite_or_add_value()).ptr();
-
-                cudnnSetFilterDescriptor(filterDesc, CUDNN_DATA_FLOAT, p1.shape[0], p1.shape[1], p1.shape[2], p1.shape[3]);
-                cudnnSetTensor4dDescriptor(diffDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, r0.shape[0], r0.shape[1], r0.shape[2], r0.shape[3]);
-
-                cudnnSetConvolutionDescriptor(convDesc, diffDesc, filterDesc,
-             	                                 pad_x, pad_y, 2, 2, 1, 1, CUDNN_CONVOLUTION);
-             	   // query output layout
-             	cudnnGetOutputTensor4dDim(convDesc, CUDNN_CONVOLUTION_DATA_GRAD, &n_out, &c_out,
-             	                             &h_out, &w_out);
-
-          	    cudnnSetTensor4dDescriptor(gradDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, n_out, c_out,
-            	                              h_out, w_out);
+          	  float* gradData = (*p0.overwrite_or_add_value()).ptr();
 
              cudnnConvolutionBackwardData(  handle,
                  filterDesc,
@@ -748,27 +860,54 @@ namespace cuvnet
                  gradData,
                  CUDNN_RESULT_NO_ACCUMULATE
                 );
+
+             //d_convolve_d_images(*p0.overwrite_or_add_value(),delta,flt, m_mode);
+
+             cout<<"p0 overwrite true"<<endl;
             }
 
 
             else{
-            /*    value_ptr ptr = p0.value;
-                p0.value.reset();       // try to overwrite input activations
-                value_type& v = ptr.data_onlyshape();
-                d_convolve_d_images(v,delta,flt, m_mode);
-                p0.push(ptr);*/
+                value_ptr ptr = p0.value;
+                 p0.value.reset();       // try to overwrite input activations
+                 value_type& v = ptr.data_onlyshape();
+
+                 float* gradData = v.ptr();
+
+                 cudnnConvolutionBackwardData(  handle,
+                     filterDesc,
+                    filterData,
+                     diffDesc,
+                     diffData,
+                     convDesc,
+                     gradDesc,
+                     gradData,
+                     CUDNN_RESULT_NO_ACCUMULATE
+                    );
+
+             //    d_convolve_d_images(v,delta,flt, m_mode);
+                 p0.push(ptr);
+
+                 cout<<"p0 overwrite false"<<endl;
             }
         }
 
         p0.value.reset();
         p1.value.reset();
         r0.delta.reset();
+
+        cudnnDestroy(handle);
     }
 
     void ConvolvecuDNN::_determine_shapes(){
+
+    	using namespace std;
+
         //dst       (nImg, nFilt, nModules, nModules)
         //img       (nImg, nImgChan, nImgPiY, nImgPix)
         //filter    (nFilt,nFiltChan, nFiltPiY,nFiltPix)
+
+    	cout<<"here1"<<endl;
 
     	assert(m_params[0]->shape.size()==4);
     	assert(m_params[1]->shape.size()==4);
@@ -781,13 +920,18 @@ namespace cuvnet
         unsigned int nFltPixY = flt[2];
         unsigned int nFltPixX = flt[3];
 
+        unsigned int nOutPixX = nImgPixX+1-nFltPixX;
+        unsigned int nOutPixY = nImgPixY+1-nFltPixY;
+
         //TODO: if bias is used ..
 
-    	dst[0] = img[0];
-    	dst[1] = nFilt;
-    	dst[2] = nImgPixY+1-nFltPixY;
-    	dst[3] = nImgPixX+1-nFltPixX;
-    	m_results[0]->shape = dst;
+        dst[0] = img[0];
+        dst[1] = nFilt;
+        dst[2] = nOutPixY;
+        dst[3] = nOutPixX;
+        m_results[0]->shape = dst;
+
+    	cout<<"here2"<<endl;
     }
 
 

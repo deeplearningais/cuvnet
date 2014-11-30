@@ -214,14 +214,14 @@ namespace cuvnet
                typedef Op::result_t      result_t;
            private:
            public:
-
+               ConvolvecuDNN() :Op(2,1){} ///< for serialization
                 /**
                  * constructor.
                  *
                  * @param images nImages x nChannels x nPixels x nPixels
                  * @param filters nFilt x nFiltChannels x nFiltPix x nFiltPix
                  */
-               ConvolvecuDNN(result_t& images, result_t& filters, std::string mode = "valid")
+               ConvolvecuDNN(result_t& images, result_t& filters)
                    :Op(2,1)
                {
                    add_param(0,images);
@@ -232,6 +232,13 @@ namespace cuvnet
                void fprop();
                void bprop();
                void _determine_shapes();
+
+           private:
+               friend class boost::serialization::access;
+               template<class Archive>
+                   void serialize(Archive& ar, const unsigned int version){
+                       ar & boost::serialization::base_object<Op>(*this);
+                   }
 
        };
 
