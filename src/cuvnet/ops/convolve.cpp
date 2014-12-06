@@ -52,10 +52,15 @@ namespace cuvnet
     void Convolve::fprop(){
         using namespace cuv;
         using namespace cuv::alex_conv;
+        using namespace std;
         param_t::element_type&  p0 = *m_params[0];
         param_t::element_type&  p1 = *m_params[1];
         result_t::element_type& r0 = *m_results[0];
         cuvAssert(p0.value.cdata().is_c_contiguous());
+
+        cout<<p0.value.cdata()[indices[0][0]]<<endl;
+                  cout<<p0.value.cdata()[indices[0][1]]<<endl;
+                  cout<<p0.value.cdata()[indices[0][2]]<<endl;
 
         bool filtSizeOK = (r0.shape[0] % 16) == 0;
         bool rnd = m_indices.ptr() != NULL;
@@ -360,6 +365,10 @@ namespace cuvnet
        result_t::element_type& r0 = *m_results[0];
        cuvAssert(p0.value.cdata().is_c_contiguous());
 
+       cout<<p0.value.cdata()[indices[0][0]]<<endl;
+            cout<<p0.value.cdata()[indices[0][1]]<<endl;
+            cout<<p0.value.cdata()[indices[0][2]]<<endl;
+
        if(r0.can_overwrite_directly()){
            if (m_use_bias){
                value_type extended(m_extended.shape());
@@ -425,7 +434,7 @@ namespace cuvnet
        cuvAssert(r0.delta.cdata().is_c_contiguous());
 
 
-    /*   if(p1.need_derivative){
+      if(p1.need_derivative){
            // calculate p1 first, then we don't need activations
            // anymore and can overwrite them. They are usually
            // larger than the weights, so it should be better in this order.
@@ -455,7 +464,7 @@ namespace cuvnet
                d_convolve_d_images(v,delta,flt, m_mode);
                p0.push(ptr);
            }
-       }*/
+       }
    /*    if(m_use_bias){
           param_t::element_type&  p2 = *m_params[2];
           const value_type& delta = r0.delta.cdata();
@@ -598,7 +607,7 @@ namespace cuvnet
     	   cout<<"----passed r0.can_overwrite_directly()"<<endl;
        }
 
-       cudnnTensor4dDescriptor_t InputDesc;
+       cudnnTensor4dDescriptor_t InputDesc = NULL;
        cudnnFilterDescriptor_t FilterDesc;
        cudnnConvolutionDescriptor_t convDesc;
        int pad_x = 0; //TODO: use parameters
@@ -616,6 +625,30 @@ namespace cuvnet
        const float* ImageInBatch = p0.value.cdata().ptr();
        const float* Filter = p1.value.cdata().ptr();
 
+
+       cout<< p0.shape[0] << " "<< p0.shape[1] << " "<< p0.shape[2]<<" " <<p0.shape[3]<<endl;
+
+       cout<<p0.value.cdata()[indices[0][0]]<<endl;
+       cout<<p0.value.cdata()[indices[0][1]]<<endl;
+       cout<<p0.value.cdata()[indices[0][2]]<<endl;
+
+   /*    cout<<p0.value.cdata()(0,0,2,2)<<endl;
+       cout<<p0.value.cdata()(0,0,3,3)<<endl;
+       cout<<p0.value.cdata()(0,0,4,3)<<endl;*/
+
+
+
+       /*
+       cout<<p0.value.cdata()(0,0)<<endl;
+       cout<<p0.value.cdata()(1,1)<<endl;
+       cout<<p0.value.cdata()(2,2)<<endl;
+       cout<<p0.value.cdata()(3,3)<<endl;
+       */
+
+    //   cout<<*(p0.value.ptr())->ptr()<<endl;
+
+  //     cout<<*(p0.value.data().m_allocator.get())<<endl;
+
  //     tensor<float, dev_memory_space> te = r0.overwrite_or_add_value();
 
        cudnnStatus_t status;
@@ -631,32 +664,62 @@ namespace cuvnet
       cout<<"here5"<<endl;
 
 
+      status = cudnnCreateTensor4dDescriptor(&InputDesc);
+      	   if (status != CUDNN_STATUS_SUCCESS)
+      	 	    	  cout<<"---ERROR cudnnCreateTensor4dDescriptor input status  "<<status<<endl;
+     status = cudnnCreateFilterDescriptor(&FilterDesc);
+           	   if (status != CUDNN_STATUS_SUCCESS)
+           	 	    	  cout<<"---ERROR cudnnCreateFilterDescriptor status  "<<status<<endl;
+     status = cudnnCreateConvolutionDescriptor(&convDesc);
+           	           	   if (status != CUDNN_STATUS_SUCCESS)
+           	           	 	    	  cout<<"---ERROR cudnnCreateConvolutionDescriptor status  "<<status<<endl;
+      status = cudnnCreateTensor4dDescriptor(&OutputDesc);
+           if (status != CUDNN_STATUS_SUCCESS)
+           	 	 cout<<"---ERROR cudnnCreateTensor4dDescriptor output status  "<<status<<endl;
+
+
       cout<<"----shape  "<<r0.shape[0]<<endl;
+
+
 
 
 
 	   //   cudnnDataType_t dtype = CUDNN_DATA_FLOAT;
 	   cudnnDataType_t dtype = cudnn_data_type<matrix>();
 
+	   cout<<"cu0"<<endl;
+	   cout<<p0.shape[0]<<endl;
 	   // Set decriptors
+
+
+
 	   status = cudnnSetTensor4dDescriptor(InputDesc, CUDNN_TENSOR_NCHW, dtype, p0.shape[0], p0.shape[1], p0.shape[2], p0.shape[3]);
+	   cout<<status<<" status"<<endl;
 	   if (status != CUDNN_STATUS_SUCCESS)
 	    	  cout<<"---ERROR cudnnSetTensor4dDescriptor status  "<<status<<endl;
+
+	   cout<<"cu1"<<endl;
 
 	   status = cudnnSetFilterDescriptor(FilterDesc, dtype, p1.shape[0], p1.shape[1], p1.shape[2], p1.shape[3]);
 	   if (status != CUDNN_STATUS_SUCCESS)
 	    	  cout<<"---ERROR cudnnSetFilterDescriptor status  "<<status<<endl;
+
+	   cout<<"cu2"<<endl;
 
 	   status = cudnnSetConvolutionDescriptor(convDesc, InputDesc, FilterDesc,
 	                                 pad_x, pad_y, 2, 2, 1, 1, CUDNN_CONVOLUTION);
 	   if (status != CUDNN_STATUS_SUCCESS)
 	    	  cout<<"---ERROR cudnnSetConvolutionDescriptor status  "<<status<<endl;
 
+	   cout<<"cu3"<<endl;
+
 	   // query output layout
 	   status = cudnnGetOutputTensor4dDim(convDesc, CUDNN_CONVOLUTION_FWD, &n_out, &c_out,
 	                             &h_out, &w_out);
 	   if (status != CUDNN_STATUS_SUCCESS)
 	    	  cout<<"---ERROR cudnnGetOutputTensor4dDim status  "<<status<<endl;
+
+	   cout<<"cu4"<<endl;
 
 	   // Set and allocate output tensor descriptor
 	   //changed from &OutputDesc to OutputDesc
@@ -728,7 +791,7 @@ namespace cuvnet
        using namespace cuv;
        using namespace std;
 
-       cout<<"cuDNN backprop"<<endl;
+       cout<<"cuDNN backprop start"<<endl;
 
        param_t::element_type&  p0 = *m_params[0];
         param_t::element_type&  p1 = *m_params[1];
@@ -754,6 +817,22 @@ namespace cuvnet
         int h_out;
         int w_out;
 
+        cudnnStatus_t status;
+
+        status = cudnnCreateTensor4dDescriptor(&diffDesc);
+        	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnCreateTensor4dDescriptor diffDesc status  "<<status<<endl;
+       status = cudnnCreateFilterDescriptor(&filterDesc);
+             	   if (status != CUDNN_STATUS_SUCCESS)
+             	 	    	  cout<<"---ERROR cudnnCreateFilterDescriptor status  "<<status<<endl;
+       status = cudnnCreateConvolutionDescriptor(&convDesc);
+             	           	   if (status != CUDNN_STATUS_SUCCESS)
+             	           	 	    	  cout<<"---ERROR cudnnCreateConvolutionDescriptor status  "<<status<<endl;
+        status = cudnnCreateTensor4dDescriptor(&srcDesc);
+             if (status != CUDNN_STATUS_SUCCESS)
+             	 	 cout<<"---ERROR cudnnCreateTensor4dDescriptor srcDesc status  "<<status<<endl;
+
+
         //TODO: p1.need_derivative
 
         if(p1.need_derivative){
@@ -770,6 +849,10 @@ namespace cuvnet
                const float* diffData = r0.delta.cdata().ptr();
 
                cudnnFilterDescriptor_t gradDesc;
+
+               status = cudnnCreateFilterDescriptor(&gradDesc);
+                           	   if (status != CUDNN_STATUS_SUCCESS)
+                           	 	    	  cout<<"---ERROR cudnnCreateFilterDescriptor status  "<<status<<endl;
 
                cudnnSetFilterDescriptor(filterDesc, dtype, p1.shape[0], p1.shape[1], p1.shape[2], p1.shape[3]);
                cudnnSetTensor4dDescriptor(diffDesc, CUDNN_TENSOR_NCHW, dtype, r0.shape[0], r0.shape[1], r0.shape[2], r0.shape[3]);
@@ -834,12 +917,17 @@ namespace cuvnet
 
             cudnnTensor4dDescriptor_t gradDesc;
 
+            status = cudnnCreateTensor4dDescriptor(&gradDesc);
+                                   	   if (status != CUDNN_STATUS_SUCCESS)
+                                   	 	    	  cout<<"---ERROR cudnnSetTensor4dDescriptor status  "<<status<<endl;
+
             cudnnSetFilterDescriptor(filterDesc, dtype, p1.shape[0], p1.shape[1], p1.shape[2], p1.shape[3]);
             cudnnSetTensor4dDescriptor(diffDesc, CUDNN_TENSOR_NCHW, dtype, r0.shape[0], r0.shape[1], r0.shape[2], r0.shape[3]);
 
             cudnnSetConvolutionDescriptor(convDesc, diffDesc, filterDesc,
          	                                 pad_x, pad_y, 2, 2, 1, 1, CUDNN_CONVOLUTION);
-         	   // query output layout
+         	   // query output layout    cout<<"cuDNN backprop start"<<endl;
+
          	cudnnGetOutputTensor4dDim(convDesc, CUDNN_CONVOLUTION_DATA_GRAD, &n_out, &c_out,
          	                             &h_out, &w_out);
 
@@ -897,6 +985,9 @@ namespace cuvnet
         r0.delta.reset();
 
         cudnnDestroy(handle);
+
+        cout<<"cuDNN backprop end"<<endl;
+
     }
 
     void ConvolvecuDNN::_determine_shapes(){
