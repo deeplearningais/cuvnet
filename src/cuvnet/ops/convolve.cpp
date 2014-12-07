@@ -597,21 +597,19 @@ namespace cuvnet
 
        using namespace cuv;
        using namespace std;
-       cout<<"cuDNN fprop beginning"<<endl;
+      
        param_t::element_type&  p0 = *m_params[0];
        param_t::element_type&  p1 = *m_params[1];
        result_t::element_type& r0 = *m_results[0];
        cuvAssert(p0.value.cdata().is_c_contiguous());
-
-       if(r0.can_overwrite_directly()){
-    	   cout<<"----passed r0.can_overwrite_directly()"<<endl;
-       }
 
        cudnnTensor4dDescriptor_t InputDesc = NULL;
        cudnnFilterDescriptor_t FilterDesc;
        cudnnConvolutionDescriptor_t convDesc;
        int pad_x = 0; //TODO: use parameters
        int pad_y = 0;
+       int v_f_stride = 1;
+       int h_f_stride = 1;
        int n_out;
        int c_out;
        int h_out;
@@ -619,18 +617,16 @@ namespace cuvnet
        cudnnTensor4dDescriptor_t OutputDesc;
        cudnnHandle_t handle;
 
-       cout<<"here3"<<endl;
-
 
        const float* ImageInBatch = p0.value.cdata().ptr();
        const float* Filter = p1.value.cdata().ptr();
 
 
-       cout<< p0.shape[0] << " "<< p0.shape[1] << " "<< p0.shape[2]<<" " <<p0.shape[3]<<endl;
+     //  cout<< p0.shape[0] << " "<< p0.shape[1] << " "<< p0.shape[2]<<" " <<p0.shape[3]<<endl;
 
-       cout<<p0.value.cdata()[indices[0][0]]<<endl;
-       cout<<p0.value.cdata()[indices[0][1]]<<endl;
-       cout<<p0.value.cdata()[indices[0][2]]<<endl;
+      // cout<<p0.value.cdata()[indices[0][0]]<<endl;
+      // cout<<p0.value.cdata()[indices[0][1]]<<endl;
+      // cout<<p0.value.cdata()[indices[0][2]]<<endl;
 
    /*    cout<<p0.value.cdata()(0,0,2,2)<<endl;
        cout<<p0.value.cdata()(0,0,3,3)<<endl;
@@ -653,15 +649,11 @@ namespace cuvnet
 
        cudnnStatus_t status;
 
-       cout<<"here4"<<endl;
-
     //    float* ImageBatchOut = r0.overwrite_or_add_value().data().ptr();
        //TODO: check all error/success return values
        status = cudnnCreate(&handle);
       if (status != CUDNN_STATUS_SUCCESS)
     	  cout<<"---ERROR cudnnCreate status  "<<status<<endl;
-
-      cout<<"here5"<<endl;
 
 
       status = cudnnCreateTensor4dDescriptor(&InputDesc);
@@ -678,48 +670,31 @@ namespace cuvnet
            	 	 cout<<"---ERROR cudnnCreateTensor4dDescriptor output status  "<<status<<endl;
 
 
-      cout<<"----shape  "<<r0.shape[0]<<endl;
-
-
-
-
-
 	   //   cudnnDataType_t dtype = CUDNN_DATA_FLOAT;
 	   cudnnDataType_t dtype = cudnn_data_type<matrix>();
 
-	   cout<<"cu0"<<endl;
-	   cout<<p0.shape[0]<<endl;
 	   // Set decriptors
 
 
 
 	   status = cudnnSetTensor4dDescriptor(InputDesc, CUDNN_TENSOR_NCHW, dtype, p0.shape[0], p0.shape[1], p0.shape[2], p0.shape[3]);
-	   cout<<status<<" status"<<endl;
 	   if (status != CUDNN_STATUS_SUCCESS)
 	    	  cout<<"---ERROR cudnnSetTensor4dDescriptor status  "<<status<<endl;
-
-	   cout<<"cu1"<<endl;
 
 	   status = cudnnSetFilterDescriptor(FilterDesc, dtype, p1.shape[0], p1.shape[1], p1.shape[2], p1.shape[3]);
 	   if (status != CUDNN_STATUS_SUCCESS)
 	    	  cout<<"---ERROR cudnnSetFilterDescriptor status  "<<status<<endl;
 
-	   cout<<"cu2"<<endl;
-
 	   status = cudnnSetConvolutionDescriptor(convDesc, InputDesc, FilterDesc,
-	                                 pad_x, pad_y, 2, 2, 1, 1, CUDNN_CONVOLUTION);
+	                                 pad_x, pad_y, v_f_stride, h_f_stride, 1, 1, CUDNN_CONVOLUTION);
 	   if (status != CUDNN_STATUS_SUCCESS)
 	    	  cout<<"---ERROR cudnnSetConvolutionDescriptor status  "<<status<<endl;
-
-	   cout<<"cu3"<<endl;
 
 	   // query output layout
 	   status = cudnnGetOutputTensor4dDim(convDesc, CUDNN_CONVOLUTION_FWD, &n_out, &c_out,
 	                             &h_out, &w_out);
 	   if (status != CUDNN_STATUS_SUCCESS)
 	    	  cout<<"---ERROR cudnnGetOutputTensor4dDim status  "<<status<<endl;
-
-	   cout<<"cu4"<<endl;
 
 	   // Set and allocate output tensor descriptor
 	   //changed from &OutputDesc to OutputDesc
@@ -728,21 +703,14 @@ namespace cuvnet
 	       if (status != CUDNN_STATUS_SUCCESS)
 	     	  cout<<"---ERROR cudnnSetTensor4dDescriptor status  "<<status<<endl;
 
-
-	       cout<<"here51111"<<endl;
-
        if(r0.can_overwrite_directly()){
    //   if(true){
-    	   cout<<"here51"<<endl;
-
-    	   cout<<"here566"<<endl;
+    	 
     	   //TODO:: if bias is used ...
 
 
   	  	//   cudaMalloc(&ImageBatchOut, n_out*c_out*h_out*w_out * sizeof(float));
   	     float* ImageBatchOut = r0.overwrite_or_add_value()->ptr();
-
-  	     cout<<"here52"<<endl;
 
 
   	 //  value_ptr v(new value_type(r0.shape));
@@ -756,7 +724,6 @@ namespace cuvnet
     	    	  cout<<"---ERROR cudnnConvolutionForward status  "<<status<<endl;
 
     	//   	 r0.push(v);
-    	   cout<<"here6"<<endl;
 
 
        }else{
@@ -764,8 +731,6 @@ namespace cuvnet
            value_ptr v(new value_type(r0.shape));
 
          float* ImageBatchOut = v->ptr();
-
-         cout<<"before convolution"<<endl;
 
          status = cudnnConvolutionForward(handle, InputDesc, ImageInBatch, FilterDesc,
         	                           Filter, convDesc, OutputDesc, ImageBatchOut,
@@ -783,7 +748,6 @@ namespace cuvnet
 
        cudnnDestroy(handle);
 
-       cout<<"cuDNN fprop end"<<endl;
     }
 
 
@@ -791,18 +755,18 @@ namespace cuvnet
        using namespace cuv;
        using namespace std;
 
-       cout<<"cuDNN backprop start"<<endl;
-
        param_t::element_type&  p0 = *m_params[0];
         param_t::element_type&  p1 = *m_params[1];
         result_t::element_type& r0 = *m_results[0];
 
         assert(p0.need_derivative || p1.need_derivative);
         cuvAssert(r0.delta.cdata().is_c_contiguous());
-
+ cudnnStatus_t status;
         cudnnHandle_t handle;
-        cudnnCreate(&handle);
-
+         status = cudnnCreate(&handle);
+        	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnCreateHandle status  "<<status<<endl;
+ 
         cudnnDataType_t dtype = cudnn_data_type<matrix>();
 
         cudnnTensor4dDescriptor_t diffDesc;
@@ -811,13 +775,15 @@ namespace cuvnet
         cudnnConvolutionDescriptor_t convDesc;
 
         int pad_x = 0; //TODO: use parameters
-        int pad_y = 0;
+        int pad_y = 0;      
+        int v_f_stride = 1;
+        int h_f_stride = 1;
         int n_out;
         int c_out;
         int h_out;
         int w_out;
 
-        cudnnStatus_t status;
+       
 
         status = cudnnCreateTensor4dDescriptor(&diffDesc);
         	   if (status != CUDNN_STATUS_SUCCESS)
@@ -854,27 +820,41 @@ namespace cuvnet
                            	   if (status != CUDNN_STATUS_SUCCESS)
                            	 	    	  cout<<"---ERROR cudnnCreateFilterDescriptor status  "<<status<<endl;
 
-               cudnnSetFilterDescriptor(filterDesc, dtype, p1.shape[0], p1.shape[1], p1.shape[2], p1.shape[3]);
-               cudnnSetTensor4dDescriptor(diffDesc, CUDNN_TENSOR_NCHW, dtype, r0.shape[0], r0.shape[1], r0.shape[2], r0.shape[3]);
+               status =  cudnnSetFilterDescriptor(filterDesc, dtype, p1.shape[0], p1.shape[1], p1.shape[2], p1.shape[3]);
+         	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnSetFilter status  "<<status<<endl;
+               status =  cudnnSetTensor4dDescriptor(diffDesc, CUDNN_TENSOR_NCHW, dtype, r0.shape[0], r0.shape[1], r0.shape[2], r0.shape[3]);
+        	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnSetTensor diffDesc status  "<<status<<endl;
+     status =  cudnnSetTensor4dDescriptor(srcDesc, CUDNN_TENSOR_NCHW, dtype, p0.shape[0], p0.shape[1], p0.shape[2], p0.shape[3]);
+        	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnSetTensor srcDesc status  "<<status<<endl;
+ 
 
-               cudnnSetConvolutionDescriptor(convDesc, diffDesc, filterDesc,
-            	                                 pad_x, pad_y, 2, 2, 1, 1, CUDNN_CONVOLUTION);
+                status = cudnnSetConvolutionDescriptor(convDesc, srcDesc, filterDesc,
+            	                                 pad_x, pad_y, v_f_stride, h_f_stride, 1, 1, CUDNN_CONVOLUTION);
+         	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnSetConvolution1 status  "<<status<<endl;
             	   // query output layout
-            	cudnnGetOutputTensor4dDim(convDesc, CUDNN_CONVOLUTION_WEIGHT_GRAD, &n_out, &c_out,
+             status = 	cudnnGetOutputTensor4dDim(convDesc, CUDNN_CONVOLUTION_WEIGHT_GRAD, &n_out, &c_out,
             	                             &h_out, &w_out);
-
+        	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnGetOutput status  "<<status<<endl;
+ 
          	 //   cudnnSetTensor4dDescriptor(gradDesc, CUDNN_TENSOR_NCHW, dtype, n_out, c_out,
            	 //                             h_out, w_out);
-            	cudnnSetFilterDescriptor(gradDesc, dtype, n_out, c_out,
-            	           	                              h_out, w_out);
+             status = 	cudnnSetFilterDescriptor(gradDesc, dtype,  p1.shape[0], p1.shape[1], p1.shape[2], p1.shape[3]);
 
+        	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnSetFilter status  "<<status<<endl;
+ 
                if(p1.can_overwrite_directly()){
 
             	   float* gradData = (*p1.overwrite_or_add_value()).ptr();
 
             	    //TODO: there is also cudnnConvolutionBackwardBias
 
-            	   cudnnConvolutionBackwardFilter(handle,
+            	   status =  cudnnConvolutionBackwardFilter(handle,
             	   srcDesc,
             	   srcData,
             	   diffDesc,
@@ -883,7 +863,10 @@ namespace cuvnet
             	   gradDesc,
             	   gradData,
             	   CUDNN_RESULT_NO_ACCUMULATE );   //TODO: accumulate?
-
+        	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnConvolutionBackwardFilter status  "<<status<<endl;
+ 
+		//TODO:does it ever reach here?
             	   cout<<"p1 overwrite true"<<endl;
                }
                else{
@@ -892,7 +875,7 @@ namespace cuvnet
 
                    float* gradData = (*ptr).ptr();
 
-             	   cudnnConvolutionBackwardFilter(handle,
+             	   status =  cudnnConvolutionBackwardFilter(handle,
              	   srcDesc,
              	   srcData,
              	   diffDesc,
@@ -901,10 +884,10 @@ namespace cuvnet
              	   gradDesc,
              	   gradData,
              	   CUDNN_RESULT_NO_ACCUMULATE );
-
+        	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnConvolutionBackwardFilter status  "<<status<<endl;
+ 
                    p1.push(ptr);
-
-                   cout<<"p1 overwrite false"<<endl;
                }
            }
 
@@ -919,26 +902,41 @@ namespace cuvnet
 
             status = cudnnCreateTensor4dDescriptor(&gradDesc);
                                    	   if (status != CUDNN_STATUS_SUCCESS)
-                                   	 	    	  cout<<"---ERROR cudnnSetTensor4dDescriptor status  "<<status<<endl;
+                                   	 	    	  cout<<"---ERROR cudnnCreateTensor4dDescriptor status  "<<status<<endl;
 
-            cudnnSetFilterDescriptor(filterDesc, dtype, p1.shape[0], p1.shape[1], p1.shape[2], p1.shape[3]);
-            cudnnSetTensor4dDescriptor(diffDesc, CUDNN_TENSOR_NCHW, dtype, r0.shape[0], r0.shape[1], r0.shape[2], r0.shape[3]);
+            status =  cudnnSetFilterDescriptor(filterDesc, dtype, p1.shape[0], p1.shape[1], p1.shape[2], p1.shape[3]);
+         	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnSetFilterDescriptor status  "<<status<<endl;
+            status =  cudnnSetTensor4dDescriptor(diffDesc, CUDNN_TENSOR_NCHW, dtype, r0.shape[0], r0.shape[1], r0.shape[2], r0.shape[3]);
+        	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnSetTensor4dDescriptor status  "<<status<<endl;
+ 
+  status =  cudnnSetTensor4dDescriptor(srcDesc, CUDNN_TENSOR_NCHW, dtype, p0.shape[0], p0.shape[1], p0.shape[2], p0.shape[3]);
+        	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnSetTensor srcDesc status  "<<status<<endl;
+ 
 
-            cudnnSetConvolutionDescriptor(convDesc, diffDesc, filterDesc,
-         	                                 pad_x, pad_y, 2, 2, 1, 1, CUDNN_CONVOLUTION);
+            status =  cudnnSetConvolutionDescriptor(convDesc, srcDesc, filterDesc,
+         	                                 pad_x, pad_y, v_f_stride, h_f_stride, 1, 1, CUDNN_CONVOLUTION);
+         	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnSetConvolutionDescriptor status  "<<status<<endl;
          	   // query output layout    cout<<"cuDNN backprop start"<<endl;
 
-         	cudnnGetOutputTensor4dDim(convDesc, CUDNN_CONVOLUTION_DATA_GRAD, &n_out, &c_out,
+          status = 	cudnnGetOutputTensor4dDim(convDesc, CUDNN_CONVOLUTION_DATA_GRAD, &n_out, &c_out,
          	                             &h_out, &w_out);
-
-      	    cudnnSetTensor4dDescriptor(gradDesc, CUDNN_TENSOR_NCHW, dtype, n_out, c_out,
+        	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnGetOutput status  "<<status<<endl;
+ 
+      	    status =  cudnnSetTensor4dDescriptor(gradDesc, CUDNN_TENSOR_NCHW, dtype, n_out, c_out,
         	                              h_out, w_out);
-
+        	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnSetTensor status  "<<status<<endl;
+ 
             if(p0.can_overwrite_directly()){
 
           	  float* gradData = (*p0.overwrite_or_add_value()).ptr();
 
-             cudnnConvolutionBackwardData(  handle,
+             status =  cudnnConvolutionBackwardData(  handle,
                  filterDesc,
                 filterData,
                  diffDesc,
@@ -948,9 +946,12 @@ namespace cuvnet
                  gradData,
                  CUDNN_RESULT_NO_ACCUMULATE
                 );
-
+        	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnConvolutionBackward status  "<<status<<endl;
+ 
              //d_convolve_d_images(*p0.overwrite_or_add_value(),delta,flt, m_mode);
 
+	//TODO:: test if it ever reaches here
              cout<<"p0 overwrite true"<<endl;
             }
 
@@ -962,7 +963,7 @@ namespace cuvnet
 
                  float* gradData = v.ptr();
 
-                 cudnnConvolutionBackwardData(  handle,
+                status =   cudnnConvolutionBackwardData(  handle,
                      filterDesc,
                     filterData,
                      diffDesc,
@@ -972,11 +973,11 @@ namespace cuvnet
                      gradData,
                      CUDNN_RESULT_NO_ACCUMULATE
                     );
-
+        	   if (status != CUDNN_STATUS_SUCCESS)
+        	 	    	  cout<<"---ERROR cudnnConvolutionBackward status  "<<status<<endl;
+ 
              //    d_convolve_d_images(v,delta,flt, m_mode);
                  p0.push(ptr);
-
-                 cout<<"p0 overwrite false"<<endl;
             }
         }
 
@@ -985,8 +986,6 @@ namespace cuvnet
         r0.delta.reset();
 
         cudnnDestroy(handle);
-
-        cout<<"cuDNN backprop end"<<endl;
 
     }
 
@@ -997,8 +996,6 @@ namespace cuvnet
         //dst       (nImg, nFilt, nModules, nModules)
         //img       (nImg, nImgChan, nImgPiY, nImgPix)
         //filter    (nFilt,nFiltChan, nFiltPiY,nFiltPix)
-
-    	cout<<"here1"<<endl;
 
     	assert(m_params[0]->shape.size()==4);
     	assert(m_params[1]->shape.size()==4);
@@ -1021,8 +1018,6 @@ namespace cuvnet
         dst[2] = nOutPixY;
         dst[3] = nOutPixX;
         m_results[0]->shape = dst;
-
-    	cout<<"here2"<<endl;
     }
 
 
