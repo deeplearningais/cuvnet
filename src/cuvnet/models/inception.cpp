@@ -46,7 +46,10 @@ namespace cuvnet { namespace models {
                 //int sx = o->result()->shape[1];
 
                 m_fclayers.push_back(boost::make_shared<mlp_layer>(o, compress, 
-                            mlp_layer_opts().with_bias(with_bias,bias).weights_left().rectified_linear(!copy).group(lstr, true).verbose(verbose)));
+                            mlp_layer_opts().with_bias(with_bias,bias).weights_left()
+                            //.linear()
+                            .rectified_linear(!copy)
+                            .group(lstr, true).verbose(verbose)));
                 register_submodel(*m_fclayers.back());
                 o = m_fclayers.back()->m_output;
                 o = reorder_from_conv(o);
@@ -65,7 +68,10 @@ namespace cuvnet { namespace models {
             }else{
                 cuvAssert(n_src_maps > 1);
                 m_fclayers.push_back(boost::make_shared<mlp_layer>(m_input, compress, 
-                            mlp_layer_opts().with_bias(with_bias,bias).weights_left().rectified_linear(!copy).group(lstr,true).verbose(verbose)));
+                            mlp_layer_opts().with_bias(with_bias,bias).weights_left()
+                            .rectified_linear(!copy)
+                            //.linear()
+                            .group(lstr,true).verbose(verbose)));
                 register_submodel(*m_fclayers.back());
                 m_convlayers.push_back(boost::make_shared<conv_layer>(m_fclayers.back()->m_output,
                             fs, n_dst, conv_layer_opts().with_bias(with_bias,bias).symmetric_padding(-1).group(lstr, true).verbose(verbose)));
