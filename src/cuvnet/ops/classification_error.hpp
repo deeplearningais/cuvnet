@@ -61,7 +61,10 @@ namespace cuvnet
                 void fprop();
                 void bprop();
                 void _determine_shapes();
+                
+                inline const std::vector<std::pair<int,int> >& get_confusion()const{return m_confusion;};
             private:
+                std::vector<std::pair<int,int> > m_confusion;
                 friend class boost::serialization::access;
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
