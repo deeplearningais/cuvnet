@@ -2300,20 +2300,20 @@ BOOST_AUTO_TEST_CASE(theano_convolve){
             {
                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
                boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFilt][nFiltChan][nFiltPixY][nFiltPixX], "weights");
-            //   boost::shared_ptr<ParameterInput> padding_bias = boost::make_shared<ParameterInput>(cuv::extents[nFilt][nFiltPixY + nImgPixY - 1][nFiltPixX + nImgPixX - 1], "padding_bias");
+               boost::shared_ptr<ParameterInput> padding_bias = boost::make_shared<ParameterInput>(cuv::extents[nFilt][nFiltPixY + nImgPixY - 1][nFiltPixX + nImgPixX - 1], "padding_bias");
 
                {
                  ptr_t func                       = boost::make_shared<Convolve2dTheano>(inp0->result(), inp1->result(), "valid");
                  derivative_tester(*func).test();
                }
-           /*    {
+               {
                   ptr_t func                       = boost::make_shared<Convolve2dTheano>(inp0->result(), inp1->result(), "full");
                   derivative_tester(*func).test();
                }
                {
                  ptr_t func                       = boost::make_shared<Convolve2dTheano>(inp0->result(), inp1->result(), padding_bias->result(), "full");
                  derivative_tester(*func).test();
-               }*/
+               }
             }
         }
 }
@@ -2363,8 +2363,6 @@ BOOST_AUTO_TEST_CASE(upscale){
 
 BOOST_AUTO_TEST_CASE(cuDNN_convolve){
     typedef boost::shared_ptr<Op> ptr_t;
-
- //   using namespace cuv::theano_conv;
 
         {
             unsigned int nImgChan = 3;      // must be divisible by nGroups
