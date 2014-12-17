@@ -213,6 +213,10 @@ namespace cuvnet
                typedef Op::param_t       param_t;
                typedef Op::result_t      result_t;
            private:
+       		int m_padding_x = 0;
+       		int m_padding_y = 0;
+       		int m_ver_filt_stride = 1;
+       		int m_hor_filt_stride = 1;
            public:
                ConvolvecuDNN() :Op(2,1){} ///< for serialization
                 /**
@@ -221,8 +225,12 @@ namespace cuvnet
                  * @param images nImages x nChannels x nPixels x nPixels
                  * @param filters nFilt x nFiltChannels x nFiltPix x nFiltPix
                  */
-               ConvolvecuDNN(result_t& images, result_t& filters)
-                   :Op(2,1)
+               ConvolvecuDNN(result_t& images, result_t& filters, int m_padding_x=0, int m_padding_y=0, int m_ver_filt_stride=1, int m_hor_filt_stride=1)
+                   :Op(2,1),
+                    m_padding_x(m_padding_x),
+                    m_padding_y(m_padding_y),
+                    m_ver_filt_stride(m_ver_filt_stride),
+                    m_hor_filt_stride(m_hor_filt_stride)
                {
                    add_param(0,images);
                    add_param(1,filters);

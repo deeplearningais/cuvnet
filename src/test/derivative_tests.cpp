@@ -12,6 +12,8 @@
 #include <cuvnet/tools/matwrite.hpp>
 #include <cuvnet/tools/logging.hpp>
 
+#include <cuv/tools/timing.hpp>
+
 #include <cuvnet/ops.hpp>
 
 #include <boost/test/unit_test.hpp>
@@ -35,6 +37,19 @@ struct Fix{
         m_test_trace.reset(new Tracer(g_log, boost::unit_test::framework::current_test_case().p_name));
     }
 };
+
+#define MEASURE_TIME(MSG, OPERATION, ITERS)     \
+	float MSG;                                  \
+	if(1){                                      \
+		Timing tim;                             \
+		for(int i=0;i<ITERS;i++){               \
+			OPERATION ;                         \
+            cuv::safeThreadSync();               \
+		}                                       \
+		tim.update(ITERS);                      \
+		printf("%s [%s] took %4.4f us/pass\n", #MSG, #OPERATION, 1000000.0f*tim.perf()); \
+		MSG = 1000000.0f*tim.perf();            \
+	}
 
 BOOST_FIXTURE_TEST_SUITE( op_test, Fix )
 
@@ -2365,24 +2380,75 @@ BOOST_AUTO_TEST_CASE(cuDNN_convolve){
     typedef boost::shared_ptr<Op> ptr_t;
 
         {
-            unsigned int nImgChan = 3;      // must be divisible by nGroups
-            unsigned int nImgPixX = 5;
-            unsigned int nImgPixY = 5;
-            unsigned int nImg     = 1;
+            unsigned int nImgChan = 3;
+            unsigned int nImgPixX = 9;
+            unsigned int nImgPixY = 9;
+            unsigned int nImg     = 2;
 
             unsigned int nFiltChan = nImgChan;
             unsigned int nFiltPixX  = 3;
             unsigned int nFiltPixY  = 3;
             unsigned int nFilt     = 2;
 
+            unsigned int padding_x = 5;
+            unsigned int padding_y = 7;
+
             {
                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
                boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFilt][nFiltChan][nFiltPixY][nFiltPixX], "weights");
-            //   boost::shared_ptr<ParameterInput> padding_bias = boost::make_shared<ParameterInput>(cuv::extents[nFilt][nFiltPixY + nImgPixY - 1][nFiltPixX + nImgPixX - 1], "padding_bias");
 
-               {
+          /*     {
                  ptr_t func                       = boost::make_shared<ConvolvecuDNN>(inp0->result(), inp1->result());
                  derivative_tester(*func).test();
+               }*/
+               {
+                  ptr_t func                       = boost::make_shared<ConvolvecuDNN>(inp0->result(), inp1->result(),padding_x,padding_y);
+                  derivative_tester(*func).epsilon(1.).full_jacobian().no_state_precision(1e-6).test();
+                }
+            }
+        }
+}
+
+BOOST_AUTO_TEST_CASE(cuDNN_speed){
+    typedef boost::shared_ptr<Op> ptr_t;
+
+        {
+            unsigned int nImgChan = 3;
+            unsigned int nImgPixX = 224;
+            unsigned int nImgPixY = 224;
+            unsigned int nImg     = 64;
+
+            unsigned int nFiltChan = nImgChan;
+            unsigned int nFiltPixX  = 11;
+            unsigned int nFiltPixY  = 11;
+            unsigned int nFilt     = 32;
+
+            {
+               boost::shared_ptr<ParameterInput>  inp0a = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
+               boost::shared_ptr<ParameterInput>  inp0b = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg], "inputs");
+               boost::shared_ptr<ParameterInput>  inp1a = boost::make_shared<ParameterInput>(cuv::extents[nFilt][nFiltChan][nFiltPixY][nFiltPixX], "weights");
+               boost::shared_ptr<ParameterInput>  inp1b = boost::make_shared<ParameterInput>(cuv::extents[nFiltChan][nFiltPixY*nFiltPixX][nFilt], "weights");
+
+               for(unsigned int dinput = 0; dinput < 2; dinput ++){
+            	   std::cout << "derivative w.r.t. param: " << dinput << std::endl;
+            	   int padding = 0;
+
+            	   ptr_t op0 = boost::make_shared<ConvolvecuDNN>(inp0a->result(), inp1a->result(),padding, padding);
+            	   ptr_t op1 = boost::make_shared<Convolve>(inp0b->result(), inp1b->result(), true, padding, 1, 1, 4);
+
+            	   cuvnet::function func0f(op0);
+            	   MEASURE_TIME(cudnn_f, func0f.evaluate(), 2);
+            	   cuvnet::function func1f(op1);
+            	   MEASURE_TIME(alex_f, func1f.evaluate(), 2);
+
+            	   cuvnet::delta_function func0(op0, op0, 0, dinput);
+            	   MEASURE_TIME(cudnn_fb, func0.evaluate(), 2);
+
+            	   cuvnet::delta_function func1(op1, op1, 0, dinput);
+            	   MEASURE_TIME(alex_fb, func1.evaluate(), 2);
+
+            	   std::cout << "fprop speedup alex/cudnn: " << (alex_f) / (cudnn_f) << std::endl;
+            	   std::cout << "bprop speedup alex/cudnn: " << (alex_fb-alex_f) / (cudnn_fb-cudnn_f) << std::endl;
                }
             }
         }

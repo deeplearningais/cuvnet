@@ -105,6 +105,7 @@ namespace cuvnet
                 r0.push(vp);
             }
         }
+
         if(!p0.need_derivative && !p1.need_derivative)
         {
             p0.value.reset();
@@ -397,6 +398,7 @@ namespace cuvnet
                convolve_2d(*v, p0.value.cdata(), p1.value.cdata(), m_mode);
            r0.push(v);
        }
+
        if(!p0.need_derivative && !p1.need_derivative)
        {
            p0.value.reset();
@@ -585,11 +587,6 @@ namespace cuvnet
 		result_t::element_type& r0 = *m_results[0];
 		cuvAssert(p0.value.cdata().is_c_contiguous());
 
-		int pad_x = 0; //TODO: use parameters
-		int pad_y = 0;
-		int v_f_stride = 1;
-		int h_f_stride = 1;
-
 		cudnnStatus_t status;
 		cudnnHandle_t handle;
 		status = cudnnCreate(&handle);
@@ -628,7 +625,7 @@ namespace cuvnet
 		if (status != CUDNN_STATUS_SUCCESS)
 			throw("ERROR fprop cudnnSetFilterDescriptor(filterDesc), status: " + boost::lexical_cast<std::string>(status));
 
-		status = cudnnSetConvolutionDescriptor(convDesc, imgDesc, filterDesc, pad_x, pad_y, v_f_stride, h_f_stride, 1, 1, CUDNN_CONVOLUTION);
+		status = cudnnSetConvolutionDescriptor(convDesc, imgDesc, filterDesc, m_padding_y, m_padding_x, m_ver_filt_stride, m_hor_filt_stride, 1, 1, CUDNN_CONVOLUTION);
 		if (status != CUDNN_STATUS_SUCCESS)
 			throw("ERROR fprop cudnnSetConvolutionDescriptor(convDesc), status: " + boost::lexical_cast<std::string>(status));
 
@@ -639,6 +636,13 @@ namespace cuvnet
 		int h_out;
 		int w_out;
 		status = cudnnGetOutputTensor4dDim(convDesc, CUDNN_CONVOLUTION_FWD, &n_out, &c_out, &h_out, &w_out);
+		cuvAssert((unsigned)n_out == r0.shape[0]);
+		cuvAssert((unsigned)c_out == r0.shape[1]);
+		cuvAssert((unsigned)h_out == r0.shape[2]);
+		cuvAssert((unsigned)w_out == r0.shape[3]);
+	//	cout<<"cuDNN " <<n_out <<" "<< c_out << " " << h_out << " " << w_out<<endl;
+	//	cout<<"determine_shapes "<<r0.shape[0]<< " "<< r0.shape[1] << " "<< r0.shape[2] << " "<< r0.shape[3]<<endl;
+
 		if (status != CUDNN_STATUS_SUCCESS)
 			throw("ERROR fprop cudnnGetOutputTensor4dDim(convDesc), status: " + boost::lexical_cast<std::string>(status));
 
@@ -647,12 +651,11 @@ namespace cuvnet
 		if (status != CUDNN_STATUS_SUCCESS)
 			throw("ERROR fprop cudnnSetTensor4dDescriptor(outputDesc), status: " + boost::lexical_cast<std::string>(status));
 
-		//Todo: float?
-		const float* imgData = p0.value.cdata().ptr();
-		const float* filterData = p1.value.cdata().ptr();
+		const matrix::value_type* imgData = p0.value.cdata().ptr();
+		const matrix::value_type* filterData = p1.value.cdata().ptr();
 
 		if (r0.can_overwrite_directly()) {
-			float* outputData = r0.overwrite_or_add_value()->ptr();
+			matrix::value_type* outputData = r0.overwrite_or_add_value()->ptr();
 			// launch convolution on GPU
 			status = cudnnConvolutionForward(handle, imgDesc, imgData, filterDesc, filterData, convDesc, outputDesc, outputData, CUDNN_RESULT_NO_ACCUMULATE);
 			if (status != CUDNN_STATUS_SUCCESS)
@@ -660,16 +663,12 @@ namespace cuvnet
 
 		} else {
 			// reallocate *sigh*
-			value_ptr v(new value_type(r0.shape));
-			float* outputData = v->ptr();
+			value_ptr v(new value_type(r0.shape, cuvnet::get_global_allocator()));
+			matrix::value_type* outputData = v->ptr();
 			status = cudnnConvolutionForward(handle, imgDesc, imgData, filterDesc, filterData, convDesc, outputDesc, outputData, CUDNN_RESULT_NO_ACCUMULATE);
 			if (status != CUDNN_STATUS_SUCCESS)
 				throw("ERROR fprop cudnnConvolutionForward2, status: " + boost::lexical_cast<std::string>(status));
 			r0.push(v);
-		}
-		if (!p0.need_derivative && !p1.need_derivative) {
-			p0.value.reset();
-			p1.value.reset();
 		}
 
 		//destroy descriptors
@@ -687,6 +686,22 @@ namespace cuvnet
 			throw("ERROR fprop cudnnDestroyTensor4dDescriptor(outputDesc), status: " + boost::lexical_cast<std::string>(status));
 
 		cudnnDestroy(handle);
+
+	/*	cout<<"img01 "<<endl<<p0.value.cdata()[indices[0][0]]<<endl;
+		cout<<"img02 "<<endl<<p0.value.cdata()[indices[0][1]]<<endl;
+		cout<<"img03 "<<endl<<p0.value.cdata()[indices[0][2]]<<endl;
+		cout<<"filter01 "<<endl<<p1.value.cdata()[indices[0][0]]<<endl;
+		cout<<"filter02 "<<endl<<p1.value.cdata()[indices[0][1]]<<endl;
+		cout<<"filter03 "<<endl<<p1.value.cdata()[indices[0][2]]<<endl;
+		cout<<"result "<<endl<<(*r0.overwrite_or_add_value())[indices[0][0]]<<endl;*/
+
+
+		if (!p0.need_derivative && !p1.need_derivative) {
+			p0.value.reset();
+			p1.value.reset();
+		}
+
+		//throw("a");
 	}
 
 	void ConvolvecuDNN::bprop() {
@@ -700,11 +715,6 @@ namespace cuvnet
 		assert(p0.need_derivative || p1.need_derivative);
 		cuvAssert(r0.delta.cdata().is_c_contiguous());
 
-		int pad_x = 0; //TODO: use parameters
-		int pad_y = 0;
-		int v_f_stride = 1;
-		int h_f_stride = 1;
-
 		cudnnStatus_t status;
 		cudnnHandle_t handle;
 		status = cudnnCreate(&handle);
@@ -713,35 +723,12 @@ namespace cuvnet
 
 		cudnnDataType_t dtype = cudnn_data_type<matrix>();
 
-/*
-		cudnnFilterDescriptor_t filterDesc;
-		status = cudnnCreateFilterDescriptor(&filterDesc);
-		if (status != CUDNN_STATUS_SUCCESS)
-			cout << "---ERROR cudnnCreateFilterDescriptor status  " << status
-					<< endl;
-		status = cudnnSetFilterDescriptor(filterDesc, dtype, p1.shape[0],
-				p1.shape[1], p1.shape[2], p1.shape[3]);
-		if (status != CUDNN_STATUS_SUCCESS)
-			cout << "---ERROR cudnnSetFilter status  " << status << endl;
-
-		cudnnTensor4dDescriptor_t imgDesc;
-		status = cudnnCreateTensor4dDescriptor(&imgDesc);
-		if (status != CUDNN_STATUS_SUCCESS)
-			cout << "---ERROR cudnnCreateTensor4dDescriptor srcDesc status  "
-					<< status << endl;
-		status = cudnnSetTensor4dDescriptor(imgDesc, CUDNN_TENSOR_NCHW, dtype,
-				p0.shape[0], p0.shape[1], p0.shape[2], p0.shape[3]);
-		if (status != CUDNN_STATUS_SUCCESS)
-			cout << "---ERROR cudnSetTensor srcDesc status  " << status << endl;
-*/
-
-
 		if (p1.need_derivative) {
 			// calculate p1 first, then we don't need activations
 			// anymore and can overwrite them. They are usually
 			// larger than the weights, so it should be better in this order.
-			const float* imgData = p0.value.cdata().ptr();   //images
-			const float* diffData = r0.delta.cdata().ptr();
+			const matrix::value_type* imgData = p0.value.cdata().ptr();   //images
+			const matrix::value_type* diffData = r0.delta.cdata().ptr();
 
 			cudnnTensor4dDescriptor_t imgDesc;
 			status = cudnnCreateTensor4dDescriptor(&imgDesc);
@@ -775,13 +762,13 @@ namespace cuvnet
 			if (status != CUDNN_STATUS_SUCCESS)
 				throw("ERROR bprop cudnnCreateConvolutionDescriptor(convDesc), status: " + boost::lexical_cast<std::string>(status));
 			//changed to from filterDesc to gradFilterDesc
-			status = cudnnSetConvolutionDescriptor(convDesc, imgDesc, gradFilterDesc, pad_x, pad_y, v_f_stride, h_f_stride, 1, 1, CUDNN_CONVOLUTION);
+			status = cudnnSetConvolutionDescriptor(convDesc, imgDesc, gradFilterDesc, m_padding_y, m_padding_x, m_ver_filt_stride, m_hor_filt_stride, 1, 1, CUDNN_CONVOLUTION);
 			if (status != CUDNN_STATUS_SUCCESS)
 				throw("ERROR bprop cudnnSetConvolutionDescriptor(convDesc), status: " + boost::lexical_cast<std::string>(status));
 
 
 			if (p1.can_overwrite_directly()) {
-				float* gradFilterData = (*p1.overwrite_or_add_value()).ptr();
+				matrix::value_type* gradFilterData = (*p1.overwrite_or_add_value()).ptr();
 				//TODO: there is also cudnnConvolutionBackwardBias
 				status = cudnnConvolutionBackwardFilter(handle, imgDesc, imgData, diffDesc, diffData, convDesc, gradFilterDesc, gradFilterData, CUDNN_RESULT_NO_ACCUMULATE);   //TODO: accumulate?
 				if (status != CUDNN_STATUS_SUCCESS)
@@ -793,7 +780,7 @@ namespace cuvnet
 			} else {
 				value_ptr ptr(new value_type(p1.shape, value_ptr::s_allocator));
 
-				float* gradFilterData = (*ptr).ptr();
+				matrix::value_type* gradFilterData = (*ptr).ptr();
 				status = cudnnConvolutionBackwardFilter(handle, imgDesc, imgData, diffDesc, diffData, convDesc, gradFilterDesc, gradFilterData, CUDNN_RESULT_NO_ACCUMULATE);
 				if (status != CUDNN_STATUS_SUCCESS)
 					throw("ERROR bprop cudnnConvolutionBackwardFilter2, status: " + boost::lexical_cast<std::string>(status));
@@ -817,8 +804,8 @@ namespace cuvnet
 
 		if (p0.need_derivative) {
 			// derivative w.r.t. images
-			const float* filterData = p1.value.cdata().ptr();
-			const float* diffData = r0.delta.cdata().ptr();
+			const matrix::value_type* filterData = p1.value.cdata().ptr();
+			const matrix::value_type* diffData = r0.delta.cdata().ptr();
 
 			cudnnFilterDescriptor_t filterDesc;
 			status = cudnnCreateFilterDescriptor(&filterDesc);
@@ -851,14 +838,14 @@ namespace cuvnet
 			status = cudnnCreateConvolutionDescriptor(&convDesc);
 			if (status != CUDNN_STATUS_SUCCESS)
 				throw("ERROR bprop cudnnCreateConvolutionDescriptor(convDesc), status: " + boost::lexical_cast<std::string>(status));
-			status = cudnnSetConvolutionDescriptor(convDesc, gradImgDesc, filterDesc, pad_x, pad_y, v_f_stride, h_f_stride, 1, 1, CUDNN_CONVOLUTION);
+			status = cudnnSetConvolutionDescriptor(convDesc, gradImgDesc, filterDesc, m_padding_y, m_padding_x, m_ver_filt_stride, m_hor_filt_stride, 1, 1, CUDNN_CONVOLUTION);
 			if (status != CUDNN_STATUS_SUCCESS)
 				throw("ERROR bprop cudnnSetConvolutionDescriptor(convDesc), status: " + boost::lexical_cast<std::string>(status));
 
 
 			if (p0.can_overwrite_directly()) {
 
-				float* gradImgData = (*p0.overwrite_or_add_value()).ptr();
+				matrix::value_type* gradImgData = (*p0.overwrite_or_add_value()).ptr();
 				status = cudnnConvolutionBackwardData(handle, filterDesc, filterData, diffDesc, diffData, convDesc, gradImgDesc, gradImgData, CUDNN_RESULT_NO_ACCUMULATE);
 				if (status != CUDNN_STATUS_SUCCESS)
 					throw("ERROR bprop cudnnConvolutionBackwardData1, status: " + boost::lexical_cast<std::string>(status));
@@ -872,7 +859,7 @@ namespace cuvnet
 				p0.value.reset();       // try to overwrite input activations
 				value_type& v = ptr.data_onlyshape();
 
-				float* gradImgData = v.ptr();
+				matrix::value_type* gradImgData = v.ptr();
 
 				status = cudnnConvolutionBackwardData(handle, filterDesc, filterData, diffDesc, diffData, convDesc, gradImgDesc, gradImgData, CUDNN_RESULT_NO_ACCUMULATE);
 				if (status != CUDNN_STATUS_SUCCESS)
@@ -922,8 +909,8 @@ namespace cuvnet
 		unsigned int nFltPixY = flt[2];
 		unsigned int nFltPixX = flt[3];
 
-		unsigned int nOutPixX = nImgPixX + 1 - nFltPixX;
-		unsigned int nOutPixY = nImgPixY + 1 - nFltPixY;
+		unsigned int nOutPixX = nImgPixX + 2*m_padding_x - nFltPixX + 1;
+		unsigned int nOutPixY = nImgPixY + 2*m_padding_y - nFltPixY + 1;
 
 		dst[0] = img[0];
 		dst[1] = nFilt;
