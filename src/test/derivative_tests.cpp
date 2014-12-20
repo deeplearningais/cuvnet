@@ -2454,6 +2454,23 @@ BOOST_AUTO_TEST_CASE(cuDNN_speed){
         }
 }
 
+BOOST_AUTO_TEST_CASE(cuDNN_pooling){
+    typedef boost::shared_ptr<Op> ptr_t;
+
+    unsigned int nImgChan = 1;      // must be multiple of 16 for bprop
+    unsigned int nImgPixX  = 4;
+    unsigned int nImgPixY  = 4;
+    unsigned int nImg     = 1;
+
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX]);
+        ptr_t func		               = boost::make_shared<PoolingcuDNN>(inp0->result(), CUDNN_POOLING_MAX, 2, 2, 2, 2);
+
+        derivative_tester(*func).test();
+    }
+}
+
+
 BOOST_AUTO_TEST_SUITE_END()
 
 

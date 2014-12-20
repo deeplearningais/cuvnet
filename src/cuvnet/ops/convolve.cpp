@@ -657,6 +657,8 @@ namespace cuvnet
 		if (r0.can_overwrite_directly()) {
 			matrix::value_type* outputData = r0.overwrite_or_add_value()->ptr();
 			// launch convolution on GPU
+
+			//TODO: CUDNN_RESULT_ADD
 			status = cudnnConvolutionForward(handle, imgDesc, imgData, filterDesc, filterData, convDesc, outputDesc, outputData, CUDNN_RESULT_NO_ACCUMULATE);
 			if (status != CUDNN_STATUS_SUCCESS)
 				throw("ERROR fprop cudnnConvolutionForward1, status: " + boost::lexical_cast<std::string>(status));
@@ -685,7 +687,9 @@ namespace cuvnet
 		if (status != CUDNN_STATUS_SUCCESS)
 			throw("ERROR fprop cudnnDestroyTensor4dDescriptor(outputDesc), status: " + boost::lexical_cast<std::string>(status));
 
-		cudnnDestroy(handle);
+		status = cudnnDestroy(handle);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnDestroy(), status: " + boost::lexical_cast<std::string>(status));
 
 	/*	cout<<"img01 "<<endl<<p0.value.cdata()[indices[0][0]]<<endl;
 		cout<<"img02 "<<endl<<p0.value.cdata()[indices[0][1]]<<endl;
@@ -887,7 +891,9 @@ namespace cuvnet
 		p1.value.reset();
 		r0.delta.reset();
 
-		cudnnDestroy(handle);
+		status = cudnnDestroy(handle);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnDestroy(), status: " + boost::lexical_cast<std::string>(status));
 	}
 
 	void ConvolvecuDNN::_determine_shapes() {
@@ -1549,6 +1555,233 @@ namespace cuvnet
 //        }
 //        cuvAssert(m_subsx * dst[2] == img[2]);
         m_results[0]->shape = dst;
+    }
+
+
+    /***************************************************
+     * cuDNN Pooling
+     ***************************************************/
+    void PoolingcuDNN::release_data(){
+    	 using namespace std;
+    	//TODO: fix this
+    //	if (m_result.overwrite_or_add_value() != NULL)
+   // 		m_result.overwrite_or_add_value().reset();
+    	//  cuvAssert(!cuv::has_nan(d_in));
+    	m_result.reset();
+        Op::release_data();
+    }
+
+    void PoolingcuDNN::fprop(){
+
+        using namespace cuv;
+        using namespace std;
+
+        param_t::element_type&  p0 = *m_params[0];
+        result_t::element_type& r0 = *m_results[0];
+        //unsigned int outy = p0.shape[1]/m_subsx;
+    //    unsigned int outx = p0.shape[2]/m_subsx;
+
+        //TODO: NCHW -> y then x
+
+
+		cudnnStatus_t status;
+		cudnnHandle_t handle;
+		status = cudnnCreate(&handle);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR fprop cudnnCreate, status: " + boost::lexical_cast<std::string>(status));
+
+		cudnnDataType_t dtype = cudnn_data_type<matrix>();
+
+		cudnnPoolingDescriptor_t poolingDesc;
+		status = cudnnCreatePoolingDescriptor(&poolingDesc);
+
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR fprop cudnnCreatePoolingDescriptor, status: " + boost::lexical_cast<std::string>(status));
+		status = cudnnSetPoolingDescriptor(poolingDesc, m_mode, m_window_height, m_window_width, m_vertical_stride, m_horizontal_stride);
+
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR fprop cudnnSetPoolingDescriptor, status: " + boost::lexical_cast<std::string>(status));
+
+		cudnnTensor4dDescriptor_t srcDesc;
+		status = cudnnCreateTensor4dDescriptor(&srcDesc);
+
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR fprop cudnnCreateTensor4dDescriptor(srcDesc), status: " + boost::lexical_cast<std::string>(status));
+		status = cudnnSetTensor4dDescriptor(srcDesc, CUDNN_TENSOR_NCHW, dtype, p0.shape[0], p0.shape[1], p0.shape[2], p0.shape[3]);
+
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR fprop cudnnSetTensor4dDescriptor(srcDesc), status: " + boost::lexical_cast<std::string>(status));
+
+		const matrix::value_type* srcData = p0.value.cdata().ptr();
+
+		cudnnTensor4dDescriptor_t destDesc;
+		status = cudnnCreateTensor4dDescriptor(&destDesc);
+
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR fprop cudnnCreateTensor4dDescriptor(destDesc), status: " + boost::lexical_cast<std::string>(status));
+		status = cudnnSetTensor4dDescriptor(destDesc, CUDNN_TENSOR_NCHW, dtype, r0.shape[0], r0.shape[1], r0.shape[2], r0.shape[3]);
+
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR fprop cudnnSetTensor4dDescriptor(destDesc), status: " + boost::lexical_cast<std::string>(status));
+
+        if(r0.can_overwrite_directly()){
+
+            matrix::value_type* destData = r0.overwrite_or_add_value()->ptr();
+
+        	status = cudnnPoolingForward(handle, poolingDesc, srcDesc, srcData, destDesc, destData);
+
+    		if (status != CUDNN_STATUS_SUCCESS)
+    			throw("ERROR fprop cudnnPoolingForward, status: " + boost::lexical_cast<std::string>(status));
+
+            if(p0.need_derivative)
+            	m_result = r0.overwrite_or_add_value();
+           //     m_result = r0; // save for bprop
+        }else{
+            // reallocate *sigh*
+		//	value_ptr v(new value_type(r0.shape, cuvnet::get_global_allocator()));
+            value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
+			matrix::value_type* destData = v->ptr();
+        	status = cudnnPoolingForward(handle, poolingDesc, srcDesc, srcData, destDesc, destData);
+
+        //		cout<<"result "<<endl<<(*r0.overwrite_or_add_value())[indices[0][0]]<<endl;
+    		if (status != CUDNN_STATUS_SUCCESS)
+    			throw("ERROR fprop cudnnPoolingForward, status: " + boost::lexical_cast<std::string>(status));
+
+            r0.push(v);
+
+       // 	cout<<"img01 "<<endl<<p0.value.cdata()[indices[0][0]]<<endl;
+       //    	cout<<"result "<<endl<<(*r0.overwrite_or_add_value())[indices[0][0]]<<endl;
+
+      //   	cout<< "image shape " << p0.shape[0] << " " << p0.shape[1] << " " << p0.shape[2] << " " << p0.shape[3] << endl;
+      //     	cout<< "result shape " << r0.shape[0] << " " << r0.shape[1] << " " << r0.shape[2] << " " << r0.shape[3] << endl;
+
+            if(p0.need_derivative)
+            {//	cout<<"saving data"<<endl;
+               // m_result = r0; // save for bprop
+            	m_result = v;
+            }
+        }
+
+		status = cudnnDestroy(handle);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnDestroy(), status: " + boost::lexical_cast<std::string>(status));
+
+    }
+
+    void PoolingcuDNN::bprop(){
+        using namespace cuv;
+        using namespace std;
+
+        param_t::element_type&  p0 = *m_params[0];
+        result_t::element_type& r0 = *m_results[0];
+        assert(p0.need_derivative);
+
+		cudnnStatus_t status;
+		cudnnHandle_t handle;
+		status = cudnnCreate(&handle);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnCreate, status: " + boost::lexical_cast<std::string>(status));
+
+		cudnnDataType_t dtype = cudnn_data_type<matrix>();
+
+		cudnnPoolingDescriptor_t poolingDesc;
+		status = cudnnCreatePoolingDescriptor(&poolingDesc);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnCreatePoolingDescriptor, status: " + boost::lexical_cast<std::string>(status));
+		status = cudnnSetPoolingDescriptor(poolingDesc, m_mode, m_window_height, m_window_width, m_vertical_stride, m_horizontal_stride);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnSetPoolingDescriptor, status: " + boost::lexical_cast<std::string>(status));
+
+		cudnnTensor4dDescriptor_t srcDesc;
+		status = cudnnCreateTensor4dDescriptor(&srcDesc);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnCreateTensor4dDescriptor(srcDesc), status: " + boost::lexical_cast<std::string>(status));
+		status = cudnnSetTensor4dDescriptor(srcDesc, CUDNN_TENSOR_NCHW, dtype, m_result.cdata().shape(0), m_result.cdata().shape(1), m_result.cdata().shape(2), m_result.cdata().shape(3));
+
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnSetTensor4dDescriptor(srcDesc), status: " + boost::lexical_cast<std::string>(status));
+
+		const matrix::value_type* srcData = m_result->ptr();
+
+
+		cudnnTensor4dDescriptor_t srcDiffDesc;
+		status = cudnnCreateTensor4dDescriptor(&srcDiffDesc);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnCreateTensor4dDescriptor(srcDiffDesc), status: " + boost::lexical_cast<std::string>(status));
+		status = cudnnSetTensor4dDescriptor(srcDiffDesc, CUDNN_TENSOR_NCHW, dtype, r0.shape[0], r0.shape[1], r0.shape[2], r0.shape[3]);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnSetTensor4dDescriptor(srcDiffDesc), status: " + boost::lexical_cast<std::string>(status));
+
+		const matrix::value_type* srcDiffData = r0.delta.cdata().ptr();
+
+	//	cout<< "---r0 " << r0.shape[0] << " " << r0.shape[1] << " " << r0.shape[2] << " " << r0.shape[3]<< endl;
+	//	cout << "---m_result " << m_result.cdata().shape(0)<< " " <<  m_result.cdata().shape(1)<< " " <<  m_result.cdata().shape(2)<< " " <<  m_result.cdata().shape(3) << endl;
+
+
+		cudnnTensor4dDescriptor_t destDesc;
+		status = cudnnCreateTensor4dDescriptor(&destDesc);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnCreateTensor4dDescriptor(destDesc), status: " + boost::lexical_cast<std::string>(status));
+		status = cudnnSetTensor4dDescriptor(destDesc, CUDNN_TENSOR_NCHW, dtype, p0.shape[0], p0.shape[1], p0.shape[2], p0.shape[3]);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnSetTensor4dDescriptor(destDesc), status: " + boost::lexical_cast<std::string>(status));
+
+	//    matrix::value_type* destData = r0.overwrite_or_add_value()->ptr();
+		const matrix::value_type* destData = p0.value.cdata().ptr();
+
+		cudnnTensor4dDescriptor_t destDiffDesc;
+		status = cudnnCreateTensor4dDescriptor(&destDiffDesc);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnCreateTensor4dDescriptor(destDiffDesc), status: " + boost::lexical_cast<std::string>(status));
+		status = cudnnSetTensor4dDescriptor(destDiffDesc, CUDNN_TENSOR_NCHW, dtype, p0.shape[0], p0.shape[1], p0.shape[2], p0.shape[3]);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnSetTensor4dDescriptor(destDiffDesc), status: " + boost::lexical_cast<std::string>(status));
+
+		if (p0.can_overwrite_directly()) {
+			matrix::value_type* destDiffData = p0.overwrite_or_add_value()->ptr();
+			status = cudnnPoolingBackward(handle, poolingDesc, srcDesc, srcData, srcDiffDesc, srcDiffData, destDesc, destData, destDiffDesc, destDiffData);
+			if (status != CUDNN_STATUS_SUCCESS)
+				throw("ERROR bprop cudnnPoolingBackward, status: " + boost::lexical_cast<std::string>(status));
+		} else {
+			value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
+			matrix::value_type* destDiffData = v->ptr();
+			status = cudnnPoolingBackward(handle, poolingDesc, srcDesc, srcData, srcDiffDesc, srcDiffData, destDesc, destData, destDiffDesc, destDiffData);
+			if (status != CUDNN_STATUS_SUCCESS)
+				throw("ERROR bprop cudnnPoolingBackward, status: " + boost::lexical_cast<std::string>(status));
+			p0.push(v);
+		}
+
+        p0.value.reset();
+        r0.delta.reset();
+        m_result.reset();
+
+		status = cudnnDestroy(handle);
+		if (status != CUDNN_STATUS_SUCCESS)
+			throw("ERROR bprop cudnnDestroy(), status: " + boost::lexical_cast<std::string>(status));
+
+    }
+
+
+    void PoolingcuDNN::_determine_shapes(){
+        /*
+         * images    (numImages, numChannels, imgPixY, imgPixX)
+         * dst:      (numImages, numChannels, imgPixY, imgPixX)
+         */
+    	using namespace std;
+        assert(m_params[0]->shape.size()==4);
+        std::vector<unsigned int> img = m_params[0]->shape;
+        std::vector<unsigned int> dst(4);
+
+        dst[0] = img[0];
+        dst[1] = img[1];
+        //TODO: org code? + stride
+        dst[2] = img[2] / m_window_height;
+        dst[3] = img[3] / m_window_width;
+      //  dst[2] = DIVUP(img[2]-m_window_height, m_vertical_stride)+1;
+      //  dst[3] = DIVUP(img[3]-m_window_width, m_horizontal_stride)+1;
+
+        m_results[0]->shape = dst;
+
     }
 
     void ReorderForConv::fprop(){

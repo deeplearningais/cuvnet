@@ -224,6 +224,7 @@ namespace cuvnet
                  *
                  * @param images nImages x nChannels x nPixels x nPixels
                  * @param filters nFilt x nFiltChannels x nFiltPix x nFiltPix
+                 *TODO://fix this
                  */
                ConvolvecuDNN(result_t& images, result_t& filters, int m_padding_x=0, int m_padding_y=0, int m_ver_filt_stride=1, int m_hor_filt_stride=1)
                    :Op(2,1),
@@ -246,6 +247,7 @@ namespace cuvnet
                template<class Archive>
                    void serialize(Archive& ar, const unsigned int version){
                        ar & boost::serialization::base_object<Op>(*this);
+                       //TODO: fix this
                    }
 
        };
@@ -646,6 +648,64 @@ namespace cuvnet
                         if(version>0){
                             ar & m_startx;
                         }
+                    }
+        };
+
+    /**
+     * cuDNN pooling
+     *
+     * @ingroup Ops
+     */
+#include "cudnn.h"
+    class PoolingcuDNN
+        : public Op{
+            public:
+                typedef Op::value_type    value_type;
+                typedef Op::op_ptr        op_ptr;
+                typedef Op::value_ptr     value_ptr;
+                typedef Op::param_t       param_t;
+                typedef Op::result_t      result_t;
+            private:
+                cudnnPoolingMode_t m_mode;
+                int m_window_height;
+                int m_window_width;
+                int m_vertical_stride;
+                int m_horizontal_stride;
+                value_ptr m_result;
+                //result_t::element_type m_result;
+            public:
+                PoolingcuDNN() :Op(1,1){} ///< for serialization
+                /**
+                 * ctor.
+                 * @param images the input images
+                 * @subx pooling size
+                 * @stridex distance between neighboring neurons in a bank
+                 * @startx where to start implicitly, relative to left/top margin
+                 * @param pt pooling type
+                 */
+                //TODO: fix this
+                PoolingcuDNN(result_t& images, cudnnPoolingMode_t mode, int window_height, int window_width, int vertical_stride, int horizontal_stride)
+                    :Op(1,1),
+                    m_mode(mode),
+                    m_window_height(window_height),
+                    m_window_width(window_width),
+                    m_vertical_stride(vertical_stride),
+                    m_horizontal_stride(horizontal_stride)
+                {
+                    add_param(0,images);
+                }
+                virtual void release_data();
+                void fprop();
+                void bprop();
+
+                void _determine_shapes();
+
+            private:
+                friend class boost::serialization::access;
+                template<class Archive>
+                    void serialize(Archive& ar, const unsigned int version){
+                        ar & boost::serialization::base_object<Op>(*this);
+                        //TODO: fix this
                     }
         };
 
