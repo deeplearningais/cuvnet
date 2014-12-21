@@ -2391,7 +2391,7 @@ BOOST_AUTO_TEST_CASE(cuDNN_convolve){
             unsigned int nFilt     = 2;
 
             unsigned int padding_x = 5;
-            unsigned int padding_y = 7;
+            unsigned int padding_y = 5;
 
             {
                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
@@ -2457,14 +2457,17 @@ BOOST_AUTO_TEST_CASE(cuDNN_speed){
 BOOST_AUTO_TEST_CASE(cuDNN_pooling){
     typedef boost::shared_ptr<Op> ptr_t;
 
-    unsigned int nImgChan = 1;      // must be multiple of 16 for bprop
-    unsigned int nImgPixX  = 4;
-    unsigned int nImgPixY  = 4;
-    unsigned int nImg     = 1;
+    unsigned int nImgChan = 3;
+    unsigned int nImgPixX  = 16;
+    unsigned int nImgPixY  = 16;
+    unsigned int nImg     = 2;
+
+    unsigned int window_height = 5;
+    unsigned int window_width = 5;
 
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX]);
-        ptr_t func		               = boost::make_shared<PoolingcuDNN>(inp0->result(), CUDNN_POOLING_MAX, 2, 2, 2, 2);
+        ptr_t func		               = boost::make_shared<PoolingcuDNN>(inp0->result(), CUDNN_POOLING_MAX, window_height, window_width);
 
         derivative_tester(*func).test();
     }

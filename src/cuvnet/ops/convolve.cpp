@@ -1562,11 +1562,6 @@ namespace cuvnet
      * cuDNN Pooling
      ***************************************************/
     void PoolingcuDNN::release_data(){
-    	 using namespace std;
-    	//TODO: fix this
-    //	if (m_result.overwrite_or_add_value() != NULL)
-   // 		m_result.overwrite_or_add_value().reset();
-    	//  cuvAssert(!cuv::has_nan(d_in));
     	m_result.reset();
         Op::release_data();
     }
@@ -1634,8 +1629,7 @@ namespace cuvnet
     			throw("ERROR fprop cudnnPoolingForward, status: " + boost::lexical_cast<std::string>(status));
 
             if(p0.need_derivative)
-            	m_result = r0.overwrite_or_add_value();
-           //     m_result = r0; // save for bprop
+            	m_result = r0.overwrite_or_add_value();  // save for bprop
         }else{
             // reallocate *sigh*
 		//	value_ptr v(new value_type(r0.shape, cuvnet::get_global_allocator()));
@@ -1656,10 +1650,7 @@ namespace cuvnet
       //     	cout<< "result shape " << r0.shape[0] << " " << r0.shape[1] << " " << r0.shape[2] << " " << r0.shape[3] << endl;
 
             if(p0.need_derivative)
-            {//	cout<<"saving data"<<endl;
-               // m_result = r0; // save for bprop
-            	m_result = v;
-            }
+            	m_result = v; // save for bprop
         }
 
 		status = cudnnDestroy(handle);

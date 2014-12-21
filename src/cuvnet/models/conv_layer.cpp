@@ -75,54 +75,63 @@ namespace cuvnet { namespace models {
         if(cfg.m_want_dropout){
             inp = m_noiser = zero_out(inp, cfg.m_dropout_rate);
         }
-        auto conv = convolve(inp, m_weights, padding>=0, padding, cfg.m_stride, cfg.m_n_groups, 0);
-        if(cfg.m_symmetric_padding)
-            conv->set_symmetric_padding(true);
 
-        determine_shapes(*conv);
-
-        LOG4CXX_WARN(g_log, "#srcmaps: "<<n_srcmaps << ", #out: "<<n_out 
-                << ", #params: " << m_weights->data().size() + (m_bias ? m_bias->data().size(): 0)
-                << ", #neuron: " << conv->result()->shape[1] * conv->result()->shape[2] * n_out
-                << ", #padding: " << padding << (cfg.m_symmetric_padding?" (symmetric)" : " (asymmetric)")
-                );
-
-        int partial_sum = cfg.m_partial_sum;
-        // determine partial_sum automatically if not given
-        if (cfg.m_partial_sum < 0){
-            int conv_shape_y = conv->result()->shape[1];
-            int conv_shape_x = conv->result()->shape[2];
-            int num_modules = conv_shape_y * conv_shape_x;
-            //partial_sum = num_modules;
-            //while((partial_sum/2)*2 == partial_sum && partial_sum > 4)
-            //    partial_sum /= 2;
-
-
-            partial_sum = 1;
-            for(int ps=1; ps < 128; ps ++){
-                if(num_modules % ps == 0      // divisibla
-                        && num_modules / ps >= 128)  // enough work left to spawn many threads
-                    partial_sum = ps;
-            }
-            LOG4CXX_WARN(g_log, "Automatically determined partial_sum: " <<partial_sum);
-        }else if(cfg.m_partial_sum > 0){
-            int conv_shape_y = conv->result()->shape[1];
-            int conv_shape_x = conv->result()->shape[2];
-            int num_modules = conv_shape_y * conv_shape_x;
-            if(num_modules % partial_sum != 0){
-                LOG4CXX_FATAL(g_log, "Given partial_sum: " <<partial_sum << " does not divide num_modules "<<num_modules);
-            }else{
-                LOG4CXX_WARN(g_log, "Supplied partial_sum: " <<partial_sum);
-            }
-        }else{
-                LOG4CXX_WARN(g_log, "Supplied partial_sum: " <<partial_sum);
+        if (cfg.m_use_cuDNN) {
+        	auto conv = convolve_cuDNN(inp, m_weights, padding, padding);
+        	m_output = conv;
         }
-        conv->set_partial_sum(partial_sum);
-        if(cfg.m_random_sparse)
-            conv->set_random_sparse(cfg.m_n_filter_channels);
-        m_output = conv;
+        else
+        {
+        	auto conv = convolve(inp, m_weights, padding>=0, padding, cfg.m_stride, cfg.m_n_groups, 0);
+			if(cfg.m_symmetric_padding)
+				conv->set_symmetric_padding(true);
+
+			determine_shapes(*conv);
+
+			LOG4CXX_WARN(g_log, "#srcmaps: "<<n_srcmaps << ", #out: "<<n_out
+					<< ", #params: " << m_weights->data().size() + (m_bias ? m_bias->data().size(): 0)
+					<< ", #neuron: " << conv->result()->shape[1] * conv->result()->shape[2] * n_out
+					<< ", #padding: " << padding << (cfg.m_symmetric_padding?" (symmetric)" : " (asymmetric)")
+					);
+
+			int partial_sum = cfg.m_partial_sum;
+			// determine partial_sum automatically if not given
+			if (cfg.m_partial_sum < 0){
+				int conv_shape_y = conv->result()->shape[1];
+				int conv_shape_x = conv->result()->shape[2];
+				int num_modules = conv_shape_y * conv_shape_x;
+				//partial_sum = num_modules;
+				//while((partial_sum/2)*2 == partial_sum && partial_sum > 4)
+				//    partial_sum /= 2;
+
+
+				partial_sum = 1;
+				for(int ps=1; ps < 128; ps ++){
+					if(num_modules % ps == 0      // divisibla
+							&& num_modules / ps >= 128)  // enough work left to spawn many threads
+						partial_sum = ps;
+				}
+				LOG4CXX_WARN(g_log, "Automatically determined partial_sum: " <<partial_sum);
+			}else if(cfg.m_partial_sum > 0){
+				int conv_shape_y = conv->result()->shape[1];
+				int conv_shape_x = conv->result()->shape[2];
+				int num_modules = conv_shape_y * conv_shape_x;
+				if(num_modules % partial_sum != 0){
+					LOG4CXX_FATAL(g_log, "Given partial_sum: " <<partial_sum << " does not divide num_modules "<<num_modules);
+				}else{
+					LOG4CXX_WARN(g_log, "Supplied partial_sum: " <<partial_sum);
+				}
+			}else{
+					LOG4CXX_WARN(g_log, "Supplied partial_sum: " <<partial_sum);
+			}
+			conv->set_partial_sum(partial_sum);
+			if(cfg.m_random_sparse)
+				conv->set_random_sparse(cfg.m_n_filter_channels);
+			 m_output = conv;
+        }
+
         if(cfg.m_want_bias){
-            m_output = mat_plus_vec(conv, m_bias, 0);
+            m_output = mat_plus_vec(m_output, m_bias, 0);
         }
         m_linear_output = m_output;
 
@@ -155,7 +164,10 @@ namespace cuvnet { namespace models {
         // Krizhevsky et al.: pooling /after/ response normalization
         m_output_before_pooling = m_output;
         if(cfg.m_want_pooling){
-            m_output = local_pool(m_output, cfg.m_pool_size, cfg.m_pool_stride, cfg.m_pool_type);
+            if (cfg.m_use_cuDNN)
+            	m_output = pooling_cuDNN(m_output, cfg.m_pool_type, cfg.m_pool_size, cfg.m_pool_size);
+            else
+            	m_output = local_pool(m_output, cfg.m_pool_size, cfg.m_pool_stride, cfg.m_pool_type);
         }
 
     }

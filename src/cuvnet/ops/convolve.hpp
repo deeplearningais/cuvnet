@@ -224,7 +224,7 @@ namespace cuvnet
                  *
                  * @param images nImages x nChannels x nPixels x nPixels
                  * @param filters nFilt x nFiltChannels x nFiltPix x nFiltPix
-                 *TODO://fix this
+                 * TODO://fix this
                  */
                ConvolvecuDNN(result_t& images, result_t& filters, int m_padding_x=0, int m_padding_y=0, int m_ver_filt_stride=1, int m_hor_filt_stride=1)
                    :Op(2,1),
@@ -247,7 +247,10 @@ namespace cuvnet
                template<class Archive>
                    void serialize(Archive& ar, const unsigned int version){
                        ar & boost::serialization::base_object<Op>(*this);
-                       //TODO: fix this
+                       ar & m_padding_x;
+                       ar & m_padding_y;
+                       ar & m_ver_filt_stride;
+                       ar & m_hor_filt_stride;
                    }
 
        };
@@ -684,13 +687,13 @@ namespace cuvnet
                  * @param pt pooling type
                  */
                 //TODO: fix this
-                PoolingcuDNN(result_t& images, cudnnPoolingMode_t mode, int window_height, int window_width, int vertical_stride, int horizontal_stride)
+                PoolingcuDNN(result_t& images, cudnnPoolingMode_t mode, int window_height, int window_width)
                     :Op(1,1),
                     m_mode(mode),
                     m_window_height(window_height),
                     m_window_width(window_width),
-                    m_vertical_stride(vertical_stride),
-                    m_horizontal_stride(horizontal_stride)
+                    m_vertical_stride(window_height),   //TODO: change to parameters
+                    m_horizontal_stride(window_height)
                 {
                     add_param(0,images);
                 }
@@ -705,7 +708,11 @@ namespace cuvnet
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
-                        //TODO: fix this
+                        ar & m_mode;
+                        ar & m_window_height;
+                        ar & m_window_width;
+                        ar & m_vertical_stride;
+                        ar & m_horizontal_stride;
                     }
         };
 
