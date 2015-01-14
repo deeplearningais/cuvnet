@@ -28,7 +28,12 @@ namespace cuvnet { namespace models {
         else                   padding = fs / 2;
 
         determine_shapes(*m_input);
-        unsigned int n_srcmaps = m_input->result()->shape[0];
+        unsigned int n_srcmaps;
+        if (cfg.m_use_cuDNN)
+            n_srcmaps = m_input->result()->shape[1];
+        else
+            n_srcmaps = m_input->result()->shape[0];
+        
         unsigned int n_fltpix  = fs * fs;
 
         m_bias_default_value = cfg.m_bias_default_value;
@@ -56,7 +61,10 @@ namespace cuvnet { namespace models {
         }
         else
         {
-            m_weights = input(cuv::extents[n_filter_channels][n_fltpix][n_out], cfg.m_group_name + "W" + cfg.m_varname_suffix);
+            if (cfg.m_use_cuDNN)
+                m_weights = input(cuv::extents[n_out][n_filter_channels][std::sqrt(n_fltpix)][std::sqrt(n_fltpix)], cfg.m_group_name + "W" + cfg.m_varname_suffix);
+            else
+                m_weights = input(cuv::extents[n_filter_channels][n_fltpix][n_out], cfg.m_group_name + "W" + cfg.m_varname_suffix);
         }
 
         if(cfg.m_want_bias){
@@ -131,7 +139,10 @@ namespace cuvnet { namespace models {
         }
 
         if(cfg.m_want_bias){
-            m_output = mat_plus_vec(m_output, m_bias, 0);
+            if (cfg.m_use_cuDNN)
+                m_output = mat_plus_vec(m_output, m_bias, 1);
+            else
+                m_output = mat_plus_vec(m_output, m_bias, 0);
         }
         m_linear_output = m_output;
 
