@@ -62,7 +62,7 @@ namespace cuvnet { namespace models {
             ,m_group_name_wb("")
             ,m_shared_weight(input_ptr())
             ,m_shared_bias(input_ptr())
-        	,m_use_cuDNN(false)
+        	,m_use_cuDNN(true)
         {}
 
         friend class conv_layer;
