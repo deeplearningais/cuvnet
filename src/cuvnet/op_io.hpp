@@ -111,9 +111,11 @@ BOOST_CLASS_EXPORT_KEY(cuvnet::HingeLoss);
 
 // convolutions
 BOOST_CLASS_EXPORT_KEY(cuvnet::Convolve);
+BOOST_CLASS_EXPORT_KEY(cuvnet::ConvolvecuDNN);
 BOOST_CLASS_EXPORT_KEY(cuvnet::ReorderForConv);
 BOOST_CLASS_EXPORT_KEY(cuvnet::ReorderFromConv);
 BOOST_CLASS_EXPORT_KEY(cuvnet::LocalPooling);
+BOOST_CLASS_EXPORT_KEY(cuvnet::PoolingcuDNN);
 BOOST_CLASS_EXPORT_KEY(cuvnet::ResponseNormalization);
 BOOST_CLASS_EXPORT_KEY(cuvnet::ResponseNormalizationCrossMaps);
 BOOST_CLASS_EXPORT_KEY(cuvnet::ContrastNormalization);

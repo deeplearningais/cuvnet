@@ -86,6 +86,8 @@ BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::HingeLoss);
 
 // convolutions
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::Convolve);
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::ConvolvecuDNN);
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::PoolingcuDNN);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::ReorderForConv);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::ReorderFromConv);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::LocalPooling);
