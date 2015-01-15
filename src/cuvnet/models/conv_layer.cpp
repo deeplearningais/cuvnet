@@ -176,7 +176,7 @@ namespace cuvnet { namespace models {
         m_output_before_pooling = m_output;
         if(cfg.m_want_pooling){
             if (cfg.m_use_cuDNN)
-            	m_output = pooling_cuDNN(m_output, cfg.m_pool_type, cfg.m_pool_size, cfg.m_pool_size);
+            	m_output = pooling_cuDNN(m_output, cfg.m_pool_type, cfg.m_pool_size, cfg.m_pool_size, cfg.m_pool_stride, cfg.m_pool_stride);
             else
             	m_output = local_pool(m_output, cfg.m_pool_size, cfg.m_pool_stride, cfg.m_pool_type);
         }

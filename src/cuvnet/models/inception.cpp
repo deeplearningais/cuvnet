@@ -18,6 +18,12 @@ namespace cuvnet { namespace models {
         float bias = 0.1f;
         op_ptr flat_input = flatten(m_input, 2, copy);
 
+        bool use_cudnn = true;
+        mlp_layer_opts cfg;
+        if(!use_cudnn){
+            cfg.weights_left();
+        }
+
         for(it = m.begin(); it != m.end(); it++){
             int fs = it->get<0>();
             int compress = it->get<1>();
@@ -35,7 +41,7 @@ namespace cuvnet { namespace models {
                 // max-pooling, then 1x1 convolution
                 o = local_pool(m_input, compress, 1, cuv::alex_conv::PT_MAX);
                 m_fclayers.push_back(boost::make_shared<mlp_layer>(o, n_dst, 
-                            mlp_layer_opts().with_bias(with_bias,bias).weights_left().group(lstr, true).verbose(verbose)));
+                            cfg.copy().with_bias(with_bias,bias).group(lstr, true).verbose(verbose)));
                 o = m_fclayers.back()->m_output;
                 register_submodel(*m_fclayers.back());
             }else if(fs == 0){
@@ -46,7 +52,7 @@ namespace cuvnet { namespace models {
                 //int sx = o->result()->shape[1];
 
                 m_fclayers.push_back(boost::make_shared<mlp_layer>(o, compress, 
-                            mlp_layer_opts().with_bias(with_bias,bias).weights_left()
+                            cfg.copy().with_bias(with_bias,bias)
                             //.linear()
                             .rectified_linear(!copy)
                             .group(lstr, true).verbose(verbose)));
@@ -62,19 +68,19 @@ namespace cuvnet { namespace models {
             }else if(fs == 1){
                 cuvAssert(n_src_maps > 1);
                 m_fclayers.push_back(boost::make_shared<mlp_layer>(m_input, n_dst, 
-                            mlp_layer_opts().with_bias(with_bias,bias).weights_left().group(lstr, true).verbose(verbose)));
+                            cfg.copy().with_bias(with_bias,bias).group(lstr, true).verbose(verbose)));
                 o = m_fclayers.back()->m_output;
                 register_submodel(*m_fclayers.back());
             }else{
                 cuvAssert(n_src_maps > 1);
                 m_fclayers.push_back(boost::make_shared<mlp_layer>(m_input, compress, 
-                            mlp_layer_opts().with_bias(with_bias,bias).weights_left()
+                            cfg.copy().with_bias(with_bias,bias)
                             .rectified_linear(!copy)
                             //.linear()
                             .group(lstr,true).verbose(verbose)));
                 register_submodel(*m_fclayers.back());
                 m_convlayers.push_back(boost::make_shared<conv_layer>(m_fclayers.back()->m_output,
-                            fs, n_dst, conv_layer_opts().with_bias(with_bias,bias).symmetric_padding(-1).group(lstr, true).verbose(verbose)));
+                            fs, n_dst, conv_layer_opts().with_bias(with_bias,bias).symmetric_padding(-1).group(lstr, true).verbose(verbose).use_cudnn()));
                 register_submodel(*m_convlayers.back());
                 o = m_convlayers.back()->m_output;
             }

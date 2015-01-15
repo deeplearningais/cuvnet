@@ -332,6 +332,8 @@ namespace cuvnet { namespace models {
         inline conv_layer_opts& group_wb(std::string gwb){ m_group_name_wb = gwb; return *this; }
         inline conv_layer_opts& shared_weight(input_ptr w){ m_shared_weight = w; return *this; }
         inline conv_layer_opts& shared_bias(input_ptr b){ m_shared_bias = b; return *this; }
+
+        inline conv_layer_opts& use_cudnn(bool b=true){ m_use_cuDNN = b; return *this; }
     };
 
 

@@ -687,13 +687,13 @@ namespace cuvnet
                  * @param pt pooling type
                  */
                 //TODO: fix this
-                PoolingcuDNN(result_t& images, cudnnPoolingMode_t mode, int window_height, int window_width)
+                PoolingcuDNN(result_t& images, cudnnPoolingMode_t mode, int window_height, int window_width, int vertical_stride, int horizontal_stride)
                     :Op(1,1),
                     m_mode(mode),
                     m_window_height(window_height),
                     m_window_width(window_width),
-                    m_vertical_stride(window_height),   //TODO: change to parameters
-                    m_horizontal_stride(window_height)
+                    m_vertical_stride(vertical_stride),
+                    m_horizontal_stride(horizontal_stride)
                 {
                     add_param(0,images);
                 }
