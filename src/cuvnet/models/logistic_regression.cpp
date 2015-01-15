@@ -16,6 +16,7 @@ namespace cuvnet
             if(m_bias) {
                 m_bias->data() = 0.f;
                 m_bias->set_weight_decay_factor(0.f);
+                m_bias->set_learnrate_factor(2.f);  // caffe uses learnrate factor of 2 for bias
             }
         }
         logistic_regression::op_ptr logistic_regression::loss()const{ return m_loss; }

@@ -46,7 +46,7 @@ namespace cuvnet
                     ,m_group_name("mlplayer")
                     ,m_unique_group(true)
                     ,m_learnrate_factor(1.f)
-                    ,m_learnrate_factor_bias(1.f)
+                    ,m_learnrate_factor_bias(2.f)  // caffe uses learnrate factor of 2 for bias
                     ,m_verbose(false)
                     ,m_weight_init_std(-1.f)
                 {
