@@ -674,6 +674,8 @@ namespace cuvnet
                 int m_window_width;
                 int m_vertical_stride;
                 int m_horizontal_stride;
+                int m_vertical_pad;
+                int m_horizontal_pad;
                 value_ptr m_result;
                 //result_t::element_type m_result;
             public:
@@ -695,6 +697,9 @@ namespace cuvnet
                     m_vertical_stride(vertical_stride),
                     m_horizontal_stride(horizontal_stride)
                 {
+                    m_vertical_pad = m_window_height % 2 == 0 ? 0 : m_window_height / 2;
+                    m_horizontal_pad = m_window_width % 2 == 0 ? 0 : m_window_width / 2;
+
                     add_param(0,images);
                 }
                 virtual void release_data();
@@ -713,6 +718,8 @@ namespace cuvnet
                         ar & m_window_width;
                         ar & m_vertical_stride;
                         ar & m_horizontal_stride;
+                        ar & m_vertical_pad;
+                        ar & m_horizontal_pad;
                     }
         };
 
