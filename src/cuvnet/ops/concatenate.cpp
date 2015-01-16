@@ -9,6 +9,25 @@ namespace cuvnet
         typedef cuv::tensor_view<typename T::value_type, typename T::memory_space_type, typename T::memory_layout_type> type;
     };
 
+    void copy_center_dim_fprop(matrix& dst, const matrix& src){
+        // copies a small NxM tensor into a
+        // Nx1xM tensor (which is part of a NxKxM tensor)
+        
+        // this uses N copy operations of complexity O(M)
+        for (unsigned int n = 0; n < dst.shape(0); ++n)
+        {
+            dst[cuv::indices[n]].copy_memory(src[cuv::indices[n]], false, 0);
+        }
+    }
+    void copy_center_dim_bprop(matrix& dst, const matrix& src){
+        // copies a Nx1xM view into an NxM tensor
+        // this uses N copy operations of complexity O(M)
+        for (unsigned int n = 0; n < dst.shape(0); ++n)
+        {
+            dst[cuv::indices[n]].copy_memory(src[cuv::indices[n]], false, 0);
+        }
+    }
+
     std::vector<unsigned int> Concatenate::get_pi_shape(value_type & vi){
         std::vector<unsigned int> pi_shape;
         if (m_dim == 0) {
@@ -58,7 +77,11 @@ namespace cuvnet
                     std::vector<unsigned int> pi_shape = get_pi_shape(vi);                     
                     vi.reshape( pi_shape );
                 }
-                dst_i.copy_memory(vi, false, 0);                
+                if(vi.ndim() < 3){
+                    dst_i.copy_memory(vi, false, 0);                
+                } else{
+                    copy_center_dim_fprop(dst_i, vi);
+                }
             }
         }else{
             value_ptr v1 = value_ptr(new value_type(r0.shape, value_ptr::s_allocator));
@@ -78,7 +101,11 @@ namespace cuvnet
                     std::vector<unsigned int> pi_shape = get_pi_shape(vi);                     
                     vi.reshape( pi_shape );
                 }
-                dst_i.copy_memory(vi, false, 0);                
+                if(vi.ndim() < 3){
+                    dst_i.copy_memory(vi, false, 0);                
+                }else{
+                    copy_center_dim_fprop(dst_i, vi);
+                }
             }
             r0.push(v1);
         }
@@ -118,8 +145,12 @@ namespace cuvnet
                         assert(vi.is_c_contiguous());
                         vi.reshape( pi_shape );
                     }
-                    vi.copy_memory(get_subtensor(v, i), false, 0);
-                }else if(pi.can_add_directly()){
+                    if(vi.ndim() < 3){
+                        vi.copy_memory(get_subtensor(v, i), false, 0);
+                    }else{
+                        copy_center_dim_bprop(vi, get_subtensor(v,i));
+                    }
+                }else if(pi.can_add_directly() && m_pi_shape[0].size() < 3){
                     value_type dsti = *pi.overwrite_or_add_value();
                     if (m_reshape) {
                         //get desired shape
@@ -133,7 +164,14 @@ namespace cuvnet
                     else
                         dsti += vi;
                 }else{
-                    value_ptr vd(new value_type(get_subtensor(v,i).copy()));
+                    value_ptr vd;
+                    matrix tmp = get_subtensor(v,i);
+                    if(tmp.ndim()<3)
+                        vd.reset(new value_type(tmp.copy()));
+                    else{
+                        vd.reset(new value_type(tmp.shape()));
+                        copy_center_dim_bprop(*vd, tmp);
+                    }
                     if(m_reshape){
                         assert(vd->is_c_contiguous());
                         vd->reshape(pi.shape);
@@ -149,8 +187,8 @@ namespace cuvnet
         param_t&  p0 = m_params[0];
         unsigned int size = p0->shape.size();
         
-        if ( ( m_dim != 0 ) && ( m_dim != size -1) ) 
-            throw std::runtime_error("This type of concatenation is not yet implemented ( since the copy memory operation is not yet implemented)\nIf memcopy for generic shapes is implemented now, please just remove this assertion\n");
+        //if ( ( m_dim != 0 ) && ( m_dim != size -1) ) 
+            //throw std::runtime_error("This type of concatenation is not yet implemented ( since the copy memory operation is not yet implemented)\nIf memcopy for generic shapes is implemented now, please just remove this assertion\n");
         
         //assert that all concat elements have the same size
         for ( unsigned int i = 1; i < m_params.size(); i++){

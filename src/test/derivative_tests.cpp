@@ -1832,7 +1832,7 @@ BOOST_AUTO_TEST_CASE( Concatenate_first_dim )
             
         //generate all inputs and fill them with rand vals
         for ( unsigned int i = 0; i < n; i++){
-                boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[x][y][z]);
+                boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[x][y][z], "x-"+boost::lexical_cast<std::string>(i));
                 fill_rnd_uniform(inp->data());
                 input[i] = inp;
                 if ( i == 0 ) in1 = inp;
@@ -1901,7 +1901,7 @@ BOOST_AUTO_TEST_CASE( Concatenate_first_dim )
                     }
                 }
             }
-            derivative_tester(*op).verbose().test();
+            derivative_tester(*op).epsilon(1.).verbose().test();
             cuv::safeThreadSync();
 }
 
@@ -1969,7 +1969,7 @@ BOOST_AUTO_TEST_CASE( Concatenate_old_interface )
                     }
                 }
             }
-        derivative_tester(*op).verbose().test();
+        derivative_tester(*op).epsilon(1.).verbose().test();
         cuv::safeThreadSync();
 }
 
@@ -2057,8 +2057,70 @@ BOOST_AUTO_TEST_CASE( Concatenate_N_last_dim )
                             float  b = delta->data()[indices[j][k][h]][i*z1 + l];
                             BOOST_CHECK_SMALL(fabs(a - b) , 0.0001);  
                         }        
-            derivative_tester(*op).verbose().test();
+            derivative_tester(*op).epsilon(1.).verbose().test();
 cuv::safeThreadSync();
+}
+
+BOOST_AUTO_TEST_CASE( Concatenate_N_center_dim )
+{  
+            unsigned int n = 3;
+            unsigned int x = 2;
+            unsigned int y = 3;
+            unsigned int z = 2;
+            unsigned int z1 = 5;
+
+            using namespace cuv;
+            using namespace cuvnet;
+            //typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
+            typedef boost::shared_ptr<Op> op_ptr;
+            
+            std::vector< op_ptr >  input(n);
+            boost::shared_ptr<ParameterInput> in1 = boost::make_shared<ParameterInput>(cuv::extents[x][y][z][z1]);
+            boost::shared_ptr<ParameterInput> in2 = boost::make_shared<ParameterInput>(cuv::extents[x][y][z][z1]);
+            boost::shared_ptr<ParameterInput> in3 = boost::make_shared<ParameterInput>(cuv::extents[x][y][z][z1]);
+            fill_rnd_uniform(in1->data());
+            fill_rnd_uniform(in2->data());
+            fill_rnd_uniform(in3->data());
+            
+            input[0] = in1;
+            input[1] = in2;
+            input[2] = in3;
+            
+            op_ptr op = concatenate(input, 1);
+            // assumption: op has only one result
+        boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op->result());
+
+        // tell that we want derivative w.r.t. all params
+        param_collector_visitor pcv;
+        op->visit(pcv);
+        BOOST_CHECK(pcv.plist.size()>0);
+
+        std::vector<Op*> params(3);
+        params[0] = in1.get();
+        params[1] = in2.get();
+        params[2] = in3.get();
+        
+        swiper swipe(*op, 0, params);
+        swipe.fprop();
+        cuvAssert(!cuv::has_nan(out_op->cdata()));
+        cuvAssert(!cuv::has_inf(out_op->cdata())); 
+
+        std::vector<unsigned int> desired_shape = {x, n*y, z, z1};
+        cuvAssert(out_op->cdata().shape() == desired_shape);        
+        
+        for ( unsigned int j = 0; j < x; j++)
+            for ( unsigned int k = 0; k < y; k++)
+                for ( unsigned int h = 0; h < z; h++)
+                    for (unsigned int l = 0; l < z1; l++)
+
+                        for ( unsigned int i = 0; i < n; i++){
+                            float  a = boost::dynamic_pointer_cast<ParameterInput>(input[i])->data()(j,k,h,l);
+                            float  b = out_op->cdata()(j,i*n+k,h,l);
+                            BOOST_CHECK_SMALL(fabs(a - b) , 0.0001);  
+                        }
+                            
+        derivative_tester(*op).epsilon(1.).verbose().test();
+        cuv::safeThreadSync();
 }
 
 
