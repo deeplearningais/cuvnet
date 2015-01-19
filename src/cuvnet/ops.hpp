@@ -271,7 +271,7 @@ namespace cuvnet
         //Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, 0); }
     /// construct a cuDNN Convolve object
     inline
-        Op::op_ptr convolve_cuDNN(Op::op_ptr img, Op::op_ptr flt, int padding_x=0, int padding_y=0) {return boost::make_shared<ConvolvecuDNN>(img->result(),flt->result(), padding_x, padding_y);}
+        Op::op_ptr convolve_cuDNN(Op::op_ptr img, Op::op_ptr flt, int padding_y=0, int padding_x=0, int stridey=1, int stridex=1) {return boost::make_shared<ConvolvecuDNN>(img->result(),flt->result(), padding_y, padding_x, stridey, stridex);}
     /// construct a cuDNN pooling object
      inline
          Op::op_ptr pooling_cuDNN(Op::op_ptr img, cuv::alex_conv::pool_type mode, int window_height, int window_width, int vertical_stride, int horizontal_stride) {return boost::make_shared<PoolingcuDNN>(img->result(), static_cast<cudnnPoolingMode_t>(mode), window_height, window_width, vertical_stride, horizontal_stride);}

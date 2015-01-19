@@ -85,7 +85,7 @@ namespace cuvnet { namespace models {
         }
 
         if (cfg.m_use_cuDNN) {
-        	auto conv = convolve_cuDNN(inp, m_weights, padding, padding);
+        	auto conv = convolve_cuDNN(inp, m_weights, padding, padding, cfg.m_stride, cfg.m_stride);
         	m_output = conv;
         }
         else

@@ -226,7 +226,7 @@ namespace cuvnet
                  * @param filters nFilt x nFiltChannels x nFiltPix x nFiltPix
                  * TODO://fix this
                  */
-               ConvolvecuDNN(result_t& images, result_t& filters, int m_padding_x=0, int m_padding_y=0, int m_ver_filt_stride=1, int m_hor_filt_stride=1)
+               ConvolvecuDNN(result_t& images, result_t& filters, int m_padding_y=0, int m_padding_x=0, int m_ver_filt_stride=1, int m_hor_filt_stride=1)
                    :Op(2,1),
                     m_padding_x(m_padding_x),
                     m_padding_y(m_padding_y),
