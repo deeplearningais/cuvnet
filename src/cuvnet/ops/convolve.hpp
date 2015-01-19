@@ -697,8 +697,13 @@ namespace cuvnet
                     m_vertical_stride(vertical_stride),
                     m_horizontal_stride(horizontal_stride)
                 {
-                    m_vertical_pad = m_window_height % 2 == 0 ? 0 : m_window_height / 2;
-                    m_horizontal_pad = m_window_width % 2 == 0 ? 0 : m_window_width / 2;
+                    if(m_window_height == 3){
+                        m_vertical_pad = m_window_height % 2 == 0 ? 0 : m_window_height / 2;
+                        m_horizontal_pad = m_window_width % 2 == 0 ? 0 : m_window_width / 2;
+                    }else{
+                        m_vertical_pad = 0;
+                        m_horizontal_pad = 0;
+                    }
 
                     add_param(0,images);
                 }
