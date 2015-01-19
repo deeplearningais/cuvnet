@@ -670,9 +670,13 @@ namespace cuvnet
                 filterDesc,
                 convDesc,
                 outputDesc,
-                CUDNN_CONVOLUTION_FWD_NO_WORKSPACE,
+                CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
                 0,
                 &algo);
+
+        size_t size_in_bytes;
+        cudnnGetConvolutionForwardWorkspaceSize(handle, imgDesc, filterDesc, convDesc, outputDesc, algo, &size_in_bytes);
+        cuv::tensor<unsigned char,matrix::memory_space_type>  workspace(size_in_bytes, Op::value_ptr::s_allocator);
 
 		const matrix::value_type alpha = 1.0;
         
@@ -684,7 +688,7 @@ namespace cuvnet
 			status = cudnnConvolutionForward(handle, &alpha, 
                     imgDesc, imgData,
                     filterDesc, filterData,
-                    convDesc, algo, NULL, 0,
+                    convDesc, algo, workspace.ptr(), size_in_bytes,
                     &beta,
                     outputDesc, outputData);
 			if (status != CUDNN_STATUS_SUCCESS)
@@ -698,7 +702,7 @@ namespace cuvnet
 			status = cudnnConvolutionForward(handle, &alpha, 
                     imgDesc, imgData,
                     filterDesc, filterData,
-                    convDesc, algo, NULL, 0,
+                    convDesc, algo, workspace.ptr(), size_in_bytes,
                     &beta,
                     outputDesc, outputData);
 			if (status != CUDNN_STATUS_SUCCESS)
@@ -864,7 +868,6 @@ namespace cuvnet
 				if (status != CUDNN_STATUS_SUCCESS)
 					throw("ERROR bprop cudnnConvolutionBackwardData1, status: " + boost::lexical_cast<std::string>(status));
 			}
-
 			else {
                 const matrix::value_type beta = 0.;
 				value_ptr ptr = p0.value;
