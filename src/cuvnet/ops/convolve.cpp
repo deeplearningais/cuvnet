@@ -677,11 +677,10 @@ namespace cuvnet
 		const matrix::value_type alpha = 1.0;
         
 		if (r0.can_overwrite_directly() || r0.can_add_directly()) {
-			matrix::value_type* outputData = r0.overwrite_or_add_value()->ptr();
-			// launch convolution on GPU
-
             const matrix::value_type beta = r0.can_add_directly() ? 1.0 : 0.0;
 
+			matrix::value_type* outputData = r0.overwrite_or_add_value()->ptr();
+			// launch convolution on GPU
 			status = cudnnConvolutionForward(handle, &alpha, 
                     imgDesc, imgData,
                     filterDesc, filterData,
