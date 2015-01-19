@@ -183,7 +183,7 @@ namespace cuvnet
         for(paramvec_t::iterator it=m_params.begin(); it!=m_params.end(); it++){
             ParameterInput* p = dynamic_cast<ParameterInput*>(*it);
             cuvAssert(p);
-            m_best_perf_params[*it] = p->data();
+            m_best_perf_params[*it] = p->cdata();
         }
         m_epoch_of_saved_params = m_epoch;
     }
