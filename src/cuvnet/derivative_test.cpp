@@ -119,7 +119,7 @@ namespace cuvnet{ namespace derivative_testing {
             apply_binary_functor(rdiff, r0, r1, BF_SUBTRACT);
             apply_scalar_functor(rdiff, SF_ABS);
             double fprop_error = maximum(rdiff);
-            if(fprop_error > precision){
+            if(fprop_error != fprop_error || fprop_error > precision){
                 LOG4CXX_ERROR(g_enslog, " fprop error greater precision: "<< fprop_error << ".  Writing two results to r0.npy and r1.npy.");
                 tofile("r0.npy", r0);
                 tofile("r1.npy", r1);
