@@ -1041,9 +1041,9 @@ namespace cuvnet
                 for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
                     ParameterInput* inp = (ParameterInput*) *it;
                     if(cuv::IsSame<matrix::memory_space_type, detail::wrgd_helper::storage_space>::Result::value){
-                        m_updates_[inp] = inp->data().copy();
+                        m_updates_[inp] = inp->cdata().copy();
                     }else{
-                        m_updates_[inp] = inp->data();
+                        m_updates_[inp] = inp->cdata();
                     }
                 }
 
@@ -1054,7 +1054,7 @@ namespace cuvnet
                 for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
                     ParameterInput* inp = (ParameterInput*) *it;
                     std::map<Op*, storage_t>::iterator upit = m_updates_.find(inp);
-                    upit->second -= (host_matrix) inp->data();
+                    upit->second -= (host_matrix) inp->cdata();
                     //m_updates[inp] *= -1.f;  // we're recording the negative update for speed
                     
                     m_avgnorm_[inp] += cuv::norm1(upit->second) / upit->second.size();
@@ -1079,7 +1079,7 @@ namespace cuvnet
                     //std::map<Op*, storage_t>::iterator upit = m_updates_.find(inp);
                     log(inp->name() + "_dvar", m_vars_[inp] / m_n_rec_);
                     log(inp->name() + "_davgnorm", m_avgnorm_[inp] / m_n_rec_);
-                    log(inp->name() + "_drelavgnorm", m_avgnorm_[inp] / m_n_rec_ / (cuv::norm1(inp->data()) / inp->data().size()));
+                    log(inp->name() + "_drelavgnorm", m_avgnorm_[inp] / m_n_rec_ / (cuv::norm1(inp->cdata()) / inp->cdata().size()));
                 }
             }
 
