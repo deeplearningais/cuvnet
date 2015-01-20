@@ -195,31 +195,34 @@ namespace cuvnet
         int verbosity = gdcfg.verbosity();
         unsigned int start_epoch = gdcfg.start_epoch();
         float initial_momentum = 0.;
+        int update_every = gdcfg.has_update_every() ? gdcfg.update_every() : 1;
         if(0){
         }else if(gdcfg.HasExtension(msg::rmsprop_ext)){
             float delta = gdcfg.GetExtension(msg::rmsprop_ext).delta();
             float grad_avg = gdcfg.GetExtension(msg::rmsprop_ext).grad_avg();
             float l1decay = gdcfg.GetExtension(msg::rmsprop_ext).l1decay();
-            LOG4CXX_INFO(g_log_learner2, "Creating RMSProp gdcfg (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", grad_avg:" << grad_avg << ", delta:" << delta << ")");
+            LOG4CXX_INFO(g_log_learner2, "Creating RMSProp gdcfg (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", grad_avg:" << grad_avg << ", delta:" << delta << ", update_every:"<<update_every<<")");
             MAKE_GD(rmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, delta, grad_avg, l1decay);
             gd->set_epoch(start_epoch);
+            gd->set_update_every(update_every);
             gd->set_verbosity(verbosity);
             return gd;
-        }else if(gdcfg.HasExtension(msg::rmsprop_ext)){
-            float eta_p = gdcfg.GetExtension(msg::rmsprop_ext).eta_p();
-            float eta_m = gdcfg.GetExtension(msg::rmsprop_ext).eta_m();
-            float l1_penalty = gdcfg.GetExtension(msg::rmsprop_ext).l1decay();
+        }else if(gdcfg.HasExtension(msg::rprop_ext)){
+            float eta_p = gdcfg.GetExtension(msg::rprop_ext).eta_p();
+            float eta_m = gdcfg.GetExtension(msg::rprop_ext).eta_m();
+            float l1_penalty = gdcfg.GetExtension(msg::rprop_ext).l1decay();
             LOG4CXX_INFO(g_log_learner2, "Creating RPROP GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", l1_penalty:"<< l1_penalty << ", eta_p:" << eta_p << ", eta_m:" << eta_m <<")");
             MAKE_GD(rprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, l1_penalty, eta_p, eta_m);
             gd->set_epoch(start_epoch);
-            gd->set_update_every(0);
+            gd->set_update_every(gdcfg.has_update_every() ? gdcfg.update_every() : 0); // batch learning
             gd->set_verbosity(verbosity);
             return gd;
         }else if(gdcfg.HasExtension(msg::momentum_ext)){
-            LOG4CXX_INFO(g_log_learner2, "Creating Momentum GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", momentum: "<< initial_momentum << ")");
+            LOG4CXX_INFO(g_log_learner2, "Creating Momentum GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", momentum: "<< initial_momentum << ", update_every:"<<update_every<<")");
             initial_momentum = gdcfg.GetExtension(msg::momentum_ext).momentum();
             MAKE_GD(momentum_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, initial_momentum);
             gd->set_epoch(start_epoch);
+            gd->set_update_every(update_every);
             gd->set_verbosity(verbosity);
             return gd;
         }else if(gdcfg.HasExtension(msg::adagrad_ext)){
@@ -227,9 +230,10 @@ namespace cuvnet
             float l1_penalty = gdcfg.GetExtension(msg::adagrad_ext).l1decay();
             float delta = gdcfg.GetExtension(msg::adagrad_ext).delta();
             LOG4CXX_INFO(g_log_learner2, "Creating AdaGrad GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay << ", delta:"<< delta 
-                << ", winsize:" << winsize << ", l1_penalty:" << l1_penalty << ")");
+                << ", winsize:" << winsize << ", l1_penalty:" << l1_penalty << ", update_every:"<<update_every<<")");
             MAKE_GD(adagrad_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  delta, winsize, l1_penalty);
             gd->set_epoch(start_epoch);
+            gd->set_update_every(update_every);
             gd->set_verbosity(verbosity);
             return gd;
         }else if(gdcfg.HasExtension(msg::narmsprop_ext)){
@@ -238,9 +242,10 @@ namespace cuvnet
             float step_adapt = gdcfg.GetExtension(msg::narmsprop_ext).step_adapt();
             float lr_min = gdcfg.GetExtension(msg::narmsprop_ext).lr_min();
             float lr_max = gdcfg.GetExtension(msg::narmsprop_ext).lr_max();
-            LOG4CXX_INFO(g_log_learner2, "Creating NA_RMSPROP GD (initial_learnrate:" << initial_learnrate << ", momentum:" << initial_momentum <<", l2decay:" << l2decay << ", delta:" << delta << ", grad_avg:" << grad_avg << ", step_adapt:" << step_adapt << ", lr_min:" << lr_min << ", lr_max:" << lr_max << ")");
+            LOG4CXX_INFO(g_log_learner2, "Creating NA_RMSPROP GD (initial_learnrate:" << initial_learnrate << ", momentum:" << initial_momentum <<", l2decay:" << l2decay << ", delta:" << delta << ", grad_avg:" << grad_avg << ", step_adapt:" << step_adapt << ", lr_min:" << lr_min << ", lr_max:" << lr_max << ", update_every:"<<update_every<<")");
             MAKE_GD(na_rmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay,  initial_momentum, grad_avg,step_adapt,delta,lr_max,lr_min);
             gd->set_epoch(start_epoch);
+            gd->set_update_every(update_every);
             gd->set_verbosity(verbosity);
             return gd;
         }else if(gdcfg.HasExtension(msg::rrmsprop_ext)){
@@ -252,18 +257,19 @@ namespace cuvnet
             float delta_min = msg.delta_min();
             float delta_max = msg.delta_max();
             float l1_penalty = msg.l1decay();
-            LOG4CXX_INFO(g_log_learner2, "Creating RRMSPROP GD (initial_learnrate:" << initial_learnrate << ", l2decay:" << l2decay << ", l1_penalty:"<< l1_penalty <<", delta:" << delta << ", grad_avg:" << grad_avg <<  ", eta_p:" << eta_p << ", eta_m:" << eta_m << ", delta_min:" << delta_min << ", delta_max:" << delta_max << ")");
+            LOG4CXX_INFO(g_log_learner2, "Creating RRMSPROP GD (initial_learnrate:" << initial_learnrate << ", l2decay:" << l2decay << ", l1_penalty:"<< l1_penalty <<", delta:" << delta << ", grad_avg:" << grad_avg <<  ", eta_p:" << eta_p << ", eta_m:" << eta_m << ", delta_min:" << delta_min << ", delta_max:" << delta_max << ", update_every:"<<update_every<<")");
             MAKE_GD(rrmsprop_gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay, l1_penalty, grad_avg, delta/*, eta_p, eta_m, delta_max, delta_min*/);
             gd->set_epoch(start_epoch);
-            gd->set_update_every(0);
+            gd->set_update_every(update_every);
             gd->set_verbosity(verbosity);
             return gd;
 
         }
         else{
-            LOG4CXX_INFO(g_log_learner2, "Creating Plain GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<")");
+            LOG4CXX_INFO(g_log_learner2, "Creating Plain GD (initial_learnrate:"<<initial_learnrate<<", l2decay:"<< l2decay <<", update_every:"<<update_every<<")");
             MAKE_GD(gradient_descent, m.loss(), 0, m.get_params(), initial_learnrate, l2decay);
             gd->set_epoch(start_epoch);
+            gd->set_update_every(update_every);
             gd->set_verbosity(verbosity);
             return gd;
         }
