@@ -319,8 +319,14 @@ def visualize_filters(gui, data, sepnorm=False):
     n_max_x = 25
     n_max_y = 15
     # weights
-    n_src, n_fltpix, n_dst = data.shape
-    n_fltpix = int(np.sqrt(n_fltpix))
+    if data.ndim == 3:
+        n_src, n_fltpix, n_dst = data.shape
+        n_fltpix = int(np.sqrt(n_fltpix))
+    elif data.ndim == 4:
+        n_dst, n_src, n_fltpix = data.shape[0], data.shape[1], data.shape[2] * data.shape[3]
+        data = data.reshape(n_dst, n_src, n_fltpix)
+        data = np.rollaxis(data, 0, 3)  # n_src, n_fltpix, n_dst
+        n_fltpix = int(np.sqrt(n_fltpix))
 
     if not hasattr(gui, "fig"):
         if n_src == 3:
@@ -677,6 +683,7 @@ class obj_detection_gui_spawn:
         shift = 'GDK_SHIFT_MASK' in event.state.value_names
         typ, ptr = url.split()
         done = False
+        name = None
         if shift and ctrl:
             glog.info("Setting the clicked op to be the new reference for derivatives")
             self.deriv_op = op.get_node(long(ptr, 0))
@@ -684,6 +691,7 @@ class obj_detection_gui_spawn:
             return
         if typ == "input":
             node = op.get_parameter(long(ptr, 0))
+            name = node.name
             if ctrl:
                 global g_click_cnt
                 deriv_op = self.deriv_op
@@ -698,12 +706,13 @@ class obj_detection_gui_spawn:
                     gd.swiper.bprop()
                     return node.delta.np
                 glog.info("Creating general type view based on gradient_descent")
-                og = obj_detection_gui(self, "function", self.od, update_func)
+                og = obj_detection_gui(self, "function", self.od, update_func, name=name)
                 self.children.append(og)
                 og.update()
                 done = True
         elif typ == "sink":
             node = op.get_sink(long(ptr, 0))
+            name = node.name
         else:
             if ctrl:
                 global g_click_cnt
@@ -721,7 +730,7 @@ class obj_detection_gui_spawn:
             else:
                 node = op.get_node(long(ptr, 0))
         if not done:
-            og = obj_detection_gui(self, typ, self.od, node)
+            og = obj_detection_gui(self, typ, self.od, node, name=name)
             self.children.append(og)
             og.update()
         plt.ion()
@@ -784,6 +793,7 @@ class obj_detection_gui:
         self.draw("data", input.data.np)
 
     def info(self, data):
+        glog.info("shape: %s", str(data.shape))
         glog.info("min: %3.5f", data.min())
         glog.info("max: %3.5f", data.max())
         glog.info("mean: %3.5f", data.mean())
@@ -806,10 +816,12 @@ class obj_detection_gui:
 
     def draw(self):
         data = self.data
-        self.info(data)
 
-        if data.ndim == 3:
-            glog.info("ndim = 3 --> use visualize_filters")
+        glog.info("Visualizing %s", str(self.name))
+        self.info(data)
+        name = self.name if self.name is not None else ""
+        if ("W" in name or "weights" in name) and data.ndim > 2:
+            glog.info("name starts with 'W' and ndim>2 --> visualize_filters")
             visualize_filters(self, data, self.sepnorm)
         elif data.ndim == 4:
             glog.info("ndim = 4 --> use visualize_activations")
