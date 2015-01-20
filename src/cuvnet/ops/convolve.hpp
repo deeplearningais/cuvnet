@@ -204,6 +204,8 @@ namespace cuvnet
 #endif
 
 
+    struct cudnn_state;
+
     class ConvolvecuDNN
        :public Op{
            public:
@@ -217,6 +219,8 @@ namespace cuvnet
        		int m_padding_y = 0;
        		int m_ver_filt_stride = 1;
        		int m_hor_filt_stride = 1;
+            boost::shared_ptr<cudnn_state> m_state;
+            friend struct cudnn_state;
            public:
                ConvolvecuDNN() :Op(2,1){} ///< for serialization
                 /**
@@ -235,6 +239,26 @@ namespace cuvnet
                {
                    add_param(0,images);
                    add_param(1,filters);
+               }
+
+                /**
+                 * constructor.
+                 *
+                 * @param images nImages x nChannels x nPixels x nPixels
+                 * @param filters nFilt x nFiltChannels x nFiltPix x nFiltPix
+                 * @param bias nMaps
+                 * TODO://fix this
+                 */
+               ConvolvecuDNN(result_t& images, result_t& filters, result_t& bias, int m_padding_y=0, int m_padding_x=0, int m_ver_filt_stride=1, int m_hor_filt_stride=1)
+                   :Op(3,1),
+                    m_padding_x(m_padding_x),
+                    m_padding_y(m_padding_y),
+                    m_ver_filt_stride(m_ver_filt_stride),
+                    m_hor_filt_stride(m_hor_filt_stride)
+               {
+                   add_param(0,images);
+                   add_param(1,filters);
+                   add_param(2,bias);
                }
 
 
@@ -659,7 +683,6 @@ namespace cuvnet
      *
      * @ingroup Ops
      */
-#include "cudnn.h"
     class PoolingcuDNN
         : public Op{
             public:
@@ -669,7 +692,7 @@ namespace cuvnet
                 typedef Op::param_t       param_t;
                 typedef Op::result_t      result_t;
             private:
-                cudnnPoolingMode_t m_mode;
+                cuv::alex_conv::pool_type m_mode;
                 int m_window_height;
                 int m_window_width;
                 int m_vertical_stride;
@@ -689,7 +712,7 @@ namespace cuvnet
                  * @param pt pooling type
                  */
                 //TODO: fix this
-                PoolingcuDNN(result_t& images, cudnnPoolingMode_t mode, int window_height, int window_width, int vertical_stride, int horizontal_stride)
+                PoolingcuDNN(result_t& images, cuv::alex_conv::pool_type mode, int window_height, int window_width, int vertical_stride, int horizontal_stride)
                     :Op(1,1),
                     m_mode(mode),
                     m_window_height(window_height),

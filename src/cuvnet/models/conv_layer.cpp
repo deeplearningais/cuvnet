@@ -44,34 +44,37 @@ namespace cuvnet { namespace models {
         unsigned int n_filter_channels = n_srcmaps / cfg.m_n_groups;
         if(cfg.m_random_sparse && cfg.m_n_filter_channels > 0)
             n_filter_channels = cfg.m_n_filter_channels;
-        {     
-        boost::scoped_ptr<op_group> grp;
-         if (cfg.m_group_name_wb!="")
-            grp.reset(new op_group(cfg.m_group_name_wb));
 
-        if (cfg.m_shared_weight)
-        {
-            m_shared_weight = true;
-            determine_shapes(*cfg.m_shared_weight);
-            
-            cuvAssert(cfg.m_shared_weight->result()->shape[0] == n_filter_channels);
-            cuvAssert(cfg.m_shared_weight->result()->shape[1] == n_fltpix);
-            cuvAssert(cfg.m_shared_weight->result()->shape[2] == (unsigned int)n_out);
-            m_weights = cfg.m_shared_weight;
-        }
-        else
-        {
-            if (cfg.m_use_cuDNN)
-                m_weights = input(cuv::extents[n_out][n_filter_channels][std::sqrt(n_fltpix)][std::sqrt(n_fltpix)], cfg.m_group_name + "W" + cfg.m_varname_suffix);
-            else
-                m_weights = input(cuv::extents[n_filter_channels][n_fltpix][n_out], cfg.m_group_name + "W" + cfg.m_varname_suffix);
-        }
+        {   // op-group block
+            boost::scoped_ptr<op_group> grp;
+            if (cfg.m_group_name_wb!="")
+                grp.reset(new op_group(cfg.m_group_name_wb));
 
-        if(cfg.m_want_bias){
-            if (cfg.m_shared_bias)
-                m_bias = cfg.m_shared_bias;
+            if (cfg.m_shared_weight)
+            {
+                m_shared_weight = true;
+                determine_shapes(*cfg.m_shared_weight);
+
+                cuvAssert(cfg.m_shared_weight->result()->shape[0] == n_filter_channels);
+                cuvAssert(cfg.m_shared_weight->result()->shape[1] == n_fltpix);
+                cuvAssert(cfg.m_shared_weight->result()->shape[2] == (unsigned int)n_out);
+                m_weights = cfg.m_shared_weight;
+            }
             else
-                m_bias    = input(cuv::extents[n_out], cfg.m_group_name + "b" + cfg.m_varname_suffix);
+            {
+                if (cfg.m_use_cuDNN)
+                    m_weights = input(cuv::extents[n_out][n_filter_channels][std::sqrt(n_fltpix)][std::sqrt(n_fltpix)], cfg.m_group_name + "W" + cfg.m_varname_suffix);
+                else
+                    m_weights = input(cuv::extents[n_filter_channels][n_fltpix][n_out], cfg.m_group_name + "W" + cfg.m_varname_suffix);
+            }
+
+            if(cfg.m_want_bias){
+                if (cfg.m_shared_bias)
+                    m_bias = cfg.m_shared_bias;
+                else if(cfg.m_use_cuDNN)
+                    m_bias = input(cuv::extents[1][n_out][1][1], cfg.m_group_name + "b" + cfg.m_varname_suffix);
+                else
+                    m_bias = input(cuv::extents[n_out], cfg.m_group_name + "b" + cfg.m_varname_suffix);
             }
         }
 
@@ -85,8 +88,11 @@ namespace cuvnet { namespace models {
         }
 
         if (cfg.m_use_cuDNN) {
-        	auto conv = convolve_cuDNN(inp, m_weights, padding, padding, cfg.m_stride, cfg.m_stride);
-        	m_output = conv;
+            if(cfg.m_want_bias)
+                m_output = convolve_cuDNN(inp, m_weights, m_bias, padding, padding, cfg.m_stride, cfg.m_stride);
+            else{
+                m_output = convolve_cuDNN(inp, m_weights, padding, padding, cfg.m_stride, cfg.m_stride);
+            }
         }
         else
         {
@@ -140,7 +146,7 @@ namespace cuvnet { namespace models {
 
         if(cfg.m_want_bias){
             if (cfg.m_use_cuDNN)
-                m_output = mat_plus_vec(m_output, m_bias, 1);
+                ;//m_output = mat_plus_vec(m_output, m_bias, 1);
             else
                 m_output = mat_plus_vec(m_output, m_bias, 0);
         }
