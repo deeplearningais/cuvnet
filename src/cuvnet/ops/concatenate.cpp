@@ -1,9 +1,12 @@
 
+#include "cuvnet/tools/logging.hpp"
 #include "concatenate.hpp"
 
+namespace{
+        log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("concatenate"));
+}
 namespace cuvnet
 {
-
     template<class T>
     struct view_of{
         typedef cuv::tensor_view<typename T::value_type, typename T::memory_space_type, typename T::memory_layout_type> type;
@@ -16,7 +19,8 @@ namespace cuvnet
         // this uses N copy operations of complexity O(M)
         for (unsigned int n = 0; n < dst.shape(0); ++n)
         {
-            dst[cuv::indices[n]].copy_memory(src[cuv::indices[n]], false, 0);
+            bool res = dst[cuv::indices[n]].copy_memory(src[cuv::indices[n]], false, 0);
+            cuvAssert(res);
         }
     }
     void copy_center_dim_bprop(matrix& dst, const matrix& src){
@@ -24,7 +28,8 @@ namespace cuvnet
         // this uses N copy operations of complexity O(M)
         for (unsigned int n = 0; n < dst.shape(0); ++n)
         {
-            dst[cuv::indices[n]].copy_memory(src[cuv::indices[n]], false, 0);
+            bool res = dst[cuv::indices[n]].copy_memory(src[cuv::indices[n]], false, 0);
+            cuvAssert(res);
         }
     }
 
@@ -64,7 +69,7 @@ namespace cuvnet
         result_t::element_type& r0 = *m_results[0];
 
         if(r0.can_overwrite_directly()){
-            value_type v = *r0.overwrite_or_add_value(); // NOTE: copies meta-info!
+            value_type& v = *r0.overwrite_or_add_value(); // NOTE: copies meta-info!
             if (m_reshape) v.reshape(  m_tmp_shape );    // ... so we can reshape without reshaping back
             
             for (unsigned int i = 0; i < m_n; i++){
@@ -77,16 +82,24 @@ namespace cuvnet
                     std::vector<unsigned int> pi_shape = get_pi_shape(vi);                     
                     vi.reshape( pi_shape );
                 }
+                //LOG4CXX_WARN(g_log, "v" << i <<" has_nan: " << cuv::has_nan(vi));
+                //LOG4CXX_WARN(g_log, "v" << i <<" has_inf: " << cuv::has_inf(vi));
                 if(vi.ndim() < 3){
-                    dst_i.copy_memory(vi, false, 0);                
+                    //LOG4CXX_WARN(g_log, "copy_otherdim");
+                    bool res = dst_i.copy_memory(vi, false, 0);                
+                    cuvAssert(res);
                 } else{
+                    //LOG4CXX_WARN(g_log, "copy_center_dim_fprop");
                     copy_center_dim_fprop(dst_i, vi);
                 }
             }
+            //LOG4CXX_WARN(g_log, "r" << " has_nan: " << cuv::has_nan(v));
+            //LOG4CXX_WARN(g_log, "r" << " has_inf: " << cuv::has_inf(v));
+            if(m_reshape) v.reshape(r0.shape);
         }else{
             value_ptr v1 = value_ptr(new value_type(r0.shape, value_ptr::s_allocator));
             
-            value_type v = *v1;
+            value_type& v = *v1;
             if (m_reshape){ 
                 v.reshape(  m_tmp_shape );
             }
@@ -96,17 +109,23 @@ namespace cuvnet
                 value_type dst_i = get_subtensor(v, i);   
                 //reshape input i
                 value_type vi = pi.value.cdata();
+                //LOG4CXX_WARN(g_log, "v" << i <<" nan:" << cuv::has_nan(vi) << " inf:" << cuv::has_inf(vi) << " max:"<<cuv::maximum(vi));
                 if (m_reshape) {
                     //get desired shape
                     std::vector<unsigned int> pi_shape = get_pi_shape(vi);                     
                     vi.reshape( pi_shape );
                 }
                 if(vi.ndim() < 3){
-                    dst_i.copy_memory(vi, false, 0);                
+                    //LOG4CXX_WARN(g_log, "copy_otherdim");
+                    bool res = dst_i.copy_memory(vi, false, 0);                
+                    cuvAssert(res);
                 }else{
+                    //LOG4CXX_WARN(g_log, "copy_center_dim_fprop");
                     copy_center_dim_fprop(dst_i, vi);
                 }
             }
+            //LOG4CXX_WARN(g_log, "r nan:" << cuv::has_nan(v) << " inf:" << cuv::has_inf(v) << " max:"<<cuv::maximum(v));
+            v.reshape(  r0.shape );
             r0.push(v1);
         }
 
@@ -193,8 +212,10 @@ namespace cuvnet
         //assert that all concat elements have the same size
         for ( unsigned int i = 1; i < m_params.size(); i++){
             cuvAssert( m_params[0]->shape.size() == m_params[i]->shape.size() );
-            //arrays must have same shape ( except in dimension, which is concatenated
+            //std::cout << "Concatenate: Comparing parameter:" << i << std::endl;
+            //arrays must have same shape (except in dimension m_dim, along which we concatenate)
             for (unsigned int j = 0; j < m_params[0]->shape.size(); j++){
+                //std::cout << "... j:" << j << " m_params[0]->shape[j]:" << m_params[0]->shape[j] << " m_params[i]->shape[j]:" << m_params[i]->shape[j] << std::endl;
                 if ( j != m_dim)
                     cuvAssert(m_params[0]->shape[j] == m_params[i]->shape[j] );
             }
