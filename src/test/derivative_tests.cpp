@@ -2529,7 +2529,7 @@ BOOST_AUTO_TEST_CASE(cuDNN_pooling){
 
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX]);
-        ptr_t func		               = boost::make_shared<PoolingcuDNN>(inp0->result(), CUDNN_POOLING_MAX, window_height, window_width, window_height, window_width);
+        ptr_t func		               = boost::make_shared<PoolingcuDNN>(inp0->result(), cuv::alex_conv::PT_MAX, window_height, window_width, window_height, window_width);
 
         derivative_tester(*func).test();
     }
