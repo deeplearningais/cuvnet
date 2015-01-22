@@ -24,6 +24,11 @@
 #include <cuvnet/ops/abs.hpp>
 #include <cuvnet/ops/softmax.hpp>
 #include <cuvnet/ops/convolve.hpp>
+#include <cuvnet/ops/cuda_convnet.hpp>
+#include <cuvnet/ops/cudnn.hpp>
+#include <cuvnet/ops/theano_ops.hpp>
+#include <cuvnet/ops/weighted_sub_tensor_op.hpp>
+#include <cuvnet/ops/tuplewise.hpp>
 #include <cuvnet/ops/reshape.hpp>
 #include <cuvnet/ops/row_selector.hpp>
 #include <cuvnet/ops/rectified_linear.hpp>

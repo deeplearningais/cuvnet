@@ -7,6 +7,12 @@
  * @addtogroup OpGroup
  * @{
  *   @defgroup Ops Implementations of specific symbolic operations
+ *   @addtogroup Ops
+ *   @{
+ *      @defgroup TheanoOps Operators related to the Theano library
+ *      @defgroup CudaConvnetOps Operators or related to Alex Krizhevskys Cuda-Convnet library
+ *      @defgroup CuDNNOps Operators related to NVIDIAs cuDNN library
+ *   @}
  *   @defgroup convenience_funcs Convenience functions for creating complex symbolic operations
  *   @defgroup op_visitors Operations on symbolic functions
  *   @defgroup serialization Helpers for serialization of symbolic functions and models
