@@ -871,6 +871,17 @@ namespace cuvnet
         else
             m_state.reset(new cudnn_state(this, m_params[0]->shape, m_params[1]->shape, m_results[0]->shape, std::vector<unsigned int>()));
 	}
+    void ConvolvecuDNN::_graphviz_node_desc(detail::graphviz_node& desc)const{
+        desc.color = "chartreuse4";
+        if(m_params[0]->shape.size() > 0 && m_params[1]->shape.size() > 0){
+            desc.label = "Conv (" +
+                boost::lexical_cast<std::string>(m_params[0]->shape[1]) + ":" +
+                boost::lexical_cast<std::string>(m_results[0]->shape[1]) + " fs" +
+                boost::lexical_cast<std::string>(m_params[1]->shape[2]) + ")";
+        }else{
+            desc.label = "Conv";
+        }
+    }
 
 
     /***************************************************

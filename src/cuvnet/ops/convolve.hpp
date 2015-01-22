@@ -265,6 +265,7 @@ namespace cuvnet
                void fprop();
                void bprop();
                void _determine_shapes();
+               void _graphviz_node_desc(detail::graphviz_node& desc)const;
 
            private:
                friend class boost::serialization::access;
