@@ -1,3 +1,4 @@
+#include <cstdlib>     /* getenv */
 #include <iostream>
 #include <fstream>
 #include <cuv.hpp>
@@ -22,7 +23,12 @@ struct FooEnvironment
         cuvnet::Logger log("test_log.xml");
         os.open("test_results.txt");
         boost::unit_test::results_reporter::set_stream(os);
-        cuv::initCUDA(0);
+        int dev = -1;
+        char* device = std::getenv("DEV");
+        if(device != NULL)
+            dev = boost::lexical_cast<int>(std::string(device));
+        std::cerr << "Initializing CUDA device " << dev << std::endl;
+        cuv::initCUDA(dev);
         if(cuv::IsSame<cuv::dev_memory_space, cuvnet::matrix::memory_space_type>::Result::value){
             cuv::initialize_mersenne_twister_seeds();
         }
