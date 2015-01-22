@@ -642,6 +642,7 @@ namespace cuvnet
     {
         m_gd = get_gradient_descent(m, cfg);
         m_mon = get_monitor(m, cfg.monitor());
+        m_gd->after_weight_update.connect(boost::bind(&model::after_weight_update, &m));
 
         boost::shared_ptr<early_stopper> es;
         boost::shared_ptr<record_optimal_training_loss> rotl;

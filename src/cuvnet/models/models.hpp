@@ -78,6 +78,12 @@ namespace cuvnet
                 virtual void set_batchsize(unsigned int bs);
 
                 /**
+                 * Run after weight update, eg to project weights onto a legit region.
+                 * Does nothing by default.
+                 */
+                virtual void after_weight_update();
+
+                /**
                  * dtor.
                  */
                 virtual ~model();
@@ -213,6 +219,11 @@ namespace cuvnet
                  * Calls set_predict_mode for all submodels.
                  */
                 virtual void set_predict_mode(bool b=true);
+
+                /**
+                 * Run after weight update for all submodels.
+                 */
+                virtual void after_weight_update();
 
                 /**
                  * dtor.

@@ -1,8 +1,10 @@
+#include <boost/tuple/tuple.hpp>
 #include <cuvnet/ops.hpp>
 #include <cuvnet/tools/monitor.hpp>
 #include <cuvnet/models/initialization.hpp>
 #include "conv_layer.hpp"
 #include <cuvnet/tools/monitor.hpp>
+#include <cuvnet/tools/normalization.hpp>
 namespace{
     log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("conv_layer"));
 }
@@ -18,6 +20,7 @@ namespace cuvnet { namespace models {
         ,m_verbose(cfg.m_verbose)
         ,m_learnrate_factor(cfg.m_learnrate_factor)
         ,m_learnrate_factor_bias(cfg.m_learnrate_factor_bias)
+        ,m_monitor(NULL)
         ,m_scat_n_inputs(cfg.m_scat_n_inputs)
         ,m_scat_J(cfg.m_scat_J)
         ,m_scat_C(cfg.m_scat_C)
@@ -26,6 +29,8 @@ namespace cuvnet { namespace models {
         int padding;
         if(cfg.m_padding >= 0) padding = cfg.m_padding;
         else                   padding = fs / 2;
+
+        m_max_col_norm = cfg.m_max_col_norm;
 
         determine_shapes(*m_input);
         unsigned int n_srcmaps;
@@ -193,13 +198,35 @@ namespace cuvnet { namespace models {
     void conv_layer::register_watches(monitor& mon){
         if(!m_verbose)
             return;
+        m_monitor = &mon; // save for after_weight_update
          
         if (!m_shared_weight)
         {
-        mon.add(monitor::WP_CONV_WEIGHT_STATS, m_weights, m_weights->name());
+            mon.add(monitor::WP_CONV_WEIGHT_STATS, m_weights, m_weights->name());
 
-        mon.add(monitor::WP_SINK_ONCE_STATS,
-                m_linear_output, m_weights->name() + "_linout", 0);
+            mon.add(monitor::WP_SINK_ONCE_STATS,
+                    m_linear_output, m_weights->name() + "_linout", 0);
+        }
+    }
+
+    void conv_layer::after_weight_update(){
+        float thresh = m_max_col_norm;
+        if(thresh == 0.f && m_verbose)
+            thresh = 1000.f; // get stats anyway!
+
+        if(thresh > 0.f){
+            int n_over_thresh = 0;
+            float mean_norm = 0.f;
+            if(m_weights->data().ndim() == 4)
+                boost::tie(n_over_thresh,mean_norm) = project_to_unit_ball(m_weights->data(), 0, thresh); // for cuDNN
+            else if(m_weights->data().ndim() == 3)
+                boost::tie(n_over_thresh,mean_norm) = project_to_unit_ball(m_weights->data(), 2, thresh); // for alex_conv
+            else
+                throw std::runtime_error("don't know what to do with weights after update");
+
+            // log constraint violations
+            m_monitor->set(m_weights->name() + "_consvio_n",    (int)n_over_thresh);
+            m_monitor->set(m_weights->name() + "_consvio_norm", (int)mean_norm);
         }
     }
 

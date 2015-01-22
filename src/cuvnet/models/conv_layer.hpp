@@ -63,6 +63,7 @@ namespace cuvnet { namespace models {
             ,m_shared_weight(input_ptr())
             ,m_shared_bias(input_ptr())
         	,m_use_cuDNN(true)
+        	,m_max_col_norm(0.f)
         {}
 
         friend class conv_layer;
@@ -99,6 +100,7 @@ namespace cuvnet { namespace models {
             input_ptr m_shared_weight;
             input_ptr m_shared_bias;
             bool m_use_cuDNN;
+            float m_max_col_norm;
         public:
 
         /**
@@ -334,6 +336,12 @@ namespace cuvnet { namespace models {
         inline conv_layer_opts& shared_bias(input_ptr b){ m_shared_bias = b; return *this; }
 
         inline conv_layer_opts& use_cudnn(bool b=true){ m_use_cuDNN = b; return *this; }
+        
+        /**
+         * When set, the weight vector to a hidden unit is not allowed to have a norm higher than f.
+         * @param f the maximum norm of a weight vector to a hidden unit
+         */
+        inline conv_layer_opts& max_col_norm(float f){ m_max_col_norm = f; return *this; }
     };
 
 
@@ -363,11 +371,14 @@ namespace cuvnet { namespace models {
             float m_bias_default_value;
             float m_weight_default_std;
 
+            float m_max_col_norm;
+            monitor* m_monitor;
+
             int m_scat_n_inputs, m_scat_J, m_scat_C;
 
             conv_layer(op_ptr inp, int fs, int n_maps, const conv_layer_opts& cfg = conv_layer_opts());
             /// empty ctor for serialization
-            conv_layer():m_verbose(false){};
+            conv_layer():m_verbose(false),m_max_col_norm(0.f),m_monitor(NULL){};
 
             inline conv_layer& set_learnrate_factor(float fW, float fB = -1.f){
             	m_learnrate_factor = fW;
@@ -375,10 +386,11 @@ namespace cuvnet { namespace models {
             	return *this;
             }
 
-            virtual void set_predict_mode(bool b=true);
+            virtual void set_predict_mode(bool b=true) override;
             void register_watches(monitor& mon);
-            std::vector<Op*> get_params();
-            void reset_params();
+            void after_weight_update() override;
+            std::vector<Op*> get_params() override;
+            void reset_params() override;
             virtual ~conv_layer();
 
         private:
@@ -396,11 +408,13 @@ namespace cuvnet { namespace models {
                     }
                     if(version > 2)
                         ar & m_linear_output;
+                    if(version > 3)
+                        ar & m_max_col_norm;
                 }
     };
 } }
 
 BOOST_CLASS_EXPORT_KEY(cuvnet::models::conv_layer)
-BOOST_CLASS_VERSION(cuvnet::models::conv_layer, 3);
+BOOST_CLASS_VERSION(cuvnet::models::conv_layer, 4);
 
 #endif /* __CUVNET_MODELS_ALEXCONV_LAYERS_HPP__ */
