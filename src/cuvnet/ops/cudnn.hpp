@@ -87,7 +87,7 @@ namespace cuvnet
 
        };
 
-
+    struct cudnn_pooling_state;
     /**
      * cuDNN pooling
      *
@@ -110,6 +110,8 @@ namespace cuvnet
                 int m_vertical_pad;
                 int m_horizontal_pad;
                 value_ptr m_result;
+                boost::shared_ptr<cudnn_pooling_state> m_state;
+                friend struct cudnn_pooling_state;
                 //result_t::element_type m_result;
             public:
                 PoolingcuDNN() :Op(1,1){} ///< for serialization
