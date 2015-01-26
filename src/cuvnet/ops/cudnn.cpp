@@ -338,8 +338,7 @@ namespace cuvnet
 			CUDNN_CALL(cudnnCreate(&handle));
 			CUDNN_CALL(cudnnCreatePoolingDescriptor(&poolingDesc));
 
-			//TODO: use CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING?
-			CUDNN_CALL(cudnnSetPooling2dDescriptor(poolingDesc, pooling->m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING, pooling->m_window_height, pooling->m_window_width, pooling->m_vertical_pad, pooling->m_horizontal_pad, pooling->m_vertical_stride, pooling->m_horizontal_stride));
+			CUDNN_CALL(cudnnSetPooling2dDescriptor(poolingDesc, pooling->m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, pooling->m_window_height, pooling->m_window_width, pooling->m_vertical_pad, pooling->m_horizontal_pad, pooling->m_vertical_stride, pooling->m_horizontal_stride));
 
 			CUDNN_CALL(cudnnCreateTensorDescriptor(&imgDesc));
 			CUDNN_CALL(cudnnSetTensor4dDescriptor(imgDesc, CUDNN_TENSOR_NCHW, dtype, img_shape[0], img_shape[1], img_shape[2], img_shape[3]));
