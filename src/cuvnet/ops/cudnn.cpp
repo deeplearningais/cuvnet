@@ -2,7 +2,7 @@
 #include <cuvnet/common.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/ops/cudnn.hpp>
-#include <third_party/cudnn-6.5-linux-x64-R2-rc1/cudnn.h>
+#include <third_party/cudnn-6.5-linux-x64-v2-rc2/cudnn.h>
 
 #define DIVUP(x,y) (((x)+ (y) -1) / (y))
 #define CUDNN_CALL(XXX) if(1){ \
@@ -361,7 +361,8 @@ namespace cuvnet
 		if (status != CUDNN_STATUS_SUCCESS)
 			throw("ERROR fprop cudnnCreatePoolingDescriptor, status: " + boost::lexical_cast<std::string>(status));
 
-		status = cudnnSetPooling2dDescriptor(poolingDesc, m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE, m_window_height, m_window_width, m_vertical_pad, m_horizontal_pad, m_vertical_stride, m_horizontal_stride);
+		//TODO: use CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING?
+		status = cudnnSetPooling2dDescriptor(poolingDesc, m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING, m_window_height, m_window_width, m_vertical_pad, m_horizontal_pad, m_vertical_stride, m_horizontal_stride);
 
 		if (status != CUDNN_STATUS_SUCCESS)
 			throw("ERROR fprop cudnnSetPoolingDescriptor, status: " + boost::lexical_cast<std::string>(status));
@@ -412,6 +413,10 @@ namespace cuvnet
             	m_result = v; // save for bprop
         }
 
+        if(!p0.need_derivative){
+            p0.value.reset();
+        }
+
         DESTROY(srcDesc);
         DESTROY(destDesc);
         status = cudnnDestroyPoolingDescriptor(poolingDesc);
@@ -443,8 +448,7 @@ namespace cuvnet
 		status = cudnnCreatePoolingDescriptor(&poolingDesc);
 		if (status != CUDNN_STATUS_SUCCESS)
 			throw("ERROR bprop cudnnCreatePoolingDescriptor, status: " + boost::lexical_cast<std::string>(status));
-
-		status = cudnnSetPooling2dDescriptor(poolingDesc, m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE, m_window_height, m_window_width, m_vertical_pad, m_horizontal_pad, m_vertical_stride, m_horizontal_stride);
+	    status = cudnnSetPooling2dDescriptor(poolingDesc, m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING, m_window_height, m_window_width, m_vertical_pad, m_horizontal_pad, m_vertical_stride, m_horizontal_stride);
 
 		if (status != CUDNN_STATUS_SUCCESS)
 			throw("ERROR bprop cudnnSetPoolingDescriptor, status: " + boost::lexical_cast<std::string>(status));
