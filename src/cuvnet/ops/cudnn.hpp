@@ -33,16 +33,19 @@ namespace cuvnet
                 /**
                  * constructor.
                  *
-                 * @param images nImages x nChannels x nPixels x nPixels
-                 * @param filters nFilt x nFiltChannels x nFiltPix x nFiltPix
-                 * TODO://fix this
+                 * @param images nImages x nMaps x image height x image width
+                 * @param filters nFilters x nMaps x filter height x filter width
+                 * @param padding_y zero-padding height
+                 * @param padding_x zero-padding width
+                 * @param ver_filt_stride vertical filter stride
+                 * @param hor_filt_stride horizontal filter stride
                  */
-               ConvolvecuDNN(result_t& images, result_t& filters, int m_padding_y=0, int m_padding_x=0, int m_ver_filt_stride=1, int m_hor_filt_stride=1)
+               ConvolvecuDNN(result_t& images, result_t& filters, int padding_y=0, int padding_x=0, int ver_filt_stride=1, int hor_filt_stride=1)
                    :Op(2,1),
-                    m_padding_x(m_padding_x),
-                    m_padding_y(m_padding_y),
-                    m_ver_filt_stride(m_ver_filt_stride),
-                    m_hor_filt_stride(m_hor_filt_stride)
+                    m_padding_x(padding_x),
+                    m_padding_y(padding_y),
+                    m_ver_filt_stride(ver_filt_stride),
+                    m_hor_filt_stride(hor_filt_stride)
                {
                    add_param(0,images);
                    add_param(1,filters);
@@ -51,17 +54,20 @@ namespace cuvnet
                 /**
                  * constructor.
                  *
-                 * @param images nImages x nChannels x nPixels x nPixels
-                 * @param filters nFilt x nFiltChannels x nFiltPix x nFiltPix
-                 * @param bias nMaps
-                 * TODO://fix this
+                 * @param images nImages x nMaps x image height x image width
+                 * @param filters nFilters x nMaps x filter height x filter width
+                 * @param bias nImages x nMaps x height x width
+                 * @param padding_y zero-padding height
+                 * @param padding_x zero-padding width
+                 * @param ver_filt_stride vertical filter stride
+                 * @param hor_filt_stride horizontal filter stride
                  */
-               ConvolvecuDNN(result_t& images, result_t& filters, result_t& bias, int m_padding_y=0, int m_padding_x=0, int m_ver_filt_stride=1, int m_hor_filt_stride=1)
+               ConvolvecuDNN(result_t& images, result_t& filters, result_t& bias, int padding_y=0, int padding_x=0, int ver_filt_stride=1, int hor_filt_stride=1)
                    :Op(3,1),
-                    m_padding_x(m_padding_x),
-                    m_padding_y(m_padding_y),
-                    m_ver_filt_stride(m_ver_filt_stride),
-                    m_hor_filt_stride(m_hor_filt_stride)
+                    m_padding_x(padding_x),
+                    m_padding_y(padding_y),
+                    m_ver_filt_stride(ver_filt_stride),
+                    m_hor_filt_stride(hor_filt_stride)
                {
                    add_param(0,images);
                    add_param(1,filters);
@@ -89,7 +95,7 @@ namespace cuvnet
 
     struct cudnn_pooling_state;
     /**
-     * cuDNN pooling
+     * Pooling via cuDNN library.
      *
      * @ingroup CuDNNOps
      */
@@ -112,18 +118,17 @@ namespace cuvnet
                 value_ptr m_result;
                 boost::shared_ptr<cudnn_pooling_state> m_state;
                 friend struct cudnn_pooling_state;
-                //result_t::element_type m_result;
             public:
                 PoolingcuDNN() :Op(1,1){} ///< for serialization
                 /**
                  * ctor.
-                 * @param images the input images
-                 * @subx pooling size
-                 * @stridex distance between neighboring neurons in a bank
-                 * @startx where to start implicitly, relative to left/top margin
-                 * @param pt pooling type
+                 * @param images nImages x nMaps x height x width
+                 * @param mode pooling mode
+                 * @param window_height height of the pooling window
+                 * @param window_width width of the pooling window
+                 * @param vertical_stride pooling vertical stride
+                 * @param horizontal_stride pooling horizontal stride
                  */
-                //TODO: fix this
                 PoolingcuDNN(result_t& images, cuv::alex_conv::pool_type mode, int window_height, int window_width, int vertical_stride, int horizontal_stride)
                     :Op(1,1),
                     m_mode(mode),

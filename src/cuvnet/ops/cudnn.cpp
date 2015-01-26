@@ -279,7 +279,7 @@ namespace cuvnet
 
 		using namespace std;
 
-		//dst       (nImg, nFilt, nModules, nModules)
+		//dst       (nImg, nFilt, nOutPixY, nOutPixX)
 		//img       (nImg, nImgChan, nImgPiY, nImgPix)
 		//filter    (nFilt,nFiltChan, nFiltPiY,nFiltPix)
 
@@ -364,16 +364,11 @@ namespace cuvnet
     }
 
     void PoolingcuDNN::fprop(){
-
         using namespace cuv;
         using namespace std;
 
         param_t::element_type&  p0 = *m_params[0];
         result_t::element_type& r0 = *m_results[0];
-        //unsigned int outy = p0.shape[1]/m_subsx;
-    //    unsigned int outx = p0.shape[2]/m_subsx;
-
-        //TODO: NCHW -> y then x
 
         const matrix::value_type* srcData = p0.value.cdata().ptr();
         const matrix::value_type alpha = 1.;
@@ -434,18 +429,17 @@ namespace cuvnet
 
 
     void PoolingcuDNN::_determine_shapes(){
+    	using namespace std;
         /*
          * images    (nImages, nMaps, imgPixY, imgPixX)
-         * out       (nImages, nMaps, imgPixY, imgPixX)
+         * out       (nImages, nMaps, nOutPixY, nOutPixX)
          */
-    	using namespace std;
         assert(m_params[0]->shape.size()==4);
         std::vector<unsigned int> img = m_params[0]->shape;
         std::vector<unsigned int> dst(4);
 
         dst[0] = img[0];
         dst[1] = img[1];
-        //TODO: org code? + stride
         //dst[2] = img[2] / m_window_height;
         //dst[3] = img[3] / m_window_width;
 
