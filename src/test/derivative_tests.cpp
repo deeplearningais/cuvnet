@@ -2529,12 +2529,16 @@ BOOST_AUTO_TEST_CASE(cuDNN_pooling){
 
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX]);
-        ptr_t func		               = boost::make_shared<PoolingcuDNN>(inp0->result(), cuv::alex_conv::PT_MAX, window_height, window_width, window_height, window_width);
+        ptr_t func = boost::make_shared<PoolingcuDNN>(inp0->result(), cuv::alex_conv::PT_MAX, window_height, window_width, window_height, window_width);
+/*
+	double s = inp0->data().size();
+	double epsilon = 0.01;
+    derivative_tester(*func).values(-s/2,s/2).spread_values().epsilon(epsilon).full_jacobian().only_variant(4).test();
+*/
+	 derivative_tester(*func).test();
 
-        derivative_tester(*func).test();
     }
 }
-
 
 BOOST_AUTO_TEST_SUITE_END()
 

@@ -93,8 +93,8 @@ namespace cuvnet
                     filterDesc,
                     convDesc,
                     outputDesc,
-                    //CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
-                    CUDNN_CONVOLUTION_FWD_NO_WORKSPACE,
+                    CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
+                    //CUDNN_CONVOLUTION_FWD_NO_WORKSPACE,
                     0,
                     &algo));
 
@@ -325,10 +325,10 @@ namespace cuvnet
         }
     }
 
-
     /***************************************************
      * cuDNN Pooling
      ***************************************************/
+
     void PoolingcuDNN::release_data(){
     	m_result.reset();
         Op::release_data();
@@ -360,6 +360,7 @@ namespace cuvnet
 
 		if (status != CUDNN_STATUS_SUCCESS)
 			throw("ERROR fprop cudnnCreatePoolingDescriptor, status: " + boost::lexical_cast<std::string>(status));
+
 		status = cudnnSetPooling2dDescriptor(poolingDesc, m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE, m_window_height, m_window_width, m_vertical_pad, m_horizontal_pad, m_vertical_stride, m_horizontal_stride);
 
 		if (status != CUDNN_STATUS_SUCCESS)
@@ -379,9 +380,10 @@ namespace cuvnet
 			throw("ERROR fprop cudnnSetTensor4dDescriptor(destDesc), status: " + boost::lexical_cast<std::string>(status));
 
         const matrix::value_type alpha = 1.;
-        if(r0.can_overwrite_directly() || r0.can_add_directly()){
-            const matrix::value_type beta = r0.can_add_directly() ? 1.0 : 0.0; 
-
+  //    if(r0.can_overwrite_directly() || r0.can_add_directly()){
+  //        const matrix::value_type beta = r0.can_add_directly() ? 1.0 : 0.0;
+        if(r0.can_overwrite_directly()) {
+            const matrix::value_type beta = 0;
             matrix::value_type* destData = r0.overwrite_or_add_value()->ptr();
 
         	status = cudnnPoolingForward(handle, poolingDesc, &alpha, srcDesc, srcData, &beta, destDesc, destData);
@@ -392,6 +394,7 @@ namespace cuvnet
             if(p0.need_derivative)
             	m_result = r0.overwrite_or_add_value();  // save for bprop
         }else{
+
             const matrix::value_type beta = 0.;
             // reallocate *sigh*
 		//	value_ptr v(new value_type(r0.shape, cuvnet::get_global_allocator()));
@@ -404,12 +407,6 @@ namespace cuvnet
     			throw("ERROR fprop cudnnPoolingForward, status: " + boost::lexical_cast<std::string>(status));
 
             r0.push(v);
-
-       // 	cout<<"img01 "<<endl<<p0.value.cdata()[indices[0][0]]<<endl;
-       //    	cout<<"result "<<endl<<(*r0.overwrite_or_add_value())[indices[0][0]]<<endl;
-
-      //   	cout<< "image shape " << p0.shape[0] << " " << p0.shape[1] << " " << p0.shape[2] << " " << p0.shape[3] << endl;
-      //     	cout<< "result shape " << r0.shape[0] << " " << r0.shape[1] << " " << r0.shape[2] << " " << r0.shape[3] << endl;
 
             if(p0.need_derivative)
             	m_result = v; // save for bprop
@@ -446,11 +443,13 @@ namespace cuvnet
 		status = cudnnCreatePoolingDescriptor(&poolingDesc);
 		if (status != CUDNN_STATUS_SUCCESS)
 			throw("ERROR bprop cudnnCreatePoolingDescriptor, status: " + boost::lexical_cast<std::string>(status));
+
 		status = cudnnSetPooling2dDescriptor(poolingDesc, m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE, m_window_height, m_window_width, m_vertical_pad, m_horizontal_pad, m_vertical_stride, m_horizontal_stride);
+
 		if (status != CUDNN_STATUS_SUCCESS)
 			throw("ERROR bprop cudnnSetPoolingDescriptor, status: " + boost::lexical_cast<std::string>(status));
 
-		
+
         cudnnTensorDescriptor_t srcDesc, destDesc, srcDiffDesc, destDiffDesc;
         CONSTRUCT(srcDesc);
 		status = cudnnSetTensor4dDescriptor(srcDesc, CUDNN_TENSOR_NCHW, dtype, m_result.cdata().shape(0), m_result.cdata().shape(1), m_result.cdata().shape(2), m_result.cdata().shape(3));
@@ -484,13 +483,15 @@ namespace cuvnet
 
         const matrix::value_type alpha = 1.;
 		if (p0.can_overwrite_directly() || p0.can_add_directly()) {
-            const matrix::value_type beta = p0.can_add_directly() ? 1.0 : 0.0; 
+            const matrix::value_type beta = p0.can_add_directly() ? 1.0 : 0.0;
 
 			matrix::value_type* destDiffData = p0.overwrite_or_add_value()->ptr();
+
 			status = cudnnPoolingBackward(handle, poolingDesc, &alpha, srcDesc, srcData, srcDiffDesc, srcDiffData, destDesc, destData, &beta, destDiffDesc, destDiffData);
 			if (status != CUDNN_STATUS_SUCCESS)
 				throw("ERROR bprop cudnnPoolingBackward, status: " + boost::lexical_cast<std::string>(status));
 		} else {
+
             const matrix::value_type beta = 0.;
 			value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
 			matrix::value_type* destDiffData = v->ptr();
@@ -533,6 +534,7 @@ namespace cuvnet
         //TODO: org code? + stride
         //dst[2] = img[2] / m_window_height;
         //dst[3] = img[3] / m_window_width;
+
         dst[2] = DIVUP(img[2] + 2*m_vertical_pad - m_window_height, m_vertical_stride)+1;
         dst[3] = DIVUP(img[3] + 2*m_horizontal_pad - m_window_width, m_horizontal_stride)+1;
 
