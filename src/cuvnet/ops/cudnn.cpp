@@ -54,11 +54,10 @@ namespace cuvnet
                 ){
 
             CUDNN_CALL(cudnnCreate(&handle));
-
-            CONSTRUCT(imgDesc);
-            CONSTRUCT(outputDesc);
-            CONSTRUCT(biasDesc);
-            CONSTRUCT_FILTER(filterDesc);
+            CUDNN_CALL(cudnnCreateTensorDescriptor(&imgDesc));
+            CUDNN_CALL(cudnnCreateTensorDescriptor(&outputDesc));
+            CUDNN_CALL(cudnnCreateTensorDescriptor(&biasDesc));
+            CUDNN_CALL(cudnnCreateFilterDescriptor(&filterDesc));
 
             cudnnDataType_t dtype = cudnn_data_type<matrix>();
 
@@ -101,10 +100,10 @@ namespace cuvnet
             CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(handle, imgDesc, filterDesc, convDesc, outputDesc, algo, &workspace_size));
         }
         ~cudnn_state(){
-            DESTROY(imgDesc);
-            DESTROY(outputDesc);
-            DESTROY_FILTER(filterDesc);
-
+            CUDNN_CALL(cudnnDestroyTensorDescriptor(imgDesc));
+            CUDNN_CALL(cudnnDestroyTensorDescriptor(outputDesc));
+            CUDNN_CALL(cudnnDestroyTensorDescriptor(biasDesc));
+            CUDNN_CALL(cudnnDestroyFilterDescriptor(filterDesc));
             CUDNN_CALL(cudnnDestroyConvolutionDescriptor(convDesc));
             CUDNN_CALL(cudnnDestroy(handle));
         }
