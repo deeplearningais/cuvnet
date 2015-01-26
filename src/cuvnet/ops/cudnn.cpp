@@ -78,10 +78,12 @@ namespace cuvnet
             // query output layout
             int n_out, c_out, h_out, w_out;
             CUDNN_CALL(cudnnGetConvolution2dForwardOutputDim(convDesc, imgDesc, filterDesc, &n_out, &c_out, &h_out, &w_out));
+            //std::cout<<"cuddn "<<h_out<<", detShapes "<<out_shape[2]<<std::endl;
             cuvAssert((unsigned)n_out == out_shape[0]);
             cuvAssert((unsigned)c_out == out_shape[1]);
             cuvAssert((unsigned)h_out == out_shape[2]);
             cuvAssert((unsigned)w_out == out_shape[3]);
+
 
             // Set and allocate output tensor descriptor
             CUDNN_CALL(cudnnSetTensor4dDescriptor(outputDesc, CUDNN_TENSOR_NCHW, dtype, n_out, c_out, h_out, w_out));
@@ -293,14 +295,16 @@ namespace cuvnet
 		unsigned int nFltPixY = flt[2];
 		unsigned int nFltPixX = flt[3];
 
-		//unsigned int nOutPixX = nImgPixX + 2*m_padding_x - nFltPixX + 1;
-		//unsigned int nOutPixY = nImgPixY + 2*m_padding_y - nFltPixY + 1;
+	    //assertion fails when imgPix=6, stride=3, filter=3, nOutPixY should be 2 but outputs 1
+	    //or imgPix=9, stride=2, filter=3, nOutPixY should be 4 but outputs 3
 
-        unsigned int nOutPixX = DIVUP(nImgPixX+2*m_padding_x-nFltPixX, m_hor_filt_stride)+1;
+	   /*unsigned int nOutPixX = DIVUP(nImgPixX+2*m_padding_x-nFltPixX, m_hor_filt_stride)+1;
         unsigned int nOutPixY = DIVUP(nImgPixY+2*m_padding_y-nFltPixY, m_ver_filt_stride)+1;
-
         if(m_hor_filt_stride != 1) nOutPixX -= 1;
-        if(m_ver_filt_stride != 1) nOutPixY -= 1;
+        if(m_ver_filt_stride != 1) nOutPixY -= 1;*/
+
+		unsigned int nOutPixX = DIVUP(nImgPixX+2*m_padding_x-nFltPixX+1, m_hor_filt_stride);
+		unsigned int nOutPixY = DIVUP(nImgPixY+2*m_padding_y-nFltPixY+1, m_ver_filt_stride);
 
 		dst[0] = img[0];
 		dst[1] = nFilt;

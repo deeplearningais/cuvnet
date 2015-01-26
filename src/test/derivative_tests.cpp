@@ -2450,10 +2450,13 @@ BOOST_AUTO_TEST_CASE(cuDNN_convolve){
             unsigned int nFiltChan = nImgChan;
             unsigned int nFiltPixX  = 3;
             unsigned int nFiltPixY  = 3;
-            unsigned int nFilt     = 2;
+            unsigned int nFilt     = 1;
 
-            unsigned int padding_x = 5;
-            unsigned int padding_y = 5;
+            unsigned int padding_x = 1;
+            unsigned int padding_y = 1;
+
+            unsigned int hor_stride = 2;
+            unsigned int ver_stride = 2;
 
             {
                boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
@@ -2464,7 +2467,7 @@ BOOST_AUTO_TEST_CASE(cuDNN_convolve){
                  derivative_tester(*func).test();
                }*/
                {
-                  ptr_t func                       = boost::make_shared<ConvolvecuDNN>(inp0->result(), inp1->result(),padding_x,padding_y);
+                  ptr_t func                       = boost::make_shared<ConvolvecuDNN>(inp0->result(), inp1->result(), padding_y, padding_x, ver_stride, hor_stride);
                   derivative_tester(*func).epsilon(1.).full_jacobian().no_state_precision(1e-6).test();
                 }
             }
