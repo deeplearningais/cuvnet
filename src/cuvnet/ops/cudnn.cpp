@@ -442,16 +442,19 @@ namespace cuvnet
 
         dst[0] = img[0];
         dst[1] = img[1];
-        //dst[2] = img[2] / m_window_height;
-        //dst[3] = img[3] / m_window_width;
 
+        //this doesn't work if imgPix=6, height=4, stride=2, outputs 1 when it should be 2
+        //or if imgPix=4, height=4, stride=4, outputs 0 when it should be 1
+/*
         dst[2] = DIVUP(img[2] + 2*m_vertical_pad - m_window_height, m_vertical_stride)+1;
         dst[3] = DIVUP(img[3] + 2*m_horizontal_pad - m_window_width, m_horizontal_stride)+1;
-
         bool defaultcase_y = m_vertical_stride == m_window_height && m_vertical_pad == 0 && (img[2] % m_window_height == 0);
         bool defaultcase_x = m_horizontal_stride == m_window_width && m_horizontal_pad == 0 && (img[3] % m_window_width == 0);
         if(m_vertical_stride != 1 && !defaultcase_y) dst[2] -= 1;
         if(m_horizontal_stride != 1 && !defaultcase_x) dst[3] -= 1;
+*/
+        dst[2] = DIVUP(img[2] + 2*m_vertical_pad - m_window_height + 1, m_vertical_stride);
+        dst[3] = DIVUP(img[3] + 2*m_horizontal_pad - m_window_width + 1, m_horizontal_stride);
 
         m_results[0]->shape = dst;
         m_state.reset(new cudnn_pooling_state(this, m_params[0]->shape, m_results[0]->shape));

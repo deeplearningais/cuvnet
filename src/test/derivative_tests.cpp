@@ -2522,17 +2522,20 @@ BOOST_AUTO_TEST_CASE(cuDNN_speed){
 BOOST_AUTO_TEST_CASE(cuDNN_pooling){
     typedef boost::shared_ptr<Op> ptr_t;
 
-    unsigned int nImgChan = 3;
-    unsigned int nImgPixX  = 16;
-    unsigned int nImgPixY  = 16;
-    unsigned int nImg     = 2;
+    unsigned int nImgChan = 1;
+    unsigned int nImgPixX  = 6;
+    unsigned int nImgPixY  = 6;
+    unsigned int nImg     = 1;
 
-    unsigned int window_height = 5;
-    unsigned int window_width = 5;
+    unsigned int window_height = 4;
+    unsigned int window_width = 4;
+
+    unsigned int vertical_stride = 2;
+    unsigned int horizontal_stride = 2;
 
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX]);
-        ptr_t func = boost::make_shared<PoolingcuDNN>(inp0->result(), cuv::alex_conv::PT_MAX, window_height, window_width, window_height, window_width);
+        ptr_t func = boost::make_shared<PoolingcuDNN>(inp0->result(), cuv::alex_conv::PT_MAX, window_height, window_width, vertical_stride, horizontal_stride);
 /*
 	double s = inp0->data().size();
 	double epsilon = 0.01;
