@@ -2533,9 +2533,12 @@ BOOST_AUTO_TEST_CASE(cuDNN_pooling){
     unsigned int vertical_stride = 2;
     unsigned int horizontal_stride = 2;
 
+    unsigned int vertical_padding = 0;
+    unsigned int horizontal_padding = 0;
+
     {
         boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX]);
-        ptr_t func = boost::make_shared<PoolingcuDNN>(inp0->result(), cuv::alex_conv::PT_MAX, window_height, window_width, vertical_stride, horizontal_stride);
+        ptr_t func = boost::make_shared<PoolingcuDNN>(inp0->result(), cuv::alex_conv::PT_MAX, window_height, window_width, vertical_stride, horizontal_stride, vertical_padding, horizontal_padding);
 /*
 	double s = inp0->data().size();
 	double epsilon = 0.01;

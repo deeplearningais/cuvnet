@@ -129,21 +129,25 @@ namespace cuvnet
                  * @param vertical_stride pooling vertical stride
                  * @param horizontal_stride pooling horizontal stride
                  */
-                PoolingcuDNN(result_t& images, cuv::alex_conv::pool_type mode, int window_height, int window_width, int vertical_stride, int horizontal_stride)
+                PoolingcuDNN(result_t& images, cuv::alex_conv::pool_type mode, int window_height, int window_width, int vertical_stride, int horizontal_stride, int vertical_padding=0, int horizontal_padding=0)
                     :Op(1,1),
                     m_mode(mode),
                     m_window_height(window_height),
                     m_window_width(window_width),
                     m_vertical_stride(vertical_stride),
-                    m_horizontal_stride(horizontal_stride)
+                    m_horizontal_stride(horizontal_stride),
+                	m_vertical_pad(vertical_padding),
+                	m_horizontal_pad(horizontal_padding)
                 {
-                    if(m_window_height == 3){
+                   /*
+                	if(m_window_height == 3){
                         m_vertical_pad = m_window_height % 2 == 0 ? 0 : m_window_height / 2;
                         m_horizontal_pad = m_window_width % 2 == 0 ? 0 : m_window_width / 2;
                     }else{
                         m_vertical_pad = 0;
                         m_horizontal_pad = 0;
                     }
+                    */
 
                     add_param(0,images);
                 }
