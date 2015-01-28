@@ -47,8 +47,9 @@ CONFIGURE_FILE( ${CMAKE_CURRENT_SOURCE_DIR}/datasets/util/lena.jpg ${CMAKE_BINAR
 INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libnpy-0.5/include )
 INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ )
 
-INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cudnn-6.5-linux-x64-v2-rc2 )
-LINK_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/third_party/cudnn-6.5-linux-x64-v2-rc2)
+INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cudnn-6.5-linux-x64-R2-rc1 )
+LINK_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/third_party/cudnn-6.5-linux-x64-R2-rc1)
+
 
 OPTION(USE_OPENCV "Use OpenCV if available" OFF)
 OPTION(USE_THEANO_WRAPPERS "Use Theano wrappers (requires CUV to be compiled with python support" ON)

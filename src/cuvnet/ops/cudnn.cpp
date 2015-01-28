@@ -2,7 +2,7 @@
 #include <cuvnet/common.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/ops/cudnn.hpp>
-#include <third_party/cudnn-6.5-linux-x64-v2-rc2/cudnn.h>
+#include <third_party/cudnn-6.5-linux-x64-R2-rc1/cudnn.h>
 
 #define DIVUP(x,y) (((x)+ (y) -1) / (y))
 #define CUDNN_CALL(XXX) if(1){ \
