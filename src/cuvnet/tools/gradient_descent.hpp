@@ -1015,10 +1015,7 @@ namespace cuvnet
                 : BaseGradientDescent(args...)
                 {
                     m_active_ = true;
-
-                    BaseGradientDescent::before_batch.connect(boost::bind(&my_class::run_before_batch, this, _2));
-                    //BaseGradientDescent::after_epoch.connect(boost::bind(&my_class::run_after_epoch, this));
-                    //BaseGradientDescent::before_epoch.connect(boost::bind(&my_class::run_before_epoch, this));
+                    run_before_epoch();
                 }
 
             void set_monitor(monitor& mon, unsigned int every = 1){
@@ -1036,6 +1033,8 @@ namespace cuvnet
              * @overload
              */
             virtual void update_weights(){
+
+                m_current_batch_ += 1;
 
                 if(m_active_ && (m_current_batch_ % m_every_ == 0) && m_mon_)
                 for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
@@ -1066,10 +1065,6 @@ namespace cuvnet
                     run_after_epoch();
                     run_before_epoch();
                 }
-            }
-
-            void run_before_batch(unsigned int batch){
-                m_current_batch_ = batch;
             }
 
             void run_after_epoch(){
