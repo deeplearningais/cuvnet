@@ -401,7 +401,7 @@ namespace cuvnet
         //    std::cout << p.first<<"="<<p.second<<" ";
         //}
         BOOST_FOREACH(const watchpoint* p, m_impl->m_watchpoints){
-            if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS || p->type == WP_FULL_WEIGHT_STATS  || p->type == WP_CONV_WEIGHT_STATS){
+            if(p->type == WP_SCALAR_EPOCH_STATS || p->type == WP_FUNC_SCALAR_EPOCH_STATS || p->type == WP_D_SCALAR_EPOCH_STATS){
                 std::cout  << p->name<<"="
                     << std::left << std::setprecision(4) << mean(p->name) <<", "//<<" ("
                     //<< std::left << std::setprecision(4) << stddev(p->name)<<"),  "
