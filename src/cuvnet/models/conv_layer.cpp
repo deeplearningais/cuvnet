@@ -41,9 +41,6 @@ namespace cuvnet { namespace models {
         
         unsigned int n_fltpix  = fs * fs;
 
-        m_bias_default_value = cfg.m_bias_default_value;
-        m_weight_default_std = cfg.m_weight_default_std;
-
         cuvAssert(n_srcmaps % cfg.m_n_groups == 0);
         cuvAssert((n_srcmaps < 4) || (n_srcmaps % 4 == 0));
         unsigned int n_filter_channels = n_srcmaps / cfg.m_n_groups;
@@ -81,6 +78,12 @@ namespace cuvnet { namespace models {
                 else
                     m_bias = input(cuv::extents[n_out], cfg.m_group_name + "b" + cfg.m_varname_suffix);
             }
+        }
+
+        m_bias_default_value = cfg.m_bias_default_value;
+        m_weight_default_std = cfg.m_weight_default_std;
+        if(fs == 1){
+            m_weight_default_std = std::sqrt(3. / (n_filter_channels * fs * fs));
         }
 
         boost::scoped_ptr<op_group> grp;
@@ -252,9 +255,15 @@ namespace cuvnet { namespace models {
         //initialize_alexconv_glorot_bengio(m_weights, 1, true);
         m_weights->data() = 0.f;
         cuv::add_rnd_normal(m_weights->data(), m_weight_default_std);
-        //cuv::fill_rnd_uniform(m_weights->data());
-        //m_weights->data() *= 0.02f;
-        //m_weights->data() -= 0.01f;
+        if(   (m_weights->data().ndim() == 4 && m_weights->data().shape(2) == 1)
+           || (m_weights->data().ndim() == 3 && m_weights->data().shape(1) == 1) )
+        {
+			//LOG4CXX_WARN(g_log, "initializing weights using Glorot & Bengio Method, U:"<<m_weight_default_std);
+            //// use Glorot & Bengio initialization
+            //cuv::fill_rnd_uniform(m_weights->data());
+            //m_weights->data() *= 2 * m_weight_default_std;
+            //m_weights->data() -= m_weight_default_std;
+        }
         //int n_scat_inp = m_scat_n_inputs;
 //        if(m_scat_J != 0){
 //        	if(n_scat_inp < 0)
