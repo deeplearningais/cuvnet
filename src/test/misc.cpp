@@ -59,7 +59,7 @@ t_normalization_dim0(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned i
     {
         for (unsigned int j = 0; j < m.shape(1); ++j)
         {
-            float f = 10.f*drand48();
+            float f = 50.f*drand48();
             m(i,j) = f;
             s(i) += f * f;
         }
@@ -69,6 +69,7 @@ t_normalization_dim0(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned i
     m.reshape(cuv::extents[n_src_maps][n_flt_pix][n_dst_maps]);
     cuvnet::project_to_unit_ball(m, 0, thresh);
     m.reshape(cuv::extents[n_src_maps][n_flt_pix * n_dst_maps]);
+    int cnt = 0;
     for (unsigned int i = 0; i < m.shape(0); ++i)
     {
         float sum = 0.f;
@@ -77,11 +78,14 @@ t_normalization_dim0(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned i
             sum += m(i,j) * m(i,j);
         }
         if(s(i) > thresh * thresh){
+            cnt ++;
             BOOST_CHECK_CLOSE(sum, thresh*thresh, 0.001f);
         }else{
             BOOST_CHECK_CLOSE(sum, (float) s(i), 0.001f);
         }
     }
+    BOOST_CHECK_GT(cnt, 0);
+    BOOST_CHECK_LT(cnt, m.shape(1));
 }
 void
 t_normalization_dim2(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned int n_dst_maps){
@@ -95,7 +99,7 @@ t_normalization_dim2(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned i
     {
         for (unsigned int i = 0; i < m.shape(0); ++i)
         {
-            float f = 10.f*drand48();
+            float f = 500.f*drand48();
             m(i,j) = f;
             s(j) += f * f;
         }
@@ -105,6 +109,7 @@ t_normalization_dim2(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned i
     m.reshape(cuv::extents[n_src_maps][n_flt_pix][n_dst_maps]);
     cuvnet::project_to_unit_ball(m, 2, thresh);
     m.reshape(cuv::extents[n_src_maps * n_flt_pix][n_dst_maps]);
+    int cnt = 0;
     for (unsigned int j = 0; j < m.shape(1); ++j)
     {
         float sum = 0.f;
@@ -112,15 +117,15 @@ t_normalization_dim2(unsigned int n_src_maps, unsigned int n_flt_pix, unsigned i
         {
             sum += m(i,j) * m(i,j);
         }
-        if(s(j) > thresh * thresh){
+        if(std::sqrt(s(j)) > thresh){
             BOOST_CHECK_CLOSE(sum, thresh*thresh, 0.001f);
+            cnt ++;
         }else{
             BOOST_CHECK_CLOSE(sum, (float) s(j), 0.001f);
         }
     }
-
-    
-
+    BOOST_CHECK_GT(cnt, 0);
+    BOOST_CHECK_LT(cnt, m.shape(0));
 }
 
 BOOST_AUTO_TEST_SUITE( t_normalization )
