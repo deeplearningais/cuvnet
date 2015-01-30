@@ -185,7 +185,7 @@ namespace cuvnet
             const matrix& evaluate(bool reinitialize=true){
                 if(reinitialize)
                     repair_swiper();
-                m_swiper->dump("delta_function.dot", true);
+                //m_swiper->dump("delta_function.dot", true);
                 m_swiper->fprop();
                 m_swiper->bprop();
                 return m_sink->cdata();
