@@ -673,7 +673,7 @@ namespace cuvnet
                 (*r0.overwrite_or_add_value())[0] += lloss_closs.first;
             }else{
                 value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
-                (*v)[0] = lloss_closs.first;
+                (*v)[0] = lloss_closs.first / p0.value.cdata().shape(0); // divide by batch size
                 r0.push(v);
             }
         }
@@ -712,7 +712,7 @@ namespace cuvnet
         assert( p0.need_derivative);
         assert(!p1.need_derivative); // cannot do that currently. Why should we? :)
 
-        float f = r0.delta.cdata()[0];
+        float f = r0.delta.cdata()[0] / p1.value.cdata().shape(0);
         if(p0.can_overwrite_directly()){
             multinomial_logistic_loss_grad(*p0.overwrite_or_add_value(),
                     m_softmaxed.cdata(), p1.value.cdata(),
