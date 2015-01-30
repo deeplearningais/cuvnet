@@ -7,7 +7,6 @@
 #include <cuvnet/op.hpp>
 #include <cuvnet/ops/input.hpp>
 #include <cuvnet/ops/output.hpp>
-#include <cuvnet/ops/convolve.hpp>
 #include <algorithm>
 #include <log4cxx/logger.h>
 
