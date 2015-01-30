@@ -215,18 +215,18 @@ namespace cuvnet { namespace models {
             thresh = 1000.f; // get stats anyway!
 
         if(thresh > 0.f){
-            int n_over_thresh = 0;
+            float frac_over_thresh = 0;
             float mean_norm = 0.f;
             if(m_weights->data().ndim() == 4)
-                boost::tie(n_over_thresh,mean_norm) = project_to_unit_ball(m_weights->data(), 0, thresh); // for cuDNN
+                boost::tie(frac_over_thresh,mean_norm) = project_to_unit_ball(m_weights->data(), 0, thresh); // for cuDNN
             else if(m_weights->data().ndim() == 3)
-                boost::tie(n_over_thresh,mean_norm) = project_to_unit_ball(m_weights->data(), 2, thresh); // for alex_conv
+                boost::tie(frac_over_thresh,mean_norm) = project_to_unit_ball(m_weights->data(), 2, thresh); // for alex_conv
             else
                 throw std::runtime_error("don't know what to do with weights after update");
 
             // log constraint violations
-            m_monitor->set(m_weights->name() + "_consvio_n",    (int)n_over_thresh);
-            m_monitor->set(m_weights->name() + "_consvio_norm", (int)mean_norm);
+            m_monitor->set(m_weights->name() + "_consvio_frac",    frac_over_thresh);
+            m_monitor->set(m_weights->name() + "_consvio_norm", mean_norm);
         }
     }
 
