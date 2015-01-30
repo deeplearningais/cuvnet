@@ -28,8 +28,7 @@ namespace cuvnet
         // this uses N copy operations of complexity O(M)
         for (unsigned int n = 0; n < dst.shape(0); ++n)
         {
-            bool res = dst[cuv::indices[n]].copy_memory(src[cuv::indices[n]], false, 0);
-            cuvAssert(res);
+            dst[cuv::indices[n]] = src[cuv::indices[n]];
         }
     }
 
@@ -185,9 +184,9 @@ namespace cuvnet
                 }else{
                     value_ptr vd;
                     matrix tmp = get_subtensor(v,i);
-                    if(tmp.ndim()<3)
+                    if(tmp.ndim()<3){
                         vd.reset(new value_type(tmp.copy()));
-                    else{
+                    }else{
                         vd.reset(new value_type(tmp.shape()));
                         copy_center_dim_bprop(*vd, tmp);
                     }
