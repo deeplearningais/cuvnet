@@ -22,6 +22,14 @@
 #define CONSTRUCT_FILTER(DESC) \
 		CUDNN_CALL(cudnnCreateFilterDescriptor(&DESC));
 
+namespace
+{
+    log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("convolve_cudnn")); 
+}
+
+namespace{
+		cudnnHandle_t g_handle = NULL;
+}
 
 namespace cuvnet
 {
@@ -39,9 +47,9 @@ namespace cuvnet
 	}
 
     struct cudnn_state{
-		cudnnHandle_t handle;
-		cudnnTensorDescriptor_t imgDesc, outputDesc, biasDesc;
-        cudnnFilterDescriptor_t filterDesc;
+		cudnnTensorDescriptor_t imgDesc, outputDesc, biasDesc,
+                                gradOutputDesc, gradImgDesc, gradBiasDesc;
+        cudnnFilterDescriptor_t filterDesc, gradFilterDesc;
         cudnnConvolutionDescriptor_t convDesc;
         cudnnConvolutionFwdAlgo_t algo;
         cudnnAddMode_t add_mode;
@@ -53,19 +61,29 @@ namespace cuvnet
                 std::vector<unsigned int> bias_shape
                 ){
 
-            CUDNN_CALL(cudnnCreate(&handle));
+            if(g_handle == NULL)
+                CUDNN_CALL(cudnnCreate(&g_handle));
             CUDNN_CALL(cudnnCreateTensorDescriptor(&imgDesc));
             CUDNN_CALL(cudnnCreateTensorDescriptor(&outputDesc));
             CUDNN_CALL(cudnnCreateTensorDescriptor(&biasDesc));
             CUDNN_CALL(cudnnCreateFilterDescriptor(&filterDesc));
 
+            CUDNN_CALL(cudnnCreateTensorDescriptor(&gradImgDesc));
+            CUDNN_CALL(cudnnCreateTensorDescriptor(&gradOutputDesc));
+            CUDNN_CALL(cudnnCreateTensorDescriptor(&gradBiasDesc));
+            CUDNN_CALL(cudnnCreateFilterDescriptor(&gradFilterDesc));
+
             cudnnDataType_t dtype = cudnn_data_type<matrix>();
 
             // Set descriptors
             CUDNN_CALL(cudnnSetTensor4dDescriptor(imgDesc, CUDNN_TENSOR_NCHW, dtype, img_shape[0], img_shape[1], img_shape[2], img_shape[3]));
-            if(bias_shape.size())
+            CUDNN_CALL(cudnnSetTensor4dDescriptor(gradImgDesc, CUDNN_TENSOR_NCHW, dtype, img_shape[0], img_shape[1], img_shape[2], img_shape[3]));
+            if(bias_shape.size()){
                 CUDNN_CALL(cudnnSetTensor4dDescriptor(biasDesc, CUDNN_TENSOR_NCHW, dtype, bias_shape[0], bias_shape[1], bias_shape[2], bias_shape[3]));
+                CUDNN_CALL(cudnnSetTensor4dDescriptor(gradBiasDesc, CUDNN_TENSOR_NCHW, dtype, bias_shape[0], bias_shape[1], bias_shape[2], bias_shape[3]));
+            }
             CUDNN_CALL(cudnnSetFilter4dDescriptor(filterDesc, dtype, filter_shape[0], filter_shape[1], filter_shape[2], filter_shape[3]));
+            CUDNN_CALL(cudnnSetFilter4dDescriptor(gradFilterDesc, dtype, filter_shape[0], filter_shape[1], filter_shape[2], filter_shape[3]));
             CUDNN_CALL(cudnnCreateConvolutionDescriptor(&convDesc));
             CUDNN_CALL(cudnnSetConvolution2dDescriptor(convDesc, conv->m_padding_y, conv->m_padding_x, conv->m_ver_filt_stride, conv->m_hor_filt_stride, 1, 1, CUDNN_CONVOLUTION));
 
@@ -87,9 +105,10 @@ namespace cuvnet
 
             // Set and allocate output tensor descriptor
             CUDNN_CALL(cudnnSetTensor4dDescriptor(outputDesc, CUDNN_TENSOR_NCHW, dtype, n_out, c_out, h_out, w_out));
+            CUDNN_CALL(cudnnSetTensor4dDescriptor(gradOutputDesc, CUDNN_TENSOR_NCHW, dtype, n_out, c_out, h_out, w_out));
 
             CUDNN_CALL(cudnnGetConvolutionForwardAlgorithm(
-                    handle,
+                    g_handle,
                     imgDesc,
                     filterDesc,
                     convDesc,
@@ -98,16 +117,25 @@ namespace cuvnet
                     //CUDNN_CONVOLUTION_FWD_NO_WORKSPACE,
                     0,
                     &algo));
-
-            CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(handle, imgDesc, filterDesc, convDesc, outputDesc, algo, &workspace_size));
+            CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(g_handle,
+                        imgDesc, filterDesc, convDesc, outputDesc, algo,
+                        &workspace_size));
         }
         ~cudnn_state(){
             CUDNN_CALL(cudnnDestroyTensorDescriptor(imgDesc));
+            CUDNN_CALL(cudnnDestroyTensorDescriptor(gradImgDesc));
+
             CUDNN_CALL(cudnnDestroyTensorDescriptor(outputDesc));
-            CUDNN_CALL(cudnnDestroyTensorDescriptor(biasDesc));
+            CUDNN_CALL(cudnnDestroyTensorDescriptor(gradOutputDesc));
+
             CUDNN_CALL(cudnnDestroyFilterDescriptor(filterDesc));
+            CUDNN_CALL(cudnnDestroyFilterDescriptor(gradFilterDesc));
+
+            CUDNN_CALL(cudnnDestroyTensorDescriptor(biasDesc));
+            CUDNN_CALL(cudnnDestroyTensorDescriptor(gradBiasDesc));
+
             CUDNN_CALL(cudnnDestroyConvolutionDescriptor(convDesc));
-            CUDNN_CALL(cudnnDestroy(handle));
+            //CUDNN_CALL(cudnnDestroy(g_handle));
         }
     };
 
@@ -135,7 +163,7 @@ namespace cuvnet
 
 			matrix::value_type* outputData = r0.overwrite_or_add_value()->ptr();
 			// launch convolution on GPU
-			CUDNN_CALL(cudnnConvolutionForward(m_state->handle, &alpha, 
+			CUDNN_CALL(cudnnConvolutionForward(g_handle, &alpha, 
                     m_state->imgDesc, imgData,
                     m_state->filterDesc, filterData,
                     m_state->convDesc, m_state->algo, workspace.ptr(), m_state->workspace_size,
@@ -143,7 +171,7 @@ namespace cuvnet
                     m_state->outputDesc, outputData));
             if(m_params.size() == 3){
                 const float beta = 1.0;
-                CUDNN_CALL(cudnnAddTensor(m_state->handle, m_state->add_mode, &alpha, m_state->biasDesc,
+                CUDNN_CALL(cudnnAddTensor(g_handle, m_state->add_mode, &alpha, m_state->biasDesc,
                             m_params[2]->value.cdata().ptr(), &beta,
                             m_state->outputDesc, outputData));
             }
@@ -157,7 +185,7 @@ namespace cuvnet
             const matrix::value_type beta = 0.;
 			value_ptr v(new value_type(r0.shape, cuvnet::get_global_allocator()));
 			matrix::value_type* outputData = v->ptr();
-			CUDNN_CALL(cudnnConvolutionForward(m_state->handle, &alpha, 
+			CUDNN_CALL(cudnnConvolutionForward(g_handle, &alpha, 
                     m_state->imgDesc, imgData,
                     m_state->filterDesc, filterData,
                     m_state->convDesc, m_state->algo, workspace.ptr(), m_state->workspace_size,
@@ -165,11 +193,11 @@ namespace cuvnet
                     m_state->outputDesc, outputData));
             if(m_params.size() == 3){
                 const float beta = 1.0;
-                CUDNN_CALL(cudnnAddTensor(m_state->handle, m_state->add_mode, &alpha, m_state->biasDesc,
+                CUDNN_CALL(cudnnAddTensor(g_handle, m_state->add_mode, &alpha, m_state->biasDesc,
                             m_params[2]->value.cdata().ptr(), &beta,
                             m_state->outputDesc, outputData));
             }
-            log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("convolve"));
+            //log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("convolve"));
             //LOG4CXX_WARN(log, "max flt: " << cuv::maximum(p1.value.cdata()));
             //LOG4CXX_WARN(log, "max  in: " << cuv::maximum(p0.value.cdata()));
             //LOG4CXX_WARN(log, "min  in: " << cuv::minimum(p0.value.cdata()));
@@ -204,7 +232,7 @@ namespace cuvnet
 			if (p1.can_overwrite_directly() || p1.can_add_directly()) {
                 const matrix::value_type beta = p1.can_add_directly() ? 1.0 : 0.0; 
 				matrix::value_type* gradFilterData = (*p1.overwrite_or_add_value()).ptr();
-				CUDNN_CALL(cudnnConvolutionBackwardFilter(m_state->handle, &alpha,
+				CUDNN_CALL(cudnnConvolutionBackwardFilter(g_handle, &alpha,
                         m_state->imgDesc, imgData,
                         m_state->outputDesc, diffData,
                         m_state->convDesc, &beta,
@@ -214,11 +242,11 @@ namespace cuvnet
 				value_ptr ptr(new value_type(p1.shape, value_ptr::s_allocator));
 
 				matrix::value_type* gradFilterData = (*ptr).ptr();
-				CUDNN_CALL(cudnnConvolutionBackwardFilter(m_state->handle, &alpha,
+				CUDNN_CALL(cudnnConvolutionBackwardFilter(g_handle, &alpha,
                         m_state->imgDesc, imgData,
-                        m_state->outputDesc, diffData,
+                        m_state->gradOutputDesc, diffData,
                         m_state->convDesc, &beta,
-                        m_state->filterDesc, gradFilterData));
+                        m_state->gradFilterDesc, gradFilterData));
 				p1.push(ptr);
 			}
 		}
@@ -232,7 +260,7 @@ namespace cuvnet
 			if (p2.can_overwrite_directly() || p2.can_add_directly()) {
                 const matrix::value_type beta = p2.can_add_directly() ? 1.0 : 0.0; 
 				matrix::value_type* gradbiasData = (*p2.overwrite_or_add_value()).ptr();
-				CUDNN_CALL(cudnnConvolutionBackwardBias(m_state->handle, &alpha,
+				CUDNN_CALL(cudnnConvolutionBackwardBias(g_handle, &alpha,
                         m_state->outputDesc, diffData,
                         &beta,
                         m_state->biasDesc, gradbiasData));
@@ -241,10 +269,10 @@ namespace cuvnet
 				value_ptr ptr(new value_type(p2.shape, value_ptr::s_allocator));
 
 				matrix::value_type* gradbiasData = (*ptr).ptr();
-				CUDNN_CALL(cudnnConvolutionBackwardBias(m_state->handle, &alpha,
-                        m_state->outputDesc, diffData,
+				CUDNN_CALL(cudnnConvolutionBackwardBias(g_handle, &alpha,
+                        m_state->gradOutputDesc, diffData,
                         &beta,
-                        m_state->biasDesc, gradbiasData));
+                        m_state->gradBiasDesc, gradbiasData));
 				p2.push(ptr);
 			}
         }
@@ -259,7 +287,7 @@ namespace cuvnet
                 const matrix::value_type beta = p0.can_add_directly() ? 1.0 : 0.0; 
 
 				matrix::value_type* gradImgData = (*p0.overwrite_or_add_value()).ptr();
-				CUDNN_CALL(cudnnConvolutionBackwardData(m_state->handle, &alpha, m_state->filterDesc, filterData, m_state->outputDesc, diffData, m_state->convDesc, &beta, m_state->imgDesc, gradImgData));
+				CUDNN_CALL(cudnnConvolutionBackwardData(g_handle, &alpha, m_state->filterDesc, filterData, m_state->outputDesc, diffData, m_state->convDesc, &beta, m_state->imgDesc, gradImgData));
 			}
 			else {
                 const matrix::value_type beta = 0.;
@@ -269,7 +297,11 @@ namespace cuvnet
 
 				matrix::value_type* gradImgData = v.ptr();
 
-				CUDNN_CALL(cudnnConvolutionBackwardData(m_state->handle, &alpha, m_state->filterDesc, filterData, m_state->outputDesc, diffData, m_state->convDesc, &beta, m_state->imgDesc, gradImgData));
+				CUDNN_CALL(cudnnConvolutionBackwardData(g_handle, &alpha,
+                            m_state->filterDesc, filterData,
+                            m_state->gradOutputDesc, diffData, 
+                            m_state->convDesc, &beta,
+                            m_state->gradImgDesc, gradImgData));
 
 				p0.push(ptr);
 			}
@@ -315,6 +347,20 @@ namespace cuvnet
             m_state.reset(new cudnn_state(this, m_params[0]->shape, m_params[1]->shape, m_results[0]->shape, m_params[2]->shape));
         else
             m_state.reset(new cudnn_state(this, m_params[0]->shape, m_params[1]->shape, m_results[0]->shape, std::vector<unsigned int>()));
+
+        log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("determine_shapes"));
+        LOG4CXX_WARN(log, "Convolving image of shape ("
+                << img[0]
+                << " x " << img[1]
+                << " x " << img[2]
+                << " x " << img[3]
+                << ") to shape ("
+                << dst[0]
+                << " x " << dst[1]
+                << " x " << dst[2]
+                << " x " << img[3]
+                << ") using filters of size " << flt[2]
+                << " stride: " << m_hor_filt_stride << " pad: " << m_padding_x);
 	}
     void ConvolvecuDNN::_graphviz_node_desc(detail::graphviz_node& desc)const{
         desc.color = "chartreuse4";
@@ -333,16 +379,20 @@ namespace cuvnet
      ***************************************************/
 
     struct cudnn_pooling_state{
-    	cudnnHandle_t handle;
     	cudnnPoolingDescriptor_t poolingDesc;
     	cudnnTensorDescriptor_t imgDesc, outDesc;
 
     	cudnn_pooling_state(PoolingcuDNN* pooling, std::vector<unsigned int> img_shape, std::vector<unsigned int> out_shape) {
 			cudnnDataType_t dtype = cudnn_data_type<matrix>();
-			CUDNN_CALL(cudnnCreate(&handle));
+            if(g_handle == NULL)
+                CUDNN_CALL(cudnnCreate(&g_handle));
+
 			CUDNN_CALL(cudnnCreatePoolingDescriptor(&poolingDesc));
 
-			CUDNN_CALL(cudnnSetPooling2dDescriptor(poolingDesc, pooling->m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING, pooling->m_window_height, pooling->m_window_width, pooling->m_vertical_pad, pooling->m_horizontal_pad, pooling->m_vertical_stride, pooling->m_horizontal_stride));
+			CUDNN_CALL(cudnnSetPooling2dDescriptor(poolingDesc, 
+                        //pooling->m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, 
+                        pooling->m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE,
+                        pooling->m_window_height, pooling->m_window_width, pooling->m_vertical_pad, pooling->m_horizontal_pad, pooling->m_vertical_stride, pooling->m_horizontal_stride));
 
 			CUDNN_CALL(cudnnCreateTensorDescriptor(&imgDesc));
 			CUDNN_CALL(cudnnSetTensor4dDescriptor(imgDesc, CUDNN_TENSOR_NCHW, dtype, img_shape[0], img_shape[1], img_shape[2], img_shape[3]));
@@ -355,7 +405,7 @@ namespace cuvnet
 			 CUDNN_CALL(cudnnDestroyTensorDescriptor(imgDesc));
 			 CUDNN_CALL(cudnnDestroyTensorDescriptor(outDesc));
 			 CUDNN_CALL(cudnnDestroyPoolingDescriptor(poolingDesc));
-			 CUDNN_CALL(cudnnDestroy(handle));
+			 //CUDNN_CALL(cudnnDestroy(g_handle));
 		 }
     };
 
@@ -379,7 +429,7 @@ namespace cuvnet
         if(r0.can_overwrite_directly()) {
             const matrix::value_type beta = 0;
             matrix::value_type* destData = r0.overwrite_or_add_value()->ptr();
-            CUDNN_CALL(cudnnPoolingForward(m_state->handle, m_state->poolingDesc, &alpha, m_state->imgDesc, srcData, &beta, m_state->outDesc, destData));
+            CUDNN_CALL(cudnnPoolingForward(g_handle, m_state->poolingDesc, &alpha, m_state->imgDesc, srcData, &beta, m_state->outDesc, destData));
             if(p0.need_derivative)
             	m_result = r0.overwrite_or_add_value();  // save for bprop
         }
@@ -388,7 +438,7 @@ namespace cuvnet
             // reallocate *sigh*
             value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
 			matrix::value_type* destData = v->ptr();
-			CUDNN_CALL(cudnnPoolingForward(m_state->handle, m_state->poolingDesc, &alpha, m_state->imgDesc, srcData, &beta, m_state->outDesc, destData));
+			CUDNN_CALL(cudnnPoolingForward(g_handle, m_state->poolingDesc, &alpha, m_state->imgDesc, srcData, &beta, m_state->outDesc, destData));
             r0.push(v);
             if(p0.need_derivative)
             	m_result = v; // save for bprop
@@ -415,12 +465,12 @@ namespace cuvnet
 		if (p0.can_overwrite_directly() || p0.can_add_directly()) {
             const matrix::value_type beta = p0.can_add_directly() ? 1.0 : 0.0;
 			matrix::value_type* destDiffData = p0.overwrite_or_add_value()->ptr();
-			CUDNN_CALL(cudnnPoolingBackward(m_state->handle, m_state->poolingDesc, &alpha, m_state->outDesc, srcData, m_state->outDesc, srcDiffData, m_state->imgDesc, destData, &beta, m_state->imgDesc, destDiffData));
+			CUDNN_CALL(cudnnPoolingBackward(g_handle, m_state->poolingDesc, &alpha, m_state->outDesc, srcData, m_state->outDesc, srcDiffData, m_state->imgDesc, destData, &beta, m_state->imgDesc, destDiffData));
 		} else {
             const matrix::value_type beta = 0.;
 			value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
 			matrix::value_type* destDiffData = v->ptr();
-			CUDNN_CALL(cudnnPoolingBackward(m_state->handle, m_state->poolingDesc, &alpha, m_state->outDesc, srcData, m_state->outDesc, srcDiffData, m_state->imgDesc, destData, &beta, m_state->imgDesc, destDiffData));
+			CUDNN_CALL(cudnnPoolingBackward(g_handle, m_state->poolingDesc, &alpha, m_state->outDesc, srcData, m_state->outDesc, srcDiffData, m_state->imgDesc, destData, &beta, m_state->imgDesc, destDiffData));
 			p0.push(v);
 		}
 
