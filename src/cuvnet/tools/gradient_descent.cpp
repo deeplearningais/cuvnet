@@ -118,6 +118,8 @@ namespace cuvnet
             m_stop_reason = SR_UNKNOWN;
         }
 
+        LOG4CXX_WARN(log, "STOP minibatch learning: " << m_stop_reason);
+
         // Restore parameters.
         // - may also restore m_epoch
         load_best_params();    
