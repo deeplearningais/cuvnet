@@ -307,25 +307,13 @@ namespace cuvnet
 
             cuvAssert(inp->delta().shape() == inp->data().shape());
 
-            // The following calculation has one major issue; I think that the
-            // weight decay should not depend on the batch size, but since the
-            // learning rate often depends on the batch size, the weight decay
-            // also effectively decreases the larger your batch is.
-            // You should take that into account by multiplying the weight
-            // decay by the batch size to get comparable results!
-
-            // this is the momentum part:
-            // v_i+1 = momentum * v_i  -  eps * dW
-            cuv::apply_binary_functor(m_last_delta[i], inp->delta(), cuv::BF_AXPBY, m_momentum, -lr);
-
-            // weight decay
-            // v_i+1 = v_i+1 - wd * lr * W
             if(wd > 0.f)
-                cuv::apply_binary_functor(m_last_delta[i], inp->data(), cuv::BF_XPBY, -wd * lr);
+                cuv::apply_binary_functor(inp->delta(), inp->cdata(), cuv::BF_XPBY, wd);
+            cuv::apply_binary_functor(m_last_delta[i], inp->cdelta(), cuv::BF_AXPBY, m_momentum, lr);
 
             // NOTE: inp->ptr() is accessing w/o the write-protection of the cow_ptr!!!!
-            //       we're changing the underlying object all cow_ptrs pointing to it!!!
-            *inp->data_ptr().ptr() += m_last_delta[i];
+            //       we're changing the underlying object all cow_ptrs are pointing to!!!
+            *inp->data_ptr().ptr() -= m_last_delta[i];
 
             inp->reset_delta();
         }

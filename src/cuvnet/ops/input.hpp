@@ -184,6 +184,8 @@ namespace cuvnet
                 inline       value_type& delta()      { return m_delta.data(); }
                 /// @return the backpropagated gradient (read only)
                 inline const value_type& delta() const{ return m_delta.cdata(); }
+                /// @return the backpropagated gradient (read only)
+                inline const value_type& cdelta() const{ return m_delta.cdata(); }
 
                 /// determine whether the data is saved or not. 
                 /// especially useful if the content is not a weight matrix,
