@@ -15,11 +15,15 @@ namespace cuvnet
     namespace models
     {
         void initialize_dense_glorot_bengio(boost::shared_ptr<ParameterInput> p, bool act_func_tanh){
-            float wnorm = p->data().shape(0)
-                +         p->data().shape(1);
-            float diff = std::sqrt(6.f/wnorm);
-            if(!act_func_tanh)
-                diff *= 4.f; 
+            float diff;
+            if(act_func_tanh){
+                float wnorm = p->data().shape(0)
+                    +         p->data().shape(1);
+                diff = std::sqrt(6.f/wnorm);
+            }else{
+                float fan_in = p->data().shape(0);
+                diff = std::sqrt(3.f/fan_in);
+            }
             cuv::fill_rnd_uniform(p->data());
             p->data() *= diff*2.f;
             p->data() -= diff;

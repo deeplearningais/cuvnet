@@ -15,7 +15,7 @@ namespace cuvnet
     {
         void mlp_layer::reset_params(){
             if(m_weight_init_std < 0)
-                initialize_dense_glorot_bengio(m_W, true);
+                initialize_dense_glorot_bengio(m_W, false);
             else{
                 m_W->data() = 0.0f;
                 cuv::add_rnd_normal(m_W->data(), m_weight_init_std);
