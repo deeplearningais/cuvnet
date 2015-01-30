@@ -9,6 +9,7 @@ SET(CMAKE_MODULE_PATH  ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/CMakeModules )
 #SET(Boost_NO_SYSTEM_PATHS TRUE)
 FIND_PACKAGE( Boost 1.46 COMPONENTS date_time filesystem unit_test_framework serialization program_options iostreams signals thread system python regex REQUIRED )
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(/usr/local/cuda/include)
 SET(CUV_BASE_DIRECTORY "/home/local/cuv" CACHE STRING "Checkout directory for cuv")
@@ -73,6 +74,8 @@ SET(CUVNET_SRC
 	datasets/read_amat.cpp
 	datasets/bounding_box_tools.cpp
     datasets/dataset_reader.cpp
+    
+    cuvnet/datasets/cv_datasets.cpp
 
     cuvnet/smart_ptr.cpp
     cuvnet/tools/pca.cpp

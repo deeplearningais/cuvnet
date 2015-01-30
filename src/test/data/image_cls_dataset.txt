@@ -1,0 +1,3 @@
+@CMAKE_SOURCE_DIR@/src/test/data/2008_007573.jpg 1
+@CMAKE_SOURCE_DIR@/src/test/data/2008_007576.jpg 2
+
