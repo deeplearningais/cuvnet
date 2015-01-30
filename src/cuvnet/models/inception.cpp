@@ -10,14 +10,13 @@ namespace cuvnet { namespace models {
     void
         inception_layer::init(op_ptr in, const std::vector<boost::tuple<int,int,int> >& m, const std::string& label, bool copy, bool nonlinear)
     {
+        m_input = in;
         std::vector<op_ptr> stackable;
         std::vector<boost::tuple<int, int, int> >::const_iterator it;
 
         bool verbose = true;
         bool with_bias = true;
-        float bias = 0.1f;
-        op_ptr flat_input = flatten(m_input, 2, copy);
-
+        float bias = 0.0f;
 
         for(it = m.begin(); it != m.end(); it++){
             int fs = it->get<0>();
