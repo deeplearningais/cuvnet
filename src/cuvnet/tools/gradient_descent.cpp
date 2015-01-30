@@ -31,7 +31,7 @@ namespace cuvnet
         if(m_update_every==0)
             m_update_every = n_batches;
         std::vector<unsigned int> batchids;
-        {   // prepare batch id vector
+        if(n_batches < INT_MAX){   // prepare batch id vector
             batchids.resize(n_batches);
             for(unsigned int i=0;i<n_batches;i++)
                 batchids[i] = i;
@@ -65,7 +65,7 @@ namespace cuvnet
 
                 for (unsigned int  batch = 0; m_stop_reason == SR_UNKNOWN && batch < n_batches; ++batch, ++iter) {
                     try{
-                        before_batch(m_epoch, batchids[batch]); // should load data into inputs
+                        before_batch(m_epoch, batchids.size() ? batchids[batch] : batch); // should load data into inputs
                     }catch(epoch_end){
                         // this is a bit hacky.
                         // during training with very large datasets, it might
@@ -87,7 +87,7 @@ namespace cuvnet
                         // this is not an evaluation pass, we're actually supposed to do work ;)
 
                         m_swipe.bprop(); // backward pass
-                        after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
+                        after_batch(m_epoch, batchids.size() ? batchids[batch] : batch); // should accumulate errors etc
 
                         if(iter % m_update_every == 0) {
                             before_weight_update(wups);
@@ -97,7 +97,7 @@ namespace cuvnet
                         }
                     }
                     else{
-                        after_batch(m_epoch, batchids[batch]); // should accumulate errors etc
+                        after_batch(m_epoch, batchids.size() ? batchids[batch] : batch); // should accumulate errors etc
                     }
                 }
                 after_epoch(m_epoch, wups); // should log error etc
