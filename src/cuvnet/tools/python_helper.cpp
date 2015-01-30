@@ -276,7 +276,7 @@ namespace cuvnet
 
         class_<delta_function, boost::shared_ptr<delta_function>, boost::noncopyable>
             ("delta_function",init<boost::shared_ptr<Op>, boost::shared_ptr<Op>, int, int, const std::string&>())
-                .def("evaluate", &delta_function::evaluate,
+                .def("evaluate", &delta_function::evaluate, (arg("op"), arg("reinitialize")=true),
                         return_internal_reference<>())
                 .def("forget", &delta_function::forget)
         ;
