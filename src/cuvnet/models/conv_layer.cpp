@@ -65,7 +65,7 @@ namespace cuvnet { namespace models {
             else
             {
                 if (cfg.m_use_cuDNN)
-                    m_weights = input(cuv::extents[n_out][n_filter_channels][std::sqrt(n_fltpix)][std::sqrt(n_fltpix)], cfg.m_group_name + "W" + cfg.m_varname_suffix);
+                    m_weights = input(cuv::extents[n_out][n_filter_channels][fs][fs], cfg.m_group_name + "W" + cfg.m_varname_suffix);
                 else
                     m_weights = input(cuv::extents[n_filter_channels][n_fltpix][n_out], cfg.m_group_name + "W" + cfg.m_varname_suffix);
             }
@@ -101,6 +101,14 @@ namespace cuvnet { namespace models {
             else{
                 m_output = convolve_cuDNN(inp, m_weights, padding, padding, cfg.m_stride, cfg.m_stride);
             }
+            determine_shapes(*m_output);
+
+			LOG4CXX_WARN(g_log, "#srcmaps: "<<n_filter_channels << ", #out: "<<n_out
+					<< ", #params: " << m_weights->data().size() + (m_bias ? m_bias->data().size(): 0)
+					<< ", #neuron: " << m_output->result()->shape[2] * m_output->result()->shape[3] * n_out
+					<< ", #padding: " << padding
+					<< ", #stride: " << cfg.m_stride
+					);
         }
         else
         {
