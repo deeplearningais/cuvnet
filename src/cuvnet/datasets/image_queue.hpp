@@ -6,72 +6,19 @@
 #include <threadpool/ThreadPool.h>
 
 namespace cuvnet{
-    class model;
-
-    struct dataset{
-        virtual void load_batch(model*)=0;
-    };
-
+    /**
+     * Exception thrown by datasets when the 
+     */
     struct epoch_end{};
-    
-    /// set of patterns which belong together, eg sliding windows over the same image
-    template<class Pattern>
-        struct pattern_set{
-            /// the type of the patterns
-            typedef Pattern pattern_type;
 
-            /// patterns which have been generated, but still need to be
-            /// processed by the network
-            std::vector<boost::shared_ptr<Pattern> > m_todo;
-
-            /// patterns which are currently being processed by the network
-            std::vector<boost::weak_ptr<Pattern> > m_processing;
-
-            /// patterns which have been processed by the network
-            std::vector<boost::shared_ptr<Pattern> > m_done;
-
-            /// add a pattern to the TODO list
-            inline void push(boost::shared_ptr<pattern_type> p){
-                assert(!done_generating());
-                m_todo.push_back(p);
-            }
-
-            /// get a pattern for processing, also moves it from todo to processing internally.
-            inline boost::shared_ptr<Pattern> get_for_processing(){
-                assert(!m_todo.empty());
-                boost::shared_ptr<pattern_type> pat = m_todo.back();
-                m_processing.push_back(boost::weak_ptr<pattern_type>(pat));
-                m_todo.pop_back();
-                return pat;
-            }
-
-            struct cmp_weak_strong{
-                const boost::shared_ptr<Pattern>& q;
-                cmp_weak_strong(const boost::shared_ptr<Pattern>& _q):q(_q){}
-                bool operator()(const boost::weak_ptr<Pattern>& p){
-                    return p.lock() == q;
-                }
-            };
-
-            /// tell the pattern_set that the pattern p can be moved from processing to done.
-            inline void notify_processed(boost::shared_ptr<Pattern> p){
-                typename std::vector<boost::weak_ptr<Pattern> >::iterator it 
-                    = std::find_if(m_processing.begin(), m_processing.end(), cmp_weak_strong(p));
-                assert(it != m_processing.end());
-                m_processing.erase(it);
-                m_done.push_back(p);
-            }
-
-            /// this is a special marker pattern which can be put in the queue to signal the end of a loop through the dataset.
-            inline bool is_end_marker(){
-                return m_todo.size() == 0 
-                    && m_processing.size() == 0
-                    && m_done.size() == 0;
-            }
-
-            inline size_t todo_size()const{return m_todo.size();}
-        };
-
+    /**
+     * Asynchronous loading of meta-datasets.
+     * 
+     * A meta-dataset must have: a size() function, returning the number of elements in the data set and
+     * a next(size_t idx) function, returning element with index idx as a PatternSet.
+     *
+     * Every member of a patternset is an element which can be processed by a model.
+     */
     template<class MetaDataset>
         struct image_queue{
             /// does the processing for us
@@ -80,9 +27,8 @@ namespace cuvnet{
             /// contains information about the dataset and methods to load it from disk
             MetaDataset& m_meta;
 
-            typedef typename MetaDataset::patternset_type patternset_type;
+            typedef typename decltype(m_meta.next(0))::element_type patternset_type;
             typedef typename patternset_type::pattern_type pattern_type;
-
 
             /// schedule new jobs if queue length is below this value
             int m_min_size;
