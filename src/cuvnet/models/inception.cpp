@@ -89,9 +89,9 @@ namespace cuvnet { namespace models {
             stackable.push_back(o);
         }
         if(stackable.size() == 1)
-            m_output = nonlinear ? rectified_linear(stackable.front(), !copy) : stackable.front();
+            m_output = nonlinear ? rectified_linear(stackable.front(), false) : stackable.front();
         else
-            m_output = nonlinear ? rectified_linear(concatenate(stackable, 1), !copy) : concatenate(stackable, 1);
+            m_output = nonlinear ? rectified_linear(concatenate(stackable, 1), false) : concatenate(stackable, 1);
     }
 }}
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::models::inception_layer);
