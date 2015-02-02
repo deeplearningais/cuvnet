@@ -263,7 +263,7 @@ namespace cuvnet { namespace models {
         if(   (m_weights->data().ndim() == 4 && m_weights->data().shape(2) == 1) )
         {
             m_weight_default_std = std::sqrt(3. / ( m_weights->cdata().shape(1) * m_weights->cdata().shape(2) * m_weights->cdata().shape(3)));
-            LOG4CXX_WARN(g_log, "initializing weights using Glorot & Bengio Method, U:"<<m_weight_default_std);
+            //LOG4CXX_WARN(g_log, "initializing weights using Glorot & Bengio Method, U:"<<m_weight_default_std);
             // use Glorot & Bengio initialization
             cuv::fill_rnd_uniform(m_weights->data());
             m_weights->data() *= 2 * m_weight_default_std;
