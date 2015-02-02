@@ -4,9 +4,15 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <third_party/cnpy/cnpy.h>
+#include <cuvnet/tools/logging.hpp>
 #include <fstream>
 
 #include "cv_datasets.hpp"
+
+namespace
+{
+    log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("cv_ds"));
+}
 
 namespace datasets
 {
@@ -129,6 +135,8 @@ namespace datasets
                 if(ifs)
                     m_meta.push_back(m);
             }
+            cuvAssert(m_meta.size() > 0);
+            LOG4CXX_WARN(g_log, "read `"<< filename<<"', n_classes: "<<m_n_classes<<", size: "<<m_meta.size());
             m_predictions.resize(size(), -1);
         }
 
