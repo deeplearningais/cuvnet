@@ -113,14 +113,18 @@ namespace datasets
          m_pattern_size(pattern_size){
             std::ifstream ifs(filename.c_str());
             ifs >> m_n_classes;
+            ifs.get(); // consume '\n'
             for(unsigned int klass = 0; klass < (unsigned int)m_n_classes; klass++){
                 std::string line;
                 std::getline(ifs, line);
-                m_class_names.push_back(line);
+                if(ifs)
+                    m_class_names.push_back(line);
             }
+            cuvAssert(m_class_names.size() == (unsigned int)m_n_classes);
             while(ifs){
                 meta_t m;
                 ifs >> m.rgb_filename;
+                ifs >> m.klass; // dummy value for historical reasons
                 ifs >> m.klass;
                 if(ifs)
                     m_meta.push_back(m);
