@@ -162,10 +162,10 @@ namespace datasets
         for (int i = 0; i < d; ++i)
         {
             int other = reverse ? d-1-i : i;
-            typedef float src_dtype;
+            typedef unsigned char src_dtype;
             cuv::tensor<src_dtype, cuv::host_memory_space> wrapped(cuv::extents[h][w], (src_dtype*) src[other].data);
             cuv::tensor<float, cuv::host_memory_space> view = cuv::tensor_view<float, cuv::host_memory_space>(tens, cuv::indices[i][cuv::index_range()][cuv::index_range()]);
-            cuv::convert(view, wrapped);
+            cuv::convert(view, wrapped); // copies memory
         }
     }
 
