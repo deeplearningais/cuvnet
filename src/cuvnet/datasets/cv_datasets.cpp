@@ -118,15 +118,16 @@ namespace datasets
         :m_n_crops(n_crops),
          m_pattern_size(pattern_size){
             std::ifstream ifs(filename.c_str());
-            ifs >> m_n_classes;
+            unsigned int n_cls;
+            ifs >> n_cls;
             ifs.get(); // consume '\n'
-            for(unsigned int klass = 0; klass < (unsigned int)m_n_classes; klass++){
+            for(unsigned int klass = 0; klass < n_cls; klass++){
                 std::string line;
                 std::getline(ifs, line);
                 if(ifs)
                     m_class_names.push_back(line);
             }
-            cuvAssert(m_class_names.size() == (unsigned int)m_n_classes);
+            cuvAssert(m_class_names.size() == n_cls);
             while(ifs){
                 meta_t m;
                 ifs >> m.rgb_filename;
@@ -136,24 +137,31 @@ namespace datasets
                     m_meta.push_back(m);
             }
             cuvAssert(m_meta.size() > 0);
-            LOG4CXX_WARN(g_log, "read `"<< filename<<"', n_classes: "<<m_n_classes<<", size: "<<m_meta.size());
-            m_predictions.resize(size(), -1);
-
-            cuvAssert(pattern_size == 224);
-            std::ifstream meanifs("../../../imagenet_mean_224.bin");
-            cuvAssert(meanifs.is_open());
-            cuvAssert(meanifs.good());
-            m_imagenet_mean.resize(cuv::extents[3][pattern_size][pattern_size]);
-            meanifs.read((char*)m_imagenet_mean.ptr(), m_imagenet_mean.memsize());
+            LOG4CXX_WARN(g_log, "read `"<< filename<<"', n_classes: "<<n_cls<<", size: "<<m_meta.size());
+            m_predictions.resize(this->size(), -1);
         }
 
+    void rgb_classification_dataset::clear_predictions(){
+        m_predictions.clear();
+        m_predictions.resize(this->size(), -1); // set all to -1
+    }
+
+    void rgb_classification_dataset::set_imagenet_mean(std::string filename){
+            std::ifstream meanifs(filename.c_str());
+            cuvAssert(meanifs.is_open());
+            cuvAssert(meanifs.good());
+            m_imagenet_mean.resize(cuv::extents[3][m_pattern_size][m_pattern_size]);
+            meanifs.read((char*)m_imagenet_mean.ptr(), m_imagenet_mean.memsize());
+    }
+
     /// generates n_crops many regions of a given size within the boundaries of a given image img
-    std::vector<cv::Rect> random_regions(const cv::Mat& img, int n_crops, int size){
-        std::vector<cv::Rect> regions(n_crops);
+    std::vector<cv::RotatedRect> random_regions(const cv::Mat& img, int n_crops, int size){
+        std::vector<cv::RotatedRect> regions(n_crops);
         float max_x = img.cols - size;
         float max_y = img.rows - size;
         for(int i = 0; i<n_crops; i++){
-           regions[i] = cv::Rect(cv::Point2f(max_x * drand48(), max_y * drand48()), cv::Size(size,size)); 
+            cv::Rect r(cv::Point2f(max_x * drand48(), max_y * drand48()), cv::Size(size,size)); 
+           regions[i] = cv::RotatedRect(cv::Point2f(r.x+size/2, r.y+size/2), cv::Size(size,size), 0.f);
         }
         return regions;
     }
@@ -169,16 +177,23 @@ namespace datasets
         for (int i = 0; i < d; ++i)
         {
             int other = reverse ? d-1-i : i;
-            typedef unsigned char src_dtype;
-            cuv::tensor<src_dtype, cuv::host_memory_space> wrapped(cuv::extents[h][w], (src_dtype*) src[other].data);
-            cuv::tensor<float, cuv::host_memory_space> view = cuv::tensor_view<float, cuv::host_memory_space>(tens, cuv::indices[i][cuv::index_range()][cuv::index_range()]);
-            cuv::convert(view, wrapped); // copies memory
+            if(src[0].type() == CV_8UC1){
+                typedef unsigned char src_dtype;
+                cuv::tensor<src_dtype, cuv::host_memory_space> wrapped(cuv::extents[h][w], (src_dtype*) src[other].data);
+                cuv::tensor<float, cuv::host_memory_space> view = cuv::tensor_view<float, cuv::host_memory_space>(tens, cuv::indices[i][cuv::index_range()][cuv::index_range()]);
+                cuv::convert(view, wrapped); // copies memory
+            }else if(src[0].type() == CV_32FC1){
+                typedef float src_dtype;
+                cuv::tensor<src_dtype, cuv::host_memory_space> wrapped(cuv::extents[h][w], (src_dtype*) src[other].data);
+                cuv::tensor_view<float, cuv::host_memory_space> view(tens, cuv::indices[i][cuv::index_range()][cuv::index_range()]);
+                view = wrapped; // copies memory
+            }
         }
     }
 
     boost::shared_ptr<rgb_classification_dataset::patternset_t>
-    rgb_classification_dataset::preprocess(size_t idx, boost::shared_ptr<input_t> in) {
-        meta_t& meta = m_meta[idx];
+    rgb_classification_dataset::preprocess(size_t idx, boost::shared_ptr<input_t> in) const{
+        const meta_t& meta = m_meta[idx];
         in->ID = idx;
 
         auto patternset = boost::make_shared<patternset_t>();
@@ -189,13 +204,24 @@ namespace datasets
             pattern->original = in;
             pattern->ground_truth_class = meta.klass;
         
-            cv::Mat region = in->rgb(r);
+            cv::Mat region;
+            if(r.angle == 0){
+                cv::Rect r2 = r.boundingRect();
+                r2.x+=1;
+                r2.y+=1;
+                r2.width-=2;
+                r2.height-=2;
+                region = in->rgb(r2);
+            }
             std::vector<cv::Mat> chans;
             cv::split(region, chans);
             pattern->rgb.resize(cuv::extents[3][m_pattern_size][m_pattern_size]); 
             dstack_mat2tens(pattern->rgb, chans); // TODO RGB/BGR conversion here
 
-            pattern->rgb -= m_imagenet_mean;
+            if(m_imagenet_mean.ptr())
+                pattern->rgb -= m_imagenet_mean;
+            else
+                pattern->rgb -= 108.f;  // poor man's approximation here...
 
             cuvAssert(cuv::minimum(pattern->rgb) > -200);
             cuvAssert(cuv::maximum(pattern->rgb) <  200);

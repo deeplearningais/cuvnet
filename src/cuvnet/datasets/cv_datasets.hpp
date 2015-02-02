@@ -31,7 +31,13 @@ namespace datasets{
 
 
 
-    /// a wrapper for opencv's RotatedRect (so we don't need to include cv.h here)
+    /** @addtogroup datasets
+     * @{
+     */
+
+    /**
+     * a wrapper for opencv's RotatedRect (so we don't need to include cv.h here)
+     */
     struct rotated_rect{
         float x, y, h, w;
         double a;
@@ -39,18 +45,38 @@ namespace datasets{
         operator cv::RotatedRect()const;
     };
 
-    /// contains an RGB data
+
+    /**
+     * @name Image Types
+     *  Large stuff that is loaded from the disk more or less on demand
+     *  the images are forward-declared only, since they contain OpenCV data structures which
+     *  we don't want to include in this header.
+     */
+    ///@{
+    
+    /**
+     * Contains RGB data for an image.
+     */
     struct rgb_image;
 
-    /// contains an RGB data and depth data
+    /**
+     * Contains RGB data and depth data
+     */
     struct rgbd_image;
 
-    /// contains an RGB data, depth data, and an image-like teacher
+    /// Contains RGB data, depth data, and an image-like teacher
     struct rgbdt_image;
 
-    /// contains an RGB data, and an image-like teacher
+    /// Contains RGB data, and an image-like teacher
     struct rgbt_image;
+    ///@}
 
+    /**
+     * @name Pattern Types
+     *  Possibly pre-processed images or bits of images that can be processed
+     *  by a model naturally, they should be in the cuv tensor format.
+     */
+    ///@{
     /// generic image pattern
     struct image_pattern{
         rotated_rect region_in_original;
@@ -92,12 +118,32 @@ namespace datasets{
         boost::shared_ptr<Input> original;
         boost::shared_ptr<patternset_t> set;
     };
+    ///@}
 
+    /**
+     * @name Task tags
+     *  Some tag that denotes a specific task you want to solve (which requires
+     *  a certain combination of *_image, *_pattern and some meta-infos).
+     *  The tag is empty, information about it is carried by the meta_data
+     *  class.
+     */
+    ///@{
     struct rgb_classification_tag{};
     struct rgbd_classification_tag{};
     struct rgb_objclassseg_tag{};
     struct rgbd_objclassseg_tag{};
+    ///@}
 
+    /**
+     * @name Meta-Data
+     *  a traits-class which specifies the meta-information required for a given tag
+     *  meta-information is what is required to load a specific data point from disk,
+     *  eg filenames. 
+     *  
+     *  The structure also contains typedefs which specify the *_image and
+     *  *_pattern combination you want to use.
+     */
+    ///@{
     template<class C>
     struct meta_data { };
     template<>
@@ -134,7 +180,12 @@ namespace datasets{
             typedef pattern_with_original<image_objclassseg_pattern<rgbd_pattern>, input_t> pattern_t;
             typedef pattern_t::patternset_t patternset_t;
         };
+    ///@}
 
+    /**
+     * Load an image from disc.
+     * @param data contains filenames etc, ie information that fits into RAM.
+     */
     template<class C>
     boost::shared_ptr<typename meta_data<C>::input_t> load_image(const meta_data<C>& data);
 
@@ -151,16 +202,23 @@ namespace datasets{
         typedef typename meta_t::pattern_t pattern_t;
         typedef typename meta_t::patternset_t patternset_t;
 
+        /// contains information about the dataset elements that fits into RAM.
         std::vector<meta_t> m_meta;
 
+        /// @return the number of elements in the dataset
         inline size_t size()const{ return m_meta.size(); }
 
-        virtual boost::shared_ptr<patternset_t> preprocess(size_t idx, boost::shared_ptr<input_t> in) = 0;
+        /**
+         * This function converts a file loaded from disk into one or more patterns to be processed by a model.
+         * Note that it is const to ensure that it is thread-safe, it should not have any side-effects.
+         */
+        virtual boost::shared_ptr<patternset_t> preprocess(size_t idx, boost::shared_ptr<input_t> in) const = 0;
         virtual void notify_done(boost::shared_ptr<pattern_t> pat){
             pat->set->notify_processed(pat);
         }
 
-        boost::shared_ptr<patternset_t> next(size_t idx){
+        /// Used by image_queue to fetch a specific element from the dataset.
+        boost::shared_ptr<patternset_t> next(size_t idx)const{
             boost::shared_ptr<input_t> ptr = load_image(m_meta[idx]);
             return preprocess(idx, ptr);
         }
@@ -174,17 +232,53 @@ namespace datasets{
      * The predictions over crops are averaged.
      */
     struct rgb_classification_dataset : public image_dataset<rgb_classification_tag> {
-        typedef image_dataset<rgb_classification_tag> base_t;
+        typedef image_dataset<rgb_classification_tag> base_t;   ///< type of own base class
+        /// number of crops generated for every image
         int m_n_crops;
+        /// size of the crops generated
         int m_pattern_size;
-        int m_n_classes;
+        /// @return number of classes this dataset contains
+        inline unsigned int n_classes(){ return m_class_names.size(); }
+        /// all class names in the dataset
         std::vector<std::string> m_class_names;
+        /// the predicted classes for every element in the dataset
         std::vector<int>  m_predictions;
+        /// the mean image, which is subtracted from all patterns before passing them to the model
         cuv::tensor<float, cuv::host_memory_space> m_imagenet_mean;
+        /**
+         * ctor. 
+         * @param filename the filename containing the dataset.
+         *                 The file should contain lines with image filename, dummy int, class index, separated by spaces.
+         * @param pattern_size size of the crops out of the original image
+         * @param n_crops how many crops to generate for every image loaded
+         */
         rgb_classification_dataset(const std::string& filename, int pattern_size, int n_crops);
-        boost::shared_ptr<patternset_t> preprocess(size_t idx, boost::shared_ptr<input_t> in) override;
+        /**
+         * takes an image, crops random region(s) and returns the result as a cuv tensor.
+         */
+        boost::shared_ptr<patternset_t> preprocess(size_t idx, boost::shared_ptr<input_t> in) const override;
+
+        /**
+         * Records the model prediction.
+         */
         void notify_done(boost::shared_ptr<pattern_t> pat) override;
+
+        /**
+         * set a binary file containing a 3xNxN float32 C-ordered imagenet mean.
+         *
+         * where N is the pattern_size supplied to the constructor.
+         */
+        void set_imagenet_mean(std::string filename);
+
+        /**
+         * clears all predictions.
+         */
+        void clear_predictions();
     }; 
+
+    /** 
+     * @}
+     */
 }
 
 
