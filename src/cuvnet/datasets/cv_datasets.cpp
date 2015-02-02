@@ -138,6 +138,13 @@ namespace datasets
             cuvAssert(m_meta.size() > 0);
             LOG4CXX_WARN(g_log, "read `"<< filename<<"', n_classes: "<<m_n_classes<<", size: "<<m_meta.size());
             m_predictions.resize(size(), -1);
+
+            cuvAssert(pattern_size == 224);
+            std::ifstream meanifs("../../../imagenet_mean_224.bin");
+            cuvAssert(meanifs.is_open());
+            cuvAssert(meanifs.good());
+            m_imagenet_mean.resize(cuv::extents[3][pattern_size][pattern_size]);
+            meanifs.read((char*)m_imagenet_mean.ptr(), m_imagenet_mean.memsize());
         }
 
     /// generates n_crops many regions of a given size within the boundaries of a given image img
@@ -187,6 +194,13 @@ namespace datasets
             cv::split(region, chans);
             pattern->rgb.resize(cuv::extents[3][m_pattern_size][m_pattern_size]); 
             dstack_mat2tens(pattern->rgb, chans); // TODO RGB/BGR conversion here
+
+            pattern->rgb -= m_imagenet_mean;
+
+            cuvAssert(cuv::minimum(pattern->rgb) > -200);
+            cuvAssert(cuv::maximum(pattern->rgb) <  200);
+            cuvAssert(!cuv::has_nan(pattern->rgb));
+            cuvAssert(!cuv::has_inf(pattern->rgb));
         
             patternset->push(pattern);
         }

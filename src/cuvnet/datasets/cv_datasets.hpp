@@ -180,6 +180,7 @@ namespace datasets{
         int m_n_classes;
         std::vector<std::string> m_class_names;
         std::vector<int>  m_predictions;
+        cuv::tensor<float, cuv::host_memory_space> m_imagenet_mean;
         rgb_classification_dataset(const std::string& filename, int pattern_size, int n_crops);
         boost::shared_ptr<patternset_t> preprocess(size_t idx, boost::shared_ptr<input_t> in) override;
         void notify_done(boost::shared_ptr<pattern_t> pat) override;
