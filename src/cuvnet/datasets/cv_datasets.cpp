@@ -1,3 +1,4 @@
+#include <boost/tuple/tuple.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/weak_ptr.hpp>
 #include <opencv2/core/core.hpp>
@@ -165,6 +166,67 @@ namespace datasets
         }
         return regions;
     }
+    /**
+     * every entry in Rect tells how much to extend the corresponding image in
+     * m so that the rotated rect in ir fits into the new image.
+     *
+     * @return the required margins and the rotated rect w.r.t. the padded image.
+     */
+    std::pair<cv::Rect, cv::RotatedRect>
+    required_padding(const cv::Mat& m, const cv::RotatedRect& ir){
+        cv::Rect br = ir.boundingRect();
+        br.x -= 1;
+        br.y -= 1;
+        br.width  += 1;
+        br.height += 1;
+        std::pair<cv::Rect, cv::RotatedRect> ret;
+        ret.first.x = std::max(0, -br.x);
+        ret.first.y = std::max(0, -br.y);
+        ret.first.width  = std::max(0,  (br.width + br.x) - m.cols);
+        ret.first.height = std::max(0,  (br.height+ br.y) - m.rows);
+        ret.second = ir;
+        ret.second.center += cv::Point2f(ret.first.x, ret.first.y);
+        assert(ret.second.boundingRect().x >= 0);
+        assert(ret.second.boundingRect().y >= 0);
+        assert(ret.second.boundingRect().width + ret.second.boundingRect().x <= m.cols + ret.first.x + ret.first.width);
+        assert(ret.second.boundingRect().height + ret.second.boundingRect().y <= m.rows + ret.first.y + ret.first.height);
+        return ret;
+    }
+    cv::Mat extract_region(const cv::Mat& m, const cv::RotatedRect& ir, bool flipped, int interpolation, int bordertype=cv::BORDER_REFLECT_101, int value=0){
+        cv::Mat M, enlarged, rotated, cropped;
+        cv::Rect margins;
+        cv::RotatedRect pos_in_enlarged;
+        boost::tie(margins,pos_in_enlarged) = required_padding(m, ir);
+        cv::copyMakeBorder(m, enlarged, 
+                margins.y, margins.height, margins.x, margins.width, 
+                bordertype, value);
+
+        enlarged = enlarged(pos_in_enlarged.boundingRect());
+        pos_in_enlarged.center = cv::Point2f(enlarged.cols/2., enlarged.rows/2.);
+
+        cv::Size rect_size = pos_in_enlarged.size;
+        float angle = pos_in_enlarged.angle;
+        if(angle == 0.){
+            cv::Rect rr(pos_in_enlarged.center.x-pos_in_enlarged.size.width/2, pos_in_enlarged.center.y-pos_in_enlarged.size.height/2,
+                    pos_in_enlarged.size.width, pos_in_enlarged.size.height);
+            cropped = enlarged(rr);
+        }
+        else{
+            if (pos_in_enlarged.angle < -45.) {
+                angle += 90.0;
+                std::swap(rect_size.width, rect_size.height);
+            }
+            M = cv::getRotationMatrix2D(pos_in_enlarged.center, angle, 1.0);
+            cv::warpAffine(enlarged, rotated, M, enlarged.size(), interpolation);
+            cv::getRectSubPix(rotated, rect_size, pos_in_enlarged.center, cropped);
+            assert(cropped.rows == cropped.cols);
+        }
+        if(flipped)
+            cv::flip(cropped, cropped, 1);
+        if(!cropped.isContinuous())
+            cropped = cropped.clone();
+        return cropped;
+    }
 
     void dstack_mat2tens(cuv::tensor<float, cuv::host_memory_space>& tens,
             const std::vector<cv::Mat>& src, bool reverse=false){
@@ -203,16 +265,11 @@ namespace datasets
             auto pattern = boost::make_shared<pattern_t>();
             pattern->original = in;
             pattern->ground_truth_class = meta.klass;
+            pattern->region_in_original = r;
+            pattern->flipped = drand48() > 0.5f;
         
-            cv::Mat region;
-            if(r.angle == 0){
-                cv::Rect r2 = r.boundingRect();
-                r2.x+=1;
-                r2.y+=1;
-                r2.width-=2;
-                r2.height-=2;
-                region = in->rgb(r2);
-            }
+            cv::Mat region = extract_region(in->rgb, r, pattern->flipped, cv::INTER_LINEAR);
+
             std::vector<cv::Mat> chans;
             cv::split(region, chans);
             pattern->rgb.resize(cuv::extents[3][m_pattern_size][m_pattern_size]); 
