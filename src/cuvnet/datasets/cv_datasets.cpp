@@ -169,7 +169,8 @@ namespace datasets
         }
     }
 
-    boost::shared_ptr<rgb_classification_dataset::patternset_t> rgb_classification_dataset::preprocess(size_t idx, boost::shared_ptr<input_t> in) {
+    boost::shared_ptr<rgb_classification_dataset::patternset_t>
+    rgb_classification_dataset::preprocess(size_t idx, boost::shared_ptr<input_t> in) {
         meta_t& meta = m_meta[idx];
         in->ID = idx;
 
