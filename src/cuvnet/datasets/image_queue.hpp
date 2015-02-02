@@ -7,9 +7,9 @@
 
 namespace cuvnet{
     /**
-     * Exception thrown by datasets when the 
+     * Exception thrown by image queue when the epoch is over
      */
-    //struct epoch_end{};
+    struct epoch_end;
 
     /**
      * Asynchronous loading of meta-datasets.
@@ -18,6 +18,8 @@ namespace cuvnet{
      * a next(size_t idx) function, returning element with index idx as a PatternSet.
      *
      * Every member of a patternset is an element which can be processed by a model.
+     * 
+     * @ingroup datasets
      */
     template<class MetaDataset>
         struct image_queue{
@@ -41,13 +43,21 @@ namespace cuvnet{
 
             /// constructor
             image_queue(ThreadPool& pool, MetaDataset& meta_dataset, int min_size, int max_size)
-                :m_pool(pool), m_meta(meta_dataset), m_min_size(min_size), m_max_size(max_size), m_idx(0){}
+                :m_pool(pool), m_meta(meta_dataset), m_min_size(min_size), m_max_size(max_size), m_idx(0), m_signal_end(false){}
+
+            /// throw epoch_end exception when epoch end is encountered (defaults to false)
+            inline void set_signal_epoch_end(bool b=true){ m_signal_end = b; }
 
             /// schedule new jobs (run if queue size is below m_min_size when pop is called)
             void schedule_new_jobs(int n_jobs){
                 size_t size = m_meta.size();
 
                 for(size_t i=m_idx; i < m_idx + n_jobs; i++){
+                    if(i == size && m_signal_end){
+                        std::promise<boost::shared_ptr<patternset_type> > p;
+                        p.set_value(boost::make_shared<patternset_type>());
+                        m_queue.emplace(p.get_future());
+                    }
                     if(m_pool.size() > 0)
                         m_queue.emplace(m_pool.enqueue(
                                     [&, i, size](){
@@ -63,30 +73,35 @@ namespace cuvnet{
                 m_idx = (m_idx + n_jobs) % size;
             }
 
+            boost::shared_ptr<patternset_type> m_current_set;
+
             /// return one job for the model
             boost::shared_ptr<pattern_type> pop(){
                 if(m_queue.size() < m_min_size)
                     schedule_new_jobs(m_max_size - (int)m_queue.size());
-
                 // queue is now non-empty
-                // TODO: get can only be called /once/, so this fails if the patternset is >1
-                boost::shared_ptr<patternset_type> pat
-                    = m_queue.front().get();
 
-                if(pat->is_end_marker()){
+                if(m_current_set && m_current_set->todo_size() > 0){
+                    return m_current_set->get_for_processing();
+                }
+
+                // nothing in current set
+                m_current_set = m_queue.front().get();
+                m_queue.pop();
+
+                if(m_current_set->is_end_marker()){
                     m_queue.pop();
-                    //throw epoch_end();
+                    throw epoch_end();
                 }
                 
-                boost::shared_ptr<pattern_type> ret = 
-                    pat->get_for_processing();
-                if(pat->todo_size() == 0)
-                    m_queue.pop();
-                return ret;
+                return m_current_set->get_for_processing();
             }
 
             private:
                 size_t m_idx;
+
+                /// if false, don't throw an epoch_end exception when starting a new epoch
+                bool m_signal_end;
         };
 };
 
