@@ -400,13 +400,15 @@ namespace cuvnet
 	    //assertion fails when imgPix=6, stride=3, filter=3, nOutPixY should be 2 but outputs 1
 	    //or imgPix=9, stride=2, filter=3, nOutPixY should be 4 but outputs 3
 
-	   /*unsigned int nOutPixX = DIVUP(nImgPixX+2*m_padding_x-nFltPixX, m_hor_filt_stride)+1;
+#if 1
+	    unsigned int nOutPixX = DIVUP(nImgPixX+2*m_padding_x-nFltPixX, m_hor_filt_stride)+1;
         unsigned int nOutPixY = DIVUP(nImgPixY+2*m_padding_y-nFltPixY, m_ver_filt_stride)+1;
         if(m_hor_filt_stride != 1) nOutPixX -= 1;
-        if(m_ver_filt_stride != 1) nOutPixY -= 1;*/
-
+        if(m_ver_filt_stride != 1) nOutPixY -= 1;
+#else
 		unsigned int nOutPixX = DIVUP(nImgPixX+2*m_padding_x-nFltPixX+1, m_hor_filt_stride);
 		unsigned int nOutPixY = DIVUP(nImgPixY+2*m_padding_y-nFltPixY+1, m_ver_filt_stride);
+#endif
 
 		dst[0] = img[0];
 		dst[1] = nFilt;
@@ -588,16 +590,18 @@ namespace cuvnet
 
         //this doesn't work if imgPix=6, height=4, stride=2, outputs 1 when it should be 2
         //or if imgPix=4, height=4, stride=4, outputs 0 when it should be 1
-/*
+        
+#if 1
         dst[2] = DIVUP(img[2] + 2*m_vertical_pad - m_window_height, m_vertical_stride)+1;
         dst[3] = DIVUP(img[3] + 2*m_horizontal_pad - m_window_width, m_horizontal_stride)+1;
         bool defaultcase_y = m_vertical_stride == m_window_height && m_vertical_pad == 0 && (img[2] % m_window_height == 0);
         bool defaultcase_x = m_horizontal_stride == m_window_width && m_horizontal_pad == 0 && (img[3] % m_window_width == 0);
         if(m_vertical_stride != 1 && !defaultcase_y) dst[2] -= 1;
         if(m_horizontal_stride != 1 && !defaultcase_x) dst[3] -= 1;
-*/
+#else
         dst[2] = DIVUP(img[2] + 2*m_vertical_pad - m_window_height + 1, m_vertical_stride);
         dst[3] = DIVUP(img[3] + 2*m_horizontal_pad - m_window_width + 1, m_horizontal_stride);
+#endif
 
         m_results[0]->shape = dst;
         m_state.reset(new cudnn_pooling_state(this, m_params[0]->shape, m_results[0]->shape));

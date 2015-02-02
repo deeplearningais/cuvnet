@@ -139,7 +139,6 @@ namespace cuvnet
                 	m_vertical_pad(vertical_padding),
                 	m_horizontal_pad(horizontal_padding)
                 {
-                   /*
                 	if(m_window_height == 3){
                         m_vertical_pad = m_window_height % 2 == 0 ? 0 : m_window_height / 2;
                         m_horizontal_pad = m_window_width % 2 == 0 ? 0 : m_window_width / 2;
@@ -147,8 +146,6 @@ namespace cuvnet
                         m_vertical_pad = 0;
                         m_horizontal_pad = 0;
                     }
-                    */
-
                     add_param(0,images);
                 }
                 virtual void release_data();
