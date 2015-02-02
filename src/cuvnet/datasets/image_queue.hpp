@@ -48,10 +48,17 @@ namespace cuvnet{
                 size_t size = m_meta.size();
 
                 for(size_t i=m_idx; i < m_idx + n_jobs; i++){
-                    m_queue.emplace(m_pool.enqueue(
-                                [&, i, size](){
+                    if(m_pool.size() > 0)
+                        m_queue.emplace(m_pool.enqueue(
+                                    [&, i, size](){
                                     return m_meta.next(i % size);
-                                }));
+                                    }));
+                    else{
+                        // synchronous processing
+                        std::promise<boost::shared_ptr<patternset_type> > p;
+                        p.set_value(m_meta.next(i % size));
+                        m_queue.emplace(p.get_future());
+                    }
                 }
                 m_idx = (m_idx + n_jobs) % size;
             }
