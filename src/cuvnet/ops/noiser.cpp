@@ -151,7 +151,6 @@ namespace cuvnet
                 apply_scalar_functor(m_zero_mask, p0.value.cdata(), SF_EQ, 0.f);
             }
 
-            // TODO does not account for compensation here!
             if(p0.can_add_directly()){
                 // TODO: add masks for binary ops to CUV
                 value_type& d_res = r0.delta.data_onlyshape();
