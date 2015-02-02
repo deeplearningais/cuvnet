@@ -8,6 +8,7 @@
 #include <cuv/basics/tensor.hpp>
 #include <cuvnet/datasets/image_queue.hpp>
 #include <cuvnet/datasets/cv_datasets.hpp>
+#include <cuvnet/tools/gradient_descent.hpp>
 
 #include <boost/test/unit_test.hpp>
 
