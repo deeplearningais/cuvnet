@@ -209,7 +209,7 @@ namespace cuvnet
                 p->notify_scalar_stats((float)p->func.evaluate()[0], m_cv_mode);
             }
             if(p->type == WP_SINK_ONCE_STATS && 
-                    ((m_every == 0 && bid == 0) || (m_batch_presentations % m_every == 0)))
+                    ((m_every == 0 && bid == 0) || (m_every != 0 && m_batch_presentations % m_every == 0)))
             {
                 update_stats(p->stats(m_cv_mode), p->sink->cdata());
             }
