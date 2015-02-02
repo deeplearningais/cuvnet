@@ -205,6 +205,19 @@ namespace datasets{
         /// contains information about the dataset elements that fits into RAM.
         std::vector<meta_t> m_meta;
 
+        /// contains a mapping from virtual indices to indices in m_meta
+        std::vector<size_t> m_shuffled_idx;
+
+        /// shuffle access to the dataset
+        void shuffle(){
+            if(m_shuffled_idx.size() != m_meta.size()){
+                m_shuffled_idx.resize(m_meta.size());
+                for (size_t i = 0; i < m_meta.size(); ++i)
+                    m_shuffled_idx[i] = i;
+            }
+            std::random_shuffle(m_shuffled_idx.begin(), m_shuffled_idx.end());
+        }
+
         /// @return the number of elements in the dataset
         inline size_t size()const{ return m_meta.size(); }
 
@@ -219,11 +232,10 @@ namespace datasets{
 
         /// Used by image_queue to fetch a specific element from the dataset.
         boost::shared_ptr<patternset_t> next(size_t idx)const{
-            boost::shared_ptr<input_t> ptr = load_image(m_meta[idx]);
-            return preprocess(idx, ptr);
+            boost::shared_ptr<input_t> ptr = load_image(m_meta[m_shuffled_idx[idx]]);
+            return preprocess(m_shuffled_idx[idx], ptr);
         }
     };
-
 
     /**
      * sample implementation of a dataset where every RGB image is associated with a single class label.

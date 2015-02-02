@@ -140,6 +140,7 @@ namespace datasets
             cuvAssert(m_meta.size() > 0);
             LOG4CXX_WARN(g_log, "read `"<< filename<<"', n_classes: "<<n_cls<<", size: "<<m_meta.size());
             m_predictions.resize(this->size(), -1);
+            shuffle();
         }
 
     void rgb_classification_dataset::clear_predictions(){
@@ -148,6 +149,7 @@ namespace datasets
     }
 
     void rgb_classification_dataset::set_imagenet_mean(std::string filename){
+            LOG4CXX_WARN(g_log, "read imagnet mean from `"<< filename<<"'");
             std::ifstream meanifs(filename.c_str());
             cuvAssert(meanifs.is_open());
             cuvAssert(meanifs.good());
