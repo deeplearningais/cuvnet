@@ -17,7 +17,7 @@ namespace datasets
         rgb_classification_loader(std::string basename, int n_jobs=0)
         : m_pool(n_jobs)
         , m_trainset(basename + "_train.txt", 224, 1)
-        , m_valset(basename + "_val.txt", 224, 1)
+        , m_valset(basename + "_val.txt", 224, 5)
         , m_trainqueue(m_pool, m_trainset, 128, 3*128)
         , m_valqueue(m_pool, m_valset, 12, 3*12)
         {
