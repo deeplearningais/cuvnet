@@ -14,13 +14,15 @@ import cv2
 class ImageNetData(object):
 
     def __init__(self):
-        self.meta_path = "/home/local/backup/ILSVRC2011/ILSVRC2011_devkit-2.0/data"
+        self.meta_path = "/home/local/datasets/ILSVRC2014_devkit/data"
+        #self.meta_path = "/home/local/backup/ILSVRC2011/ILSVRC2011_devkit-2.0/data"
         #self.meta_path = "/home/local/backup/ILSVRC2010/devkit-1.0/data"
-        self.meta_data = loadmat(os.path.join(self.meta_path, "meta.mat"), struct_as_record=False)
+        self.meta_data = loadmat(os.path.join(self.meta_path, "meta_clsloc.mat"), struct_as_record=False)
 
         self.synsets = np.squeeze(self.meta_data['synsets'])
         #self.ids = np.squeeze(np.array([x.ILSVRC2010_ID for x in self.synsets])) - 1  # -1 for matlab -> "normal"
-        self.ids = np.squeeze(np.array([x.ILSVRC2011_ID for x in self.synsets])) - 1  # -1 for matlab -> "normal"
+        #self.ids = np.squeeze(np.array([x.ILSVRC2011_ID for x in self.synsets])) - 1  # -1 for matlab -> "normal"
+        self.ids = np.squeeze(np.array([x.ILSVRC2014_ID for x in self.synsets])) - 1  # -1 for matlab -> "normal"
         idx = np.argsort(self.ids)
         self.wnids = np.squeeze(np.array([x.WNID for x in self.synsets]))[idx]
         self.classnames = np.squeeze(np.array([x.words for x in self.synsets]))[idx]
@@ -41,7 +43,7 @@ class ImageNetData(object):
                         #from IPython.core.debugger import Tracer
                         #Tracer()()
                         if len(result[0]) != 1:
-                            raise ValueError("Invalid wnid.")
+                            raise ValueError("Invalid wnid." + str(wnid))
                         klass = self.ids[result[0][0]]
                         self.class_used[klass] = True
                         # -1 for object count is a marker for a pure classification dataset
@@ -80,28 +82,28 @@ class ImageNetData(object):
 
     def winid_classid(self):
         lines = []
-        tarfiles = glob(os.path.join("/home/local/backup/ILSVRC2011/tars", "*"))
+        tarfiles = glob(os.path.join("/home/backup/ILSVRC2012/train", "*"))
         for filename in tarfiles:
             with tarfile.open(filename) as f:
                 for m in f.getmembers():
                     if m.name.endswith(".jpg") or m.name.endswith(".JPEG"):
                         wnid = m.name.split("_")[0]
-                        downsampled = os.path.join("/home/local/backup/ILSVRC2011/downsampled", wnid, m.name)
+                        downsampled = os.path.join("/home/data/ILSVRC2012/downsampled2", wnid, m.name)
                         if not os.path.exists(downsampled):
                             print "does not exist: ", downsampled, " -- ignoring."
                             continue
                         result = np.where(self.wnids==wnid)
                         if len(result[0]) != 1:
-                            raise ValueError("Invalid wnid.")
+                            raise ValueError("Invalid wnid." + str(wnid))
                         klass = self.ids[result[0][0]]
                         self.class_used[klass] = True
                         # -1 for object count is a marker for a pure classification dataset
-                        info = [downsampled, "-1", str(klass)]
+                        info = [wnid + "/" + m.name, str(klass)]
                         lines.append(info)
 
         seed(42)
         shuffle(lines)
-        split = 4 * 8192
+        split = 6144
         val   = lines[:split]
         train = lines[split:]
 
@@ -125,8 +127,8 @@ class ImageNetData(object):
         if not os.path.exists(d):
             os.makedirs(d)
 
-        write_ds(d, "ds_ILSVRC2011_train.txt", train)
-        write_ds(d, "ds_ILSVRC2011_val.txt", val)
+        write_ds(d, "ds_ILSVRC2014_train.txt", train)
+        write_ds(d, "ds_ILSVRC2014_val.txt", val)
 
 def handle_tarfile(filename):
     dstdir = filename.replace("tars", "downsampled")[:-4]  # remove ".tar"
