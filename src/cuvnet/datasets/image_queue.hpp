@@ -3,13 +3,13 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/weak_ptr.hpp>
-#include <threadpool/ThreadPool.h>
+#include <third_party/threadpool/ThreadPool.h>
 
 namespace cuvnet{
     /**
      * Exception thrown by datasets when the 
      */
-    struct epoch_end{};
+    //struct epoch_end{};
 
     /**
      * Asynchronous loading of meta-datasets.
@@ -69,12 +69,13 @@ namespace cuvnet{
                     schedule_new_jobs(m_max_size - (int)m_queue.size());
 
                 // queue is now non-empty
+                // TODO: get can only be called /once/, so this fails if the patternset is >1
                 boost::shared_ptr<patternset_type> pat
                     = m_queue.front().get();
 
                 if(pat->is_end_marker()){
                     m_queue.pop();
-                    throw epoch_end();
+                    //throw epoch_end();
                 }
                 
                 boost::shared_ptr<pattern_type> ret = 
