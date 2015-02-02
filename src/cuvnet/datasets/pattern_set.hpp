@@ -5,6 +5,7 @@
 #include <boost/enable_shared_from_this.hpp>
 
     /// set of patterns which belong together, eg sliding windows over the same image
+    /// @ingroup datasets
     template<class Pattern>
         struct pattern_set : public boost::enable_shared_from_this<pattern_set<Pattern> >{
             /// the type of the patterns
