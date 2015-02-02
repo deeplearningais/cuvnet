@@ -143,9 +143,9 @@ namespace datasets
     /// generates n_crops many regions of a given size within the boundaries of a given image img
     std::vector<cv::Rect> random_regions(const cv::Mat& img, int n_crops, int size){
         std::vector<cv::Rect> regions(n_crops);
-        float max_x = img.rows - size;
-        float max_y = img.cols - size;
-        for(unsigned int i = 0; i<(unsigned int)n_crops; i++){
+        float max_x = img.cols - size;
+        float max_y = img.rows - size;
+        for(int i = 0; i<n_crops; i++){
            regions[i] = cv::Rect(cv::Point2f(max_x * drand48(), max_y * drand48()), cv::Size(size,size)); 
         }
         return regions;
