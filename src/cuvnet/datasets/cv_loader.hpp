@@ -13,6 +13,7 @@ namespace datasets
         rgb_classification_dataset m_trainset, m_valset;
         cuvnet::image_queue<rgb_classification_dataset> m_trainqueue, m_valqueue;
         std::list<boost::shared_ptr<rgb_classification_dataset::pattern_t> > m_open_list;
+        std::list<cuvnet::cv_mode> m_open_list_mode;
 
         rgb_classification_loader(std::string basename, int n_jobs=0)
         : m_pool(n_jobs)
@@ -33,8 +34,16 @@ namespace datasets
             assert(!m_open_list.empty());
             auto pat = m_open_list.front();
             m_open_list.pop_front();
+            cuvnet::cv_mode mode = m_open_list_mode.front();
+            m_open_list_mode.pop_front();
+
             pat->predicted_class = pred;
-            pat->set->notify_processed(pat);
+
+            // dispatch to correct set
+            if(mode == cuvnet::CM_TRAIN)
+                m_trainset.notify_done(pat);
+            else 
+                m_valset.notify_done(pat);
         }
 
         void save_batch(const cuvnet::matrix& pred){
@@ -45,6 +54,7 @@ namespace datasets
 
         void load_batch(cuvnet::cv_mode mode, cuvnet::matrix& rgb, cuvnet::matrix& tch){
             m_open_list.clear();
+            m_open_list_mode.clear();
             int batch_size = rgb.shape(0);
             if(mode == cuvnet::CM_TRAINALL)
                 mode = drand48() > (m_trainset.size() / ((float)(m_trainset.size() + m_valset.size())))
@@ -56,6 +66,7 @@ namespace datasets
                     load_instance(m_trainqueue, i, rgb, tch);
                 else if(mode == cuvnet::CM_VALID || mode == cuvnet::CM_TEST)
                     load_instance(m_valqueue, i, rgb, tch);
+                m_open_list_mode.push_back(mode);
             }
             std::cout << "."<<std::flush;
         }

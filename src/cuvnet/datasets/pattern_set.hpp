@@ -48,13 +48,14 @@
             };
 
             /// tell the pattern_set that the pattern p can be moved from processing to done.
+            /// @warning this creates a circle of shared_ptrs which you have to resolve 
+            ///          by clearing m_done once everything you're done looking at it!
             inline void notify_processed(boost::shared_ptr<Pattern> p){
                 typename std::vector<boost::weak_ptr<Pattern> >::iterator it 
                     = std::find_if(m_processing.begin(), m_processing.end(), cmp_weak_strong(p));
-                assert(it != m_processing.end());
-                p->set.reset();  // make sure we don't have pointer circles
+                cuvAssert(it != m_processing.end());
                 m_processing.erase(it);
-                m_done.push_back(p);
+                m_done.push_back(p);  // NOTE this creates a circle again! You have to make sure to clear m_done in your overload.
             }
 
             /// this is a special marker pattern which can be put in the queue to signal the end of a loop through the dataset.

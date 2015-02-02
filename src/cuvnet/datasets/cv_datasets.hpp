@@ -254,9 +254,11 @@ namespace datasets{
         /// all class names in the dataset
         std::vector<std::string> m_class_names;
         /// the predicted classes for every element in the dataset
-        std::vector<int>  m_predictions;
+        std::vector<cuv::tensor<float, cuv::host_memory_space> >  m_predictions;
         /// the mean image, which is subtracted from all patterns before passing them to the model
         cuv::tensor<float, cuv::host_memory_space> m_imagenet_mean;
+        /// path to be prepended to paths in dataset file
+        std::string m_image_basepath;
         /**
          * ctor. 
          * @param filename the filename containing the dataset.
@@ -283,9 +285,22 @@ namespace datasets{
         void set_imagenet_mean(std::string filename);
 
         /**
+         * Set path prepended to path in dataset file.
+         * @note this is destructive and cannot be called twice.
+         */
+        void set_image_basepath(std::string path);
+
+        /**
          * clears all predictions.
          */
         void clear_predictions();
+
+        /**
+         * determine the one loss over the prediction
+         * @param k instance is classified 'correctly' if ground_truth_class is
+         *          among the k predictions with highest confidence
+         */
+        float get_zero_one(int k=1);
     }; 
 
     /** 

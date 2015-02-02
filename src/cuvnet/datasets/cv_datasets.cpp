@@ -132,20 +132,20 @@ namespace datasets
             while(ifs){
                 meta_t m;
                 ifs >> m.rgb_filename;
-                ifs >> m.klass; // dummy value for historical reasons
+                //ifs >> m.klass; // dummy value for historical reasons
                 ifs >> m.klass;
                 if(ifs)
                     m_meta.push_back(m);
             }
             cuvAssert(m_meta.size() > 0);
             LOG4CXX_WARN(g_log, "read `"<< filename<<"', n_classes: "<<n_cls<<", size: "<<m_meta.size());
-            m_predictions.resize(this->size(), -1);
+            m_predictions.resize(this->size());
             shuffle();
         }
 
     void rgb_classification_dataset::clear_predictions(){
         m_predictions.clear();
-        m_predictions.resize(this->size(), -1); // set all to -1
+        m_predictions.resize(this->size());
     }
 
     void rgb_classification_dataset::set_imagenet_mean(std::string filename){
@@ -280,7 +280,7 @@ namespace datasets
             if(m_imagenet_mean.ptr())
                 pattern->rgb -= m_imagenet_mean;
             else
-                pattern->rgb -= 108.f;  // poor man's approximation here...
+                pattern->rgb -= 121.f;  // poor man's approximation here...
 
             cuvAssert(cuv::minimum(pattern->rgb) > -200);
             cuvAssert(cuv::maximum(pattern->rgb) <  200);
@@ -307,7 +307,39 @@ namespace datasets
                     pred += p->predicted_class;
             }
             //pred /= (float)set->m_done.size();
-            m_predictions[pat->original->ID] = cuv::arg_max(pred);
+            m_predictions[pat->original->ID] = pred;
+
+            set->m_done.clear(); // prevent circles
+
+            static int cnt = 0;
+            if(++cnt % 50 == 0){
+                get_zero_one(1);
+                get_zero_one(5);
+            }
+        }
+    }
+
+    float rgb_classification_dataset::get_zero_one(int k){
+        size_t cnt = 0;  // counts for how many instances we /have/ a prediction
+        size_t correct = 0;
+        for (size_t i = 0; i < size(); ++i) {
+            if(!m_predictions[i].ptr())
+                continue;
+            cnt++;
+            float correct_class_probability = m_predictions[i][m_meta[i].klass];
+            auto better = m_predictions[i] > correct_class_probability;
+            int n_better = cuv::sum(better);
+            if(n_better < k)
+                correct++;
+        }
+        double loss = 1.0 - (correct / (double) cnt);
+        LOG4CXX_WARN(g_log, "LOSS k="<<k<<", basis is prediction on "<< cnt<<" instances: " << loss);
+        return loss;
+    }
+
+    void rgb_classification_dataset::set_image_basepath(std::string path){
+        for(auto& m : m_meta){
+            m.rgb_filename = path + "/" + m.rgb_filename;
         }
     }
 
