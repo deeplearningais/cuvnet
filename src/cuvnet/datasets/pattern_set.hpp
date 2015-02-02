@@ -26,7 +26,6 @@
             /// just don't keep around large numbers of patternsets you don't intend to process!
             inline void push(boost::shared_ptr<pattern_type> p){
                 p->set = this->shared_from_this();
-                assert(!done_generating());
                 m_todo.push_back(p);
             }
 
