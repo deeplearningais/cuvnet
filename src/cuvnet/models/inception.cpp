@@ -30,6 +30,12 @@ namespace cuvnet { namespace models {
             //int n_src_pix_x = m_input->result()->shape[2];
             //int n_batch     = m_input->result()->shape[3];
 
+            float wstd = 0.01f;
+            if(fs == 3)
+                wstd = 0.04;
+            else if(fs == 5)
+                wstd = 0.08;
+
             op_ptr o;
             if(fs < 0){
                 // max-pooling, then 1x1 convolution
@@ -49,14 +55,17 @@ namespace cuvnet { namespace models {
                             conv_layer_opts().with_bias(with_bias,bias)
                             //.linear()
                             .rectified_linear(!copy)
+                            .weight_default_std(0.01)
                             .group(lstr, true).verbose(verbose)));
                 register_submodel(*m_convlayers.back());
                 o = m_convlayers.back()->m_output;
                 o = flatten(o, 2, copy);
 
                 m_fclayers.push_back(boost::make_shared<mlp_layer>(o, n_dst, 
-                            mlp_layer_opts().with_bias(with_bias,bias).group(lstr, true).verbose(verbose)));
+                            mlp_layer_opts().weight_init_std(0.01).with_bias(with_bias,bias).group(lstr, true).verbose(verbose)));
+
                 register_submodel(*m_fclayers.back());
+
                 o = m_fclayers.back()->m_output;
             }else if(fs == 1){
                 cuvAssert(n_src_maps > 1);
@@ -73,7 +82,7 @@ namespace cuvnet { namespace models {
                             .group(lstr,true).verbose(verbose)));
                 register_submodel(*m_convlayers.back());
                 m_convlayers.push_back(boost::make_shared<conv_layer>(m_convlayers.back()->m_output,
-                            fs, n_dst, conv_layer_opts().with_bias(with_bias,bias).symmetric_padding(-1).group(lstr, true).verbose(verbose).use_cudnn()));
+                            fs, n_dst, conv_layer_opts().with_bias(with_bias,bias).symmetric_padding(-1).group(lstr, true).verbose(verbose).use_cudnn().weight_default_std(wstd)));
                 register_submodel(*m_convlayers.back());
                 o = m_convlayers.back()->m_output;
             }
