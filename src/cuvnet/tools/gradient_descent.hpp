@@ -441,7 +441,7 @@ namespace cuvnet
             /**
              * test for early stopping. 
              */
-            void operator()(unsigned int current_epoch, unsigned int wups);
+            void operator()(unsigned int wups);
 
             /**
              * return the best value we got during early_stopping.
@@ -1033,9 +1033,6 @@ namespace cuvnet
              * @overload
              */
             virtual void update_weights(){
-
-                m_current_batch_ += 1;
-
                 if(m_active_ && (m_current_batch_ % m_every_ == 0) && m_mon_)
                 for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
                     ParameterInput* inp = (ParameterInput*) *it;
@@ -1054,7 +1051,6 @@ namespace cuvnet
                     ParameterInput* inp = (ParameterInput*) *it;
                     std::map<Op*, storage_t>::iterator upit = m_updates_.find(inp);
                     upit->second -= (host_matrix) inp->cdata();
-                    //m_updates[inp] *= -1.f;  // we're recording the negative update for speed
                     
                     m_avgnorm_[inp] += cuv::norm1(upit->second) / upit->second.size();
                     m_vars_[inp] += cuv::var(upit->second);
@@ -1065,6 +1061,8 @@ namespace cuvnet
                     run_after_epoch();
                     run_before_epoch();
                 }
+
+                m_current_batch_ += 1;
             }
 
             void run_after_epoch(){

@@ -92,8 +92,8 @@ namespace cuvnet
                         if(iter % m_update_every == 0) {
                             before_weight_update(wups);
                             update_weights(); 
-                            wups ++;
                             after_weight_update(wups);
+                            wups ++;
                         }
                     }
                     else{
@@ -291,7 +291,7 @@ namespace cuvnet
         unsigned int i=0;
         for(paramvec_t::iterator it=m_params.begin();
                 it!=m_params.end();it++, i++){
-            m_last_delta[i].resize(((ParameterInput*)*it)->data().shape());
+            m_last_delta[i].resize(((ParameterInput*)*it)->cdata().shape());
             m_last_delta[i] = 0.f;
         }
     }
@@ -304,10 +304,8 @@ namespace cuvnet
             ParameterInput* inp = (ParameterInput*) *it;
             if(! inp->derivable()) continue;
 
-            float lr = m_learnrate * inp->get_learnrate_factor();
+            float lr = m_learnrate * inp->get_learnrate_factor() / m_update_every;
             float wd = m_weightdecay * inp->get_weight_decay_factor();
-
-            cuvAssert(inp->delta().shape() == inp->data().shape());
 
             if(wd > 0.f)
                 cuv::apply_binary_functor(inp->delta(), inp->cdata(), cuv::BF_XPBY, wd);
@@ -689,7 +687,7 @@ namespace cuvnet
         cuvAssert(patience_increase > 1.);
         m_best_perf = std::numeric_limits<float>::infinity();
         m_perf_thresh = std::numeric_limits<float>::infinity();
-        m_connection = gd.before_epoch.connect(boost::ref(*this), boost::signals2::at_front);
+        m_connection = gd.after_weight_update.connect(boost::ref(*this), boost::signals2::at_back);
         m_patience = 20;
     }
 
@@ -698,15 +696,15 @@ namespace cuvnet
         assert(!m_connection.connected());
     }
 
-    void early_stopper::operator()(unsigned int current_epoch, unsigned int wups){
+    void early_stopper::operator()(unsigned int wups){
         log4cxx::LoggerPtr log(log4cxx::Logger::getLogger("early_stop"));
         log4cxx::NDC ndc("early_stopper");
-        if(current_epoch%m_every!=0)
+        if(wups%m_every!=0)
             return;
 
         // this does the actual work, it runs fprop on all ES batches
-        before_early_stopping_epoch(current_epoch);
-        m_gd.eval_epoch(current_epoch);
+        before_early_stopping_epoch(wups);
+        m_gd.eval_epoch(wups);
 
         // determine how good we've been (usually set to some perf()
         // function of the construct you're trying to minimize)
@@ -714,14 +712,14 @@ namespace cuvnet
 
         // call after_early_stopping_epoch() HERE, so that
         // m_performance can rely on still being in validation mode!
-        after_early_stopping_epoch(current_epoch);
+        after_early_stopping_epoch(wups);
 
         if(perf != perf){
             LOG4CXX_WARN( log,  "STOP Got NaN in early-stopping check!");
             throw arithmetic_error_stop();
         }
 
-        m_val_perfs.push_back(std::make_pair(current_epoch, perf));
+        m_val_perfs.push_back(std::make_pair(wups, perf));
 
         perf = 0.f;
         unsigned int window_size = std::min(m_val_perfs.size(), (size_t) m_box_filter_size);
@@ -740,10 +738,10 @@ namespace cuvnet
 
         if(perf < m_best_perf) {
             log4cxx::MDC perf_mdc("best_perf", boost::lexical_cast<std::string>(perf));
-            LOG4CXX_DEBUG(log, "* "<<current_epoch<<": "<<patience_cmp<<" / "<<m_patience<<", "<<std::setprecision(3) <<(perf/m_best_perf)<<": "<< std::setprecision(6) << perf);
+            LOG4CXX_DEBUG(log, "* "<<wups<<": "<<patience_cmp<<" / "<<m_patience<<", "<<std::setprecision(3) <<(perf/m_best_perf)<<": "<< std::setprecision(6) << perf);
         } else {
             log4cxx::MDC perf_mdc("best_perf", boost::lexical_cast<std::string>(m_best_perf));
-            LOG4CXX_DEBUG(log, "- "<<current_epoch<<": "<<patience_cmp<<" / "<<m_patience<<", "<<std::setprecision(3) <<(perf/m_best_perf)<<": "<< std::setprecision(6) << perf);
+            LOG4CXX_DEBUG(log, "- "<<wups<<": "<<patience_cmp<<" / "<<m_patience<<", "<<std::setprecision(3) <<(perf/m_best_perf)<<": "<< std::setprecision(6) << perf);
         }
 
         if(perf < m_best_perf) {
@@ -760,17 +758,17 @@ namespace cuvnet
 
         if(m_best_perf == 0.f){
             log4cxx::MDC mdc("best_perf", boost::lexical_cast<std::string>(m_best_perf));
-            LOG4CXX_WARN(log, "STOP loss zero after " <<current_epoch << " epochs");
+            LOG4CXX_WARN(log, "STOP loss zero after " <<wups << " weight updates");
             throw no_improvement_stop();
         }
         if(m_patience <= patience_cmp){
             // stop learning if we failed to get significant improvements
             log4cxx::MDC mdc("best_perf", boost::lexical_cast<std::string>(m_best_perf));
             if(m_max_steps <= 0){
-                LOG4CXX_WARN(log, "STOP no improvement after " <<current_epoch << " epochs");
+                LOG4CXX_WARN(log, "STOP no improvement after " <<wups << " weight updates");
                 throw no_improvement_stop();
             }else{
-                LOG4CXX_WARN(log, "DECLR no improvement after " <<current_epoch << " epochs, decreasing learnrate");
+                LOG4CXX_WARN(log, "DECLR no improvement after " <<wups << " weight updates, decreasing learnrate");
                 unsigned int epoch_osp = m_gd.epoch_of_saved_params();
                 //m_val_perfs.clear(); // clear performance measurements
                 // erase performance measurements post best epoch (is there no simple one liner for this operation?)
