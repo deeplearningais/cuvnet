@@ -123,7 +123,7 @@ namespace datasets
             cuvAssert(m_meta.size() > 0);
             LOG4CXX_WARN(g_log, "read `"<< filename<<"', n_classes: "<<n_cls<<", size: "<<m_meta.size());
             m_predictions.resize(this->size());
-            shuffle();
+            shuffle(false);
         }
 
     void rgb_classification_dataset::clear_predictions(){

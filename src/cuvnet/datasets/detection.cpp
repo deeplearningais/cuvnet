@@ -1,6 +1,7 @@
 #include <fstream>
 #include <cuvnet/tools/logging.hpp>
 #include <boost/tuple/tuple.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include "image_types.hpp"
 #include "detection.hpp"
 
@@ -12,7 +13,9 @@ namespace
 
 namespace datasets
 {
-    boost::shared_ptr<meta_data<rgb_detection_tag>::input_t> load_image(const meta_data<rgb_detection_tag>& meta){
+    template<>
+    boost::shared_ptr<meta_data<rgb_detection_tag>::input_t>
+        load_image<rgb_detection_tag>(const meta_data<rgb_detection_tag>& meta){
         meta_data<rgb_classification_tag> tmp_meta;
         tmp_meta.rgb_filename = meta.rgb_filename;
         // delegate to rgb_classification
@@ -57,7 +60,7 @@ namespace datasets
         m_n_classes = mapcnt.size();
         cuvAssert(m_meta.size() > 0);
         LOG4CXX_WARN(g_log, "read `"<< filename<<"', n_classes: "<<m_n_classes<<", size: "<<m_meta.size());
-        shuffle();
+        shuffle(false);
     }
 
     void rgb_detection_dataset::set_imagenet_mean(std::string filename){
@@ -140,5 +143,18 @@ namespace datasets
             }
 
             return patternset;
+    }
+
+    void meta_data<rgb_detection_tag>::show(std::string name, const pattern_t& pat){
+        std::vector<cv::Mat> channels(3, cv::Mat(pat.rgb.shape(1), pat.rgb.shape(2), CV_32FC1));
+        for (int i = 0; i < 3; ++i) {
+            memcpy((char*)channels[i].ptr<float>(), pat.rgb[cuv::indices[i]].ptr(), sizeof(float) * pat.rgb.shape(1) * pat.rgb.shape(2));
+        }
+        cv::Mat cvrgb;
+        cv::merge(channels, cvrgb);
+        for (const auto& bb : pat.bboxes) {
+            cv::line(cvrgb, cv::Point(bb.x0, bb.y0), cv::Point(bb.x0+bb.w, bb.y0+bb.h), cv::Scalar(1));
+        }
+        cv::imshow(name, cvrgb);
     }
 }

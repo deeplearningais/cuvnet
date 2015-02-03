@@ -212,13 +212,14 @@ namespace datasets{
         std::vector<size_t> m_shuffled_idx;
 
         /// shuffle access to the dataset
-        void shuffle(){
+        void shuffle(bool really=true){
             if(m_shuffled_idx.size() != m_meta.size()){
                 m_shuffled_idx.resize(m_meta.size());
                 for (size_t i = 0; i < m_meta.size(); ++i)
                     m_shuffled_idx[i] = i;
             }
-            std::random_shuffle(m_shuffled_idx.begin(), m_shuffled_idx.end());
+            if(really)
+                std::random_shuffle(m_shuffled_idx.begin(), m_shuffled_idx.end());
         }
 
         /// @return the number of elements in the dataset

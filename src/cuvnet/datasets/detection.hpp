@@ -33,6 +33,8 @@ namespace datasets
             typedef rgb_image input_t;
             typedef pattern_with_original<rgb_detection_pattern, input_t> pattern_t;
             typedef pattern_t::patternset_t patternset_t;
+
+            static void show(std::string name, const pattern_t& pat);
         };
 
     struct rgb_detection_dataset : public image_dataset<rgb_detection_tag> {
