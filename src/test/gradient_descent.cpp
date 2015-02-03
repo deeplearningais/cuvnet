@@ -15,8 +15,8 @@
 BOOST_AUTO_TEST_SUITE( t_graddesc )
     BOOST_AUTO_TEST_CASE(initialize){
         using namespace cuvnet;
-        boost::shared_ptr<ParameterInput> inp = input(cuv::extents[1][1]);
-        boost::shared_ptr<ParameterInput> tgt = input(cuv::extents[1][1]);
+        boost::shared_ptr<ParameterInput> inp = input(cuv::extents[2][10]);
+        boost::shared_ptr<ParameterInput> tgt = input(cuv::extents[2][10]);
         cuvnet::models::linear_regression mlp(inp, tgt);
         inp->data() = 0.0f;
         tgt->data() = 1.0f;
