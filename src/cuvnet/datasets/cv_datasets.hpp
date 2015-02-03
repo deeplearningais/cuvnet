@@ -5,7 +5,12 @@
 
 namespace cv
 {
+    //struct Rect;
+    template<class T>
+        struct Rect_;
+    typedef Rect_<int> Rect;
     struct RotatedRect;
+    class Mat;
 }
 
 namespace datasets{
@@ -85,13 +90,11 @@ namespace datasets{
 
     /// contains RGB data
     struct rgb_pattern : public image_pattern{
-        boost::shared_ptr<rgb_image> original;
         cuv::tensor<float, cuv::host_memory_space> rgb;
     };
     
     /// in addition to RGB data, contains depth information
     struct rgbd_pattern : rgb_pattern{
-        boost::shared_ptr<rgbd_image> original;
         cuv::tensor<float, cuv::host_memory_space> depth;
     };
 

@@ -8,6 +8,7 @@
 #include <cuvnet/tools/logging.hpp>
 #include <fstream>
 
+#include "image_types.hpp"
 #include "cv_datasets.hpp"
 
 namespace
@@ -33,24 +34,6 @@ namespace datasets
         r.angle = a;
         return r;
     }
-    
-    struct rgb_image{
-        size_t ID;
-        cv::Mat rgb;
-    };
-
-    struct rgbd_image : public virtual rgb_image{
-        cv::Mat depth, height;
-    };
-
-    struct rgbt_image : public virtual rgb_image{
-        std::map<int, cv::Mat> cls;
-        cv::Mat ign;
-        cv::vector<cv::Mat> prediction;
-    };
-
-    struct rgbdt_image : public rgbt_image, public rgbd_image{
-    };
 
     template<>
     boost::shared_ptr<meta_data<rgb_classification_tag>::input_t> load_image(const meta_data<rgb_classification_tag>& meta){
@@ -194,7 +177,7 @@ namespace datasets
         assert(ret.second.boundingRect().height + ret.second.boundingRect().y <= m.rows + ret.first.y + ret.first.height);
         return ret;
     }
-    cv::Mat extract_region(const cv::Mat& m, const cv::RotatedRect& ir, bool flipped, int interpolation, int bordertype=cv::BORDER_REFLECT_101, int value=0){
+    cv::Mat extract_region(const cv::Mat& m, const cv::RotatedRect& ir, bool flipped, int interpolation, int bordertype, int value){
         cv::Mat M, enlarged, rotated, cropped;
         cv::Rect margins;
         cv::RotatedRect pos_in_enlarged;
@@ -231,7 +214,7 @@ namespace datasets
     }
 
     void dstack_mat2tens(cuv::tensor<float, cuv::host_memory_space>& tens,
-            const std::vector<cv::Mat>& src, bool reverse=false){
+            const std::vector<cv::Mat>& src, bool reverse){
         assert(src.size() >= 1);
         int d = src.size();
         int h = src.front().rows;
@@ -270,7 +253,7 @@ namespace datasets
             pattern->region_in_original = r;
             pattern->flipped = drand48() > 0.5f;
         
-            cv::Mat region = extract_region(in->rgb, r, pattern->flipped, cv::INTER_LINEAR);
+            cv::Mat region = extract_region(in->rgb, r, pattern->flipped, cv::INTER_LINEAR, cv::BORDER_REFLECT_101, 0);
 
             std::vector<cv::Mat> chans;
             cv::split(region, chans);
@@ -281,11 +264,6 @@ namespace datasets
                 pattern->rgb -= m_imagenet_mean;
             else
                 pattern->rgb -= 121.f;  // poor man's approximation here...
-
-            cuvAssert(cuv::minimum(pattern->rgb) > -200);
-            cuvAssert(cuv::maximum(pattern->rgb) <  200);
-            cuvAssert(!cuv::has_nan(pattern->rgb));
-            cuvAssert(!cuv::has_inf(pattern->rgb));
         
             patternset->push(pattern);
         }
