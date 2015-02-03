@@ -76,6 +76,7 @@ SET(CUVNET_SRC
     datasets/dataset_reader.cpp
     
     cuvnet/datasets/cv_datasets.cpp
+    cuvnet/datasets/detection.cpp
 
     cuvnet/smart_ptr.cpp
     cuvnet/tools/pca.cpp
