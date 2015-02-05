@@ -40,6 +40,8 @@
 #include <cuvnet/ops/log_add_exp.hpp>
 #include <cuvnet/ops/upscale.hpp>
 
+#include <cuvnet/ops/bounding_box_matching.hpp>
+
 #ifndef NO_THEANO_WRAPPERS
 #include <cuvnet/ops/theano_ops.hpp>
 #endif

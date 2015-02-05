@@ -2549,6 +2549,66 @@ BOOST_AUTO_TEST_CASE(cuDNN_pooling){
     }
 }
 
+
+BOOST_AUTO_TEST_CASE(szegedy_op){
+    //typedef boost::shared_ptr<Op> ptr_t;
+
+    unsigned int bs = 5;
+    unsigned int K = 3;
+    unsigned int T = 2; // teacher bboxes
+    float alpha = 1.0;
+
+    boost::shared_ptr<ParameterInput> inp0 = boost::make_shared<ParameterInput>(cuv::extents[bs][K][5]);
+    //boost::shared_ptr<ParameterInput> inp1 = boost::make_shared<ParameterInput>(cuv::extents[bs][K]);
+
+    std::vector<BoundingBoxMatching::bbox> kmeans(K);
+    for (unsigned int k = 0; k < K; k++) {
+        kmeans[k].x_min = drand48()*1;
+        kmeans[k].y_min = drand48()*1;
+        kmeans[k].x_max = drand48()*1;
+        kmeans[k].y_max = drand48()*1;
+    }
+    std::vector<std::vector<BoundingBoxMatching::bbox> > teach(bs);
+    for (unsigned int b = 0; b < bs; b++) {
+        teach[b].resize(T);
+        for (unsigned int t = 0; t < T; t++) {
+            teach[b][t].x_min = drand48()*1;
+            teach[b][t].y_min = drand48()*1;
+            teach[b][t].x_max = drand48()*1;
+            teach[b][t].y_max = drand48()*1;
+        }
+    }
+
+    cuv::fill_rnd_uniform(inp0->data());
+    inp0->data() /= 1.f;
+    //cuv::fill_rnd_uniform(inp1->data());
+
+    boost::shared_ptr<BoundingBoxMatching> func = 
+        boost::make_shared<BoundingBoxMatching>(inp0->result(), kmeans, alpha); 
+    
+    // set teacher
+    func->set_teacher_bbox(teach);
+
+    function f(func);
+    matrix res = f.evaluate();
+   
+    BOOST_CHECK_EQUAL(res[0], alpha * func->get_f_match() + func->get_f_conf());
+
+    std::vector<std::vector<BoundingBoxMatching::bbox> > output_bbox = func->get_output_bbox(); 
+    for (unsigned int b = 0; b < bs; b++) {
+        for (unsigned int k = 0; k < K; k++) {
+            BOOST_CHECK_EQUAL(output_bbox[b][k].x_min, inp0->data()(b, k, 0) + kmeans[k].x_min);
+            BOOST_CHECK_EQUAL(output_bbox[b][k].y_min, inp0->data()(b, k, 1) + kmeans[k].y_min);
+            BOOST_CHECK_EQUAL(output_bbox[b][k].x_max, inp0->data()(b, k, 2) + kmeans[k].x_max);
+            BOOST_CHECK_EQUAL(output_bbox[b][k].y_max, inp0->data()(b, k, 3) + kmeans[k].y_max);
+        }
+    }
+
+    std::cout << "loss: " << func->get_f_match() << " " << func->get_f_conf() << std::endl;
+   
+    derivative_tester (*func).epsilon(0.2).test();
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 
