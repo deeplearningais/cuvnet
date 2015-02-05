@@ -2500,7 +2500,7 @@ BOOST_AUTO_TEST_CASE(cuDNN_speed){
             	   int padding = 0;
 
             	   ptr_t op0 = boost::make_shared<ConvolvecuDNN>(inp0a->result(), inp1a->result(),padding, padding);
-            	   ptr_t op1 = boost::make_shared<Convolve>(inp0b->result(), inp1b->result(), true, padding, 1, 1, 4);
+            	   ptr_t op1 = boost::make_shared<Convolve>(inp0b->result(), inp1b->result(), true, padding, 1, 1, 0);
 
             	   cuvnet::function func0f(op0);
             	   MEASURE_TIME(cudnn_f, func0f.evaluate(), 2);

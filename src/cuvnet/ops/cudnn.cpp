@@ -4,6 +4,7 @@
 #include <cuvnet/ops/cudnn.hpp>
 #include <third_party/cudnn-6.5-linux-R1/cudnn.h>
 //#include <third_party/cudnn-6.5-linux-x64-R2-rc1/cudnn.h>
+#include </home/stud/sheikhr/cuda-workspace/streamsHelper/kernels.hpp>
 
 #define DIVUP(x,y) (((x)+ (y) -1) / (y))
 #define CUDNN_CALL(XXX) if(1){ \
@@ -43,11 +44,12 @@ namespace cuvnet
 	}
 
     struct cudnn_state{
-		cudnnHandle_t handle;
+		cudnnHandle_t handle1, handle2, handle3;
 		cudnnTensorDescriptor_t imgDesc, outputDesc, biasDesc,
                                 gradOutputDesc, gradImgDesc, gradBiasDesc;
         cudnnFilterDescriptor_t filterDesc, gradFilterDesc;
         cudnnConvolutionDescriptor_t convDesc;
+        cudaStream_t stream1, stream2, stream3;
 #if CUDNN_VERSION != 1
         cudnnConvolutionFwdAlgo_t algo;
 #endif
@@ -60,7 +62,18 @@ namespace cuvnet
                 std::vector<unsigned int> bias_shape
                 ){
 
-            CUDNN_CALL(cudnnCreate(&handle));
+            createCudaStream(stream1);
+        	createCudaStream(stream2);
+        	createCudaStream(stream3);
+
+        	CUDNN_CALL(cudnnCreate(&handle1));
+        	CUDNN_CALL(cudnnCreate(&handle2));
+        	CUDNN_CALL(cudnnCreate(&handle3));
+
+        	CUDNN_CALL(cudnnSetStream(handle1, stream1));
+        	CUDNN_CALL(cudnnSetStream(handle2, stream2));
+        	CUDNN_CALL(cudnnSetStream(handle3, stream3));
+
             CUDNN_CALL(cudnnCreateTensorDescriptor(&imgDesc));
             CUDNN_CALL(cudnnCreateTensorDescriptor(&outputDesc));
             CUDNN_CALL(cudnnCreateTensorDescriptor(&biasDesc));
@@ -143,7 +156,9 @@ namespace cuvnet
             CUDNN_CALL(cudnnDestroyTensorDescriptor(gradBiasDesc));
 
             CUDNN_CALL(cudnnDestroyConvolutionDescriptor(convDesc));
-            CUDNN_CALL(cudnnDestroy(handle));
+            CUDNN_CALL(cudnnDestroy(handle1));
+            CUDNN_CALL(cudnnDestroy(handle2));
+            CUDNN_CALL(cudnnDestroy(handle3));
         }
     };
 
@@ -174,25 +189,25 @@ namespace cuvnet
 			matrix::value_type* outputData = r0.overwrite_or_add_value()->ptr();
 			// launch convolution on GPU
 #if CUDNN_VERSION != 1
-			CUDNN_CALL(cudnnConvolutionForward(m_state->handle, &alpha, 
+			CUDNN_CALL(cudnnConvolutionForward(m_state->handle1, &alpha,
                     m_state->imgDesc, imgData,
                     m_state->filterDesc, filterData,
                     m_state->convDesc, m_state->algo, workspace.ptr(), m_state->workspace_size,
                     &beta,
                     m_state->outputDesc, outputData));
 #else
-            cudnnConvolutionForward(m_state->handle, m_state->imgDesc, imgData, m_state->filterDesc,
+            cudnnConvolutionForward(m_state->handle1, m_state->imgDesc, imgData, m_state->filterDesc,
                     filterData, m_state->convDesc, m_state->outputDesc, outputData,
                     beta == 1 ? CUDNN_RESULT_ACCUMULATE : CUDNN_RESULT_NO_ACCUMULATE);
 #endif
             if(m_params.size() == 3){
 #if CUDNN_VERSION != 1
                 const float beta = 1.f;
-                CUDNN_CALL(cudnnAddTensor(m_state->handle, m_state->add_mode, &alpha, m_state->biasDesc,
+                CUDNN_CALL(cudnnAddTensor(m_state->handle1, m_state->add_mode, &alpha, m_state->biasDesc,
                             m_params[2]->value.cdata().ptr(), &beta,
                             m_state->outputDesc, outputData));
 #else
-                CUDNN_CALL(cudnnAddTensor(m_state->handle, m_state->add_mode, &alpha, m_state->biasDesc,
+                CUDNN_CALL(cudnnAddTensor(m_state->handle1, m_state->add_mode, &alpha, m_state->biasDesc,
                             m_params[2]->value.cdata().ptr(),
                             m_state->outputDesc, outputData));
 #endif
@@ -204,25 +219,25 @@ namespace cuvnet
 			value_ptr v(new value_type(r0.shape, cuvnet::get_global_allocator()));
 			matrix::value_type* outputData = v->ptr();
 #if CUDNN_VERSION != 1
-			CUDNN_CALL(cudnnConvolutionForward(m_state->handle, &alpha, 
+			CUDNN_CALL(cudnnConvolutionForward(m_state->handle1, &alpha,
                     m_state->imgDesc, imgData,
                     m_state->filterDesc, filterData,
                     m_state->convDesc, m_state->algo, workspace.ptr(), m_state->workspace_size,
                     &beta,
                     m_state->outputDesc, outputData));
 #else
-            cudnnConvolutionForward(m_state->handle, m_state->imgDesc, imgData, m_state->filterDesc,
+            cudnnConvolutionForward(m_state->handle1, m_state->imgDesc, imgData, m_state->filterDesc,
                     filterData, m_state->convDesc, m_state->outputDesc, outputData,
                     CUDNN_RESULT_NO_ACCUMULATE);
 #endif
             if(m_params.size() == 3){
 #if CUDNN_VERSION != 1
                 const float beta = 1.0;
-                CUDNN_CALL(cudnnAddTensor(m_state->handle, m_state->add_mode, &alpha, m_state->biasDesc,
+                CUDNN_CALL(cudnnAddTensor(m_state->handle1, m_state->add_mode, &alpha, m_state->biasDesc,
                             m_params[2]->value.cdata().ptr(), &beta,
                             m_state->outputDesc, outputData));
 #else
-                CUDNN_CALL(cudnnAddTensor(m_state->handle, m_state->add_mode, &alpha, m_state->biasDesc,
+                CUDNN_CALL(cudnnAddTensor(m_state->handle1, m_state->add_mode, &alpha, m_state->biasDesc,
                             m_params[2]->value.cdata().ptr(),
                             m_state->outputDesc, outputData));
 #endif
@@ -255,21 +270,24 @@ namespace cuvnet
 			// calculate p1 first, then we don't need activations
 			// anymore and can overwrite them. They are usually
 			// larger than the weights, so it should be better in this order.
+
 			const matrix::value_type* imgData = p0.value.cdata().ptr();   //images
 			const matrix::value_type* diffData = r0.delta.cdata().ptr();
 
             const matrix::value_type alpha = 1.0;
+
 			if (p1.can_overwrite_directly() || p1.can_add_directly()) {
                 const matrix::value_type beta = p1.can_add_directly() ? 1.0 : 0.0; 
 				matrix::value_type* gradFilterData = (*p1.overwrite_or_add_value()).ptr();
+
 #if CUDNN_VERSION != 1
-				CUDNN_CALL(cudnnConvolutionBackwardFilter(m_state->handle, &alpha,
+				CUDNN_CALL(cudnnConvolutionBackwardFilter(m_state->handle1, &alpha,
                         m_state->imgDesc, imgData,
                         m_state->gradOutputDesc, diffData,
                         m_state->convDesc, &beta,
                         m_state->filterDesc, gradFilterData));
 #else
-                CUDNN_CALL(cudnnConvolutionBackwardFilter(m_state->handle, m_state->imgDesc, imgData, m_state->gradOutputDesc, diffData,
+                CUDNN_CALL(cudnnConvolutionBackwardFilter(m_state->handle1, m_state->imgDesc, imgData, m_state->gradOutputDesc, diffData,
                             m_state->convDesc, m_state->gradFilterDesc, gradFilterData,
                             beta == 1 ? CUDNN_RESULT_ACCUMULATE : CUDNN_RESULT_NO_ACCUMULATE));
 #endif
@@ -279,13 +297,13 @@ namespace cuvnet
 
 				matrix::value_type* gradFilterData = (*ptr).ptr();
 #if CUDNN_VERSION != 1
-				CUDNN_CALL(cudnnConvolutionBackwardFilter(m_state->handle, &alpha,
+				CUDNN_CALL(cudnnConvolutionBackwardFilter(m_state->handle1, &alpha,
                         m_state->imgDesc, imgData,
                         m_state->gradOutputDesc, diffData,
                         m_state->convDesc, &beta,
                         m_state->gradFilterDesc, gradFilterData));
 #else
-                CUDNN_CALL(cudnnConvolutionBackwardFilter(m_state->handle, m_state->imgDesc, imgData, m_state->gradOutputDesc, diffData,
+                CUDNN_CALL(cudnnConvolutionBackwardFilter(m_state->handle1, m_state->imgDesc, imgData, m_state->gradOutputDesc, diffData,
                             m_state->convDesc, m_state->gradFilterDesc, gradFilterData,
                             CUDNN_RESULT_NO_ACCUMULATE));
 #endif
@@ -303,12 +321,12 @@ namespace cuvnet
                 const matrix::value_type beta = p2.can_add_directly() ? 1.0 : 0.0; 
 				matrix::value_type* gradbiasData = (*p2.overwrite_or_add_value()).ptr();
 #if CUDNN_VERSION != 1
-				CUDNN_CALL(cudnnConvolutionBackwardBias(m_state->handle, &alpha,
+				CUDNN_CALL(cudnnConvolutionBackwardBias(m_state->handle2, &alpha,
                         m_state->gradOutputDesc, diffData,
                         &beta,
                         m_state->biasDesc, gradbiasData));
 #else
-				CUDNN_CALL(cudnnConvolutionBackwardBias(m_state->handle,
+				CUDNN_CALL(cudnnConvolutionBackwardBias(m_state->handle2,
                         m_state->gradOutputDesc, diffData,
                         m_state->biasDesc, gradbiasData,
                         beta == 1 ? CUDNN_RESULT_ACCUMULATE : CUDNN_RESULT_NO_ACCUMULATE));
@@ -319,12 +337,12 @@ namespace cuvnet
 
 				matrix::value_type* gradbiasData = (*ptr).ptr();
 #if CUDNN_VERSION != 1
-				CUDNN_CALL(cudnnConvolutionBackwardBias(m_state->handle, &alpha,
+				CUDNN_CALL(cudnnConvolutionBackwardBias(m_state->handle2, &alpha,
                         m_state->gradOutputDesc, diffData,
                         &beta,
                         m_state->gradBiasDesc, gradbiasData));
 #else
-				CUDNN_CALL(cudnnConvolutionBackwardBias(m_state->handle,
+				CUDNN_CALL(cudnnConvolutionBackwardBias(m_state->handle2,
                         m_state->outputDesc, diffData,
                         m_state->biasDesc, gradbiasData,
                         CUDNN_RESULT_NO_ACCUMULATE));
@@ -335,6 +353,7 @@ namespace cuvnet
 
 		if (p0.need_derivative) {
 			// derivative w.r.t. images
+
 			const matrix::value_type* filterData = p1.value.cdata().ptr();
 			const matrix::value_type* diffData = r0.delta.cdata().ptr();
 
@@ -344,9 +363,9 @@ namespace cuvnet
 
 				matrix::value_type* gradImgData = (*p0.overwrite_or_add_value()).ptr();
 #if CUDNN_VERSION != 1
-				CUDNN_CALL(cudnnConvolutionBackwardData(m_state->handle, &alpha, m_state->filterDesc, filterData, m_state->outputDesc, diffData, m_state->convDesc, &beta, m_state->imgDesc, gradImgData));
+				CUDNN_CALL(cudnnConvolutionBackwardData(m_state->handle3, &alpha, m_state->filterDesc, filterData, m_state->outputDesc, diffData, m_state->convDesc, &beta, m_state->imgDesc, gradImgData));
 #else
-				CUDNN_CALL(cudnnConvolutionBackwardData(m_state->handle, m_state->filterDesc, filterData, m_state->outputDesc, diffData, m_state->convDesc, m_state->imgDesc, gradImgData,
+				CUDNN_CALL(cudnnConvolutionBackwardData(m_state->handle3, m_state->filterDesc, filterData, m_state->outputDesc, diffData, m_state->convDesc, m_state->imgDesc, gradImgData,
                         beta == 1 ? CUDNN_RESULT_ACCUMULATE : CUDNN_RESULT_NO_ACCUMULATE));
 #endif
 			}
@@ -359,13 +378,13 @@ namespace cuvnet
 				matrix::value_type* gradImgData = v.ptr();
 
 #if CUDNN_VERSION != 1
-				CUDNN_CALL(cudnnConvolutionBackwardData(m_state->handle, &alpha,
+				CUDNN_CALL(cudnnConvolutionBackwardData(m_state->handle3, &alpha,
                             m_state->filterDesc, filterData,
                             m_state->gradOutputDesc, diffData, 
                             m_state->convDesc, &beta,
                             m_state->gradImgDesc, gradImgData));
 #else
-				CUDNN_CALL(cudnnConvolutionBackwardData(m_state->handle,
+				CUDNN_CALL(cudnnConvolutionBackwardData(m_state->handle3,
                             m_state->filterDesc, filterData,
                             m_state->gradOutputDesc, diffData, 
                             m_state->convDesc,
@@ -376,6 +395,8 @@ namespace cuvnet
 				p0.push(ptr);
 			}
 		}
+		//synchronize
+		emptyKernelCall();
 	}
 
 	void ConvolvecuDNN::_determine_shapes() {
@@ -400,7 +421,7 @@ namespace cuvnet
 	    //assertion fails when imgPix=6, stride=3, filter=3, nOutPixY should be 2 but outputs 1
 	    //or imgPix=9, stride=2, filter=3, nOutPixY should be 4 but outputs 3
 
-#if 1
+#if 0
 	    unsigned int nOutPixX = DIVUP(nImgPixX+2*m_padding_x-nFltPixX, m_hor_filt_stride)+1;
         unsigned int nOutPixY = DIVUP(nImgPixY+2*m_padding_y-nFltPixY, m_ver_filt_stride)+1;
         if(m_hor_filt_stride != 1) nOutPixX -= 1;
@@ -591,7 +612,7 @@ namespace cuvnet
         //this doesn't work if imgPix=6, height=4, stride=2, outputs 1 when it should be 2
         //or if imgPix=4, height=4, stride=4, outputs 0 when it should be 1
         
-#if 1
+#if 0
         dst[2] = DIVUP(img[2] + 2*m_vertical_pad - m_window_height, m_vertical_stride)+1;
         dst[3] = DIVUP(img[3] + 2*m_horizontal_pad - m_window_width, m_horizontal_stride)+1;
         bool defaultcase_y = m_vertical_stride == m_window_height && m_vertical_pad == 0 && (img[2] % m_window_height == 0);
