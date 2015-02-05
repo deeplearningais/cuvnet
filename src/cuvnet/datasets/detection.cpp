@@ -8,6 +8,9 @@
 namespace
 {
     log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("detection"));
+
+    //static double rad2Deg(double rad){return rad*(180/M_PI);}//Convert radians to degrees
+    static double deg2Rad(double deg){return deg*(M_PI/180);}//Convert degrees to radians
 }
 
 
@@ -27,6 +30,7 @@ namespace datasets
     , m_pattern_size(pattern_size)
     {
         std::ifstream ifs(filename.c_str());
+        cuvAssert(ifs.is_open() && ifs.good());
         ifs >> m_n_classes;
         ifs.get(); // consume '\n'
         for(unsigned int klass = 0; klass < m_n_classes; klass++){
@@ -57,7 +61,7 @@ namespace datasets
             if(ifs)
                 m_meta.push_back(m);
         }
-        m_n_classes = mapcnt.size();
+        cuvAssert(m_n_classes == mapcnt.size());
         cuvAssert(m_meta.size() > 0);
         LOG4CXX_WARN(g_log, "read `"<< filename<<"', n_classes: "<<m_n_classes<<", size: "<<m_meta.size());
         shuffle(false);
@@ -89,6 +93,11 @@ namespace datasets
 
             auto regions = random_regions(in->rgb, m_n_crops, m_pattern_size);
             for (auto r : regions){
+                r.center.x += 90;
+                r.center.y += 120;
+                //r.size.width = 1.5 * in->rgb.cols;
+                //r.size.height = 1.5 * in->rgb.rows;
+                r.angle = 25;
                 auto pattern = boost::make_shared<pattern_t>();
                 pattern->original = in;
                 pattern->region_in_original = r;
@@ -99,34 +108,41 @@ namespace datasets
                     // now translate the bounding boxes
                     cv::Rect margins;
                     cv::RotatedRect pos_in_enlarged;
-                    boost::tie(margins,pos_in_enlarged) = required_padding(in->rgb, r);
+                    boost::tie(margins, pos_in_enlarged) = required_padding(in->rgb, r);
                     for(const auto& bb : meta.bboxes){
                         cv::RotatedRect tmp(
                                 cv::Point2f(
-                                    bb.x0+ bb.w/2.f,
-                                    bb.y0+bb.h/2.f),
+                                    bb.x0 + bb.w/2.f,
+                                    bb.y0 + bb.h/2.f),
                                 cv::Size(bb.w, bb.h), 0);
 
-                        // add left and top margins
+                        // 1. add left and top margins
                         tmp.center.x += margins.x;
                         tmp.center.y += margins.y;
 
-                        // put in coordinates of pos_in_enlarged
+                        // 2. put in coordinates of pos_in_enlarged
                         tmp.center -= pos_in_enlarged.center;
 
-                        // rotate in reference frame of 
-                        tmp.angle += pos_in_enlarged.angle;
+                        std::vector<cv::Point2f> bounds(4);
+                        tmp.points(&bounds[0]);
 
-                        cv::Rect r = tmp.boundingRect();
+                        // now rotate these points around the "origin", i.e. the center of pos_in_enlarged
+                        std::vector<cv::Point2f> bounds_rot(4);
+                        for (int i = 0; i < 4; ++i) {
+                            bounds_rot[i].x = bounds[i].x * cos(deg2Rad(-r.angle)) - bounds[i].y*sin(deg2Rad(-r.angle));
+                            bounds_rot[i].y = bounds[i].x * sin(deg2Rad(-r.angle)) + bounds[i].y*cos(deg2Rad(-r.angle));
+                        }
+                        cv::Rect r = cv::boundingRect(bounds_rot);
+
                         bbox pbb;
-                        pbb.x0 = r.tl().x;
-                        pbb.y0 = r.tl().y;
-                        pbb.w  = r.size().width;
-                        pbb.h  = r.size().height;
+                        pbb.x0 = r.x + pos_in_enlarged.size.width/2;
+                        pbb.y0 = r.y + pos_in_enlarged.size.height/2;
+                        pbb.w  = r.width;
+                        pbb.h  = r.height;
                         pattern->bboxes.push_back(pbb);
                     }
                 }
-                // TODO support scaling
+                // TODO support scaling, flip bounding boxes
 
                 std::vector<cv::Mat> chans;
                 cv::split(region, chans);
@@ -146,14 +162,17 @@ namespace datasets
     }
 
     void meta_data<rgb_detection_tag>::show(std::string name, const pattern_t& pat){
-        std::vector<cv::Mat> channels(3, cv::Mat(pat.rgb.shape(1), pat.rgb.shape(2), CV_32FC1));
+        auto rgb = pat.rgb.copy();
+        rgb -= cuv::minimum(rgb);
+        rgb /= cuv::maximum(rgb);
+        std::vector<cv::Mat> channels(3, cv::Mat(rgb.shape(1), rgb.shape(2), CV_32FC1));
         for (int i = 0; i < 3; ++i) {
-            memcpy((char*)channels[i].ptr<float>(), pat.rgb[cuv::indices[i]].ptr(), sizeof(float) * pat.rgb.shape(1) * pat.rgb.shape(2));
+            memcpy((char*)channels[i].ptr<float>(), rgb[cuv::indices[i]].ptr(), sizeof(float) * rgb.shape(1) * rgb.shape(2));
         }
         cv::Mat cvrgb;
         cv::merge(channels, cvrgb);
         for (const auto& bb : pat.bboxes) {
-            cv::line(cvrgb, cv::Point(bb.x0, bb.y0), cv::Point(bb.x0+bb.w, bb.y0+bb.h), cv::Scalar(1));
+            cv::rectangle(cvrgb, cv::Point(bb.x0, bb.y0), cv::Point(bb.x0+bb.w, bb.y0+bb.h), cv::Scalar(1));
         }
         cv::imshow(name, cvrgb);
     }

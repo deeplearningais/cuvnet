@@ -162,13 +162,13 @@ namespace datasets
         cv::Rect br = ir.boundingRect();
         br.x -= 1;
         br.y -= 1;
-        br.width  += 1;
-        br.height += 1;
+        br.width  += 2; // one in every direction
+        br.height += 2;
         std::pair<cv::Rect, cv::RotatedRect> ret;
         ret.first.x = std::max(0, -br.x);
         ret.first.y = std::max(0, -br.y);
-        ret.first.width  = std::max(0,  (br.width + br.x) - m.cols);
-        ret.first.height = std::max(0,  (br.height+ br.y) - m.rows);
+        ret.first.width  = std::max(0,  br.br().x - m.cols + 1);
+        ret.first.height = std::max(0,  br.br().y - m.rows + 1);
         ret.second = ir;
         ret.second.center += cv::Point2f(ret.first.x, ret.first.y);
         assert(ret.second.boundingRect().x >= 0);
@@ -186,13 +186,12 @@ namespace datasets
                 margins.y, margins.height, margins.x, margins.width, 
                 bordertype, value);
 
-        enlarged = enlarged(pos_in_enlarged.boundingRect());
-        pos_in_enlarged.center = cv::Point2f(enlarged.cols/2., enlarged.rows/2.);
-
         cv::Size rect_size = pos_in_enlarged.size;
         float angle = pos_in_enlarged.angle;
         if(angle == 0.){
-            cv::Rect rr(pos_in_enlarged.center.x-pos_in_enlarged.size.width/2, pos_in_enlarged.center.y-pos_in_enlarged.size.height/2,
+            cv::Rect rr(
+                    pos_in_enlarged.center.x - pos_in_enlarged.size.width/2,
+                    pos_in_enlarged.center.y - pos_in_enlarged.size.height/2,
                     pos_in_enlarged.size.width, pos_in_enlarged.size.height);
             cropped = enlarged(rr);
         }
