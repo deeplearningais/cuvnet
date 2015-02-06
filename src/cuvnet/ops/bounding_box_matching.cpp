@@ -71,25 +71,21 @@ namespace cuvnet
         return matching;
     }
 
-    std::pair<float, float> loss_terms(
-            const std::vector<std::vector<BoundingBoxMatching::bbox> >& pred,
-            const std::vector<std::vector<float> >& conf,
-            const std::vector<std::vector<BoundingBoxMatching::bbox> >& teach,
-            const std::vector<std::vector<int> >& matching) {
+    std::pair<float, float> BoundingBoxMatching::loss_terms(){
         float f_match = 0;
         double f_conf = 0;
-        unsigned int bs = pred.size();
-        unsigned int K  = pred[0].size();
+        unsigned int bs = m_output_bbox.size();
 
         for (unsigned int b = 0; b < bs; b++) {
-            std::vector<bool> matched(K);
-            for (unsigned int k = 0; k < K; k++) {
-                int i_m = matching[b][k];
+            std::vector<bool> matched(m_K);
+            for (unsigned int k = 0; k < m_K; k++) {
+                int i_m = m_matching[b][k];
                 if(i_m >= 0) {
-                    f_match += BoundingBoxMatching::bbox::l2dist(pred[b][k], teach[b][i_m]);
-                    f_conf += -logsumexp_0(-conf[b][k]);  // log of sigmoid
+                    f_match += BoundingBoxMatching::bbox::l2dist(
+                            m_typical_bboxes[k] + m_output_bbox[b][k], m_teach_bbox[b][i_m]);
+                    f_conf += logsumexp_0(-m_output_conf[b][k]);  // log of sigmoid
                 } else {
-                    f_conf += -logsumexp_0( conf[b][k]);  // log of (1-sigmoid)
+                    f_conf += logsumexp_0( m_output_conf[b][k]);  // log of (1-sigmoid)
                 }
             }
         }
@@ -131,7 +127,7 @@ namespace cuvnet
         // find optimal matching between kmeans center of bboxes and teacher bboxes
         m_matching = optimal_matching(m_typical_bboxes, m_output_conf, m_alpha, m_teach_bbox);
 
-        boost::tie(m_f_match, m_f_conf) = loss_terms(m_output_bbox, m_output_conf, m_teach_bbox, m_matching); 
+        boost::tie(m_f_match, m_f_conf) = loss_terms(); 
         float loss = m_alpha * m_f_match + m_f_conf;
 
         if(r0.can_overwrite_directly()){

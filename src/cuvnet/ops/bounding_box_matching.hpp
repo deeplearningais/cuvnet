@@ -31,6 +31,30 @@ namespace cuvnet
                                 std::pow(a.y_max - b.y_max, 2)
                                 );
                     };
+
+                    friend bbox operator+(const bbox& l, const bbox& r){
+                        return bbox(
+                                l.x_min + r.x_min,
+                                l.y_min + r.y_min,
+                                l.x_max + r.x_max,
+                                l.y_max + r.y_max
+                                );
+                    };
+                    friend bbox operator-(const bbox& l, const bbox& r){
+                        return bbox(
+                                l.x_min - r.x_min,
+                                l.y_min - r.y_min,
+                                l.x_max - r.x_max,
+                                l.y_max - r.y_max
+                                );
+                    };
+                    inline bbox& scale_like_vec(float f){
+                        x_min *= f;
+                        y_min *= f;
+                        x_max *= f;
+                        y_max *= f;
+                        return *this;
+                    };
                 };
 
             private:
@@ -46,7 +70,10 @@ namespace cuvnet
                 float m_f_conf;
 
                 /// controls the ratio of both errors in the final loss
-                float m_alpha; 
+                float m_alpha;
+
+
+                std::pair<float, float> loss_terms();
 
             public:
                 BoundingBoxMatching(){} ///< for serialization
