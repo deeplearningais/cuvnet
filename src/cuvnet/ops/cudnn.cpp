@@ -266,6 +266,8 @@ namespace cuvnet
 		assert(p0.need_derivative || p1.need_derivative);
 		cuvAssert(r0.delta.cdata().is_c_contiguous());
 
+		value_ptr ptr1, ptr2, ptr0;
+
 		if (p1.need_derivative) {
 			// calculate p1 first, then we don't need activations
 			// anymore and can overwrite them. They are usually
@@ -292,10 +294,13 @@ namespace cuvnet
                             beta == 1 ? CUDNN_RESULT_ACCUMULATE : CUDNN_RESULT_NO_ACCUMULATE));
 #endif
 			} else {
-                const matrix::value_type beta = 0.;
-				value_ptr ptr(new value_type(p1.shape, value_ptr::s_allocator));
 
-				matrix::value_type* gradFilterData = (*ptr).ptr();
+
+                const matrix::value_type beta = 0.;
+				//value_ptr ptr(new value_type(p1.shape, value_ptr::s_allocator));
+				ptr1 = value_type(p1.shape, value_ptr::s_allocator);
+
+				matrix::value_type* gradFilterData = (*ptr1).ptr();
 #if CUDNN_VERSION != 1
 				CUDNN_CALL(cudnnConvolutionBackwardFilter(m_state->handle1, &alpha,
                         m_state->imgDesc, imgData,
@@ -307,7 +312,7 @@ namespace cuvnet
                             m_state->convDesc, m_state->gradFilterDesc, gradFilterData,
                             CUDNN_RESULT_NO_ACCUMULATE));
 #endif
-				p1.push(ptr);
+				//p1.push(ptr1);
 			}
 		}
 
@@ -333,9 +338,10 @@ namespace cuvnet
 #endif
 			} else {
                 const matrix::value_type beta = 0.;
-				value_ptr ptr(new value_type(p2.shape, value_ptr::s_allocator));
+				//value_ptr ptr(new value_type(p2.shape, value_ptr::s_allocator));
+                ptr2 = value_type(p2.shape, value_ptr::s_allocator);
 
-				matrix::value_type* gradbiasData = (*ptr).ptr();
+				matrix::value_type* gradbiasData = (*ptr2).ptr();
 #if CUDNN_VERSION != 1
 				CUDNN_CALL(cudnnConvolutionBackwardBias(m_state->handle2, &alpha,
                         m_state->gradOutputDesc, diffData,
@@ -347,7 +353,7 @@ namespace cuvnet
                         m_state->biasDesc, gradbiasData,
                         CUDNN_RESULT_NO_ACCUMULATE));
 #endif
-				p2.push(ptr);
+			//	p2.push(ptr2);
 			}
         }
 
@@ -371,9 +377,9 @@ namespace cuvnet
 			}
 			else {
                 const matrix::value_type beta = 0.;
-				value_ptr ptr = p0.value;
-				p0.value.reset();       // try to overwrite input activations
-				value_type& v = ptr.data_onlyshape();
+				//value_ptr ptr(new value_type(p0.shape, value_ptr::s_allocator));
+				ptr0 = value_type(p0.shape, value_ptr::s_allocator);
+				value_type& v = *ptr0;
 
 				matrix::value_type* gradImgData = v.ptr();
 
@@ -392,11 +398,19 @@ namespace cuvnet
                             beta == 1 ? CUDNN_RESULT_ACCUMULATE : CUDNN_RESULT_NO_ACCUMULATE));
 #endif
 
-				p0.push(ptr);
+			//	p0.push(ptr0);
 			}
 		}
 		//synchronize
 		emptyKernelCall();
+
+		if (ptr1.ptr() != 0)
+			p1.push(ptr1);
+		if(m_params.size() == 3 && ptr2.ptr() != 0)
+			(*m_params[2]).push(ptr2);
+		if (ptr0.ptr() != 0)
+			p0.push(ptr0);
+
 	}
 
 	void ConvolvecuDNN::_determine_shapes() {
