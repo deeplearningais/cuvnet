@@ -2559,7 +2559,6 @@ BOOST_AUTO_TEST_CASE(szegedy_op){
     float alpha = 1.0;
 
     boost::shared_ptr<ParameterInput> inp0 = boost::make_shared<ParameterInput>(cuv::extents[bs][K][5]);
-    //boost::shared_ptr<ParameterInput> inp1 = boost::make_shared<ParameterInput>(cuv::extents[bs][K]);
 
     std::vector<BoundingBoxMatching::bbox> kmeans(K);
     for (unsigned int k = 0; k < K; k++) {
@@ -2581,7 +2580,6 @@ BOOST_AUTO_TEST_CASE(szegedy_op){
 
     cuv::fill_rnd_uniform(inp0->data());
     inp0->data() /= 1.f;
-    //cuv::fill_rnd_uniform(inp1->data());
 
     boost::shared_ptr<BoundingBoxMatching> func = 
         boost::make_shared<BoundingBoxMatching>(inp0->result(), kmeans, alpha); 
@@ -2606,7 +2604,7 @@ BOOST_AUTO_TEST_CASE(szegedy_op){
 
     std::cout << "loss: " << func->get_f_match() << " " << func->get_f_conf() << std::endl;
    
-    derivative_tester (*func).epsilon(0.2).test();
+    derivative_tester (*func).test();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -9,12 +9,12 @@ namespace cuvnet
         double tmp = std::max((double)0, z);
         return std::log(std::exp(z-tmp) + std::exp(0-tmp)) + tmp;
     }
-    /// calculates 1 / (1 + exp(z) )
+    /// calculates 1 / (1 + exp(-z) )
     inline double sigmoid(double z){
         if (z >= 0)
-            return           1 / (1 + std::exp(z));
+            return           1 / (1 + std::exp(-z));
         else
-            return std::exp(z) / (1 + std::exp(z));
+            return std::exp(z) / (1 + std::exp( z));
     }
 
     std::vector<std::vector<int> > optimal_matching(
@@ -81,8 +81,8 @@ namespace cuvnet
             for (unsigned int k = 0; k < m_K; k++) {
                 int i_m = m_matching[b][k];
                 if(i_m >= 0) {
-                    f_match += BoundingBoxMatching::bbox::l2dist(
-                            m_typical_bboxes[k] + m_output_bbox[b][k], m_teach_bbox[b][i_m]);
+                    f_match += std::pow(BoundingBoxMatching::bbox::l2dist(
+                            m_typical_bboxes[k] + m_output_bbox[b][k], m_teach_bbox[b][i_m]), 2);
                     f_conf += logsumexp_0(-m_output_conf[b][k]);  // log of sigmoid
                 } else {
                     f_conf += logsumexp_0( m_output_conf[b][k]);  // log of (1-sigmoid)
@@ -160,16 +160,13 @@ namespace cuvnet
                 int i_m = m_matching[b][k];
 
                 if (i_m >= 0) { // means matching 
-                    // would like to write this...
-                    //delta_matching[b][k] = m_alpha * (m_teach_bbox[b][i_m] - m_output_bbox[b][k]);
-                    delta_matching[b][k].x_min = m_alpha * (m_teach_bbox[b][i_m].x_min - m_output_bbox[b][k].x_min);
-                    delta_matching[b][k].y_min = m_alpha * (m_teach_bbox[b][i_m].y_min - m_output_bbox[b][k].y_min);
-                    delta_matching[b][k].x_max = m_alpha * (m_teach_bbox[b][i_m].x_max - m_output_bbox[b][k].x_max);
-                    delta_matching[b][k].y_max = m_alpha * (m_teach_bbox[b][i_m].y_max - m_output_bbox[b][k].y_max);
+                    delta_matching[b][k] = 
+                        (m_typical_bboxes[k] + m_output_bbox[b][k]
+                         - m_teach_bbox[b][i_m]).scale_like_vec(m_alpha);
                 
-                    delta_conf[b][k] = sigmoid(m_output_conf[b][k]);
+                    delta_conf[b][k] = - sigmoid(-m_output_conf[b][k]);
                 } else {
-                    delta_conf[b][k] = sigmoid(m_output_conf[b][k]) - 1;
+                    delta_conf[b][k] =   sigmoid( m_output_conf[b][k]);
                 }
             }
         }
