@@ -1176,6 +1176,9 @@ BOOST_AUTO_TEST_CASE(derivative_test_sep_conv1d){
  *}
  */
 
+
+
+
 BOOST_AUTO_TEST_CASE(derivative_test_response_normalization_cross_maps){
     typedef boost::shared_ptr<Op> ptr_t;
 
@@ -2480,19 +2483,14 @@ BOOST_AUTO_TEST_CASE(cuDNN_speed){
 
         {
             unsigned int nImgChan = 3;
-            unsigned int nImgPixX = 224;
-            unsigned int nImgPixY = 224;
-            unsigned int nImg     = 64;
-
-    	/* unsigned int nImgChan = 3;
-    	 unsigned int nImgPixX = 7;
-    	 unsigned int nImgPixY = 7;
-    	 unsigned int nImg     = 256;*/
+            unsigned int nImgPixX = 7;
+            unsigned int nImgPixY = 7;
+            unsigned int nImg     = 2000;
 
             unsigned int nFiltChan = nImgChan;
-            unsigned int nFiltPixX  = 11;
-            unsigned int nFiltPixY  = 11;
-            unsigned int nFilt     = 32;
+            unsigned int nFiltPixX  = 3;
+            unsigned int nFiltPixY  = 3;
+            unsigned int nFilt     = 2000;
 
             {
                boost::shared_ptr<ParameterInput>  inp0a = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
@@ -2508,15 +2506,15 @@ BOOST_AUTO_TEST_CASE(cuDNN_speed){
             	   ptr_t op1 = boost::make_shared<Convolve>(inp0b->result(), inp1b->result(), true, padding, 1, 1, 0);
 
             	   cuvnet::function func0f(op0);
-            	   MEASURE_TIME(cudnn_f, func0f.evaluate(), 10);
+            	   MEASURE_TIME(cudnn_f, func0f.evaluate(), 100);
             	   cuvnet::function func1f(op1);
-            	   MEASURE_TIME(alex_f, func1f.evaluate(), 10);
+            	   MEASURE_TIME(alex_f, func1f.evaluate(), 100);
 
             	   cuvnet::delta_function func0(op0, op0, 0, dinput);
-            	   MEASURE_TIME(cudnn_fb, func0.evaluate(), 10);
+            	   MEASURE_TIME(cudnn_fb, func0.evaluate(), 100);
 
             	   cuvnet::delta_function func1(op1, op1, 0, dinput);
-            	   MEASURE_TIME(alex_fb, func1.evaluate(), 10);
+            	   MEASURE_TIME(alex_fb, func1.evaluate(), 100);
 
             	   std::cout << "fprop speedup alex/cudnn: " << (alex_f) / (cudnn_f) << std::endl;
             	   std::cout << "bprop speedup alex/cudnn: " << (alex_fb-alex_f) / (cudnn_fb-cudnn_f) << std::endl;
