@@ -156,6 +156,10 @@ namespace cuvnet
             CUDNN_CALL(cudnnDestroyTensorDescriptor(gradBiasDesc));
 
             CUDNN_CALL(cudnnDestroyConvolutionDescriptor(convDesc));
+
+            destroyCudaStream(stream1);
+            destroyCudaStream(stream2);
+            destroyCudaStream(stream3);
             CUDNN_CALL(cudnnDestroy(handle1));
             CUDNN_CALL(cudnnDestroy(handle2));
             CUDNN_CALL(cudnnDestroy(handle3));
@@ -410,6 +414,10 @@ namespace cuvnet
 			(*m_params[2]).push(ptr2);
 		if (ptr0.ptr() != 0)
 			p0.push(ptr0);
+
+	/*	ptr1.reset();
+		ptr2.reset();
+		ptr0.reset();*/
 
 	}
 
