@@ -109,6 +109,8 @@ BOOST_CLASS_EXPORT_KEY(cuvnet::F2Measure);
 BOOST_CLASS_EXPORT_KEY(cuvnet::EpsilonInsensitiveLoss);
 BOOST_CLASS_EXPORT_KEY(cuvnet::HingeLoss);
 
+BOOST_CLASS_EXPORT_KEY(cuvnet::BoundingBoxMatching);
+
 // convolutions
 BOOST_CLASS_EXPORT_KEY(cuvnet::Convolve);
 BOOST_CLASS_EXPORT_KEY(cuvnet::ConvolvecuDNN);

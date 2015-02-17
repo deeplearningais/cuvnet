@@ -84,6 +84,8 @@ BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::F2Measure);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::EpsilonInsensitiveLoss);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::HingeLoss);
 
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::BoundingBoxMatching);
+
 // convolutions
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::Convolve);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::ConvolvecuDNN);

@@ -1,5 +1,5 @@
 #ifndef __BOUNDING_BOX_MATCHING_OP_HPP__
-#   define BOUNDING_BOX_MATCHING_OP_HPP__
+#   define __BOUNDING_BOX_MATCHING_OP_HPP__
 
 #include <cuvnet/op.hpp>
 #include <cuvnet/datasets/detection.hpp>
@@ -67,7 +67,9 @@ namespace cuvnet
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
-                        //ar & m_identity;
+                        ar & m_K;
+                        ar & m_alpha;
+                        ar & m_typical_bboxes; 
                     }
         };
 }

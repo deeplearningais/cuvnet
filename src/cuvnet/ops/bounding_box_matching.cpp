@@ -37,9 +37,11 @@ namespace cuvnet
 
             Graph pg(K + teach_boxes);
 
-            boost::property_map<Graph,
-                boost::vertex_name_t>::type
-                    vm= boost::get(boost::vertex_name, pg);
+            /*
+             *boost::property_map<Graph,
+             *    boost::vertex_name_t>::type
+             *        vm= boost::get(boost::vertex_name, pg);
+             */
             boost::property_map<Graph,
                 boost::edge_weight_t>::type
                     ew= boost::get(boost::edge_weight, pg);
