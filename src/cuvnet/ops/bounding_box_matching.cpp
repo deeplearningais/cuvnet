@@ -18,10 +18,10 @@ namespace cuvnet
     }
 
     std::vector<std::vector<int> > optimal_matching(
-            const std::vector<BoundingBoxMatching::bbox>& means, 
+            const std::vector<datasets::rotated_rect>& means, 
             const std::vector<std::vector<float> >& conf,
             const float alpha, 
-            const std::vector<std::vector<BoundingBoxMatching::bbox> >& teach){
+            const std::vector<std::vector<datasets::bbox> >& teach){
         unsigned int bs = teach.size();
         unsigned int K = means.size();
         
@@ -52,8 +52,10 @@ namespace cuvnet
                     // make costs negative, because graph is solved for a maximum weighted matching
                     // add offset for node index due to prediction boxes
                     ew[boost::add_edge(k, K+t, pg).first] = 
-                        - alpha * BoundingBoxMatching::bbox::l2dist(means[k], teach[b][t])
-                        - -logsumexp_0(-conf[b][k]);
+                        - alpha * datasets::rotated_rect::l2dist(means[k], teach[b][t].rect)
+                        + conf[b][k];
+                        //- logsumexp_0(-conf[b][k])   // these two are equivalent to conf[b][k]
+                        //+ logsumexp_0( conf[b][k]);
                 }
             }
 
@@ -81,8 +83,8 @@ namespace cuvnet
             for (unsigned int k = 0; k < m_K; k++) {
                 int i_m = m_matching[b][k];
                 if(i_m >= 0) {
-                    f_match += std::pow(BoundingBoxMatching::bbox::l2dist(
-                            m_typical_bboxes[k] + m_output_bbox[b][k], m_teach_bbox[b][i_m]), 2);
+                    f_match += std::pow(datasets::rotated_rect::l2dist(
+                                m_output_bbox[b][k], m_teach[b][i_m].rect), 2);
                     f_conf += logsumexp_0(-m_output_conf[b][k]);  // log of sigmoid
                 } else {
                     f_conf += logsumexp_0( m_output_conf[b][k]);  // log of (1-sigmoid)
@@ -104,28 +106,29 @@ namespace cuvnet
         // - calculate loss of bboxes and confidence
        
         cuv::tensor<float, cuv::host_memory_space> prediction = p0.value.data();
-        //cuv::tensor<float, cuv::host_memory_space> confidence = p1.value.data();
 
         unsigned int bs = prediction.shape(0);
-        m_K = prediction.shape(1);
-        
+        m_K = prediction.shape(1) / 5;
+        prediction.reshape({bs, m_K, 5});
+
         m_output_bbox.resize(bs);
         m_output_conf.resize(bs);
         for (unsigned int b = 0; b < bs; b++) {
             m_output_bbox[b].resize(m_K);
             m_output_conf[b].resize(m_K);
             for (unsigned int k = 0; k < m_K; k++) {
-                m_output_bbox[b][k].x_min = prediction(b, k, 0) + m_typical_bboxes[k].x_min;
-                m_output_bbox[b][k].y_min = prediction(b, k, 1) + m_typical_bboxes[k].y_min;
-                m_output_bbox[b][k].x_max = prediction(b, k, 2) + m_typical_bboxes[k].x_max;
-                m_output_bbox[b][k].y_max = prediction(b, k, 3) + m_typical_bboxes[k].y_max;
+                m_output_bbox[b][k].x = prediction(b, k, 0) + m_typical_bboxes[k].x;
+                m_output_bbox[b][k].y = prediction(b, k, 1) + m_typical_bboxes[k].y;
+                m_output_bbox[b][k].h = prediction(b, k, 2) + m_typical_bboxes[k].h;
+                m_output_bbox[b][k].w = prediction(b, k, 3) + m_typical_bboxes[k].w;
 
                 m_output_conf[b][k] = prediction(b, k, 4);
             }
         }
 
         // find optimal matching between kmeans center of bboxes and teacher bboxes
-        m_matching = optimal_matching(m_typical_bboxes, m_output_conf, m_alpha, m_teach_bbox);
+        // wrt to loss function
+        m_matching = optimal_matching(m_typical_bboxes, m_output_conf, m_alpha, m_teach);
 
         boost::tie(m_f_match, m_f_conf) = loss_terms(); 
         float loss = m_alpha * m_f_match + m_f_conf;
@@ -151,37 +154,42 @@ namespace cuvnet
         float delta = r0.delta.data()[0];
         unsigned int bs = m_output_bbox.size();
 
-        std::vector<std::vector<bbox> > delta_matching(bs);
-        std::vector<std::vector<float> > delta_conf(bs);
+        m_delta_matching.resize(bs);
+        m_delta_conf.resize(bs);
         for (unsigned int b = 0; b < bs; b++) {
-            delta_matching[b].resize(m_K);
-            delta_conf[b].resize(m_K);
+            m_delta_matching[b].resize(m_K);
+            m_delta_conf[b].resize(m_K);
             for (unsigned int k = 0; k < m_K; k++) {
                 int i_m = m_matching[b][k];
 
                 if (i_m >= 0) { // means matching 
-                    delta_matching[b][k] = 
-                        (m_typical_bboxes[k] + m_output_bbox[b][k]
-                         - m_teach_bbox[b][i_m]).scale_like_vec(m_alpha);
+                    m_delta_matching[b][k] = (m_output_bbox[b][k]
+                            - m_teach[b][i_m].rect).scale_like_vec(m_alpha);
                 
-                    delta_conf[b][k] = - sigmoid(-m_output_conf[b][k]);
+                    m_delta_conf[b][k] = - sigmoid(-m_output_conf[b][k]);
                 } else {
-                    delta_conf[b][k] =   sigmoid( m_output_conf[b][k]);
+                    m_delta_matching[b][k].x = 0;
+                    m_delta_matching[b][k].y = 0;
+                    m_delta_matching[b][k].h = 0;
+                    m_delta_matching[b][k].w = 0;
+                    
+                    m_delta_conf[b][k] =   sigmoid( m_output_conf[b][k]);
                 }
             }
         }
 
         cuv::tensor<float, cuv::host_memory_space> grad;
-        grad.resize(p0.shape);
+        grad.resize({bs, m_K, 5});
         for (unsigned int b = 0; b < bs; b++) {
             for (unsigned int k = 0; k < m_K; k++) {
-                grad(b,k,0) = delta_matching[b][k].x_min;
-                grad(b,k,1) = delta_matching[b][k].y_min;
-                grad(b,k,2) = delta_matching[b][k].x_max;
-                grad(b,k,3) = delta_matching[b][k].y_max;
-                grad(b,k,4) = delta_conf[b][k];
+                grad(b,k,0) = m_delta_matching[b][k].x;
+                grad(b,k,1) = m_delta_matching[b][k].y;
+                grad(b,k,2) = m_delta_matching[b][k].h;
+                grad(b,k,3) = m_delta_matching[b][k].w;
+                grad(b,k,4) = m_delta_conf[b][k];
             }
         }
+        grad.reshape(p0.shape);
         grad *= delta;
 
         if(p0.can_overwrite_directly()){
@@ -201,8 +209,8 @@ namespace cuvnet
         m_results[0]->shape[0] = 1;
 
         // assertions for input dimensions 
-        cuvAssert(m_params[0]->shape.size() == 3);
-        cuvAssert(m_params[0]->shape[2] == 5);
-        cuvAssert(m_params[0]->shape[1] == m_typical_bboxes.size());
+        cuvAssert(m_params[0]->shape.size() == 2);
+        cuvAssert(m_params[0]->shape[1] % 5 == 0);
+        cuvAssert(m_params[0]->shape[1] / 5 == m_typical_bboxes.size());
     }
 }

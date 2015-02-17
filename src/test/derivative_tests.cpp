@@ -15,6 +15,7 @@
 #include <cuv/tools/timing.hpp>
 
 #include <cuvnet/ops.hpp>
+#include <cuvnet/datasets/detection.hpp>
 
 #include <boost/test/unit_test.hpp>
 #ifndef GTEST_INCLUDE_GTEST_GTEST_H_
@@ -2553,58 +2554,69 @@ BOOST_AUTO_TEST_CASE(cuDNN_pooling){
 BOOST_AUTO_TEST_CASE(szegedy_op){
     //typedef boost::shared_ptr<Op> ptr_t;
 
-    unsigned int bs = 5;
-    unsigned int K = 3;
-    unsigned int T = 2; // teacher bboxes
-    float alpha = 1.0;
+    unsigned int bs =  10; // batch size
+    unsigned int  K =   4; // number of predictions per image
+    unsigned int  T =   1; // teacher bboxes
+    float     alpha = 1.0; // scales bounding box distance loss
 
-    boost::shared_ptr<ParameterInput> inp0 = boost::make_shared<ParameterInput>(cuv::extents[bs][K][5]);
+    boost::shared_ptr<ParameterInput> inp0 = boost::make_shared<ParameterInput>(cuv::extents[bs][K*5]);
 
-    std::vector<BoundingBoxMatching::bbox> kmeans(K);
+    std::vector<datasets::rotated_rect> kmeans(K);
     for (unsigned int k = 0; k < K; k++) {
-        kmeans[k].x_min = drand48()*1;
-        kmeans[k].y_min = drand48()*1;
-        kmeans[k].x_max = drand48()*1;
-        kmeans[k].y_max = drand48()*1;
+        kmeans[k].x = drand48() * 1;
+        kmeans[k].y = drand48() * 1;
+        kmeans[k].h = drand48() * 1;
+        kmeans[k].w = drand48() * 1;
     }
-    std::vector<std::vector<BoundingBoxMatching::bbox> > teach(bs);
+    std::vector<std::vector<datasets::bbox> > teach(bs);
     for (unsigned int b = 0; b < bs; b++) {
         teach[b].resize(T);
         for (unsigned int t = 0; t < T; t++) {
-            teach[b][t].x_min = drand48()*1;
-            teach[b][t].y_min = drand48()*1;
-            teach[b][t].x_max = drand48()*1;
-            teach[b][t].y_max = drand48()*1;
+            teach[b][t].rect.x = drand48();
+            teach[b][t].rect.y = drand48();
+            teach[b][t].rect.h = drand48();
+            teach[b][t].rect.w = drand48();
         }
     }
 
     cuv::fill_rnd_uniform(inp0->data());
-    inp0->data() /= 1.f;
+    inp0->data() *= 2.f;
+    inp0->data() -= 1.f;
+
+    // first teacher is exactly the mean
+    teach[0][0].rect = kmeans[0];
+    // accordingly, the input should be very confident and have zero offsets
+    inp0->data()(0, 0) = 0.f;
+    inp0->data()(0, 1) = 0.f;
+    inp0->data()(0, 2) = 0.f;
+    inp0->data()(0, 3) = 0.f;
+    inp0->data()(0, 4) = 5.f;
 
     boost::shared_ptr<BoundingBoxMatching> func = 
         boost::make_shared<BoundingBoxMatching>(inp0->result(), kmeans, alpha); 
     
     // set teacher
-    func->set_teacher_bbox(teach);
+    //func->set_teacher_bbox(teach);
+    func->m_teach = teach;
 
     function f(func);
     matrix res = f.evaluate();
    
     BOOST_CHECK_EQUAL(res[0], alpha * func->get_f_match() + func->get_f_conf());
 
-    std::vector<std::vector<BoundingBoxMatching::bbox> > output_bbox = func->get_output_bbox(); 
+    std::vector<std::vector<datasets::rotated_rect> > output_bbox = func->get_output_bbox(); 
     for (unsigned int b = 0; b < bs; b++) {
         for (unsigned int k = 0; k < K; k++) {
-            BOOST_CHECK_EQUAL(output_bbox[b][k].x_min, inp0->data()(b, k, 0) + kmeans[k].x_min);
-            BOOST_CHECK_EQUAL(output_bbox[b][k].y_min, inp0->data()(b, k, 1) + kmeans[k].y_min);
-            BOOST_CHECK_EQUAL(output_bbox[b][k].x_max, inp0->data()(b, k, 2) + kmeans[k].x_max);
-            BOOST_CHECK_EQUAL(output_bbox[b][k].y_max, inp0->data()(b, k, 3) + kmeans[k].y_max);
+            BOOST_CHECK_EQUAL(output_bbox[b][k].x, inp0->data()(b, k * 5 + 0) + kmeans[k].x);
+            BOOST_CHECK_EQUAL(output_bbox[b][k].y, inp0->data()(b, k * 5 + 1) + kmeans[k].y);
+            BOOST_CHECK_EQUAL(output_bbox[b][k].h, inp0->data()(b, k * 5 + 2) + kmeans[k].h);
+            BOOST_CHECK_EQUAL(output_bbox[b][k].w, inp0->data()(b, k * 5 + 3) + kmeans[k].w);
         }
     }
 
     std::cout << "loss: " << func->get_f_match() << " " << func->get_f_conf() << std::endl;
    
-    derivative_tester (*func).test();
+    derivative_tester (*func).values(1,-1).test();
 }
 
 BOOST_AUTO_TEST_SUITE_END()
