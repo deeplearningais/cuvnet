@@ -48,6 +48,69 @@ namespace datasets{
         double a;
         rotated_rect& operator=(const cv::RotatedRect& r);
         operator cv::RotatedRect()const;
+        rotated_rect(){};
+        rotated_rect(float x, float y, float h, float w, double a)
+            :x(x), y(y), h(h), w(w), a(a){};
+
+        /// calculates the l2 distance of two rectangles. Warning: Ignores rotation!
+        static inline float l2dist(const rotated_rect& a, const rotated_rect& b) {
+            return std::sqrt(
+                    std::pow(a.x - b.x, 2) +
+                    std::pow(a.y - b.y, 2) +
+                    std::pow(a.h - b.h, 2) +
+                    std::pow(a.w - b.w, 2)
+                    );
+        };
+        
+        friend rotated_rect operator+(const rotated_rect& l, const rotated_rect& r) {
+           return rotated_rect(
+                   l.x + r.x,
+                   l.y + r.y,
+                   l.h + r.h,
+                   l.w + r.w,
+                   l.a + r.a
+                   ); 
+        };
+        friend rotated_rect operator-(const rotated_rect& l, const rotated_rect& r) {
+           return rotated_rect(
+                   l.x - r.x,
+                   l.y - r.y,
+                   l.h - r.h,
+                   l.w - r.w,
+                   l.a - r.a
+                   ); 
+        };
+
+        /// scales parameters independly by a factor. Useful for a scaled difference of rectangles. 
+        // Ignores rotation
+        inline rotated_rect& scale_like_vec(const float f) {
+            x *= f;
+            y *= f;
+            h *= f;
+            w *= f;
+            return *this;
+        };
+
+        // necessary if one wants to export vectors of vectors of this struct to python
+        bool operator==(const rotated_rect& b)const{
+            const rotated_rect& a = *this;
+            return (a.x == b.x) && (a.y == b.y) && (a.h == b.h) && (a.w == b.w) && (a.a == b.a);
+        }
+        bool operator!=(const rotated_rect& b)const{
+            const rotated_rect& a = *this;
+            return (a.x != b.x) || (a.y != b.y) || (a.h != b.h) || (a.w != b.w) || (a.a != b.a);
+        }
+
+        private:
+            friend class boost::serialization::access;
+            template<class Archive>
+                void serialize(Archive& ar, const unsigned int version){
+                    ar & x;
+                    ar & y;
+                    ar & h;
+                    ar & w;
+                    ar & a;
+                }
     };
 
 
