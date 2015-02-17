@@ -14,10 +14,22 @@ namespace datasets
 
     /// represents a bounding box of an object
     struct bbox{
-        float x0, y0, w, h;
+        rotated_rect rect;
         int klass;
         float confidence;
         bool truncated;
+       
+        // needed for python export as base for std::vector
+        bool operator==(const bbox& b)const{
+            const bbox& a = *this;
+            return (a.rect == b.rect) && (a.klass == b.klass) &&
+                (a.confidence == b.confidence) && (a.truncated == b.truncated);
+        }
+        bool operator!=(const bbox& b)const{
+            const bbox& a = *this;
+            return (a.rect != b.rect) || (a.klass != b.klass) || 
+                (a.confidence != b.confidence) || (a.truncated != b.truncated);
+        }
     };
     
     struct rgb_detection_pattern : public rgb_pattern{

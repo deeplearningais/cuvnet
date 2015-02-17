@@ -52,10 +52,10 @@ namespace datasets
                 ifs >> bb.klass;
                 mapcnt[bb.klass]++;
                 ifs >> bb.truncated;
-                ifs >> bb.x0;
-                ifs >> bb.w;   bb.w -= bb.x0;
-                ifs >> bb.y0;
-                ifs >> bb.h;   bb.h -= bb.y0;
+                ifs >> bb.rect.x;
+                ifs >> bb.rect.w;   bb.rect.w -= bb.rect.x;
+                ifs >> bb.rect.y;
+                ifs >> bb.rect.h;   bb.rect.h -= bb.rect.y;
                 m.bboxes.push_back(bb);
             }
             if(ifs)
@@ -68,12 +68,15 @@ namespace datasets
     }
 
     void rgb_detection_dataset::set_imagenet_mean(std::string filename){
+            // TODO
+            /*
             LOG4CXX_WARN(g_log, "read imagnet mean from `"<< filename<<"'");
             std::ifstream meanifs(filename.c_str());
             cuvAssert(meanifs.is_open());
             cuvAssert(meanifs.good());
             m_imagenet_mean.resize(cuv::extents[3][m_pattern_size][m_pattern_size]);
             meanifs.read((char*)m_imagenet_mean.ptr(), m_imagenet_mean.memsize());
+            */
     }
 
     void rgb_detection_dataset::set_image_basepath(std::string path){
@@ -112,9 +115,9 @@ namespace datasets
                     for(const auto& bb : meta.bboxes){
                         cv::RotatedRect tmp(
                                 cv::Point2f(
-                                    bb.x0 + bb.w/2.f,
-                                    bb.y0 + bb.h/2.f),
-                                cv::Size(bb.w, bb.h), 0);
+                                    bb.rect.x + bb.rect.w/2.f,
+                                    bb.rect.y + bb.rect.h/2.f),
+                                cv::Size(bb.rect.w, bb.rect.h), 0);
 
                         // 1. add left and top margins
                         tmp.center.x += margins.x;
@@ -135,10 +138,10 @@ namespace datasets
                         cv::Rect r = cv::boundingRect(bounds_rot);
 
                         bbox pbb;
-                        pbb.x0 = r.x + pos_in_enlarged.size.width/2;
-                        pbb.y0 = r.y + pos_in_enlarged.size.height/2;
-                        pbb.w  = r.width;
-                        pbb.h  = r.height;
+                        pbb.rect.x = r.x + pos_in_enlarged.size.width/2;
+                        pbb.rect.y = r.y + pos_in_enlarged.size.height/2;
+                        pbb.rect.w  = r.width;
+                        pbb.rect.h  = r.height;
                         pattern->bboxes.push_back(pbb);
                     }
                 }
@@ -172,7 +175,7 @@ namespace datasets
         cv::Mat cvrgb;
         cv::merge(channels, cvrgb);
         for (const auto& bb : pat.bboxes) {
-            cv::rectangle(cvrgb, cv::Point(bb.x0, bb.y0), cv::Point(bb.x0+bb.w, bb.y0+bb.h), cv::Scalar(1));
+            cv::rectangle(cvrgb, cv::Point(bb.rect.x, bb.rect.y), cv::Point(bb.rect.x+bb.rect.w, bb.rect.y+bb.rect.h), cv::Scalar(1));
         }
         cv::imshow(name, cvrgb);
     }
