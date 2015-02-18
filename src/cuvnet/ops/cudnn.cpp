@@ -4,7 +4,7 @@
 #include <cuvnet/ops/cudnn.hpp>
 #include <third_party/cudnn-6.5-linux-R1/cudnn.h>
 //#include <third_party/cudnn-6.5-linux-x64-R2-rc1/cudnn.h>
-#include </home/stud/sheikhr/cuda-workspace/streamsHelper/kernels.hpp>
+#include <cuv/libs/caffe/caffe.hpp>
 
 #define DIVUP(x,y) (((x)+ (y) -1) / (y))
 #define CUDNN_CALL(XXX) if(1){ \
@@ -34,6 +34,8 @@ namespace cuvnet
      * ConvolvecuDNN
      ***************************************************/
 
+    using namespace cuv::caffe;
+
 	template<class T>
 	cudnnDataType_t cudnn_data_type() {
 		if (cuv::IsSame<typename T::value_type, float>::Result::value)
@@ -62,9 +64,9 @@ namespace cuvnet
                 std::vector<unsigned int> bias_shape
                 ){
 
-            createCudaStream(stream1);
-        	createCudaStream(stream2);
-        	createCudaStream(stream3);
+        	create_cuda_stream(stream1);
+        	create_cuda_stream(stream2);
+        	create_cuda_stream(stream3);
 
         	CUDNN_CALL(cudnnCreate(&handle1));
         	CUDNN_CALL(cudnnCreate(&handle2));
@@ -157,9 +159,9 @@ namespace cuvnet
 
             CUDNN_CALL(cudnnDestroyConvolutionDescriptor(convDesc));
 
-            destroyCudaStream(stream1);
-            destroyCudaStream(stream2);
-            destroyCudaStream(stream3);
+            destroy_cuda_stream(stream1);
+            destroy_cuda_stream(stream2);
+            destroy_cuda_stream(stream3);
             CUDNN_CALL(cudnnDestroy(handle1));
             CUDNN_CALL(cudnnDestroy(handle2));
             CUDNN_CALL(cudnnDestroy(handle3));
@@ -406,7 +408,7 @@ namespace cuvnet
 			}
 		}
 		//synchronize
-		emptyKernelCall();
+		empty_kernel_call();
 
 		if (ptr1.ptr() != 0)
 			p1.push(ptr1);

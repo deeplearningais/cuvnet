@@ -1177,9 +1177,7 @@ BOOST_AUTO_TEST_CASE(derivative_test_sep_conv1d){
  */
 
 
-BOOST_AUTO_TEST_CASE(response_normalization_cross_maps_nchw){
-    using namespace std;
-
+BOOST_AUTO_TEST_CASE(response_normalization_cross_maps_caffe){
 	typedef boost::shared_ptr<Op> ptr_t;
 
     unsigned int nImgChan = 16;
@@ -1189,61 +1187,12 @@ BOOST_AUTO_TEST_CASE(response_normalization_cross_maps_nchw){
 
     boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX]);
 
-
     float alpha = 0.0000125f;
     float beta = 0.75f;
     float size = 3;
-
-    for(unsigned int i=0; i<nImg; i++){
-        for (unsigned int j = 0; j < nImgChan; ++j)
-        {
-            for (unsigned int y = 0; y < nImgPixY; ++y)
-            {
-                for (unsigned int x = 0; x < nImgPixX; ++x)
-                {
-                    //inp0->data()(i,y,x,j) = ((x%2)==0) && ((y%2)==1);
-                    inp0->data()(i,j,y,x) = 0.1f + 0.9 * drand48();
-
-                }
-            }
-        }
-    }
     {
-
-        ptr_t op		               = boost::make_shared<ResponseNormalizationAcrossMapsNCHW>(inp0->result(), size, alpha, beta);
-        //derivative_tester(*func).verbose().test();
-
- 	   cuvnet::function func0f(op);
- 	  matrix res = func0f.evaluate();
-
-
- 	    for(unsigned int n=0; n<nImg; n++){
- 	        for (unsigned int c = 0; c < nImgChan; ++c)
- 	        {
- 	            for (unsigned int h = 0; h < nImgPixY; ++h)
- 	            {
- 	                for (unsigned int w = 0; w < nImgPixX; ++w)
- 	                {
- 	                    int c_start = c - (size - 1) / 2;
- 	                   int c_end = c_start + size;
- 	                    if (nImgChan < c_start + size)
- 	                    	c_end = nImgChan;
- 	                  // int c_end = min(c_start + size, nImgChan);
- 	                   if (c_start < 0)
- 	                	  c_start = 0;
- 	                 //  c_start = max(c_start, 0);
- 	                   float scale = 1.;
- 	                   for (int i = c_start; i < c_end; ++i) {
- 	                   float value = inp0->data()(n, i, h, w);
- 	                   scale += value * value * alpha / size;
- 	                   }
-
- 	                  EXPECT_NEAR(res(n, c, h, w), inp0->data()(n, c, h, w) / pow(scale, beta), 0.00001f);
-
- 	                }
- 	            }
- 	        }
- 	    }
+        ptr_t op = boost::make_shared<ResponseNormalizationAcrossMapsCaffe>(inp0->result(), size, alpha, beta);
+        derivative_tester(*op).test();
 
     }
 }

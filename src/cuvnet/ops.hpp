@@ -26,6 +26,7 @@
 #include <cuvnet/ops/convolve.hpp>
 #include <cuvnet/ops/cuda_convnet.hpp>
 #include <cuvnet/ops/cudnn.hpp>
+#include <cuvnet/ops/caffe.hpp>
 #include <cuvnet/ops/theano_ops.hpp>
 #include <cuvnet/ops/weighted_sub_tensor_op.hpp>
 #include <cuvnet/ops/tuplewise.hpp>

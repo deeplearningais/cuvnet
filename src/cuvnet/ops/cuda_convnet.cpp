@@ -2,7 +2,6 @@
 #include <cuvnet/common.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/ops/cuda_convnet.hpp>
-#include </home/stud/sheikhr/cuda-workspace/streamsHelper/kernels.hpp>
 
 
 namespace cuvnet
@@ -520,91 +519,6 @@ namespace cuvnet
             m_group_size = m_params[0]->shape[0];
         m_results[0]->shape = m_params[0]->shape;
     }
-
-
-    /***************************************************
-     * ResponseNormalizationAcrossMapsNCHW
-     ***************************************************/
-
-    void ResponseNormalizationAcrossMapsNCHW::release_data(){
-        m_denom.dealloc();
-        m_orig_out.reset();
-        Op::release_data();
-    }
-
-    void ResponseNormalizationAcrossMapsNCHW::fprop(){
-     //   using namespace cuv;
-    	using namespace std;
-
-        param_t::element_type&  p0 = *m_params[0];
-        result_t::element_type& r0 = *m_results[0];
-
-        int nImages = p0.shape[0];
-        int nMaps = p0.shape[1];
-        int height = p0.shape[2];
-        int width = p0.shape[3];
-
-        m_denom.resize(r0.shape);
-        if(r0.can_overwrite_directly()){
-            // note: we need to /first/ run the function, /then/ copy the cow_ptr!
-            //       otherwise only a copy will be overwritten.
-       //     response_norm_cross_map_nchw(*r0.overwrite_or_add_value(), m_denom, p0.value.cdata(), m_group_size, m_add_scale, m_pow_scale);
-
-            response_norm_cross_map_nchw((p0.value.cdata()).ptr(), nImages, nMaps, height, width, m_group_size, m_add_scale , m_pow_scale, (*r0.overwrite_or_add_value()).ptr());
-
-            m_orig_out = r0.overwrite_or_add_value();
-        }else{
-           value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
-          //  response_norm_cross_map_nchw(*v, m_denom, p0.value.cdata(), m_group_size, m_add_scale, m_pow_scale);
-
-
-            response_norm_cross_map_nchw((p0.value.cdata()).ptr(), nImages, nMaps, height, width, m_group_size, m_add_scale , m_pow_scale, (*v).ptr());
-
-            r0.push(v);
-            m_orig_out = v;
-
-        }
-        if(!p0.need_derivative) {
-            p0.value.reset();
-            m_denom.dealloc();
-            m_orig_out.reset();
-        }
-    }
-
-    void ResponseNormalizationAcrossMapsNCHW::bprop(){
-   /*     using namespace cuv;
-        using namespace cuv::alex_conv;
-        param_t::element_type&  p0 = *m_params[0];
-        result_t::element_type& r0 = *m_results[0];
-        if(p0.can_overwrite_directly()){
-            cuv::alex_conv::response_norm_cross_map_grad(*r0.overwrite_or_add_value(), *m_orig_out, p0.value.cdata(), r0.delta.cdata(), m_denom, m_group_size, m_add_scale, m_pow_scale, m_blocked);
-        }else if(p0.can_add_directly()){
-            cuv::alex_conv::response_norm_cross_map_grad(*r0.overwrite_or_add_value(), *m_orig_out, p0.value.cdata(), r0.delta.cdata(), m_denom, m_group_size, m_add_scale, m_pow_scale, m_blocked, 1.f, 1.f);
-        }else{
-            // try to overwrite r0.delta
-            value_ptr v(new value_type(p0.shape, value_ptr::s_allocator));
-            cuv::alex_conv::response_norm_cross_map_grad(*v, *m_orig_out, p0.value.cdata(), r0.delta.cdata(), m_denom, m_group_size, m_blocked, m_add_scale, m_pow_scale);
-            p0.push(v);
-        }
-        r0.delta.reset();
-        m_orig_out.reset();
-        m_denom.dealloc(); */
-    }
-
-
-    void ResponseNormalizationAcrossMapsNCHW::_determine_shapes(){
-        /*
-         * images    (numImages, numFilters, imgPixY, imgPixX)
-         * dst:      (numImages, numFilters, imgPixY, imgPixX)
-         */
-
-        assert(m_params[0]->shape.size()==4);
-        if(m_group_size <= 0)
-            m_group_size = m_params[0]->shape[1];
-        m_results[0]->shape = m_params[0]->shape;
-    }
-
-
 
 
     /***************************************************
