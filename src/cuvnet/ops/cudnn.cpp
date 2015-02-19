@@ -21,6 +21,12 @@
 #define cudnnAddTensor cudnnAddTensor4d
 #define CUDNN_VERSION 1
 #endif
+
+#define mul_streams 1
+#if (!mul_streams)
+#define handle2 handle1
+#define handle3 handle1
+#endif
     
 namespace
 {
@@ -46,7 +52,12 @@ namespace cuvnet
 	}
 
     struct cudnn_state{
-		cudnnHandle_t handle1, handle2, handle3;
+		//cudnnHandle_t handle1, handle2, handle3;
+		cudnnHandle_t handle1;
+	#if mul_streams
+			cudnnHandle_t handle2, handle3;
+		#endif
+
 		cudnnTensorDescriptor_t imgDesc, outputDesc, biasDesc,
                                 gradOutputDesc, gradImgDesc, gradBiasDesc;
         cudnnFilterDescriptor_t filterDesc, gradFilterDesc;
@@ -64,18 +75,20 @@ namespace cuvnet
                 std::vector<unsigned int> bias_shape
                 ){
 
+        	CUDNN_CALL(cudnnCreate(&handle1));
+
+        	if (mul_streams) {
+        	CUDNN_CALL(cudnnCreate(&handle2));
+        	CUDNN_CALL(cudnnCreate(&handle3));
+
         	create_cuda_stream(stream1);
         	create_cuda_stream(stream2);
         	create_cuda_stream(stream3);
 
-        	CUDNN_CALL(cudnnCreate(&handle1));
-        	CUDNN_CALL(cudnnCreate(&handle2));
-        	CUDNN_CALL(cudnnCreate(&handle3));
-
         	CUDNN_CALL(cudnnSetStream(handle1, stream1));
         	CUDNN_CALL(cudnnSetStream(handle2, stream2));
         	CUDNN_CALL(cudnnSetStream(handle3, stream3));
-
+        }
             CUDNN_CALL(cudnnCreateTensorDescriptor(&imgDesc));
             CUDNN_CALL(cudnnCreateTensorDescriptor(&outputDesc));
             CUDNN_CALL(cudnnCreateTensorDescriptor(&biasDesc));
@@ -108,7 +121,7 @@ namespace cuvnet
             else if(bias_shape.size() == 0);
             else if(bias_shape[2] == 1) add_mode = CUDNN_ADD_SAME_C;       // a (set of) 1x1 images
             else if(bias_shape[1] == 1) add_mode = CUDNN_ADD_FEATURE_MAP;  // a single image
-            else add_mode = CUDNN_ADD_FULL_TENSOR;                         // same size as input
+            else add_mode = CUDNN_ADD_FULL_TENSOR;   // same size as input
 
             // query output layout
             int n_out, c_out, h_out, w_out;
@@ -159,12 +172,13 @@ namespace cuvnet
 
             CUDNN_CALL(cudnnDestroyConvolutionDescriptor(convDesc));
 
+            CUDNN_CALL(cudnnDestroy(handle1));
+            if (mul_streams) {
             destroy_cuda_stream(stream1);
             destroy_cuda_stream(stream2);
             destroy_cuda_stream(stream3);
-            CUDNN_CALL(cudnnDestroy(handle1));
             CUDNN_CALL(cudnnDestroy(handle2));
-            CUDNN_CALL(cudnnDestroy(handle3));
+            CUDNN_CALL(cudnnDestroy(handle3)); }
         }
     };
 
@@ -207,6 +221,7 @@ namespace cuvnet
                     beta == 1 ? CUDNN_RESULT_ACCUMULATE : CUDNN_RESULT_NO_ACCUMULATE);
 #endif
             if(m_params.size() == 3){
+
 #if CUDNN_VERSION != 1
                 const float beta = 1.f;
                 CUDNN_CALL(cudnnAddTensor(m_state->handle1, m_state->add_mode, &alpha, m_state->biasDesc,
@@ -237,6 +252,7 @@ namespace cuvnet
                     CUDNN_RESULT_NO_ACCUMULATE);
 #endif
             if(m_params.size() == 3){
+
 #if CUDNN_VERSION != 1
                 const float beta = 1.0;
                 CUDNN_CALL(cudnnAddTensor(m_state->handle1, m_state->add_mode, &alpha, m_state->biasDesc,
@@ -275,6 +291,7 @@ namespace cuvnet
 		value_ptr ptr1, ptr2, ptr0;
 
 		if (p1.need_derivative) {
+
 			// calculate p1 first, then we don't need activations
 			// anymore and can overwrite them. They are usually
 			// larger than the weights, so it should be better in this order.
@@ -285,6 +302,7 @@ namespace cuvnet
             const matrix::value_type alpha = 1.0;
 
 			if (p1.can_overwrite_directly() || p1.can_add_directly()) {
+
                 const matrix::value_type beta = p1.can_add_directly() ? 1.0 : 0.0; 
 				matrix::value_type* gradFilterData = (*p1.overwrite_or_add_value()).ptr();
 
@@ -323,7 +341,8 @@ namespace cuvnet
 		}
 
         if(m_params.size() == 3 && m_params[2]->need_derivative){
-            param_t::element_type& p2 = *m_params[2];
+
+        	param_t::element_type& p2 = *m_params[2];
 
 			const matrix::value_type* diffData = r0.delta.cdata().ptr();
 

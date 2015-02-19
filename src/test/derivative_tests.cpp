@@ -2501,14 +2501,14 @@ BOOST_AUTO_TEST_CASE(cuDNN_speed){
 
         {
             unsigned int nImgChan = 3;
-            unsigned int nImgPixX = 7;
-            unsigned int nImgPixY = 7;
-            unsigned int nImg     = 2000;
+            unsigned int nImgPixX = 224;
+            unsigned int nImgPixY = 224;
+            unsigned int nImg     = 64;
 
             unsigned int nFiltChan = nImgChan;
-            unsigned int nFiltPixX  = 3;
-            unsigned int nFiltPixY  = 3;
-            unsigned int nFilt     = 2000;
+            unsigned int nFiltPixX  = 11;
+            unsigned int nFiltPixY  = 11;
+            unsigned int nFilt     = 32;
 
             {
                boost::shared_ptr<ParameterInput>  inp0a = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
@@ -2524,15 +2524,15 @@ BOOST_AUTO_TEST_CASE(cuDNN_speed){
             	   ptr_t op1 = boost::make_shared<Convolve>(inp0b->result(), inp1b->result(), true, padding, 1, 1, 0);
 
             	   cuvnet::function func0f(op0);
-            	   MEASURE_TIME(cudnn_f, func0f.evaluate(), 100);
+            	   MEASURE_TIME(cudnn_f, func0f.evaluate(), 10);
             	   cuvnet::function func1f(op1);
-            	   MEASURE_TIME(alex_f, func1f.evaluate(), 100);
+            	   MEASURE_TIME(alex_f, func1f.evaluate(), 10);
 
             	   cuvnet::delta_function func0(op0, op0, 0, dinput);
-            	   MEASURE_TIME(cudnn_fb, func0.evaluate(), 100);
+            	   MEASURE_TIME(cudnn_fb, func0.evaluate(), 10);
 
             	   cuvnet::delta_function func1(op1, op1, 0, dinput);
-            	   MEASURE_TIME(alex_fb, func1.evaluate(), 100);
+            	   MEASURE_TIME(alex_fb, func1.evaluate(), 10);
 
             	   std::cout << "fprop speedup alex/cudnn: " << (alex_f) / (cudnn_f) << std::endl;
             	   std::cout << "bprop speedup alex/cudnn: " << (alex_fb-alex_f) / (cudnn_fb-cudnn_f) << std::endl;
@@ -2540,6 +2540,62 @@ BOOST_AUTO_TEST_CASE(cuDNN_speed){
             }
         }
 }
+
+BOOST_AUTO_TEST_CASE(cuDNN_streams_speed)
+{
+	using namespace std;
+
+    typedef boost::shared_ptr<Op> ptr_t;
+
+    unsigned int nImgChan = 3;
+    unsigned int nImgPixX = 1000;
+    unsigned int nImgPixY = 1000;
+    unsigned int nImg     = 5;
+
+    unsigned int nFiltChan = nImgChan;
+    unsigned int nFiltPixX  = 10;
+    unsigned int nFiltPixY  = 10;
+    unsigned int nFilt     = 1;
+
+    unsigned int bias1 = 1;
+    unsigned int bias2 = nFilt;
+    unsigned int bias3 = 1;
+    unsigned int bias4 = 1;
+
+    boost::shared_ptr<ParameterInput>  in1 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
+    boost::shared_ptr<ParameterInput>  in2 = boost::make_shared<ParameterInput>(cuv::extents[nFilt][nFiltChan][nFiltPixY][nFiltPixX], "weights");
+    boost::shared_ptr<ParameterInput>  in3 = boost::make_shared<ParameterInput>(cuv::extents[bias1][bias2][bias3][bias4], "bias");
+
+    fill_rnd_uniform(in1->data());
+    fill_rnd_uniform(in2->data());
+    fill_rnd_uniform(in3->data());
+
+	int padding = 0;
+ 	ptr_t op = boost::make_shared<ConvolvecuDNN>(in1->result(), in2->result(),in3->result(),padding, padding);
+
+    // assumption: op has only one result
+	boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op->result());
+
+	// tell that we want derivative w.r.t. all params
+
+	std::vector<Op*> params(3);
+	params[0] = in1.get();
+	params[1] = in2.get();
+	params[2] = in3.get();
+
+	swiper swipe(*op, 0, params);
+
+	swipe.fprop();
+	cuvAssert(!cuv::has_nan(out_op->cdata()));
+	cuvAssert(!cuv::has_inf(out_op->cdata()));
+
+	MEASURE_TIME(cudnn_b, swipe.bprop(), 10);
+	std::cout << "bprop cudnn: " << cudnn_b << std::endl;
+
+	//speeds one vs multiple streams: 419494 vs 343819 -> speedup: 1.22
+
+}
+
 
 BOOST_AUTO_TEST_CASE(cuDNN_pooling){
     typedef boost::shared_ptr<Op> ptr_t;
