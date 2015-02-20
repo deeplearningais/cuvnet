@@ -67,6 +67,7 @@ int main(int argc, char **argv){
     {
         std::vector<cuvnet::Op*> params(1,W.get());
         cuvnet::gradient_descent gd(loss,0,params,0.1f);
+        gd.get_swiper().dump("linear_regression.dot", false);
 
         // the monitor attaches its callbacks to signals of gradient descent,
         // i.e. 

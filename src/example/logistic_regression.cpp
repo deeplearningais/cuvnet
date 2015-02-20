@@ -33,25 +33,15 @@ int main(int argc, char **argv){
     input_ptr X,Y,W;
     {
         using namespace cuvnet;
-        X = input(cuv::extents[n_examples][n_in_dim]);
-        Y = input(cuv::extents[n_examples][n_out_dim]);
-        W = input(cuv::extents[n_in_dim][n_out_dim]);
+        X = input(cuv::extents[n_examples][n_in_dim],"X");
+        Y = input(cuv::extents[n_examples],"Y");
+        W = input(cuv::extents[n_in_dim][n_out_dim],"W");
 
         op_ptr estimator = prod(X,W);
         loss = mean(
-                multinomial_logistic_loss(
-                    estimator, Y, 1));
-
-        // when the forward pass for the loss is calculated, 
-        // only the /required/ ops for `loss' are calculated.
-        // the `classification_loss' op will not be one of those.
-        // Since we don't want to redo all calculations, we 
-        // introduce a `sink' here, which captures the intermediate
-        // result. If a monitor for classification loss is used,
-        // it must be told that the result is not readily available,
-        // as a result of the forward pass on the `loss' op;
-        // it must be calculated first!
-        closs = classification_loss(sink(estimator), Y);
+                multinomial_logistic_loss2(
+                    estimator, Y));
+        closs = result(loss, 2);
     }
 
     // 2. create some (dummy) dataset
@@ -59,14 +49,11 @@ int main(int argc, char **argv){
         using namespace cuv;
         fill_rnd_uniform(X->data());
         fill_rnd_uniform(W->data());
-        prod(Y->data(), X->data(), W->data());
+        tensor<float,cuv::dev_memory_space> Y_(cuv::extents[n_examples][n_out_dim]);
+        prod(Y_, X->data(), W->data());
 
         // Y is a one-out-of-n coding for n_out_dim classes
-        cuv::tensor<unsigned int, cuvnet::matrix::memory_space_type> idx(cuv::extents[n_examples]);
-        cuv::reduce_to_col(idx, Y->data(), cuv::RF_ARGMAX);
-        Y->data() = 0.f;
-        for(int i=0;i < n_examples; i++)
-            Y->data()(i,idx(i)) = 1.f;
+        cuv::reduce_to_col(Y->data(), Y_, cuv::RF_ARGMAX);
         
         // forget about W again
         W->data() = 0.f;
@@ -79,12 +66,13 @@ int main(int argc, char **argv){
     // watchpoint type.
     cuvnet::monitor mon(true);
     mon.add(cuvnet::monitor::WP_SCALAR_EPOCH_STATS, loss, "loss");
-    mon.add(cuvnet::monitor::WP_FUNC_SCALAR_EPOCH_STATS, closs, "class loss");
+    mon.add(cuvnet::monitor::WP_SCALAR_EPOCH_STATS, closs, "class loss");
 
     // 4. recover W with logistic regression
     {
         std::vector<cuvnet::Op*> params(1,W.get());
         cuvnet::gradient_descent gd(loss,0,params,1.5f);
+        gd.get_swiper().dump("logistic_regression.dot", false);
         mon.register_gd(gd);
         gd.batch_learning(1000);
     }
