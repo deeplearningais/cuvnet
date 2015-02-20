@@ -82,6 +82,9 @@ namespace cuvnet { namespace models {
 
         m_bias_default_value = cfg.m_bias_default_value;
         m_weight_default_std = cfg.m_weight_default_std;
+        if(m_weight_default_std < 0.f){
+            m_weight_default_std = std::sqrt(2.f/(n_filter_channels * fs * fs));
+        }
 
         boost::scoped_ptr<op_group> grp;
         if (!cfg.m_group_name.empty())
@@ -260,15 +263,6 @@ namespace cuvnet { namespace models {
         //initialize_alexconv_glorot_bengio(m_weights, 1, true);
         m_weights->data() = 0.f;
         cuv::add_rnd_normal(m_weights->data(), m_weight_default_std);
-        if(   (m_weights->data().ndim() == 4 && m_weights->data().shape(2) == 1) )
-        {
-            m_weight_default_std = std::sqrt(3. / ( m_weights->cdata().shape(1) * m_weights->cdata().shape(2) * m_weights->cdata().shape(3)));
-            //LOG4CXX_WARN(g_log, "initializing weights using Glorot & Bengio Method, U:"<<m_weight_default_std);
-            // use Glorot & Bengio initialization
-            cuv::fill_rnd_uniform(m_weights->data());
-            m_weights->data() *= 2 * m_weight_default_std;
-            m_weights->data() -= m_weight_default_std;
-        }
         //int n_scat_inp = m_scat_n_inputs;
 //        if(m_scat_J != 0){
 //        	if(n_scat_inp < 0)
@@ -293,6 +287,12 @@ namespace cuvnet { namespace models {
         if(m_bias){
             m_bias->data() = m_bias_default_value;
             m_bias->set_weight_decay_factor(0.f);
+        }
+
+        {
+            float frac_over_thresh, mean_norm;
+            boost::tie(frac_over_thresh,mean_norm) = project_to_unit_ball(m_weights->data(), 0, 2.f); // for cuDNN
+            std::cout << "RESET `"<< m_linear_output->get_group() <<"' frac_over_thresh:" << frac_over_thresh << " mean_norm:" << mean_norm << std::endl;
         }
     }
 

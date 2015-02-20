@@ -40,11 +40,11 @@ namespace cuvnet
                 throw std::runtime_error("project_to_unit_ball: cannot normalize intermediate (0<axis<ndim-1) axis");
             }
         }
-        if(axis == 1 && (C.ndim() == 3 || C.ndim() == 4) && (C.shape(axis) % 16 == 0))
-        {
-            cuv::alex_conv::project_to_ball(C, thresh);
-            return std::make_pair(-1, 0.f);
-        }
+        //if(axis == 1 && (C.ndim() == 3 || C.ndim() == 4) && (C.shape(axis) % 16 == 0))
+        //{
+        //    cuv::alex_conv::project_to_ball(C, thresh);
+        //    return std::make_pair(-1, 0.f);
+        //}
         //ax_shape = C.shape(1-axis);
         cuv::tensor<float, M> ax(ax_shape);
         cuv::tensor<unsigned char, M> over_thresh(ax_shape);

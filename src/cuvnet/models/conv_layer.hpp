@@ -48,7 +48,7 @@ namespace cuvnet { namespace models {
             ,m_rn_beta(0.5)
             ,m_want_bias(false)
             ,m_bias_default_value(0.f)
-            ,m_weight_default_std(0.015f)
+            ,m_weight_default_std(-1.f)
             ,m_scat_n_inputs(0)
             ,m_scat_J(0)
             ,m_scat_C(0)
