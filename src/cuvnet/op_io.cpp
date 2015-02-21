@@ -122,4 +122,5 @@ BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::Convolve2dTheano);
 #endif
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::Upscale);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::SumOutDim);
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::ResponseNormalizationAcrossMapsCaffe);
 //int dummy::bogus::bogus_method() { return 0;}

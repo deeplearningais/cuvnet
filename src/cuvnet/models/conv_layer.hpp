@@ -207,7 +207,7 @@ namespace cuvnet { namespace models {
          *
          * @see http://code.google.com/p/cuda-convnet/wiki/LayerParams#Local_response_normalization_layer_%28across_maps%29
          */
-        inline conv_layer_opts& response_norm(int n, float alpha=0.5f, float beta=0.5f)
+        inline conv_layer_opts& response_norm(int n=5, float alpha=0.0001f, float beta=0.75f)
         {
             m_want_response_normalization = true;
             m_rn_N = n;

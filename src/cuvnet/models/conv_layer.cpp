@@ -190,8 +190,12 @@ namespace cuvnet { namespace models {
             m_output = contrast_normalization(m_output - mean, cfg.m_rn_N, cfg.m_rn_alpha, cfg.m_rn_beta);
         }
         else if(cfg.m_want_response_normalization){
-            m_output = response_normalization_cross_maps(m_output,
-                    cfg.m_rn_N, cfg.m_rn_alpha, cfg.m_rn_beta);
+            if(cfg.m_use_cuDNN)
+                m_output = response_normalization_cross_maps_caffe(m_output,
+                        cfg.m_rn_N, cfg.m_rn_alpha, cfg.m_rn_beta);
+            else
+                m_output = response_normalization_cross_maps(m_output,
+                        cfg.m_rn_N, cfg.m_rn_alpha, cfg.m_rn_beta);
         }
         
         // Krizhevsky et al.: pooling /after/ response normalization

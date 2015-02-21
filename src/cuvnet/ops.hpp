@@ -252,6 +252,9 @@ namespace cuvnet
     /// construct a ContrastNormalization object
     inline
         Op::op_ptr contrast_normalization(Op::op_ptr img, int patchSize, float addScale, float powScale) { return boost::make_shared<ContrastNormalization>(img->result(), patchSize, addScale, powScale); }
+    /// construct a ResponseNormalizationAcrossMapsCaffe object
+    inline
+        Op::op_ptr response_normalization_cross_maps_caffe(Op::op_ptr img, int group_size=5, float addScale=0.0001f, float powScale=0.75f) { return boost::make_shared<ResponseNormalizationAcrossMapsCaffe>(img->result(), group_size, addScale, powScale); }
     /// construct a ResponseNormalizationCrossMaps object
     inline
         Op::op_ptr response_normalization_cross_maps(Op::op_ptr img, int groups, float addScale=0.0000125f, float powScale=0.75f, bool blocked=false) { return boost::make_shared<ResponseNormalizationCrossMaps>(img->result(), groups, addScale, powScale, blocked); }

@@ -149,4 +149,6 @@ BOOST_CLASS_EXPORT_KEY(cuvnet::Convolve2dTheano);
 
 BOOST_CLASS_EXPORT_KEY(cuvnet::SumOutDim);
 BOOST_CLASS_EXPORT_KEY(cuvnet::Upscale);
+
+BOOST_CLASS_EXPORT_KEY(cuvnet::ResponseNormalizationAcrossMapsCaffe);
 #endif /* __OP_IO_HPP__ */
