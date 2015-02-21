@@ -9,6 +9,7 @@
  *   @defgroup Ops Implementations of specific symbolic operations
  *   @addtogroup Ops
  *   @{
+ *      @defgroup CaffeOps Operators related to the caffe library
  *      @defgroup TheanoOps Operators related to the Theano library
  *      @defgroup CudaConvnetOps Operators or related to Alex Krizhevskys Cuda-Convnet library
  *      @defgroup CuDNNOps Operators related to NVIDIAs cuDNN library
