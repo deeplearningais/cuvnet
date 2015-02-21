@@ -427,7 +427,8 @@ namespace cuvnet
 			}
 		}
 		//synchronize
-		empty_kernel_call();
+        if(mul_streams)
+            empty_kernel_call();
 
 		if (ptr1.ptr() != 0)
 			p1.push(ptr1);
@@ -439,6 +440,8 @@ namespace cuvnet
 	/*	ptr1.reset();
 		ptr2.reset();
 		ptr0.reset();*/
+
+        r0.delta.reset();
 
 	}
 
