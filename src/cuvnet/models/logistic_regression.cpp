@@ -11,7 +11,7 @@ namespace cuvnet
             if(m_W){
                 // might not exist if this is a 'degenerate' logreg
                 m_W->data() = 0.f;
-                //cuv::add_rnd_normal(m_W->data(), 0.01);
+                cuv::add_rnd_normal(m_W->data(), 0.01);
             }
             //if(m_W){
             //    initialize_dense_glorot_bengio(m_W, false);

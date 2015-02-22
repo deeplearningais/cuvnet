@@ -294,9 +294,9 @@ namespace cuvnet { namespace models {
         }
 
         {
-            float frac_over_thresh, mean_norm;
-            boost::tie(frac_over_thresh,mean_norm) = project_to_unit_ball(m_weights->data(), 0, 2.f); // for cuDNN
-            std::cout << "RESET `"<< m_linear_output->get_group() <<"' frac_over_thresh:" << frac_over_thresh << " mean_norm:" << mean_norm << std::endl;
+            //float frac_over_thresh, mean_norm;
+            //boost::tie(frac_over_thresh,mean_norm) = project_to_unit_ball(m_weights->data(), 0, 2.f); // for cuDNN
+            //std::cout << "RESET `"<< m_linear_output->get_group() <<"' frac_over_thresh:" << frac_over_thresh << " mean_norm:" << mean_norm << std::endl;
         }
     }
 
