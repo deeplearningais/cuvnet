@@ -54,7 +54,7 @@ namespace cuvnet
                     // make costs negative, because graph is solved for a maximum weighted matching
                     // add offset for node index due to prediction boxes
                     ew[boost::add_edge(k, K+t, pg).first] = 
-                        - alpha * datasets::rotated_rect::l2dist(means[k], teach[b][t].rect)
+                        - alpha * std::pow(datasets::rotated_rect::l2dist(means[k], teach[b][t].rect), 2)
                         + conf[b][k];
                         //- logsumexp_0(-conf[b][k])   // these two are equivalent to conf[b][k]
                         //+ logsumexp_0( conf[b][k]);
