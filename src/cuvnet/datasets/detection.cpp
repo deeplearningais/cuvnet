@@ -142,10 +142,20 @@ namespace datasets
                         pbb.rect.y = r.y + pos_in_enlarged.size.height/2;
                         pbb.rect.w  = r.width;
                         pbb.rect.h  = r.height;
+                        if(pattern->flipped){
+                            pbb.rect.x = (m_pattern_size - 1) - pbb.rect.x - pbb.rect.w;
+                        }
+
+                        // scale bboxes to relative values ([0..1])
+                        pbb.rect.x /= m_pattern_size;
+                        pbb.rect.y /= m_pattern_size;
+                        pbb.rect.h /= m_pattern_size;
+                        pbb.rect.w /= m_pattern_size;
+
                         pattern->bboxes.push_back(pbb);
                     }
                 }
-                // TODO support scaling, flip bounding boxes
+                // TODO support scaling
 
                 std::vector<cv::Mat> chans;
                 cv::split(region, chans);
