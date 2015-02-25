@@ -70,6 +70,9 @@ namespace cuvnet{
                         m_queue.emplace(p.get_future());
                     }
                 }
+                if(m_idx + n_jobs > size){
+                    m_meta.shuffle();
+                }
                 m_idx = (m_idx + n_jobs) % size;
             }
 

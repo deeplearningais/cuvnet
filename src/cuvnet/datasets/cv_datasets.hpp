@@ -1,6 +1,7 @@
 #ifndef __CV_DATASETS_HPP__
 #     define __CV_DATASETS_HPP__
 #include <cuv.hpp>
+#include <boost/thread/mutex.hpp>
 #include "pattern_set.hpp"
 
 namespace cv
@@ -273,9 +274,11 @@ namespace datasets{
 
         /// contains a mapping from virtual indices to indices in m_meta
         std::vector<size_t> m_shuffled_idx;
+        mutable boost::mutex m_shuffle_mutex;
 
         /// shuffle access to the dataset
         void shuffle(bool really=true){
+            boost::mutex::scoped_lock lock(m_shuffle_mutex);
             if(m_shuffled_idx.size() != m_meta.size()){
                 m_shuffled_idx.resize(m_meta.size());
                 for (size_t i = 0; i < m_meta.size(); ++i)
@@ -299,8 +302,13 @@ namespace datasets{
 
         /// Used by image_queue to fetch a specific element from the dataset.
         boost::shared_ptr<patternset_t> next(size_t idx)const{
-            boost::shared_ptr<input_t> ptr = load_image(m_meta[m_shuffled_idx[idx]]);
-            return preprocess(m_shuffled_idx[idx], ptr);
+            size_t i;
+            {
+                boost::mutex::scoped_lock lock(m_shuffle_mutex);
+                i = m_shuffled_idx[idx];
+            }
+            boost::shared_ptr<input_t> ptr = load_image(m_meta[i]);
+            return preprocess(i, ptr);
         }
 
         virtual void aggregate_statistics() = 0;
