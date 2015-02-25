@@ -60,6 +60,8 @@ namespace datasets
         int m_n_crops;
         /// size of the crops generated
         int m_pattern_size;
+        /// filename pointing to meta information
+        std::string m_filename;
         /// if true, cover image completely.
         bool m_exhaustive;
 
@@ -100,6 +102,8 @@ namespace datasets
          * clears all predictions.
          */
         void clear_predictions();
+
+        void aggregate_statistics() override;
     };
 
     /// @}

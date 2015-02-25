@@ -1,5 +1,6 @@
 #include <fstream>
 #include <cuvnet/tools/logging.hpp>
+#include <cuvnet/tools/matwrite.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include "image_types.hpp"
@@ -28,6 +29,7 @@ namespace datasets
     rgb_detection_dataset::rgb_detection_dataset(const std::string& filename, int pattern_size, int n_crops)
     : m_n_crops(n_crops)
     , m_pattern_size(pattern_size)
+    , m_filename(filename)
     {
         std::ifstream ifs(filename.c_str());
         cuvAssert(ifs.is_open() && ifs.good());
@@ -68,15 +70,8 @@ namespace datasets
     }
 
     void rgb_detection_dataset::set_imagenet_mean(std::string filename){
-            // TODO
-            /*
             LOG4CXX_WARN(g_log, "read imagnet mean from `"<< filename<<"'");
-            std::ifstream meanifs(filename.c_str());
-            cuvAssert(meanifs.is_open());
-            cuvAssert(meanifs.good());
-            m_imagenet_mean.resize(cuv::extents[3][m_pattern_size][m_pattern_size]);
-            meanifs.read((char*)m_imagenet_mean.ptr(), m_imagenet_mean.memsize());
-            */
+            m_imagenet_mean = cuvnet::fromfile<float>(filename);
     }
 
     void rgb_detection_dataset::set_image_basepath(std::string path){
@@ -165,8 +160,6 @@ namespace datasets
 
                 if(m_imagenet_mean.ptr())
                     pattern->rgb -= m_imagenet_mean;
-                else
-                    pattern->rgb -= 121.f;  // poor man's approximation here...
 
                 patternset->push(pattern);
             }
@@ -189,4 +182,59 @@ namespace datasets
         }
         cv::imshow(name, cvrgb);
     }
+
+    void rgb_detection_dataset::aggregate_statistics(){
+        std::ofstream mean_f, bboxes_f;
+      
+        // remove trailing .txt 
+        std::string base = m_filename.substr(0, m_filename.length() - 4); 
+        bboxes_f.open(base + "_bboxes.txt");
+
+        std::vector<cuv::tensor<float, cuv::host_memory_space> > v;
+        cuv::tensor<float, cuv::host_memory_space> avg;
+        int N = 0;
+        for (unsigned int i = 0; i < size(); i++) {
+            auto pattern_set = next(i); 
+
+            bool start_seq = i % 1000 == 0;
+            if(start_seq){
+                if(i>0){
+                    v.push_back(avg / (float) N);
+                    N = 0;
+                }
+                auto pat = pattern_set->get_for_processing();
+                avg = pat->rgb;
+            }
+
+            while(! pattern_set->m_todo.empty()) {
+                auto pat = pattern_set->get_for_processing();
+
+                avg += pat->rgb;
+                N ++;
+
+                for (auto bb : pat->bboxes) {
+                    bboxes_f << bb.rect.x << " " 
+                        << bb.rect.y << " " 
+                        << bb.rect.h << " " 
+                        << bb.rect.w << std::endl; 
+                }
+            }
+        }
+        if(N > 0)
+            v.push_back(avg / (float)N);
+        avg = 0.f;
+        for(auto& a : v)
+            avg += a;
+        avg /= (float)v.size();
+
+        if(!m_imagenet_mean.ptr()) {
+            cuvnet::tofile(base + "_mean.npy", avg);
+        } else {
+            std::string l = "zero mean deviation: " + std::to_string(cuv::mean(avg)) + " ";
+            LOG4CXX_WARN(g_log, l);
+        }
+
+        mean_f.close();
+        bboxes_f.close();
+    };
 }

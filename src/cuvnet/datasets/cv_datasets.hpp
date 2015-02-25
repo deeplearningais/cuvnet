@@ -302,6 +302,8 @@ namespace datasets{
             boost::shared_ptr<input_t> ptr = load_image(m_meta[m_shuffled_idx[idx]]);
             return preprocess(m_shuffled_idx[idx], ptr);
         }
+
+        virtual void aggregate_statistics() = 0;
     };
 
     /**
@@ -316,6 +318,8 @@ namespace datasets{
         int m_n_crops;
         /// size of the crops generated
         int m_pattern_size;
+        /// file containing meta information
+        std::string m_filename;
         /// @return number of classes this dataset contains
         inline unsigned int n_classes(){ return m_class_names.size(); }
         /// all class names in the dataset
@@ -368,6 +372,8 @@ namespace datasets{
          *          among the k predictions with highest confidence
          */
         float get_zero_one(int k=1);
+
+        void aggregate_statistics() override;
     }; 
 
     /** 

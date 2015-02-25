@@ -99,8 +99,9 @@ namespace datasets
 
 
     rgb_classification_dataset::rgb_classification_dataset(const std::string& filename, int pattern_size, int n_crops)
-        :m_n_crops(n_crops),
-         m_pattern_size(pattern_size){
+        :m_n_crops(n_crops)
+        ,m_pattern_size(pattern_size)
+        ,m_filename(filename){
             std::ifstream ifs(filename.c_str());
             unsigned int n_cls;
             ifs >> n_cls;
@@ -318,6 +319,9 @@ namespace datasets
         for(auto& m : m_meta){
             m.rgb_filename = path + "/" + m.rgb_filename;
         }
+    }
+
+    void rgb_classification_dataset::aggregate_statistics(){
     }
 
 }
