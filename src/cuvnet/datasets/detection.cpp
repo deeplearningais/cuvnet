@@ -92,12 +92,9 @@ namespace datasets
             auto patternset = boost::make_shared<patternset_t>();
 
             auto regions = random_regions(in->rgb, m_n_crops, m_pattern_size);
+
             for (auto r : regions){
-                r.center.x += 90;
-                r.center.y += 120;
-                //r.size.width = 1.5 * in->rgb.cols;
-                //r.size.height = 1.5 * in->rgb.rows;
-                r.angle = 25;
+                r.angle = 20 * drand48() - 10;
                 auto pattern = boost::make_shared<pattern_t>();
                 pattern->original = in;
                 pattern->region_in_original = r;
