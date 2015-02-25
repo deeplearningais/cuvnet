@@ -79,9 +79,11 @@ namespace datasets
             m.rgb_filename = path + "/" + m.rgb_filename;
         }
     }
+
     void rgb_detection_dataset::notify_done(boost::shared_ptr<pattern_t> pat){
         // TODO to be written
     }
+
     boost::shared_ptr<rgb_detection_dataset::patternset_t>
         rgb_detection_dataset::preprocess(size_t idx, boost::shared_ptr<input_t> in) const {
             const meta_t& meta = m_meta[idx];
@@ -146,6 +148,9 @@ namespace datasets
                         pbb.rect.y /= m_pattern_size;
                         pbb.rect.h /= m_pattern_size;
                         pbb.rect.w /= m_pattern_size;
+
+                        pbb.rect.x += pbb.rect.w/2;
+                        pbb.rect.y += pbb.rect.h/2;
 
                         pattern->bboxes.push_back(pbb);
                     }
