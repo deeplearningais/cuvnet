@@ -80,7 +80,7 @@ namespace datasets{
                    l.w - r.w,
                    l.a - r.a
                    ); 
-        };
+        }
 
         /// scales parameters independly by a factor. Useful for a scaled difference of rectangles. 
         // Ignores rotation

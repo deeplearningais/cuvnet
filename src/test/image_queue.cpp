@@ -43,6 +43,8 @@ namespace{
             ps->push(boost::make_shared<dummy_pattern>(meta[offset % meta.size()]));
             return ps;
         }
+        void shuffle(){
+        }
     };
 }
 
