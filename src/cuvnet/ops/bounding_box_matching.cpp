@@ -98,6 +98,8 @@ namespace cuvnet
                 } else {
                     f_conf += logsumexp_0( m_output_bbox[b][k].confidence);  // log of (1-sigmoid)
                 }
+                assert(std::isfinite(f_match));
+                assert(std::isfinite(f_conf));
             }
         }
         f_match *= 1./2;
@@ -114,11 +116,63 @@ namespace cuvnet
         // - find optimal matching between kmeans and teacher bboxes
         // - calculate loss of bboxes and confidence
        
-        cuv::tensor<float, cuv::host_memory_space> prediction = p0.value.data();
+        //cuv::tensor<float, cuv::host_memory_space> 
+        prediction = p0.value.data();
 
         unsigned int bs = prediction.shape(0);
         m_K = prediction.shape(1) / 5;
         prediction.reshape({bs, m_K, 5});
+        
+    
+        {
+            auto tmp_p = prediction;
+            tmp_p.reshape(prediction.shape(0) * prediction.shape(1), 5);
+
+            cuv::tensor<float, cuv::host_memory_space> _min(cuv::extents[5]);
+            cuv::reduce_to_row(_min, tmp_p, cuv::RF_MIN);
+
+            cuv::tensor<float, cuv::host_memory_space> _avg(cuv::extents[5]);
+            cuv::reduce_to_row(_avg, tmp_p, cuv::RF_MEAN);
+            
+            cuv::tensor<float, cuv::host_memory_space> _max(cuv::extents[5]);
+            cuv::reduce_to_row(_max, tmp_p, cuv::RF_MAX);
+
+            float box_min = std::min(std::min(std::min(_min(0), _min(1)), _min(2)), _min(3));
+            float box_max = std::max(std::max(std::max(_max(0), _max(1)), _max(2)), _max(3));
+            float box_avg = (_avg(0) + _avg(1) + _avg(2) + _avg(3)) / 4.;
+            float con_min = _min(4);
+            float con_max = _max(4);
+            float con_avg = _avg(4);
+
+            LOG4CXX_WARN(g_log, 
+                    "box prediction, min:"<< box_min <<
+                    " , max:"<< box_max<<
+                    " , mean:"<< box_avg);
+            LOG4CXX_WARN(g_log, 
+                    "conf prediction, min:"<< con_min <<
+                    " , max:"<< con_max<<
+                    " , mean:"<< con_avg);
+            
+            //LOG4CXX_WARN(g_log, "teacher size:"<<m_teach.size());
+            /*
+            int cnt = 0;
+            for(auto bv : m_teach){
+                LOG4CXX_WARN(g_log, 
+                        "bv size :" << cnt << " -- " << bv.size()
+                        );
+                for(auto b : bv){
+                    LOG4CXX_WARN(g_log, 
+                            "(" << b.rect.x << ", " <<
+                            b.rect.y << ", " <<
+                            b.rect.h << ", " <<
+                            b.rect.w << ")"
+                            );
+                }
+            }
+            cnt ++;
+            */
+        }
+
 
         m_output_bbox.resize(bs);
         int n_bboxes = 0;
@@ -136,6 +190,11 @@ namespace cuvnet
                 m_output_bbox[b][k].rect.w = exp((float)prediction(b, k, 3)) * m_typical_bboxes[k].w;
 
                 m_output_bbox[b][k].confidence = prediction(b, k, 4);
+
+                assert(std::isfinite(std::pow(m_output_bbox[b][k].rect.x, 2)));
+                assert(std::isfinite(std::pow(m_output_bbox[b][k].rect.y, 2)));
+                assert(std::isfinite(std::pow(m_output_bbox[b][k].rect.h, 2)));
+                assert(std::isfinite(std::pow(m_output_bbox[b][k].rect.w, 2)));
             }
         }
 
@@ -203,6 +262,12 @@ namespace cuvnet
                     m_delta_matching[b][k].w = 0;
                     
                     m_delta_conf[b][k] =   sigmoid( m_output_bbox[b][k].confidence) / bs / m_alpha;
+                    
+                    assert(std::isfinite(m_delta_matching[b][k].x));
+                    assert(std::isfinite(m_delta_matching[b][k].y));
+                    assert(std::isfinite(m_delta_matching[b][k].h));
+                    assert(std::isfinite(m_delta_matching[b][k].w));
+                    assert(std::isfinite(m_delta_conf[b][k]));
                 }
             }
         }
@@ -220,6 +285,44 @@ namespace cuvnet
         }
         grad.reshape(p0.shape);
         grad *= delta;
+
+        {
+            auto tmp_p = grad;
+            tmp_p.reshape(grad.shape(0) * grad.shape(1) / 5, 5);
+
+            cuv::tensor<float, cuv::host_memory_space> _min(cuv::extents[5]);
+            cuv::reduce_to_row(_min, tmp_p, cuv::RF_MIN);
+
+            cuv::tensor<float, cuv::host_memory_space> _avg(cuv::extents[5]);
+            cuv::reduce_to_row(_avg, tmp_p, cuv::RF_MEAN);
+            
+            cuv::tensor<float, cuv::host_memory_space> _max(cuv::extents[5]);
+            cuv::reduce_to_row(_max, tmp_p, cuv::RF_MAX);
+
+            float box_min = std::min(std::min(std::min(_min(0), _min(1)), _min(2)), _min(3));
+            float box_max = std::max(std::max(std::max(_max(0), _max(1)), _max(2)), _max(3));
+            float box_avg = (_avg(0) + _avg(1) + _avg(2) + _avg(3)) / 4.;
+            float con_min = _min(4);
+            float con_max = _max(4);
+            float con_avg = _avg(4);
+
+            LOG4CXX_WARN(g_log, 
+                    "box grad, min:"<< box_min <<
+                    " , max:"<< box_max<<
+                    " , mean:"<< box_avg);
+            LOG4CXX_WARN(g_log, 
+                    "conf grad, min:"<< con_min <<
+                    " , max:"<< con_max<<
+                    " , mean:"<< con_avg);
+            
+            /*
+            LOG4CXX_WARN(g_log, 
+                    "grad min:"<<cuv::minimum(grad)<<
+                    " grad max:"<<cuv::maximum(grad)<<
+                    " grad mean:"<<cuv::mean(grad)
+                    );
+            */
+        }
 
         if(p0.can_overwrite_directly()){
             value_type& v = p0.overwrite_or_add_value().data();
