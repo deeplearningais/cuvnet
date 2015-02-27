@@ -22,7 +22,7 @@ namespace datasets
     struct rgbdt_image : public rgbt_image, public rgbd_image{
     };
 
-    std::vector<cv::RotatedRect> random_regions(const cv::Mat& img, int n_crops, int size);
+    std::vector<cv::RotatedRect> random_regions(const cv::Mat& img, int n_crops, float min_size_frac);
     cv::Mat extract_region(const cv::Mat& m, const cv::RotatedRect& ir, bool flipped, int interpolation, int bordertype=cv::BORDER_REFLECT_101, int value=0);
     std::pair<cv::Rect, cv::RotatedRect>
         required_padding(const cv::Mat& m, const cv::RotatedRect& ir);

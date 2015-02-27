@@ -141,14 +141,17 @@ namespace datasets
             meanifs.read((char*)m_imagenet_mean.ptr(), m_imagenet_mean.memsize());
     }
 
+
     /// generates n_crops many regions of a given size within the boundaries of a given image img
-    std::vector<cv::RotatedRect> random_regions(const cv::Mat& img, int n_crops, int size){
+    std::vector<cv::RotatedRect> random_regions(const cv::Mat& img, int n_crops, float min_size_frac){
         std::vector<cv::RotatedRect> regions(n_crops);
-        float max_x = img.cols - size;
-        float max_y = img.rows - size;
         for(int i = 0; i<n_crops; i++){
+            float f = std::exp(drand48() * (std::log(1.f) - std::log(min_size_frac)) + std::log(min_size_frac));
+            float size = std::max(img.cols, img.rows) * f;
+            float max_x = img.cols - size;
+            float max_y = img.rows - size;
             cv::Rect r(cv::Point2f(max_x * drand48(), max_y * drand48()), cv::Size(size,size)); 
-           regions[i] = cv::RotatedRect(cv::Point2f(r.x+size/2, r.y+size/2), cv::Size(size,size), 0.f);
+            regions[i] = cv::RotatedRect(cv::Point2f(r.x+size/2, r.y+size/2), cv::Size(size,size), 0.f);
         }
         return regions;
     }

@@ -91,7 +91,7 @@ namespace datasets
 
             auto patternset = boost::make_shared<patternset_t>();
 
-            auto regions = random_regions(in->rgb, m_n_crops, m_pattern_size);
+            auto regions = random_regions(in->rgb, m_n_crops, 0.25);
 
             for (auto r : regions){
                 r.angle = 20 * drand48() - 10;
@@ -101,6 +101,10 @@ namespace datasets
                 pattern->flipped = drand48() > 0.5f;
 
                 cv::Mat region = extract_region(in->rgb, r, pattern->flipped, cv::INTER_LINEAR);
+                float scale_x = region.cols / (float)m_pattern_size; 
+                float scale_y = region.rows / (float)m_pattern_size;
+                if(region.cols != m_pattern_size || region.rows != m_pattern_size)
+                    cv::resize(region, region, cv::Size(m_pattern_size, m_pattern_size), 0., 0., cv::INTER_LINEAR);
                 {
                     // now translate the bounding boxes
                     cv::Rect margins;
@@ -126,8 +130,8 @@ namespace datasets
                         // now rotate these points around the "origin", i.e. the center of pos_in_enlarged
                         std::vector<cv::Point2f> bounds_rot(4);
                         for (int i = 0; i < 4; ++i) {
-                            bounds_rot[i].x = bounds[i].x * cos(deg2Rad(-r.angle)) - bounds[i].y*sin(deg2Rad(-r.angle));
-                            bounds_rot[i].y = bounds[i].x * sin(deg2Rad(-r.angle)) + bounds[i].y*cos(deg2Rad(-r.angle));
+                            bounds_rot[i].x = (bounds[i].x * cos(deg2Rad(-r.angle)) - bounds[i].y*sin(deg2Rad(-r.angle)));
+                            bounds_rot[i].y = (bounds[i].x * sin(deg2Rad(-r.angle)) + bounds[i].y*cos(deg2Rad(-r.angle)));
                         }
                         cv::Rect r = cv::boundingRect(bounds_rot);
 
@@ -137,22 +141,29 @@ namespace datasets
                         pbb.rect.w  = r.width;
                         pbb.rect.h  = r.height;
                         if(pattern->flipped){
-                            pbb.rect.x = (m_pattern_size - 1) - pbb.rect.x - pbb.rect.w;
+                            pbb.rect.x = (m_pattern_size * scale_x - 1.f) - pbb.rect.x - pbb.rect.w;
                         }
-
-                        // scale bboxes to relative values ([0..1])
-                        pbb.rect.x /= m_pattern_size;
-                        pbb.rect.y /= m_pattern_size;
-                        pbb.rect.h /= m_pattern_size;
-                        pbb.rect.w /= m_pattern_size;
 
                         pbb.rect.x += pbb.rect.w/2;
                         pbb.rect.y += pbb.rect.h/2;
 
-                        pattern->bboxes.push_back(pbb);
+                        // scale bboxes to relative values ([0..1])
+                        pbb.rect.x /= m_pattern_size * scale_x; 
+                        pbb.rect.y /= m_pattern_size * scale_y; 
+                        pbb.rect.h /= m_pattern_size * scale_x; 
+                        pbb.rect.w /= m_pattern_size * scale_y; 
+
+                        float ulx = std::max(0.f, std::min(1.f, (float) (pbb.rect.x - pbb.rect.w/2)));
+                        float uly = std::max(0.f, std::min(1.f, (float) (pbb.rect.y - pbb.rect.h/2)));
+                        float lrx = std::max(0.f, std::min(1.f, (float) (pbb.rect.x + pbb.rect.w/2)));
+                        float lry = std::max(0.f, std::min(1.f, (float) (pbb.rect.y + pbb.rect.h/2)));
+
+                        float full_area = pbb.rect.w * pbb.rect.h;
+                        float in_area = (lrx - ulx) * (lry - uly);
+                        if ((in_area / full_area) > 0.5)
+                            pattern->bboxes.push_back(pbb);
                     }
                 }
-                // TODO support scaling
 
                 std::vector<cv::Mat> chans;
                 cv::split(region, chans);
