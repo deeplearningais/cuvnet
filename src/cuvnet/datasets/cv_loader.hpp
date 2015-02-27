@@ -127,8 +127,7 @@ namespace datasets
                     ? cuvnet::CM_VALID
                     : cuvnet::CM_TRAIN;
 
-            if (tch.size() == 0)
-                tch.resize(batch_size);
+            tch.resize(batch_size);
 
             for(int i=0; i < batch_size; i++){
                 if(mode == cuvnet::CM_TRAIN)
