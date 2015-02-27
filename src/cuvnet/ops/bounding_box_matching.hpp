@@ -21,10 +21,10 @@ namespace cuvnet
                 std::vector<datasets::rotated_rect> m_typical_bboxes;
                 std::vector<std::vector<int> > m_matching; 
 
-                //std::vector<std::vector<datasets::rotated_rect> > m_teach_bbox;
+                cuv::tensor<float, cuv::host_memory_space> prediction;
+
                 std::vector<std::vector<datasets::bbox> > m_teach;
-                std::vector<std::vector<datasets::rotated_rect> > m_output_bbox;
-                std::vector<std::vector<float> > m_output_conf;
+                std::vector<std::vector<datasets::bbox> > m_output_bbox;
 
                 float m_f_match;
                 float m_f_conf;
@@ -49,16 +49,12 @@ namespace cuvnet
                     , m_typical_bboxes(kmeans)
                     , m_alpha(alpha){
                     add_param(0,p0);
-                    m_results[0]->delta           = value_ptr(new value_type(cuv::extents[1], value_ptr::s_allocator));
-                    m_results[0]->delta.data()[0] = 1.f;
                 }
                 void fprop();
                 void bprop();
                 void _determine_shapes();
 
-                std::vector<std::vector<datasets::rotated_rect> > get_output_bbox(){ return m_output_bbox; };
-                //void set_teacher_bbox( std::vector<std::vector<datasets::rotated_rect> > teach ){ m_teach_bbox = teach; };
-                //void set_teacher_bbox( std::vector<std::vector<datasets::rotated_rect> > teach ){ m_teach_bbox = teach; };
+                std::vector<std::vector<datasets::bbox> > get_output_bbox(){ return m_output_bbox; };
                 float get_f_match(){ return m_f_match; };
                 float get_f_conf(){ return m_f_conf; };
 

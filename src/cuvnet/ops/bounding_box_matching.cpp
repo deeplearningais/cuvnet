@@ -2,6 +2,13 @@
 #include "bounding_box_matching.hpp"
 #include "../../third_party/graph/bipartite_matching.h"
 
+namespace
+{
+    log4cxx::LoggerPtr g_log(log4cxx::Logger::getLogger("bboxmatch")); 
+}
+
+#define DISABLE_HACK 1
+
 namespace cuvnet
 {
     /// calculates log( exp(0) + exp(z) )
@@ -19,7 +26,7 @@ namespace cuvnet
 
     std::vector<std::vector<int> > optimal_matching(
             const std::vector<datasets::rotated_rect>& means, 
-            const std::vector<std::vector<float> >& conf,
+            const std::vector<std::vector<datasets::bbox> >& output,
             const float alpha, 
             const std::vector<std::vector<datasets::bbox> >& teach){
         unsigned int bs = teach.size();
@@ -54,8 +61,8 @@ namespace cuvnet
                     // make costs negative, because graph is solved for a maximum weighted matching
                     // add offset for node index due to prediction boxes
                     ew[boost::add_edge(k, K+t, pg).first] = 
-                        - alpha * std::pow(datasets::rotated_rect::l2dist(means[k], teach[b][t].rect), 2)
-                        + conf[b][k];
+                        - std::pow(datasets::rotated_rect::l2dist(means[k], teach[b][t].rect), 2)
+                        + (output[b][k].confidence > 0 || DISABLE_HACK) * output[b][k].confidence / alpha;
                         //- logsumexp_0(-conf[b][k])   // these two are equivalent to conf[b][k]
                         //+ logsumexp_0( conf[b][k]);
                 }
@@ -85,11 +92,11 @@ namespace cuvnet
             for (unsigned int k = 0; k < m_K; k++) {
                 int i_m = m_matching[b][k];
                 if(i_m >= 0) {
-                    f_match += std::pow(datasets::rotated_rect::l2dist(
-                                m_output_bbox[b][k], m_teach[b][i_m].rect), 2);
-                    f_conf += logsumexp_0(-m_output_conf[b][k]);  // log of sigmoid
+                    f_match += (m_output_bbox[b][k].confidence > 0|| DISABLE_HACK) * std::pow(datasets::rotated_rect::l2dist(
+                                m_output_bbox[b][k].rect, m_teach[b][i_m].rect), 2);
+                    f_conf += logsumexp_0(-m_output_bbox[b][k].confidence);  // log of sigmoid
                 } else {
-                    f_conf += logsumexp_0( m_output_conf[b][k]);  // log of (1-sigmoid)
+                    f_conf += logsumexp_0( m_output_bbox[b][k].confidence);  // log of (1-sigmoid)
                 }
             }
         }
@@ -114,36 +121,43 @@ namespace cuvnet
         prediction.reshape({bs, m_K, 5});
 
         m_output_bbox.resize(bs);
-        m_output_conf.resize(bs);
+        int n_bboxes = 0;
         for (unsigned int b = 0; b < bs; b++) {
             m_output_bbox[b].resize(m_K);
-            m_output_conf[b].resize(m_K);
+            n_bboxes += m_teach[b].size();
             for (unsigned int k = 0; k < m_K; k++) {
-                m_output_bbox[b][k].x = prediction(b, k, 0) + m_typical_bboxes[k].x;
-                m_output_bbox[b][k].y = prediction(b, k, 1) + m_typical_bboxes[k].y;
-                m_output_bbox[b][k].h = prediction(b, k, 2) + m_typical_bboxes[k].h;
-                m_output_bbox[b][k].w = prediction(b, k, 3) + m_typical_bboxes[k].w;
+                //m_output_bbox[b][k].x = prediction(b, k, 0) + m_typical_bboxes[k].x;
+                //m_output_bbox[b][k].y = prediction(b, k, 1) + m_typical_bboxes[k].y;
+                //m_output_bbox[b][k].h = prediction(b, k, 2) + m_typical_bboxes[k].h;
+                //m_output_bbox[b][k].w = prediction(b, k, 3) + m_typical_bboxes[k].w;
+                m_output_bbox[b][k].rect.x = prediction(b, k, 0) * m_typical_bboxes[k].w + m_typical_bboxes[k].x;
+                m_output_bbox[b][k].rect.y = prediction(b, k, 1) * m_typical_bboxes[k].h + m_typical_bboxes[k].y;
+                m_output_bbox[b][k].rect.h = exp((float)prediction(b, k, 2)) * m_typical_bboxes[k].h;
+                m_output_bbox[b][k].rect.w = exp((float)prediction(b, k, 3)) * m_typical_bboxes[k].w;
 
-                m_output_conf[b][k] = prediction(b, k, 4);
+                m_output_bbox[b][k].confidence = prediction(b, k, 4);
             }
         }
 
         // find optimal matching between kmeans center of bboxes and teacher bboxes
         // wrt to loss function
-        m_matching = optimal_matching(m_typical_bboxes, m_output_conf, m_alpha, m_teach);
+        m_matching = optimal_matching(m_typical_bboxes, m_output_bbox, m_alpha, m_teach);
 
         boost::tie(m_f_match, m_f_conf) = loss_terms(); 
-        float loss = m_alpha * m_f_match + m_f_conf;
-
+        
+        LOG4CXX_WARN(g_log, "loss terms: " << m_f_match / bs << " " << m_f_conf / bs / m_alpha);
+        
+        m_loss = m_f_match / bs + m_f_conf / bs / m_alpha;
+        
         if(r0.can_overwrite_directly()){
-            (*r0.overwrite_or_add_value())[0] = loss;
+            (*r0.overwrite_or_add_value())[0] = m_loss;
         }
         else if(r0.can_add_directly()){
-            (*r0.overwrite_or_add_value())[0] += loss;
+            (*r0.overwrite_or_add_value())[0] += m_loss;
         }else{
             // reallocate *sigh*
             value_ptr v(new value_type(r0.shape, value_ptr::s_allocator));
-            v.data()[0] = loss;
+            v.data()[0] = m_loss;
             r0.push(v);
         }
         p0.value.reset();
@@ -165,17 +179,30 @@ namespace cuvnet
                 int i_m = m_matching[b][k];
 
                 if (i_m >= 0) { // means matching 
-                    m_delta_matching[b][k] = (m_output_bbox[b][k]
-                            - m_teach[b][i_m].rect).scale_like_vec(m_alpha);
+                    double fact = 1./bs * (m_output_bbox[b][k].confidence > 0|| DISABLE_HACK);
+
+                    //m_delta_matching[b][k].x = fact * (m_output_bbox[b][k].x - m_teach[b][i_m].rect.x);
+                    //m_delta_matching[b][k].y = fact * (m_output_bbox[b][k].y - m_teach[b][i_m].rect.y);
+
+                    //m_delta_matching[b][k].h = fact * (m_output_bbox[b][k].h - m_teach[b][i_m].rect.h);
+                    //m_delta_matching[b][k].w = fact * (m_output_bbox[b][k].w - m_teach[b][i_m].rect.w);
+
+                    m_delta_matching[b][k].x = fact * (m_output_bbox[b][k].rect.x - m_teach[b][i_m].rect.x) * m_typical_bboxes[k].w;
+                    m_delta_matching[b][k].y = fact * (m_output_bbox[b][k].rect.y - m_teach[b][i_m].rect.y) * m_typical_bboxes[k].h;
+
+                    m_delta_matching[b][k].h = fact * (m_output_bbox[b][k].rect.h - m_teach[b][i_m].rect.h) * exp((float)prediction(b,k,2)) * m_typical_bboxes[k].h;
+                    m_delta_matching[b][k].w = fact * (m_output_bbox[b][k].rect.w - m_teach[b][i_m].rect.w) * exp((float)prediction(b,k,3)) * m_typical_bboxes[k].w;
+
+                    //m_delta_matching[b][k] = (m_output_bbox[b][k] - m_teach[b][i_m].rect).scale_like_vec();
                 
-                    m_delta_conf[b][k] = - sigmoid(-m_output_conf[b][k]);
+                    m_delta_conf[b][k] = - sigmoid(-m_output_bbox[b][k].confidence) / bs / m_alpha;
                 } else {
                     m_delta_matching[b][k].x = 0;
                     m_delta_matching[b][k].y = 0;
                     m_delta_matching[b][k].h = 0;
                     m_delta_matching[b][k].w = 0;
                     
-                    m_delta_conf[b][k] =   sigmoid( m_output_conf[b][k]);
+                    m_delta_conf[b][k] =   sigmoid( m_output_bbox[b][k].confidence) / bs / m_alpha;
                 }
             }
         }
