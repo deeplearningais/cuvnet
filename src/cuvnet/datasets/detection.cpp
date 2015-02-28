@@ -101,24 +101,33 @@ namespace datasets
                     // bboxes back into the perspective of the original image.
                     // Does not support rotation!
 
+                    // [0...1] --> [0..region size]
                     b.rect.x *= m_pattern_size * scale_x; 
                     b.rect.y *= m_pattern_size * scale_y; 
                     b.rect.h *= m_pattern_size * scale_x; 
                     b.rect.w *= m_pattern_size * scale_y; 
                         
+                    // determine upper left corner
+                    // (x,y) was center --> upper left coordinate of bbox
                     b.rect.x -= b.rect.w/2;
-                    b.rect.y -= b.rect.h/2;             
+                    b.rect.y -= b.rect.h/2;
                     if (p->flipped)
-                        b.rect.x = (m_pattern_size * scale_x - 1.f) - b.rect.x - b.rect.w;
+                        //b.rect.x = (m_pattern_size * scale_x - 1.f) - b.rect.x - b.rect.w; // falsch? aber gerade irrelevant
+                        b.rect.x -= ((m_pattern_size * scale_x - 1.f) - b.rect.w); // falsch? aber gerade irrelevant
+                        b.rect.x *= -1.;
 
-                    b.rect.x = b.rect.x + pos_in_enlarged.size.width/2;
-                    b.rect.y = b.rect.y + pos_in_enlarged.size.height/2;
+                    // coordinate system origin is center of patch 
+                    b.rect.x -= pos_in_enlarged.size.width/2;
+                    b.rect.y -= pos_in_enlarged.size.height/2;
                     
+                    // coordinate system origin is center of patch in full enlarged image
                     b.rect.x += pos_in_enlarged.center.x;
                     b.rect.y += pos_in_enlarged.center.y;
                     
+                    // coordinate system origin is center of patch in full image
                     b.rect.x -= margins.x;
                     b.rect.y -= margins.y;
+
 
                     pred.push_back(b);
                     count++;
