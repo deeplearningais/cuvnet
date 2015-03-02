@@ -2,8 +2,8 @@
 #include <cuvnet/common.hpp>
 #include <cuvnet/op_utils.hpp>
 #include <cuvnet/ops/cudnn.hpp>
-#include <third_party/cudnn-6.5-linux-R1/cudnn.h>
-//#include <third_party/cudnn-6.5-linux-x64-R2-rc1/cudnn.h>
+//#include <third_party/cudnn-6.5-linux-R1/cudnn.h>
+#include <third_party/cudnn-6.5-linux-x64-v2-rc3/cudnn.h>
 #include <cuv/libs/caffe/caffe.hpp>
 
 #define DIVUP(x,y) (((x)+ (y) -1) / (y))
@@ -143,7 +143,7 @@ namespace cuvnet
 
 #if CUDNN_VERSION != 1
             CUDNN_CALL(cudnnGetConvolutionForwardAlgorithm(
-                    handle,
+                    handle1,
                     imgDesc,
                     filterDesc,
                     convDesc,
@@ -152,7 +152,7 @@ namespace cuvnet
                     CUDNN_CONVOLUTION_FWD_NO_WORKSPACE,
                     0,
                     &algo));
-            CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(handle,
+            CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(handle1,
                         imgDesc, filterDesc, convDesc, outputDesc, algo,
                         &workspace_size));
 #endif
@@ -437,10 +437,6 @@ namespace cuvnet
 		if (ptr0.ptr() != 0)
 			p0.push(ptr0);
 
-	/*	ptr1.reset();
-		ptr2.reset();
-		ptr0.reset();*/
-
         r0.delta.reset();
 
 	}
@@ -530,8 +526,8 @@ namespace cuvnet
 
 #if CUDNN_VERSION != 1
 			CUDNN_CALL(cudnnSetPooling2dDescriptor(poolingDesc, 
-                        //pooling->m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, 
-                        pooling->m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE,
+                        pooling->m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING, 
+                       // pooling->m_mode == cuv::alex_conv::PT_MAX ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE,
                         pooling->m_window_height, pooling->m_window_width, pooling->m_vertical_pad, pooling->m_horizontal_pad, pooling->m_vertical_stride, pooling->m_horizontal_stride));
 #else
 			CUDNN_CALL(cudnnSetPoolingDescriptor(poolingDesc, 
