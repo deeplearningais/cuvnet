@@ -266,6 +266,9 @@ namespace datasets
                         // include only bboxes whose area is less than 20% of the total pattern size
                         if ((in_area / (1*1)) < 0.2)
                             continue;
+
+                        pbb.klass = bb.klass;
+                        pbb.truncated = bb.truncated;
                         pattern->bboxes.push_back(pbb);
                     }
                 }
@@ -587,6 +590,9 @@ namespace datasets
                         // include only bboxes whose area is less than 20% of the total pattern size
                         if ((in_area / (1*1)) < 0.2)
                             continue;
+
+                        pbb.klass = bb.klass;
+                        pbb.truncated = bb.truncated;
                         pattern->bboxes.push_back(pbb);
                     }
                 }
