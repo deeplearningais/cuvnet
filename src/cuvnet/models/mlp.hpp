@@ -87,7 +87,7 @@ namespace cuvnet
                  */
                 inline mlp_layer_opts& rectified_linear(bool mem_optimized=false){
                     m_nonlinearity = boost::bind(cuvnet::rectified_linear, _1, mem_optimized);
-                    m_bias_default_value = 1.f;
+                    //m_bias_default_value = 0.f;
                     return *this;
                 }
 
