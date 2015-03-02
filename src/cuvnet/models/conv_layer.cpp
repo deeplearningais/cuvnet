@@ -176,6 +176,15 @@ namespace cuvnet { namespace models {
         if(cfg.m_nonlinearity)
             m_output = cfg.m_nonlinearity(m_output);
 
+        // Krizhevsky et al.: pooling /after/ response normalization, but CaffeNet: before.
+        m_output_before_pooling = m_output;
+        if(cfg.m_want_pooling){
+            if (cfg.m_use_cuDNN)
+            	m_output = pooling_cuDNN(m_output, cfg.m_pool_type, cfg.m_pool_size, cfg.m_pool_size, cfg.m_pool_stride, cfg.m_pool_stride);
+            else
+            	m_output = local_pool(m_output, cfg.m_pool_size, cfg.m_pool_stride, cfg.m_pool_type);
+        }
+
         // Caffe: normalization /after/ ReLU
         // https://github.com/BVLC/caffe/blob/master/examples/imagenet/alexnet_train.prototxt
         if(cfg.m_want_contrast_norm){
@@ -198,14 +207,6 @@ namespace cuvnet { namespace models {
                         cfg.m_rn_N, cfg.m_rn_alpha, cfg.m_rn_beta);
         }
         
-        // Krizhevsky et al.: pooling /after/ response normalization
-        m_output_before_pooling = m_output;
-        if(cfg.m_want_pooling){
-            if (cfg.m_use_cuDNN)
-            	m_output = pooling_cuDNN(m_output, cfg.m_pool_type, cfg.m_pool_size, cfg.m_pool_size, cfg.m_pool_stride, cfg.m_pool_stride);
-            else
-            	m_output = local_pool(m_output, cfg.m_pool_size, cfg.m_pool_stride, cfg.m_pool_type);
-        }
 
     }
 
