@@ -87,16 +87,19 @@ namespace datasets
 
         if(set->todo_size() == 0 && set->processing_size() == 0){
             std::vector<bbox> pred;
+            std::vector<float> scale_org;
             int count = 0;
             for(const auto& p : set->m_done){
                 float scale_x = p->region_in_original.h / m_pattern_size;
                 float scale_y = p->region_in_original.w / m_pattern_size;
-
+                
                 cv::Rect margins;
                 cv::RotatedRect pos_in_enlarged;
                 boost::tie(margins, pos_in_enlarged) = required_padding(p->original->rgb, p->region_in_original);
 
                 for(auto b : p->predicted_bboxes) {
+                    scale_org.push_back(p->region_in_original.w / p->original->rgb.cols);
+                
                     // Instructions inverse to preprocessing to move and scale 
                     // bboxes back into the perspective of the original image.
                     // Does not support rotation!
@@ -134,17 +137,20 @@ namespace datasets
                     count++;
                 }
             }
-
+                
+            int idx = 0;
             static std::ofstream out_f("predicted_bboxes.txt", std::ios::out);
             out_f << m_meta[pat->original->ID].rgb_filename << " ";
             out_f << count << " ";
             for (auto p : pred) {
-                out_f << p.rect.x << " "
+                out_f << p.klass << " "
+                      << scale_org[idx++] << " "
+                      << p.rect.x << " "
                       << p.rect.y << " "
                       << p.rect.h << " "
                       << p.rect.w << " "
                       << p.confidence << " ";
-            }
+                }
             out_f << std::endl;
             
 
@@ -153,6 +159,7 @@ namespace datasets
             static int cnt = 0;
             if(++cnt % 50 == 0){
             }
+            pat->set.reset();
         }
     
     }
