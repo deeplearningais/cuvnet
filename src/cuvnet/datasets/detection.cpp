@@ -111,10 +111,11 @@ namespace datasets
                     // (x,y) was center --> upper left coordinate of bbox
                     b.rect.x -= b.rect.w/2;
                     b.rect.y -= b.rect.h/2;
-                    if (p->flipped)
+                    if (p->flipped){
                         //b.rect.x = (m_pattern_size * scale_x - 1.f) - b.rect.x - b.rect.w; // falsch? aber gerade irrelevant
                         b.rect.x -= ((m_pattern_size * scale_x - 1.f) - b.rect.w); // falsch? aber gerade irrelevant
                         b.rect.x *= -1.;
+                    }
 
                     // coordinate system origin is center of patch 
                     b.rect.x -= pos_in_enlarged.size.width/2;
