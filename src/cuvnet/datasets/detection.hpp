@@ -103,7 +103,10 @@ namespace datasets
          */
         void clear_predictions();
 
-        void aggregate_statistics() override;
+        /**
+         * generates n pattern ad accumulates statistics over them
+         */
+        void aggregate_statistics(const unsigned int n = 1000) override;
     };
 
     /// @}
