@@ -31,51 +31,55 @@ namespace cuvnet
             const std::vector<std::vector<datasets::bbox> >& teach){
         unsigned int bs = teach.size();
         unsigned int K = means.size();
+        unsigned int C = output[0].size() / K; // number of classes in output
         
         std::vector<std::vector<int> > matching(bs);
         for (unsigned int b = 0; b < bs; b++) {
-            matching[b].resize(K, -1);
-            typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS,
-                    boost::property<boost::vertex_name_t, std::string>,
-                    boost::property<boost::edge_weight_t,
-                    double> > Graph;
+            matching[b].resize(C*K, -1);
+            for (unsigned int c = 0; c < C; ++c)
+            {
+                typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS,
+                        boost::property<boost::vertex_name_t, std::string>,
+                        boost::property<boost::edge_weight_t,
+                        double> > Graph;
 
-            unsigned int teach_boxes = teach[b].size();
+                unsigned int teach_boxes = teach[b].size();
 
-            Graph pg(K + teach_boxes);
+                Graph pg(K + teach_boxes);
 
-            /*
-             *boost::property_map<Graph,
-             *    boost::vertex_name_t>::type
-             *        vm= boost::get(boost::vertex_name, pg);
-             */
-            boost::property_map<Graph,
-                boost::edge_weight_t>::type
-                    ew= boost::get(boost::edge_weight, pg);
+                /*
+                 *boost::property_map<Graph,
+                 *    boost::vertex_name_t>::type
+                 *        vm= boost::get(boost::vertex_name, pg);
+                 */
+                boost::property_map<Graph,
+                    boost::edge_weight_t>::type
+                        ew= boost::get(boost::edge_weight, pg);
 
-            for (unsigned int k = 0; k < K; k++) {
-                for (unsigned int t = 0; t < teach_boxes; t++) {
-                    // edge weights are the costs for a given node couple and consists of
-                    //  - distance between kmean center and teacher
-                    //  - confidence for 
-                    // make costs negative, because graph is solved for a maximum weighted matching
-                    // add offset for node index due to prediction boxes
-                    ew[boost::add_edge(k, K+t, pg).first] = 
-                        - std::pow(datasets::rotated_rect::l2dist(means[k], teach[b][t].rect), 2)
-                        + (output[b][k].confidence > 0 || DISABLE_HACK) * output[b][k].confidence / alpha;
+                for (unsigned int k = 0; k < K; k++) {
+                    for (unsigned int t = 0; t < teach_boxes; t++) {
+                        // edge weights are the costs for a given node couple and consists of
+                        //  - distance between kmean center and teacher
+                        //  - confidence for 
+                        // make costs negative, because graph is solved for a maximum weighted matching
+                        // add offset for node index due to prediction boxes
+                        ew[boost::add_edge(k, K+t, pg).first] = 
+                            - std::pow(datasets::rotated_rect::l2dist(means[k], teach[b][t].rect), 2)
+                            + (output[b][k].confidence > 0 || DISABLE_HACK) * output[b][K*c+k].confidence / alpha;
                         //- logsumexp_0(-conf[b][k])   // these two are equivalent to conf[b][k]
                         //+ logsumexp_0( conf[b][k]);
+                    }
                 }
-            }
 
-            std::vector<std::pair<int,int> > out
-                = get_maximum_weight_bipartite_matching(pg, K,
-                        boost::get(boost::vertex_index, pg),
-                        boost::get(boost::edge_weight, pg));
-            
-            for (unsigned int i=0; i < out.size(); ++i) {
-                // remove node index offset
-                matching[b][out[i].first] = out[i].second - K;
+                std::vector<std::pair<int,int> > out
+                    = get_maximum_weight_bipartite_matching(pg, K,
+                            boost::get(boost::vertex_index, pg),
+                            boost::get(boost::edge_weight, pg));
+
+                for (unsigned int i=0; i < out.size(); ++i) {
+                    // remove node index offset
+                    matching[b][K*c+out[i].first] = out[i].second - K;
+                }
             }
         }
 
@@ -88,18 +92,22 @@ namespace cuvnet
         unsigned int bs = m_output_bbox.size();
 
         for (unsigned int b = 0; b < bs; b++) {
-            std::vector<bool> matched(m_K);
-            for (unsigned int k = 0; k < m_K; k++) {
-                int i_m = m_matching[b][k];
-                if(i_m >= 0) {
-                    f_match += (m_output_bbox[b][k].confidence > 0|| DISABLE_HACK) * std::pow(datasets::rotated_rect::l2dist(
-                                m_output_bbox[b][k].rect, m_teach[b][i_m].rect), 2);
-                    f_conf += logsumexp_0(-m_output_bbox[b][k].confidence);  // log of sigmoid
-                } else {
-                    f_conf += logsumexp_0( m_output_bbox[b][k].confidence);  // log of (1-sigmoid)
+            //std::vector<bool> matched(m_n_predictions * m_n_klasses);
+            for (unsigned int c = 0; c < m_n_klasses; ++c)
+            {
+                for (unsigned int k = 0; k < m_n_predictions; k++) {
+                    unsigned int idx = c * m_n_predictions + k;
+                    int i_m = m_matching[b][idx];
+                    if(i_m >= 0) {
+                        f_match += (m_output_bbox[b][idx].confidence > 0|| DISABLE_HACK) * std::pow(datasets::rotated_rect::l2dist(
+                                    m_output_bbox[b][idx].rect, m_teach[b][i_m].rect), 2);
+                        f_conf += logsumexp_0(-m_output_bbox[b][idx].confidence);  // log of sigmoid
+                    } else {
+                        f_conf += logsumexp_0( m_output_bbox[b][idx].confidence);  // log of (1-sigmoid)
+                    }
+                    assert(std::isfinite(f_match));
+                    assert(std::isfinite(f_conf));
                 }
-                assert(std::isfinite(f_match));
-                assert(std::isfinite(f_conf));
             }
         }
         f_match *= 1./2;
@@ -120,13 +128,11 @@ namespace cuvnet
         prediction = p0.value.data();
 
         unsigned int bs = prediction.shape(0);
-        m_K = prediction.shape(1) / 5;
-        prediction.reshape({bs, m_K, 5});
-        
+        prediction.reshape({bs, m_n_klasses, m_n_predictions, 5});
     
         {
             auto tmp_p = prediction;
-            tmp_p.reshape(prediction.shape(0) * prediction.shape(1), 5);
+            tmp_p.reshape(bs * m_n_klasses * m_n_predictions, 5);
 
             cuv::tensor<float, cuv::host_memory_space> _min(cuv::extents[5]);
             cuv::reduce_to_row(_min, tmp_p, cuv::RF_MIN);
@@ -144,14 +150,14 @@ namespace cuvnet
             float con_max = _max(4);
             float con_avg = _avg(4);
 
-            LOG4CXX_WARN(g_log, 
-                    "box prediction, min:"<< box_min <<
-                    " , max:"<< box_max<<
-                    " , mean:"<< box_avg);
-            LOG4CXX_WARN(g_log, 
-                    "conf prediction, min:"<< con_min <<
-                    " , max:"<< con_max<<
-                    " , mean:"<< con_avg);
+            //LOG4CXX_WARN(g_log, 
+            //        "box prediction, min:"<< box_min <<
+            //        " , max:"<< box_max<<
+            //        " , mean:"<< box_avg);
+            //LOG4CXX_WARN(g_log, 
+            //        "conf prediction, min:"<< con_min <<
+            //        " , max:"<< con_max<<
+            //        " , mean:"<< con_avg);
             
             //LOG4CXX_WARN(g_log, "teacher size:"<<m_teach.size());
             /*
@@ -177,24 +183,26 @@ namespace cuvnet
         m_output_bbox.resize(bs);
         int n_bboxes = 0;
         for (unsigned int b = 0; b < bs; b++) {
-            m_output_bbox[b].resize(m_K);
-            n_bboxes += m_teach[b].size();
-            for (unsigned int k = 0; k < m_K; k++) {
-                //m_output_bbox[b][k].x = prediction(b, k, 0) + m_typical_bboxes[k].x;
-                //m_output_bbox[b][k].y = prediction(b, k, 1) + m_typical_bboxes[k].y;
-                //m_output_bbox[b][k].h = prediction(b, k, 2) + m_typical_bboxes[k].h;
-                //m_output_bbox[b][k].w = prediction(b, k, 3) + m_typical_bboxes[k].w;
-                m_output_bbox[b][k].rect.x = prediction(b, k, 0) * m_typical_bboxes[k].w + m_typical_bboxes[k].x;
-                m_output_bbox[b][k].rect.y = prediction(b, k, 1) * m_typical_bboxes[k].h + m_typical_bboxes[k].y;
-                m_output_bbox[b][k].rect.h = exp((float)prediction(b, k, 2)) * m_typical_bboxes[k].h;
-                m_output_bbox[b][k].rect.w = exp((float)prediction(b, k, 3)) * m_typical_bboxes[k].w;
+            m_output_bbox[b].resize(m_n_predictions * m_n_klasses);
+            for(unsigned int c = 0; c < m_n_klasses; c++){
+                n_bboxes += m_teach[b].size();
+                for (unsigned int k = 0; k < m_n_predictions; k++) {
+                    //m_output_bbox[b][k].x = prediction(b, k, 0) + m_typical_bboxes[k].x;
+                    //m_output_bbox[b][k].y = prediction(b, k, 1) + m_typical_bboxes[k].y;
+                    //m_output_bbox[b][k].h = prediction(b, k, 2) + m_typical_bboxes[k].h;
+                    //m_output_bbox[b][k].w = prediction(b, k, 3) + m_typical_bboxes[k].w;
+                    m_output_bbox[b][c*m_n_predictions + k].rect.x = prediction(b, c, k, 0) * m_typical_bboxes[k].w + m_typical_bboxes[k].x;
+                    m_output_bbox[b][c*m_n_predictions + k].rect.y = prediction(b, c, k, 1) * m_typical_bboxes[k].h + m_typical_bboxes[k].y;
+                    m_output_bbox[b][c*m_n_predictions + k].rect.h = exp((float)prediction(b, c, k, 2)) * m_typical_bboxes[k].h;
+                    m_output_bbox[b][c*m_n_predictions + k].rect.w = exp((float)prediction(b, c, k, 3)) * m_typical_bboxes[k].w;
 
-                m_output_bbox[b][k].confidence = prediction(b, k, 4);
+                    m_output_bbox[b][c*m_n_predictions + k].confidence = prediction(b, c, k, 4);
 
-                assert(std::isfinite(std::pow(m_output_bbox[b][k].rect.x, 2)));
-                assert(std::isfinite(std::pow(m_output_bbox[b][k].rect.y, 2)));
-                assert(std::isfinite(std::pow(m_output_bbox[b][k].rect.h, 2)));
-                assert(std::isfinite(std::pow(m_output_bbox[b][k].rect.w, 2)));
+                    assert(std::isfinite(std::pow(m_output_bbox[b][c*m_n_predictions + k].rect.x, 2)));
+                    assert(std::isfinite(std::pow(m_output_bbox[b][c*m_n_predictions + k].rect.y, 2)));
+                    assert(std::isfinite(std::pow(m_output_bbox[b][c*m_n_predictions + k].rect.h, 2)));
+                    assert(std::isfinite(std::pow(m_output_bbox[b][c*m_n_predictions + k].rect.w, 2)));
+                }
             }
         }
 
@@ -204,7 +212,7 @@ namespace cuvnet
 
         boost::tie(m_f_match, m_f_conf) = loss_terms(); 
         
-        LOG4CXX_WARN(g_log, "loss terms: " << m_f_match / bs << " " << m_f_conf / bs / m_alpha);
+        //LOG4CXX_WARN(g_log, "loss terms: " << m_f_match / bs << " " << m_f_conf / bs / m_alpha);
         
         m_loss = m_f_match / bs + m_f_conf / bs / m_alpha;
         
@@ -232,55 +240,63 @@ namespace cuvnet
         m_delta_matching.resize(bs);
         m_delta_conf.resize(bs);
         for (unsigned int b = 0; b < bs; b++) {
-            m_delta_matching[b].resize(m_K);
-            m_delta_conf[b].resize(m_K);
-            for (unsigned int k = 0; k < m_K; k++) {
-                int i_m = m_matching[b][k];
+            m_delta_matching[b].resize(m_n_predictions * m_n_klasses);
+            m_delta_conf[b].resize(m_n_predictions * m_n_klasses);
+            for (unsigned int c = 0; c < m_n_klasses; ++c)
+            {
+                for (unsigned int k = 0; k < m_n_predictions; k++) {
+                    unsigned int idx = c * m_n_predictions + k;
 
-                if (i_m >= 0) { // means matching 
-                    double fact = 1./bs * (m_output_bbox[b][k].confidence > 0|| DISABLE_HACK);
+                    int i_m = m_matching[b][idx];
 
-                    //m_delta_matching[b][k].x = fact * (m_output_bbox[b][k].x - m_teach[b][i_m].rect.x);
-                    //m_delta_matching[b][k].y = fact * (m_output_bbox[b][k].y - m_teach[b][i_m].rect.y);
+                    if (i_m >= 0) { // means matching 
+                        double fact = 1./bs * (m_output_bbox[b][idx].confidence > 0|| DISABLE_HACK);
 
-                    //m_delta_matching[b][k].h = fact * (m_output_bbox[b][k].h - m_teach[b][i_m].rect.h);
-                    //m_delta_matching[b][k].w = fact * (m_output_bbox[b][k].w - m_teach[b][i_m].rect.w);
+                        //m_delta_matching[b][idx].x = fact * (m_output_bbox[b][idx].x - m_teach[b][i_m].rect.x);
+                        //m_delta_matching[b][idx].y = fact * (m_output_bbox[b][idx].y - m_teach[b][i_m].rect.y);
 
-                    m_delta_matching[b][k].x = fact * (m_output_bbox[b][k].rect.x - m_teach[b][i_m].rect.x) * m_typical_bboxes[k].w;
-                    m_delta_matching[b][k].y = fact * (m_output_bbox[b][k].rect.y - m_teach[b][i_m].rect.y) * m_typical_bboxes[k].h;
+                        //m_delta_matching[b][idx].h = fact * (m_output_bbox[b][idx].h - m_teach[b][i_m].rect.h);
+                        //m_delta_matching[b][idx].w = fact * (m_output_bbox[b][idx].w - m_teach[b][i_m].rect.w);
 
-                    m_delta_matching[b][k].h = fact * (m_output_bbox[b][k].rect.h - m_teach[b][i_m].rect.h) * exp((float)prediction(b,k,2)) * m_typical_bboxes[k].h;
-                    m_delta_matching[b][k].w = fact * (m_output_bbox[b][k].rect.w - m_teach[b][i_m].rect.w) * exp((float)prediction(b,k,3)) * m_typical_bboxes[k].w;
+                        m_delta_matching[b][idx].x = fact * (m_output_bbox[b][idx].rect.x - m_teach[b][i_m].rect.x) * m_typical_bboxes[k].w;
+                        m_delta_matching[b][idx].y = fact * (m_output_bbox[b][idx].rect.y - m_teach[b][i_m].rect.y) * m_typical_bboxes[k].h;
 
-                    //m_delta_matching[b][k] = (m_output_bbox[b][k] - m_teach[b][i_m].rect).scale_like_vec();
-                
-                    m_delta_conf[b][k] = - sigmoid(-m_output_bbox[b][k].confidence) / bs / m_alpha;
-                } else {
-                    m_delta_matching[b][k].x = 0;
-                    m_delta_matching[b][k].y = 0;
-                    m_delta_matching[b][k].h = 0;
-                    m_delta_matching[b][k].w = 0;
-                    
-                    m_delta_conf[b][k] =   sigmoid( m_output_bbox[b][k].confidence) / bs / m_alpha;
-                    
-                    assert(std::isfinite(m_delta_matching[b][k].x));
-                    assert(std::isfinite(m_delta_matching[b][k].y));
-                    assert(std::isfinite(m_delta_matching[b][k].h));
-                    assert(std::isfinite(m_delta_matching[b][k].w));
-                    assert(std::isfinite(m_delta_conf[b][k]));
+                        m_delta_matching[b][idx].h = fact * (m_output_bbox[b][idx].rect.h - m_teach[b][i_m].rect.h) * exp((float)prediction(b,c,k,2)) * m_typical_bboxes[k].h;
+                        m_delta_matching[b][idx].w = fact * (m_output_bbox[b][idx].rect.w - m_teach[b][i_m].rect.w) * exp((float)prediction(b,c,k,3)) * m_typical_bboxes[k].w;
+
+                        //m_delta_matching[b][k] = (m_output_bbox[b][k] - m_teach[b][i_m].rect).scale_like_vec();
+
+                        m_delta_conf[b][idx] = - sigmoid(-m_output_bbox[b][idx].confidence) / bs / m_alpha;
+                    } else {
+                        m_delta_matching[b][idx].x = 0;
+                        m_delta_matching[b][idx].y = 0;
+                        m_delta_matching[b][idx].h = 0;
+                        m_delta_matching[b][idx].w = 0;
+
+                        m_delta_conf[b][idx] =   sigmoid( m_output_bbox[b][idx].confidence) / bs / m_alpha;
+
+                        assert(std::isfinite(m_delta_matching[b][idx].x));
+                        assert(std::isfinite(m_delta_matching[b][idx].y));
+                        assert(std::isfinite(m_delta_matching[b][idx].h));
+                        assert(std::isfinite(m_delta_matching[b][idx].w));
+                        assert(std::isfinite(m_delta_conf[b][idx]));
+                    }
                 }
             }
         }
 
         cuv::tensor<float, cuv::host_memory_space> grad;
-        grad.resize({bs, m_K, 5});
+        grad.resize({bs, m_n_klasses, m_n_predictions, 5});
         for (unsigned int b = 0; b < bs; b++) {
-            for (unsigned int k = 0; k < m_K; k++) {
-                grad(b,k,0) = m_delta_matching[b][k].x;
-                grad(b,k,1) = m_delta_matching[b][k].y;
-                grad(b,k,2) = m_delta_matching[b][k].h;
-                grad(b,k,3) = m_delta_matching[b][k].w;
-                grad(b,k,4) = m_delta_conf[b][k];
+            for (unsigned int c = 0; c < m_n_klasses; ++c)
+            {
+                for (unsigned int k = 0; k < m_n_predictions; k++) {
+                    grad(b,c, k,0) = m_delta_matching[b][c*m_n_predictions +k].x;
+                    grad(b,c, k,1) = m_delta_matching[b][c*m_n_predictions +k].y;
+                    grad(b,c, k,2) = m_delta_matching[b][c*m_n_predictions +k].h;
+                    grad(b,c, k,3) = m_delta_matching[b][c*m_n_predictions +k].w;
+                    grad(b,c, k,4) = m_delta_conf[b][c*m_n_predictions +k];
+                }
             }
         }
         grad.reshape(p0.shape);
@@ -288,7 +304,7 @@ namespace cuvnet
 
         {
             auto tmp_p = grad;
-            tmp_p.reshape(grad.shape(0) * grad.shape(1) / 5, 5);
+            tmp_p.reshape(bs * m_n_klasses * m_n_predictions, 5);
 
             cuv::tensor<float, cuv::host_memory_space> _min(cuv::extents[5]);
             cuv::reduce_to_row(_min, tmp_p, cuv::RF_MIN);
@@ -306,14 +322,14 @@ namespace cuvnet
             float con_max = _max(4);
             float con_avg = _avg(4);
 
-            LOG4CXX_WARN(g_log, 
-                    "box grad, min:"<< box_min <<
-                    " , max:"<< box_max<<
-                    " , mean:"<< box_avg);
-            LOG4CXX_WARN(g_log, 
-                    "conf grad, min:"<< con_min <<
-                    " , max:"<< con_max<<
-                    " , mean:"<< con_avg);
+            //LOG4CXX_WARN(g_log, 
+            //        "box grad, min:"<< box_min <<
+            //        " , max:"<< box_max<<
+            //        " , mean:"<< box_avg);
+            //LOG4CXX_WARN(g_log, 
+            //        "conf grad, min:"<< con_min <<
+            //        " , max:"<< con_max<<
+            //        " , mean:"<< con_avg);
             
             /*
             LOG4CXX_WARN(g_log, 
@@ -342,7 +358,9 @@ namespace cuvnet
 
         // assertions for input dimensions 
         cuvAssert(m_params[0]->shape.size() == 2);
-        cuvAssert(m_params[0]->shape[1] % 5 == 0);
-        cuvAssert(m_params[0]->shape[1] / 5 == m_typical_bboxes.size());
+        cuvAssert(m_params[0]->shape[1] % (m_n_klasses * 5) == 0);
+        cuvAssert(m_params[0]->shape[1] / (m_n_klasses * 5) == m_typical_bboxes.size());
+
+        m_n_predictions = m_params[0]->shape[1] / (5 * m_n_klasses);
     }
 }

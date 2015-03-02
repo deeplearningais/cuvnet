@@ -17,7 +17,8 @@ namespace cuvnet
                 typedef Op::result_t      result_t;
 
             public:
-                unsigned int m_K;
+                unsigned int m_n_predictions;
+                unsigned int m_n_klasses;
                 std::vector<datasets::rotated_rect> m_typical_bboxes;
                 std::vector<std::vector<int> > m_matching; 
 
@@ -38,14 +39,20 @@ namespace cuvnet
                 std::pair<float, float> loss_terms();
 
             public:
-                BoundingBoxMatching(){} ///< for serialization
+                BoundingBoxMatching()
+                    : m_n_klasses(1)
+                {} ///< for serialization
                 /**
                  * ctor.
-                 * @param p0 bounding box predictions (offsets) with B x N x 4 dimenions
-                 * @param p1 network confidence of each bounding box B X N dimensions
+                 * @param p0 bounding box predictions (offsets) with B x (K * N * 5) dimensions
+                 *        where B is batch size, K is number of classes, N is
+                 *        number of bounding boxes, and the 5 bounding box
+                 *        parameters are center offset, height/width offset,
+                 *        and confidence.
                  */
-                BoundingBoxMatching(result_t& p0, std::vector<datasets::rotated_rect> kmeans, float alpha)
+                BoundingBoxMatching(result_t& p0, std::vector<datasets::rotated_rect> kmeans, float alpha, int n_klasses)
                     : Op(1,1)
+                    , m_n_klasses(n_klasses)
                     , m_typical_bboxes(kmeans)
                     , m_alpha(alpha){
                     add_param(0,p0);
@@ -63,11 +70,14 @@ namespace cuvnet
                 template<class Archive>
                     void serialize(Archive& ar, const unsigned int version){
                         ar & boost::serialization::base_object<Op>(*this);
-                        ar & m_K;
+                        ar & m_n_predictions;
                         ar & m_alpha;
                         ar & m_typical_bboxes; 
+                        if(version > 0)
+                            ar & m_n_klasses;
                     }
         };
 }
+BOOST_CLASS_VERSION(cuvnet::BoundingBoxMatching, 1)
 
 #endif // __BOUNDING_BOX_MATCHING_OP_HPP__
