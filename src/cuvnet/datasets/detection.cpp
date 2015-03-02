@@ -275,8 +275,8 @@ namespace datasets
         cv::imshow(name, cvrgb);
     }
 
-    void rgb_detection_dataset::aggregate_statistics(){
-        std::ofstream mean_f, bboxes_f;
+    void rgb_detection_dataset::aggregate_statistics(const unsigned int n){
+        std::ofstream bboxes_f;
       
         // remove trailing .txt 
         std::string base = m_filename.substr(0, m_filename.length() - 4); 
@@ -285,7 +285,7 @@ namespace datasets
         std::vector<cuv::tensor<float, cuv::host_memory_space> > v;
         cuv::tensor<float, cuv::host_memory_space> avg;
         int N = 0;
-        for (unsigned int i = 0; i < size(); i++) {
+        for (unsigned int i = 0; i < n; i++) {
             auto pattern_set = next(i); 
 
             bool start_seq = i % 1000 == 0;

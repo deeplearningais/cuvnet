@@ -324,7 +324,7 @@ namespace datasets
         }
     }
 
-    void rgb_classification_dataset::aggregate_statistics(){
+    void rgb_classification_dataset::aggregate_statistics(const unsigned int n){
     }
 
 }

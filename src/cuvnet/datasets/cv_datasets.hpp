@@ -311,7 +311,7 @@ namespace datasets{
             return preprocess(i, ptr);
         }
 
-        virtual void aggregate_statistics() = 0;
+        virtual void aggregate_statistics(const unsigned int n_batches) = 0;
     };
 
     /**
@@ -381,7 +381,7 @@ namespace datasets{
          */
         float get_zero_one(int k=1);
 
-        void aggregate_statistics() override;
+        void aggregate_statistics(const unsigned int n) override;
     }; 
 
     /** 
