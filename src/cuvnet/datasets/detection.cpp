@@ -170,8 +170,7 @@ namespace datasets
                       << p.confidence << " ";
                 }
             out_f << std::endl;
-            
-
+                
             set->m_done.clear(); // prevent circles
 
             static int cnt = 0;
@@ -236,10 +235,11 @@ namespace datasets
                         cv::Rect r = cv::boundingRect(bounds_rot);
 
                         bbox pbb;
+                        // origin patch center  -> upper left corner
                         pbb.rect.x = r.x + pos_in_enlarged.size.width/2;
                         pbb.rect.y = r.y + pos_in_enlarged.size.height/2;
-                        pbb.rect.w  = r.width;
-                        pbb.rect.h  = r.height;
+                        pbb.rect.w = r.width;
+                        pbb.rect.h = r.height;
                         if(pattern->flipped){
                             pbb.rect.x = (m_pattern_size * scale_x - 1.f) - pbb.rect.x - pbb.rect.w;
                         }
@@ -336,7 +336,9 @@ namespace datasets
                 N ++;
 
                 for (auto bb : pat->bboxes) {
-                    bboxes_f << bb.rect.x << " " 
+                    bboxes_f 
+                        << bb.klass << " "
+                        << bb.rect.x << " " 
                         << bb.rect.y << " " 
                         << bb.rect.h << " " 
                         << bb.rect.w << std::endl; 
@@ -356,6 +358,8 @@ namespace datasets
             std::string l = "zero mean deviation: " + std::to_string(cuv::mean(avg)) + " ";
             LOG4CXX_WARN(g_log, l);
         }
+        
+        bboxes_f.close();
     };
 
 
