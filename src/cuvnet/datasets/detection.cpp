@@ -30,7 +30,7 @@ namespace datasets
     load_image<rgbd_detection_tag>(const meta_data<rgbd_detection_tag>& meta){
         auto img = boost::make_shared<rgbd_image>();
         {    
-            meta_data<rgb_classification_tag> tmp_meta;
+           meta_data<rgb_classification_tag> tmp_meta;
            tmp_meta.rgb_filename = meta.rgb_filename;
            //  delegate to rgb_classification
            auto tmp = load_image(tmp_meta);
@@ -315,7 +315,7 @@ namespace datasets
         cuv::tensor<float, cuv::host_memory_space> avg;
         int N = 0;
         for (unsigned int i = 0; i < n; i++) {
-            auto pattern_set = next(i); 
+            auto pattern_set = next(i % size()); 
 
             bool start_seq = i % 1000 == 0;
             if(start_seq){
@@ -660,7 +660,7 @@ namespace datasets
         cuv::tensor<float, cuv::host_memory_space> avg_depth;
         int N = 0;
         for (unsigned int i = 0; i < n_batches; i++) {
-            auto pattern_set = next(i); 
+            auto pattern_set = next(i % size()); 
 
             bool start_seq = i % 1000 == 0;
             if(start_seq){
