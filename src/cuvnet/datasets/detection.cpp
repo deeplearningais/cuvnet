@@ -188,8 +188,8 @@ namespace datasets
 
             auto patternset = boost::make_shared<patternset_t>();
 
-            //auto regions = random_regions(in->rgb, m_n_crops, 0.25);
-            auto regions = random_regions_from_depth(in->rgb, m_n_crops, 300., 1.);
+            auto regions = random_regions(in->rgb, m_n_crops, 0.25);
+            //auto regions = random_regions_from_depth(in->rgb, m_n_crops, 300., 1.);
             //auto regions = covering_regions_from_depth(in->rgb, 300., 1., 1.0);
 
             for (auto r : regions){
@@ -515,7 +515,8 @@ namespace datasets
 
             auto patternset = boost::make_shared<patternset_t>();
 
-            auto regions = random_regions(in->rgb, m_n_crops, 0.25);
+            //auto regions = random_regions(in->rgb, m_n_crops, 0.25);
+            auto regions = random_regions_from_depth(in->depth, m_n_crops, 300., 1.);
 
             for (auto r : regions){
                 r.angle = 20 * drand48() - 10;
