@@ -1,4 +1,4 @@
-import sys
+import sys, traceback
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mc
@@ -9,6 +9,7 @@ from scipy.ndimage import zoom
 from random_palette import get_random_color
 import cuv_python as cp
 import cuvnet as cn
+import pyobjdet as pod
 
 import logging
 from rainbow_logging_handler import RainbowLoggingHandler
@@ -16,14 +17,80 @@ formatter = logging.Formatter("[%(asctime)s] %(name)s %(funcName)s():%(lineno)d\
 handler = RainbowLoggingHandler(sys.stderr, color_funcName=('black', 'yellow', True))
 handler.setFormatter(formatter)
 glog = logging.getLogger("visualization")
-glog.setLevel(logging.INFO)
+glog.setLevel(logging.WARN)
 glog.addHandler(handler)
 #from IPython.core.debugger import Tracer
-#from IPython import embed
 #tracer = Tracer()
+#from IPython import embed
 
 
 g_click_cnt = 0
+
+def sigm(x):
+    return 1./(1.+np.exp(-x))
+
+def area(b):
+    if hasattr(b, "rect"):
+        return b.rect.w * b.rect.h
+    return b.w * b.h
+
+def match_bboxes(teachers, predictions, confidences, thresh=0.):
+    predictions = np.array(predictions)
+    confidences = np.array(confidences)
+    matched_teach = np.zeros(len(teachers))
+    matched_pred = np.zeros(len(predictions))
+
+    idx = np.argsort(-confidences)
+    confidences = confidences[idx]
+    predictions = predictions[idx]
+    
+    for i, (p, c) in enumerate(zip(predictions, confidences)):
+        if sigm(c) <= thresh:
+            break
+        values = []
+        is_double = False
+        for j, t in enumerate(teachers):
+            if matched_teach[j]:
+                if intersection_over_union(p, t) > 0.5:
+                    is_double = True
+                values.append(0)
+                continue
+            values.append(intersection_over_union(p, t))
+        if len(values) == 0:
+            continue
+        maxval = np.argmax(values)
+        if values[maxval] > 0.5:
+            matched_pred[i] = 1
+            matched_teach[maxval] = 1
+        elif is_double:
+            matched_pred[i] = 2
+    idx2 = np.argsort(idx)
+    matched_pred = matched_pred[idx2]
+    return matched_pred, matched_teach
+
+
+def area_intersect(r, t):
+    """
+    compute the area of the overlap of the rectangles r and s.
+    the rectangles are given as tuples (x0, y0, width, height, value, class)
+    """
+    rx0, ry0, rw, rh = r.rect.x - r.rect.w/2., r.rect.y - r.rect.h/2., r.rect.w, r.rect.h
+    sx0, sy0, sw, sh = t.rect.x - t.rect.w/2., t.rect.y - t.rect.h/2., t.rect.w, t.rect.h
+
+    rx1 = rx0 + rw
+    ry1 = ry0 + rh
+
+    sx1 = sx0 + sw
+    sy1 = sy0 + sh
+
+    x_overlap = max(0, min(rx1, sx1) - max(rx0, sx0))
+    y_overlap = max(0, min(ry1, sy1) - max(ry0, sy0))
+
+    return x_overlap * y_overlap
+
+    
+def intersection_over_union(b, t):
+    return area_intersect(b,t) / (area(b) + area(t) - area_intersect(b,t))
 
 
 def cfg(ax):
@@ -137,7 +204,7 @@ def visualize_activations(gui, data, sepnorm=False, bboxes=None):
         gui.s_map.on_changed(lambda val: gui.update())
 
         ax_transp = plt.axes([.25, .00, .65, .05])
-        gui.s_transp = Slider(ax_transp, 'transparency', 0., .7, valinit=min_transp)
+        gui.s_transp = Slider(ax_transp, 'transparency', 0., 1., valinit=0.5)
         gui.s_transp.on_changed(lambda val: gui.update())
         gui.labels = {}
 
@@ -150,12 +217,13 @@ def visualize_activations(gui, data, sepnorm=False, bboxes=None):
     else:
         glog.info("Found NO logistic regression in model")
 
+    n_colors = { 'green' : 0, 'blue' : 0, 'orange' : 0, 'red' : 0 }
     for ax, i in zip(gui.axes.flatten(), xrange(np.prod(gui.axes.shape))):
         ax.patches = []  # clear patches (=bounding boxes)
         ax.texts = []  # clear annotations
         idx_x = i % n_plots_x  # map
         idx_y = i / n_plots_x  # batch
-        if gui.name not in ["X", "input"] and gui.transp > min_transp:
+        if False and gui.name not in ["X", "input"] and gui.transp > min_transp:
             # most likely an output map, which we can now compare to the input map
             input = gui.parent.input.cache[gui.parent.batch_idx + idx_y].copy()
             flt = data[gui.parent.batch_idx + idx_y, gui.map_idx + idx_x, :, :].copy()
@@ -294,24 +362,65 @@ def visualize_activations(gui, data, sepnorm=False, bboxes=None):
                 #gui.cache[idx_y] = flt.sum(axis=2)  # grayscale
             gui.cache[imidx] = flt.copy()
             if bboxes is not None and gui.vsi is not None:
+                teachers, predictions, kmeans = bboxes
+                confidences = [p.confidence for p in predictions[imidx]]
                 glog.info("Drawing boundin boxes...")
-                if gui.gtbbox and len(bboxes[0][imidx]) < 25:
-                    for m, c, idx in zip(bboxes[0][imidx], get_random_color(42), xrange(1000)):
-                        draw_bboxes(ax, m, c, gui.vsi, ls='dashed', title=classname(idx))
+                if gui.gtbbox and len(teachers[imidx]) < 25:
+                    for m, c in zip(teachers[imidx], get_random_color(42)):
+                        #draw_bboxes(ax, m, c, gui.vsi, ls='dashed', title=classname(idx))
+                        #print ("class of bb:", m.klass)
+                        draw_bboxes(ax, m, n_pixx, c, gui.vsi, ls='dashed', title=classname(m.klass))
                 # TODO these are the found bounding boxes
-                if gui.detbbox and len(bboxes[1][imidx]) < 25:
+                if gui.detbbox:
                     # determine the value of the most prominent bbox
                     v = -1E6
-                    for b in bboxes[1][imidx]:
-                        for bb in b:
-                            v = max(v, bb.value)
-                    for m, c, idx in zip(bboxes[1][imidx], get_random_color(42), xrange(1000)):
-                        #draw_bboxes(ax, m, c, gui.vsi, onlyifvalue=v, ls='solid')
-                        draw_bboxes(ax, m, c, gui.vsi, ls='solid', only_positive=True, title=classname(idx))
+                    for b in predictions[imidx]:
+                        pass
+                        #print b
+                        #for bb in b:
+                        #    v = max(v, bb.value)
+                    #for idx, (t, c) in enumerate(zip(bboxes[3], get_random_color(42))):
+                    #    #draw_bboxes(ax, m, c, gui.vsi, onlyifvalue=v, ls='solid')
+                    #    draw_bboxes(ax, t, n_pixx, c, gui.vsi, ls='solid', only_positive=True, confidence=None)
+                    
+                    try:
+                        matched_pred, matched_teach = match_bboxes(teachers[imidx],
+                                predictions[imidx], confidences, thresh=gui.transp)
+                    except Exception as  e:
+                        print "Could not run match_bboxes:"
+                        print str(e)
+                        print traceback.format_exc()
+                    best_val = max(confidences)
+                    for idx, (p, c, k, color) in enumerate(zip(predictions[imidx], confidences, kmeans, get_random_color(42))):
+                        #draw_bboxes(ax, p, c, gui.vsi, onlyifvalue=v, ls='solid')
+                        if sigm(c) > gui.transp:
+                            color = "red"
+                            if matched_pred[idx] == 1:
+                                color = "green"
+                            elif matched_pred[idx] == 2:
+                                color = "blue"
+                            draw_bboxes(ax, p, n_pixx, color, gui.vsi, ls='solid', only_positive=True,
+                                    confidence=str(idx) + (": %1.1f"%sigm(c)))
+                            #draw_bboxes(ax, k, n_pixx, color, gui.vsi, ls='solid', only_positive=True, confidence=None)
+
+                            n_colors[color] += 1
+                    for idx, t in enumerate(teachers[imidx]):
+                        #draw_bboxes(ax, p, c, gui.vsi, onlyifvalue=v, ls='solid')
+                        if not matched_teach[idx]:
+                            color = "orange" 
+                            draw_bboxes(ax, t.rect, n_pixx, color, gui.vsi, ls='solid', only_positive=True)
+                            #ax.plot((p.x, k.x), (p.y, k.y), color=c)
+                            n_colors[color] += 1
+
             else:
                 glog.debug("No bounding boxes supplied, none drawn.")
                 pass
         cfg(ax)
+    t = 0.0
+    for c in ['green', 'blue', 'red', 'orange']:
+        t += n_colors[c]
+    if t > 0:
+        print [(c, "{:>0.2f}".format(n_colors[c]/t)) for c in ['green', 'blue', 'red', 'orange']]
 
 
 
@@ -645,6 +754,7 @@ class obj_detection_gui_spawn:
             op = od.loss
         self.deriv_op = op
         self.children = []
+        self.batch_idx = 0
 
         try:
             self.input_op = op.get_parameter("input")
@@ -754,12 +864,12 @@ class obj_detection_gui:
         self.type = type
         self.name = name
         self.parent = parent
-        self.transp = 0.
+        self.transp = 0.5
         self.map_idx = 0
         self.cache = {}
         self.sigm = False
         self.gtbbox = False
-        self.detbbox = False
+        self.detbbox = True
         self.sepnorm = False
         self.center0 = True
 
@@ -826,7 +936,8 @@ class obj_detection_gui:
         elif data.ndim == 4:
             glog.info("ndim = 4 --> use visualize_activations")
             if hasattr(self.od, "bboxsim") and self.od.bboxsim is not None:
-                bb = (self.od.bboxsim.ground_truth, self.od.bboxsim.lossaug_prediction)
+                #bb = (self.od.bboxsim.ground_truth, self.od.bboxsim.lossaug_prediction)
+                bb = (self.od.bboxsim.ground_truth, self.od.bboxsim.output_bbox, self.od.bboxsim.kmeans)
             else:
                 glog.warn("No Bounding Boxes in Model!")
                 bb = None
@@ -838,7 +949,30 @@ class obj_detection_gui:
         else:
             visualize_histogram(self, data)
 
-def draw_bboxes(ax, bboxes, color="black", vsi=None, onlyifvalue=None, ls='solid', linewidth=2, only_positive=False, title=None):
+def draw_bboxes(ax, bboxes, size, color="black", vsi=None, onlyifvalue=None, ls='solid', linewidth=2,
+        only_positive=False, title=None, confidence=None):
+    class tmprect:
+        pass
+    r = None
+    if hasattr(bboxes, "rect"):
+        r = bboxes.rect
+    else:
+        r = bboxes
+        
+    R = mpl.patches.Rectangle(((r.x - r.w/2) * size, (r.y - r.h/2) * size), r.w * size, r.h * size, fill=False,  edgecolor=color, linewidth=linewidth, ls=ls)
+    ax.add_patch(R)
+    if title is not None:
+        x_p = min(size, max(0, (r.x - r.w/2) * size))
+        y_p = min(size, max(0, (r.y -r.h/2) * size))
+        ax.annotate(title, xy=(x_p, y_p), bbox=dict(boxstyle='square', fc=color, ec=None), fontsize=7)
+    if confidence is not None:
+        x_p = min(size, max(0, (r.x - r.w/2) * size))
+        y_p = min(size, max(0, (r.y+r.h/2) * size))
+        ax.annotate(confidence, xy=(x_p, y_p), bbox=dict(boxstyle='square', fc=color, ec=None), fontsize=7)
+        
+
+    return
+    
     if len(bboxes) > 5:
         glog.warn("too many bboxes...error?")
         return
