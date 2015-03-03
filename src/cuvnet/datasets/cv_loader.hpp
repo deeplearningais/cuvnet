@@ -163,7 +163,8 @@ namespace datasets
             auto pat = q.pop();
             rgb[cuv::indices[i]] = pat->rgb;
             depth[cuv::indices[i][0]] = pat->depth;
-            depth[cuv::indices[i][cuv::index_range(1,3)]] = 0.f;
+            depth[cuv::indices[i][1]] = pat->depth;
+            depth[cuv::indices[i][2]] = pat->depth;
             tch = pat->bboxes;
             m_open_list.push_back(pat);
         }
