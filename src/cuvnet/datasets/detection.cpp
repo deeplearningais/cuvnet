@@ -81,7 +81,7 @@ namespace datasets
             if(ifs)
                 m_meta.push_back(m);
         }
-        cuvAssert(m_n_classes == mapcnt.size());
+        cuvAssert(m_n_classes >= mapcnt.size());
         cuvAssert(m_meta.size() > 0);
         LOG4CXX_WARN(g_log, "read `"<< filename<<"', n_classes: "<<m_n_classes<<", size: "<<m_meta.size());
         shuffle(false);
@@ -400,7 +400,7 @@ namespace datasets
             if(ifs)
                 m_meta.push_back(m);
         }
-        cuvAssert(m_n_classes == mapcnt.size());
+        cuvAssert(m_n_classes >= mapcnt.size());
         cuvAssert(m_meta.size() > 0);
         LOG4CXX_WARN(g_log, "read `"<< filename<<"', n_classes: "<<m_n_classes<<", size: "<<m_meta.size());
         shuffle(false);
