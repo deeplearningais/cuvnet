@@ -218,12 +218,16 @@ namespace datasets
                     double sum = 0.;
                     std::vector<double>::iterator it = weights.begin();
                     for(cv::Point& p : pt){
-                        double d = depth.at<float>(p);
+                        double d = depth.at<float>(p) / 1000.;  // meters
 #ifdef FIXED_SIZE
                         d = 1.;
 #endif
-                        *it++ = d;
-                        sum += d;
+                        if(d!=d || d > 10. || d == 0)
+                            *it++ = 0.;
+                        else{
+                            *it++ = d;
+                            sum += d;
+                        }
                     }
                     thresh = drand48() * sum;
                 }
