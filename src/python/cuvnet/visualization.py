@@ -50,6 +50,9 @@ def match_bboxes(teachers, predictions, confidences, thresh=0.):
         values = []
         is_double = False
         for j, t in enumerate(teachers):
+            if t.klass != p.klass:
+                values.append(0)
+                continue
             if matched_teach[j]:
                 if intersection_over_union(p, t) > 0.5:
                     is_double = True
