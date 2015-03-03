@@ -160,7 +160,8 @@ namespace datasets
         void load_instance(queue_t& q, int i, cuvnet::matrix& rgb, cuvnet::matrix& depth, std::vector<bbox>& tch){
             auto pat = q.pop();
             rgb[cuv::indices[i]] = pat->rgb;
-            depth[cuv::indices[i]] = pat->depth;
+            depth[cuv::indices[i][0]] = pat->depth;
+            depth[cuv::indices[i][cuv::index_range(1,3)]] = 0.f;
             tch = pat->bboxes;
             m_open_list.push_back(pat);
         }
