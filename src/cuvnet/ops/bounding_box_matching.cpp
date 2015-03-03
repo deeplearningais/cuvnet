@@ -197,6 +197,7 @@ namespace cuvnet
                     m_output_bbox[b][c*m_n_predictions + k].rect.w = exp((float)prediction(b, c, k, 3)) * m_typical_bboxes[k].w;
 
                     m_output_bbox[b][c*m_n_predictions + k].confidence = prediction(b, c, k, 4);
+                    m_output_bbox[b][c*m_n_predictions + k].klass = c;
 
                     assert(std::isfinite(std::pow(m_output_bbox[b][c*m_n_predictions + k].rect.x, 2)));
                     assert(std::isfinite(std::pow(m_output_bbox[b][c*m_n_predictions + k].rect.y, 2)));
