@@ -594,9 +594,9 @@ namespace datasets
                         // only include boxes of whose area is 50% visible
                         if ((in_area / full_area) < 0.5)
                             continue;
-                        // include only bboxes whose area is less than 20% of the total pattern size
-                        if ((in_area / (1*1)) < 0.2)
-                            continue;
+                        //// include only bboxes whose area is less than 20% of the total pattern size
+                        //if ((in_area / (1*1)) < 0.2)
+                        //    continue;
 
                         pbb.klass = bb.klass;
                         pbb.truncated = bb.truncated;

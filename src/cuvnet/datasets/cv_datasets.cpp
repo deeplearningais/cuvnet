@@ -144,7 +144,8 @@ namespace datasets
 
     cv::RotatedRect
     region_from_depth(const cv::Mat& depth, cv::Point2f center, double scale_fact, double min_dist){
-        double d = depth.at<float>(center), f;
+        double d = depth.at<float>(center) / 1000.;  // convert to meters
+        double f;
         if(d!=d)
             f = min_dist;
         else
@@ -153,6 +154,7 @@ namespace datasets
 #ifdef FIXED_SIZE
         f = 135;
 #endif
+        f = std::max(15., f);
         cv::Size size(f, f);
 
         return cv::RotatedRect(center, size, 0.);
