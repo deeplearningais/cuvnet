@@ -142,6 +142,8 @@ namespace datasets
         /// if true, cover image completely.
         bool m_exhaustive;
 
+        bool m_b_train;
+
         /// number of different object classes
         unsigned int m_n_classes;
         /// the names of all the classes

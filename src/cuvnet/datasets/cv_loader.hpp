@@ -156,6 +156,8 @@ namespace datasets
         , m_trainqueue(m_pool, m_trainset, 128, 3*128)
         , m_valqueue(m_pool, m_valset, 12, 3*12)
         {
+            m_trainset.m_b_train = true;
+            m_valset.m_b_train = false;
         }
         void load_instance(queue_t& q, int i, cuvnet::matrix& rgb, cuvnet::matrix& depth, std::vector<bbox>& tch){
             auto pat = q.pop();

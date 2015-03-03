@@ -189,8 +189,6 @@ namespace datasets
             auto patternset = boost::make_shared<patternset_t>();
 
             auto regions = random_regions(in->rgb, m_n_crops, 0.25);
-            //auto regions = random_regions_from_depth(in->rgb, m_n_crops, 300., 1.);
-            //auto regions = covering_regions_from_depth(in->rgb, 300., 1., 1.0);
 
             for (auto r : regions){
                 r.angle = 20 * drand48() - 10;
@@ -372,6 +370,7 @@ namespace datasets
     : m_n_crops(n_crops)
     , m_pattern_size(pattern_size)
     , m_filename(filename)
+    , m_b_train(true)
     {
         std::ifstream ifs(filename.c_str());
         cuvAssert(ifs.is_open() && ifs.good());
@@ -516,10 +515,15 @@ namespace datasets
             auto patternset = boost::make_shared<patternset_t>();
 
             //auto regions = random_regions(in->rgb, m_n_crops, 0.25);
-            auto regions = random_regions_from_depth(in->depth, m_n_crops, 300., 1.);
+            
+            std::vector<cv::RotatedRect> regions;
+            if (m_b_train)
+                regions = random_regions_from_depth(in->rgb, m_n_crops, 300., 1.);
+            else
+                regions = covering_regions_from_depth(in->rgb, 300., 1., 1.0);
 
             for (auto r : regions){
-                r.angle = 20 * drand48() - 10;
+                r.angle = m_b_train ? 20 * drand48() - 10 : 0.;
                 auto pattern = boost::make_shared<pattern_t>();
                 pattern->original = in;
                 pattern->region_in_original = r;
