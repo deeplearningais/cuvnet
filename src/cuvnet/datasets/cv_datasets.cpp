@@ -142,6 +142,22 @@ namespace datasets
     }
 
 
+    cv::RotatedRect
+    region_from_depth(const cv::Mat& depth, cv::Point2f center, double scale_fact, double min_dist){
+        double d = depth.at<float>(center), f;
+        if(d!=d)
+            f = min_dist;
+        else
+            f = scale_fact / std::max(min_dist, d);
+        //std::cout << "dist: " << d<< " f: " << f <<std::endl;
+#ifdef FIXED_SIZE
+        f = 135;
+#endif
+        cv::Size size(f, f);
+
+        return cv::RotatedRect(center, size, 0.);
+    }
+
     /// generates n_crops many regions of a given size within the boundaries of a given image img
     std::vector<cv::RotatedRect> random_regions(const cv::Mat& img, int n_crops, float min_size_frac){
         std::vector<cv::RotatedRect> regions(n_crops);
@@ -155,6 +171,85 @@ namespace datasets
         }
         return regions;
     }
+
+    /// generates n_crops many regions within the boundaries of a given image img, scaling wrt to depth of center 
+    std::vector<cv::RotatedRect> random_regions_from_depth(const cv::Mat& depth, int n_crops, double scale_fact, double min_dist){
+        std::vector<cv::RotatedRect> regions;
+        for (int i=0; i<n_crops; i++){
+            int margin = std::min(depth.rows, depth.cols)/10;
+            cv::Point2f center(
+                margin + drand48()*(depth.cols-2*margin),
+                margin + drand48()*(depth.rows-2*margin));
+            regions.push_back(region_from_depth(depth, center, scale_fact, min_dist));
+        }
+        return regions;
+    }
+
+    template<class T>
+    void find_zeros(const cv::Mat_<T>& binary, std::vector<cv::Point> &idx) {
+        assert(binary.cols > 0 && binary.rows > 0 && binary.channels() == 1 && binary.channels() == 1);
+        const int M = binary.rows;
+        const int N = binary.cols;
+        for (int m = 0; m < M; ++m) {
+            const T* bin_ptr = (T*) binary.ptr(m);
+            for (int n = 0; n < N; ++n) {
+                if (bin_ptr[n] == 0) idx.push_back(cv::Point(n,m));
+            }
+        }
+    }
+
+    std::vector<cv::RotatedRect>
+        covering_regions_from_depth(const cv::Mat& depth, double scale_fact, double min_dist, double output_fraction){
+            cv::vector<cv::RotatedRect> rects;
+            cv::Mat_<int> counts = cv::Mat_<int>::zeros(depth.rows, depth.cols);
+            //cv::Mat_<int> intimg(depth.rows, depth.cols);
+            std::vector<cv::Point> pt;
+            std::vector<double> weights;
+            while(true){
+                pt.clear();
+                find_zeros(counts, pt);
+                if(pt.empty())
+                    break;
+                weights.resize(pt.size());
+                double thresh = 0.;
+                {
+                    double sum = 0.;
+                    std::vector<double>::iterator it = weights.begin();
+                    for(cv::Point& p : pt){
+                        double d = depth.at<float>(p);
+#ifdef FIXED_SIZE
+                        d = 1.;
+#endif
+                        *it++ = d;
+                        sum += d;
+                    }
+                    thresh = drand48() * sum;
+                }
+                int idx = 0;
+                {
+                    double sum = 0.;
+                    for(unsigned int i = 0; i<weights.size(); i++){
+                        sum += weights[i];
+                        if(sum > thresh) {
+                            idx = i;
+                            break;
+                        }
+                    }
+                }
+                cv::Point loc(pt[idx]);
+                auto rr = region_from_depth(depth, loc, scale_fact, min_dist);
+                rects.push_back(rr);
+
+                rr.size.width *= output_fraction;
+                rr.size.height *= output_fraction;
+                cv::Rect br(rr.center.x-rr.size.width/2, rr.center.y-rr.size.height/2,rr.size.width,rr.size.height);
+                br = br & cv::Rect(0, 0, depth.cols, depth.rows);
+                counts(br) += 1;
+            }
+            return rects;
+        }
+
+
     /**
      * every entry in Rect tells how much to extend the corresponding image in
      * m so that the rotated rect in ir fits into the new image.
