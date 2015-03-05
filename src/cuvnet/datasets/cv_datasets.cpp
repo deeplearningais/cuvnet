@@ -143,14 +143,14 @@ namespace datasets
 
 
     cv::RotatedRect
-    region_from_depth(const cv::Mat& depth, cv::Point2f center, double scale_fact, double min_dist, float scale_octave_var = 1.f){
+    region_from_depth(const cv::Mat& depth, cv::Point2f center, double scale_fact, double min_dist, float max_scale_fact = 1.f){
         double d = depth.at<float>(center) / 1000.;  // convert to meters
         double f;
         if(d!=d)
             f = min_dist;
         else
             f = scale_fact / std::max(min_dist, d);
-        float s = std::exp(drand48() * (std::log(1 * scale_octave_var) - std::log(1 / scale_octave_var)) + std::log(1 / scale_octave_var));
+        float s = std::exp(drand48() * 2 * std::log(max_scale_fact) - std::log(max_scale_fact));
         f *= s;
         //std::cout << "dist: " << d<< " f: " << f <<std::endl;
 #ifdef FIXED_SIZE
@@ -176,15 +176,16 @@ namespace datasets
         return regions;
     }
 
-    /// generates n_crops many regions within the boundaries of a given image img, scaling wrt to depth of center 
-    std::vector<cv::RotatedRect> random_regions_from_depth(const cv::Mat& depth, int n_crops, double scale_fact, double min_dist){
+    /// generates n_crops many regions within the boundaries of a given image img, scaling wrt to depth of center
+    /// max_scale_fact sets range of random scale variation to [1/max_scale_fact, max_scale_fact] 
+    std::vector<cv::RotatedRect> random_regions_from_depth(const cv::Mat& depth, int n_crops, double scale_fact, double min_dist, double max_scale_fact){
         std::vector<cv::RotatedRect> regions;
         for (int i=0; i<n_crops; i++){
             int margin = std::min(depth.rows, depth.cols)/10;
             cv::Point2f center(
                 margin + drand48()*(depth.cols-2*margin),
                 margin + drand48()*(depth.rows-2*margin));
-            regions.push_back(region_from_depth(depth, center, scale_fact, min_dist));
+            regions.push_back(region_from_depth(depth, center, scale_fact, min_dist, max_scale_fact));
         }
         return regions;
     }

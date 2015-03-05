@@ -23,7 +23,7 @@ namespace datasets
     };
 
     std::vector<cv::RotatedRect> random_regions(const cv::Mat& img, int n_crops, float min_size_frac);
-    std::vector<cv::RotatedRect> random_regions_from_depth(const cv::Mat& depth, int n_crops, double scale_fact, double min_size, double scale_octave_var);
+    std::vector<cv::RotatedRect> random_regions_from_depth(const cv::Mat& depth, int n_crops, double scale_fact, double min_size, double max_scale_fact=1.0);
     std::vector<cv::RotatedRect> covering_regions_from_depth(const cv::Mat& depth, double scale_fact, double min_size, double output_fraction);
     cv::Mat extract_region(const cv::Mat& m, const cv::RotatedRect& ir, bool flipped, int interpolation, int bordertype=cv::BORDER_REFLECT_101, int value=0);
     std::pair<cv::Rect, cv::RotatedRect>
