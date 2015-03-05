@@ -335,7 +335,7 @@ namespace datasets{
         /// the predicted classes for every element in the dataset
         std::vector<cuv::tensor<float, cuv::host_memory_space> >  m_predictions;
         /// the mean image, which is subtracted from all patterns before passing them to the model
-        cuv::tensor<float, cuv::host_memory_space> m_imagenet_mean;
+        cuv::tensor<float, cuv::host_memory_space> m_input_map_mean;
         /// path to be prepended to paths in dataset file
         std::string m_image_basepath;
         /**
@@ -357,11 +357,11 @@ namespace datasets{
         void notify_done(boost::shared_ptr<pattern_t> pat) override;
 
         /**
-         * set a binary file containing a 3xNxN float32 C-ordered imagenet mean.
+         * set a binary file containing a 3xNxN float32 C-ordered input_map mean.
          *
          * where N is the pattern_size supplied to the constructor.
          */
-        void set_imagenet_mean(std::string filename);
+        void set_input_map_mean(std::string filename);
 
         /**
          * Set path prepended to path in dataset file.
