@@ -38,6 +38,16 @@ namespace cuvnet
 
                 std::pair<float, float> loss_terms();
 
+                /**
+                 * the washington dataset rendered by Ishrat Badami contains
+                 * only one object in its original position, everything else is
+                 * clutter, objects of a different class.
+                 * 
+                 * This parameter /ignores/ all detections which are not of the
+                 * class of the first object.
+                 */
+                bool m_first_object_class_only;
+
             public:
                 BoundingBoxMatching()
                     : m_n_klasses(1)

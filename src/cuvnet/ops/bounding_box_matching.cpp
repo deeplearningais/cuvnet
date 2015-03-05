@@ -94,9 +94,17 @@ namespace cuvnet
         unsigned int bs = m_output_bbox.size();
 
         for (unsigned int b = 0; b < bs; b++) {
+            unsigned int foc = 0;
+            bool use_foco = false; // use first object class only
+            if(m_first_object_class_only && m_teach[b].size() > 0){
+                use_foco = true;
+                foc = m_teach[b][0].klass;
+            }
             //std::vector<bool> matched(m_n_predictions * m_n_klasses);
             for (unsigned int c = 0; c < m_n_klasses; ++c)
             {
+                if(use_foco && foc != c)
+                    continue;
                 for (unsigned int k = 0; k < m_n_predictions; k++) {
                     unsigned int idx = c * m_n_predictions + k;
                     int i_m = m_matching[b][idx];
@@ -245,6 +253,14 @@ namespace cuvnet
         for (unsigned int b = 0; b < bs; b++) {
             m_delta_matching[b].resize(m_n_predictions * m_n_klasses);
             m_delta_conf[b].resize(m_n_predictions * m_n_klasses);
+
+            unsigned int foc = 0;
+            bool use_foco = false; // use first object class only
+            if(m_first_object_class_only && m_teach[b].size() > 0){
+                use_foco = true;
+                foc = m_teach[b][0].klass;
+            }
+
             for (unsigned int c = 0; c < m_n_klasses; ++c)
             {
                 for (unsigned int k = 0; k < m_n_predictions; k++) {
@@ -252,7 +268,7 @@ namespace cuvnet
 
                     int i_m = m_matching[b][idx];
 
-                    if (i_m >= 0) { // means matching 
+                    if (i_m >= 0 && (!use_foco || c == foc)) { // means matching 
                         double fact = 1./bs * (m_output_bbox[b][idx].confidence > 0|| DISABLE_HACK);
 
                         //m_delta_matching[b][idx].x = fact * (m_output_bbox[b][idx].x - m_teach[b][i_m].rect.x);
@@ -276,7 +292,10 @@ namespace cuvnet
                         m_delta_matching[b][idx].h = 0;
                         m_delta_matching[b][idx].w = 0;
 
-                        m_delta_conf[b][idx] =   sigmoid( m_output_bbox[b][idx].confidence) / bs / m_alpha;
+                        if(!use_foco || c == foc)
+                            m_delta_conf[b][idx] =   sigmoid( m_output_bbox[b][idx].confidence) / bs / m_alpha;
+                        else
+                            m_delta_conf[b][idx] =   0.f;
 
                         assert(std::isfinite(m_delta_matching[b][idx].x));
                         assert(std::isfinite(m_delta_matching[b][idx].y));
