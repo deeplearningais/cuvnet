@@ -30,7 +30,7 @@ namespace cuvnet
             const float alpha, 
             const std::vector<std::vector<datasets::bbox> >& teach){
         unsigned int bs = teach.size();
-        unsigned int K = means.size();
+        unsigned int K = means[0].size();
         unsigned int C = output[0].size() / K; // number of classes in output
         
         std::vector<std::vector<int> > matching(bs);
