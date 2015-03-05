@@ -63,7 +63,7 @@ namespace cuvnet
                         //  - confidence for 
                         // make costs negative, because graph is solved for a maximum weighted matching
                         // add offset for node index due to prediction boxes
-                        if (teach[b][t].klass == c) {
+                        if (teach[b][t].klass == (int)c) {
                             ew[boost::add_edge(k, K+t, pg).first] = 
                                 - std::pow(datasets::rotated_rect::l2dist(means[k], teach[b][t].rect), 2)
                                 + (output[b][k].confidence > 0 || DISABLE_HACK) * output[b][K*c+k].confidence / alpha;
