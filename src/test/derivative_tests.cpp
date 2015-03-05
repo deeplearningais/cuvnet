@@ -2634,7 +2634,7 @@ BOOST_AUTO_TEST_CASE(szegedy_op){
     unsigned int bs =  10; // batch size
     unsigned int  K =   4; // number of predictions per image
     unsigned int  C =   2; // number of classes
-    unsigned int  T =   1; // teacher bboxes
+    unsigned int  T =   2; // teacher bboxes
     float     alpha = 1.0; // scales bounding box distance loss
 
     boost::shared_ptr<ParameterInput> inp0 = boost::make_shared<ParameterInput>(cuv::extents[bs][C*K*5]);
@@ -2682,6 +2682,25 @@ BOOST_AUTO_TEST_CASE(szegedy_op){
     matrix res = f.evaluate();
    
     BOOST_CHECK_EQUAL(res[0], func->get_f_match() / bs + func->get_f_conf() / bs / alpha);
+
+    std::vector<std::vector<unsigned int> > n_matched;
+    n_matched.resize(bs);
+    for (unsigned int b = 0; b < bs; b++) {
+        n_matched[b].resize(T, 0);
+        for (unsigned int c = 0; c < C; c++) {
+        for (unsigned int k = 0; k < K; k++) {
+            int i_m = func->m_matching[b][K*c + k]; 
+            if(i_m >= 0) {
+                n_matched[b][i_m]++;
+                BOOST_CHECK_EQUAL(teach[b][i_m].klass, c); // teacher matched wrt to class
+            }
+        }
+        }
+    }
+
+    for(auto mv : n_matched)
+       for (auto m : mv)
+           BOOST_CHECK_EQUAL(m, 1); // each output matched once
 
     //std::vector<std::vector<datasets::bbox> > output_bbox = func->get_output_bbox(); 
     //for (unsigned int b = 0; b < bs; b++) {
