@@ -325,24 +325,24 @@ namespace cuvnet
         grad *= delta;
 
         {
-            auto tmp_p = grad;
-            tmp_p.reshape(bs * m_n_klasses * m_n_predictions, 5);
+            //auto tmp_p = grad;
+            //tmp_p.reshape(bs * m_n_klasses * m_n_predictions, 5);
 
-            cuv::tensor<float, cuv::host_memory_space> _min(cuv::extents[5]);
-            cuv::reduce_to_row(_min, tmp_p, cuv::RF_MIN);
+            //cuv::tensor<float, cuv::host_memory_space> _min(cuv::extents[5]);
+            //cuv::reduce_to_row(_min, tmp_p, cuv::RF_MIN);
 
-            cuv::tensor<float, cuv::host_memory_space> _avg(cuv::extents[5]);
-            cuv::reduce_to_row(_avg, tmp_p, cuv::RF_MEAN);
+            //cuv::tensor<float, cuv::host_memory_space> _avg(cuv::extents[5]);
+            //cuv::reduce_to_row(_avg, tmp_p, cuv::RF_MEAN);
             
-            cuv::tensor<float, cuv::host_memory_space> _max(cuv::extents[5]);
-            cuv::reduce_to_row(_max, tmp_p, cuv::RF_MAX);
+            //cuv::tensor<float, cuv::host_memory_space> _max(cuv::extents[5]);
+            //cuv::reduce_to_row(_max, tmp_p, cuv::RF_MAX);
 
-            float box_min = std::min(std::min(std::min(_min(0), _min(1)), _min(2)), _min(3));
-            float box_max = std::max(std::max(std::max(_max(0), _max(1)), _max(2)), _max(3));
-            float box_avg = (_avg(0) + _avg(1) + _avg(2) + _avg(3)) / 4.;
-            float con_min = _min(4);
-            float con_max = _max(4);
-            float con_avg = _avg(4);
+            //float box_min = std::min(std::min(std::min(_min(0), _min(1)), _min(2)), _min(3));
+            //float box_max = std::max(std::max(std::max(_max(0), _max(1)), _max(2)), _max(3));
+            //float box_avg = (_avg(0) + _avg(1) + _avg(2) + _avg(3)) / 4.;
+            //float con_min = _min(4);
+            //float con_max = _max(4);
+            //float con_avg = _avg(4);
 
             //LOG4CXX_WARN(g_log, 
             //        "box grad, min:"<< box_min <<
