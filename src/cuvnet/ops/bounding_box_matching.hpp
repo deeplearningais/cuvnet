@@ -19,7 +19,7 @@ namespace cuvnet
             public:
                 unsigned int m_n_predictions;
                 unsigned int m_n_klasses;
-                std::vector<datasets::rotated_rect> m_typical_bboxes;
+                std::vector<std::vector<datasets::rotated_rect> > m_typical_bboxes;
                 std::vector<std::vector<int> > m_matching; 
 
                 cuv::tensor<float, cuv::host_memory_space> prediction;
@@ -61,7 +61,7 @@ namespace cuvnet
                  *        parameters are center offset, height/width offset,
                  *        and confidence.
                  */
-                BoundingBoxMatching(result_t& p0, std::vector<datasets::rotated_rect> kmeans, float alpha, int n_klasses)
+                BoundingBoxMatching(result_t& p0, std::vector<std::vector<datasets::rotated_rect> > kmeans, float alpha, int n_klasses)
                     : Op(1,1)
                     , m_n_klasses(n_klasses)
                     , m_typical_bboxes(kmeans)

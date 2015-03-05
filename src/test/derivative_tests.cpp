@@ -2639,12 +2639,15 @@ BOOST_AUTO_TEST_CASE(szegedy_op){
 
     boost::shared_ptr<ParameterInput> inp0 = boost::make_shared<ParameterInput>(cuv::extents[bs][C*K*5]);
 
-    std::vector<datasets::rotated_rect> kmeans(K);
-    for (unsigned int k = 0; k < K; k++) {
-        kmeans[k].x = drand48() * 1;
-        kmeans[k].y = drand48() * 1;
-        kmeans[k].h = drand48() * 1;
-        kmeans[k].w = drand48() * 1;
+    std::vector<std::vector<datasets::rotated_rect> > kmeans(K);
+    for (unsigned int c = 0; c < C; c++) {
+        kmeans[c].resize(K);
+        for (unsigned int k = 0; k < K; k++) {
+            kmeans[c][k].x = drand48() * 1;
+            kmeans[c][k].y = drand48() * 1;
+            kmeans[c][k].h = drand48() * 1;
+            kmeans[c][k].w = drand48() * 1;
+        }
     }
     std::vector<std::vector<datasets::bbox> > teach(bs);
     for (unsigned int b = 0; b < bs; b++) {
@@ -2663,7 +2666,7 @@ BOOST_AUTO_TEST_CASE(szegedy_op){
     inp0->data() -= 1.f;
 
     // first teacher is exactly the mean
-    teach[0][0].rect = kmeans[0];
+    teach[0][0].rect = kmeans[0][0];
     // accordingly, the input should be very confident and have zero offsets
     inp0->data()(0, 0) = 0.f;
     inp0->data()(0, 1) = 0.f;

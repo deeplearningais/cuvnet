@@ -25,7 +25,7 @@ namespace cuvnet
     }
 
     std::vector<std::vector<int> > optimal_matching(
-            const std::vector<datasets::rotated_rect>& means, 
+            const std::vector<std::vector<datasets::rotated_rect> >& means, 
             const std::vector<std::vector<datasets::bbox> >& output,
             const float alpha, 
             const std::vector<std::vector<datasets::bbox> >& teach){
@@ -65,7 +65,7 @@ namespace cuvnet
                         // add offset for node index due to prediction boxes
                         if (teach[b][t].klass == (int)c) {
                             ew[boost::add_edge(k, K+t, pg).first] = 
-                                - std::pow(datasets::rotated_rect::l2dist(means[k], teach[b][t].rect), 2)
+                                - std::pow(datasets::rotated_rect::l2dist(means[c][k], teach[b][t].rect), 2)
                                 + (output[b][k].confidence > 0 || DISABLE_HACK) * output[b][K*c+k].confidence / alpha;
                                 //- logsumexp_0(-conf[b][k])   // these two are equivalent to conf[b][k]
                                 //+ logsumexp_0( conf[b][k]);
@@ -201,10 +201,10 @@ namespace cuvnet
                     //m_output_bbox[b][k].y = prediction(b, k, 1) + m_typical_bboxes[k].y;
                     //m_output_bbox[b][k].h = prediction(b, k, 2) + m_typical_bboxes[k].h;
                     //m_output_bbox[b][k].w = prediction(b, k, 3) + m_typical_bboxes[k].w;
-                    m_output_bbox[b][c*m_n_predictions + k].rect.x = prediction(b, c, k, 0) * m_typical_bboxes[k].w + m_typical_bboxes[k].x;
-                    m_output_bbox[b][c*m_n_predictions + k].rect.y = prediction(b, c, k, 1) * m_typical_bboxes[k].h + m_typical_bboxes[k].y;
-                    m_output_bbox[b][c*m_n_predictions + k].rect.h = exp((float)prediction(b, c, k, 2)) * m_typical_bboxes[k].h;
-                    m_output_bbox[b][c*m_n_predictions + k].rect.w = exp((float)prediction(b, c, k, 3)) * m_typical_bboxes[k].w;
+                    m_output_bbox[b][c*m_n_predictions + k].rect.x = prediction(b, c, k, 0) * m_typical_bboxes[c][k].w + m_typical_bboxes[c][k].x;
+                    m_output_bbox[b][c*m_n_predictions + k].rect.y = prediction(b, c, k, 1) * m_typical_bboxes[c][k].h + m_typical_bboxes[c][k].y;
+                    m_output_bbox[b][c*m_n_predictions + k].rect.h = exp((float)prediction(b, c, k, 2)) * m_typical_bboxes[c][k].h;
+                    m_output_bbox[b][c*m_n_predictions + k].rect.w = exp((float)prediction(b, c, k, 3)) * m_typical_bboxes[c][k].w;
 
                     m_output_bbox[b][c*m_n_predictions + k].confidence = prediction(b, c, k, 4);
                     m_output_bbox[b][c*m_n_predictions + k].klass = c;
@@ -277,11 +277,11 @@ namespace cuvnet
                         //m_delta_matching[b][idx].h = fact * (m_output_bbox[b][idx].h - m_teach[b][i_m].rect.h);
                         //m_delta_matching[b][idx].w = fact * (m_output_bbox[b][idx].w - m_teach[b][i_m].rect.w);
 
-                        m_delta_matching[b][idx].x = fact * (m_output_bbox[b][idx].rect.x - m_teach[b][i_m].rect.x) * m_typical_bboxes[k].w;
-                        m_delta_matching[b][idx].y = fact * (m_output_bbox[b][idx].rect.y - m_teach[b][i_m].rect.y) * m_typical_bboxes[k].h;
+                        m_delta_matching[b][idx].x = fact * (m_output_bbox[b][idx].rect.x - m_teach[b][i_m].rect.x) * m_typical_bboxes[c][k].w;
+                        m_delta_matching[b][idx].y = fact * (m_output_bbox[b][idx].rect.y - m_teach[b][i_m].rect.y) * m_typical_bboxes[c][k].h;
 
-                        m_delta_matching[b][idx].h = fact * (m_output_bbox[b][idx].rect.h - m_teach[b][i_m].rect.h) * exp((float)prediction(b,c,k,2)) * m_typical_bboxes[k].h;
-                        m_delta_matching[b][idx].w = fact * (m_output_bbox[b][idx].rect.w - m_teach[b][i_m].rect.w) * exp((float)prediction(b,c,k,3)) * m_typical_bboxes[k].w;
+                        m_delta_matching[b][idx].h = fact * (m_output_bbox[b][idx].rect.h - m_teach[b][i_m].rect.h) * exp((float)prediction(b,c,k,2)) * m_typical_bboxes[c][k].h;
+                        m_delta_matching[b][idx].w = fact * (m_output_bbox[b][idx].rect.w - m_teach[b][i_m].rect.w) * exp((float)prediction(b,c,k,3)) * m_typical_bboxes[c][k].w;
 
                         //m_delta_matching[b][k] = (m_output_bbox[b][k] - m_teach[b][i_m].rect).scale_like_vec();
 
@@ -381,7 +381,7 @@ namespace cuvnet
         // assertions for input dimensions 
         cuvAssert(m_params[0]->shape.size() == 2);
         cuvAssert(m_params[0]->shape[1] % (m_n_klasses * 5) == 0);
-        cuvAssert(m_params[0]->shape[1] / (m_n_klasses * 5) == m_typical_bboxes.size());
+        cuvAssert(m_params[0]->shape[1] / (m_n_klasses * 5) == m_typical_bboxes[0].size());
 
         m_n_predictions = m_params[0]->shape[1] / (5 * m_n_klasses);
     }
