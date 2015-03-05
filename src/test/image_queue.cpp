@@ -37,6 +37,7 @@ namespace{
                 meta[i].id = i;
         }
         size_t size(){return meta.size();}
+        size_t shuffled_idx(size_t i){return i;}
         boost::shared_ptr<pattern_set<dummy_pattern> > next(size_t offset){
             boost::shared_ptr<pattern_set<dummy_pattern> > ps = 
                 boost::make_shared<pattern_set<dummy_pattern> >();
