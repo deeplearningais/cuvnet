@@ -299,14 +299,13 @@ namespace datasets{
         virtual void notify_done(boost::shared_ptr<pattern_t> pat){
             pat->set->notify_processed(pat);
         }
+        size_t shuffled_idx(size_t idx)const{
+            boost::mutex::scoped_lock lock(m_shuffle_mutex);
+            return  m_shuffled_idx[idx];
+        }
 
         /// Used by image_queue to fetch a specific element from the dataset.
-        boost::shared_ptr<patternset_t> next(size_t idx)const{
-            size_t i;
-            {
-                boost::mutex::scoped_lock lock(m_shuffle_mutex);
-                i = m_shuffled_idx[idx];
-            }
+        boost::shared_ptr<patternset_t> next(size_t i)const{
             boost::shared_ptr<input_t> ptr = load_image(m_meta[i]);
             return preprocess(i, ptr);
         }

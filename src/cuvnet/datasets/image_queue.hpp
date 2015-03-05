@@ -58,15 +58,16 @@ namespace cuvnet{
                         p.set_value(boost::make_shared<patternset_type>());
                         m_queue.emplace(p.get_future());
                     }
+                    size_t idx = m_meta.shuffled_idx(i % size);
                     if(m_pool.size() > 0)
                         m_queue.emplace(m_pool.enqueue(
-                                    [&, i, size](){
-                                    return m_meta.next(i % size);
+                                    [&, idx, size](){
+                                    return m_meta.next(idx);
                                     }));
                     else{
                         // synchronous processing
                         std::promise<boost::shared_ptr<patternset_type> > p;
-                        p.set_value(m_meta.next(i % size));
+                        p.set_value(m_meta.next(idx));
                         m_queue.emplace(p.get_future());
                     }
                 }
