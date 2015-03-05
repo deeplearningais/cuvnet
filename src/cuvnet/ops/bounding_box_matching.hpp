@@ -51,6 +51,7 @@ namespace cuvnet
             public:
                 BoundingBoxMatching()
                     : m_n_klasses(1)
+                    , m_first_object_class_only(false)
                 {} ///< for serialization
                 /**
                  * ctor.
@@ -64,7 +65,9 @@ namespace cuvnet
                     : Op(1,1)
                     , m_n_klasses(n_klasses)
                     , m_typical_bboxes(kmeans)
-                    , m_alpha(alpha){
+                    , m_alpha(alpha)
+                    , m_first_object_class_only(false)
+                {
                     add_param(0,p0);
                 }
                 void fprop();
