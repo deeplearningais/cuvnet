@@ -70,7 +70,7 @@ namespace datasets
         rgb_detection_dataset(const std::string& filename, int pattern_size, int n_crops);
         
         /// the mean image, which is subtracted from all patterns before passing them to the model
-        cuv::tensor<float, cuv::host_memory_space> m_imagenet_mean;
+        cuv::tensor<float, cuv::host_memory_space> m_input_map_mean;
 
         /// number of crops generated for every image
         int m_n_crops;
@@ -102,11 +102,11 @@ namespace datasets
         void notify_done(boost::shared_ptr<pattern_t> pat) override;
 
         /**
-         * set a binary file containing a 3xNxN float32 C-ordered imagenet mean.
+         * set a binary file containing a 3xNxN float32 C-ordered input_map mean.
          *
          * where N is the pattern_size supplied to the constructor.
          */
-        void set_imagenet_mean(std::string filename);
+        void set_input_map_mean(std::string filename);
 
         /**
          * Set path prepended to path in dataset file.
@@ -130,8 +130,8 @@ namespace datasets
         rgbd_detection_dataset(const std::string& filename, int pattern_size, int n_crops);
         
         /// the mean image, which is subtracted from all patterns before passing them to the model
-        cuv::tensor<float, cuv::host_memory_space> m_imagenet_mean;
-        cuv::tensor<float, cuv::host_memory_space> m_imagenet_mean_depth;
+        cuv::tensor<float, cuv::host_memory_space> m_input_map_mean;
+        cuv::tensor<float, cuv::host_memory_space> m_input_map_mean_depth;
 
         /// number of crops generated for every image
         int m_n_crops;
@@ -165,11 +165,11 @@ namespace datasets
         void notify_done(boost::shared_ptr<pattern_t> pat) override;
 
         /**
-         * set a binary file containing a 4xNxN float32 C-ordered imagenet mean.
+         * set a binary file containing a 4xNxN float32 C-ordered input_map mean.
          *
          * where N is the pattern_size supplied to the constructor.
          */
-        void set_imagenet_mean(std::string filename);
+        void set_input_map_mean(std::string filename);
 
         /**
          * Set path prepended to path in dataset file.

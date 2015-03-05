@@ -87,9 +87,9 @@ namespace datasets
         shuffle(false);
     }
 
-    void rgb_detection_dataset::set_imagenet_mean(std::string filename){
+    void rgb_detection_dataset::set_input_map_mean(std::string filename){
             LOG4CXX_WARN(g_log, "read imagnet mean from `"<< filename<<"'");
-            m_imagenet_mean = cuvnet::fromfile<float>(filename);
+            m_input_map_mean = cuvnet::fromfile<float>(filename);
     }
 
     void rgb_detection_dataset::set_image_basepath(std::string path){
@@ -279,8 +279,8 @@ namespace datasets
                 
                 dstack_mat2tens(pattern->rgb, chans);
 
-                if(m_imagenet_mean.ptr())
-                    pattern->rgb -= m_imagenet_mean;
+                if(m_input_map_mean.ptr())
+                    pattern->rgb -= m_input_map_mean;
 
                 patternset->push(pattern);
             }
@@ -350,7 +350,7 @@ namespace datasets
             avg += a;
         avg /= (float)v.size();
 
-        if(!m_imagenet_mean.ptr()) {
+        if(!m_input_map_mean.ptr()) {
             cuvnet::tofile(base + "_mean.npy", avg);
         } else {
             std::string l = "zero mean deviation: " + std::to_string(cuv::mean(avg)) + " ";
@@ -370,8 +370,8 @@ namespace datasets
     : m_n_crops(n_crops)
     , m_pattern_size(pattern_size)
     , m_filename(filename)
-    , m_b_train(true)
     , m_exhaustive(false)
+    , m_b_train(true)
     {
         std::ifstream ifs(filename.c_str());
         cuvAssert(ifs.is_open() && ifs.good());
@@ -412,10 +412,10 @@ namespace datasets
         shuffle(false);
     }
 
-    void rgbd_detection_dataset::set_imagenet_mean(std::string filename){
-            LOG4CXX_WARN(g_log, "read imagnet mean from `"<< filename<<"'");
-            m_imagenet_mean = cuvnet::fromfile<float>(filename);
-            m_imagenet_mean_depth = cuvnet::fromfile<float>(filename.substr(0, filename.length()-4) + "_depth.npy");
+    void rgbd_detection_dataset::set_input_map_mean(std::string filename){
+            LOG4CXX_WARN(g_log, "read map mean from `"<< filename<<"'");
+            m_input_map_mean = cuvnet::fromfile<float>(filename);
+            m_input_map_mean_depth = cuvnet::fromfile<float>(filename.substr(0, filename.length()-4) + "_depth.npy");
     }
 
     void rgbd_detection_dataset::set_image_basepath(std::string path){
@@ -618,9 +618,9 @@ namespace datasets
                 pattern->depth.resize(cuv::extents[1][m_pattern_size][m_pattern_size]); 
                 dstack_mat2tens(pattern->depth, chans);
                 
-                if(m_imagenet_mean.ptr()) {
-                    pattern->rgb -= m_imagenet_mean;
-                    pattern->depth -= m_imagenet_mean_depth;
+                if(m_input_map_mean.ptr()) {
+                    pattern->rgb -= m_input_map_mean;
+                    pattern->depth -= m_input_map_mean_depth;
                 }
 
                 patternset->push(pattern);
@@ -704,7 +704,7 @@ namespace datasets
             avg_depth += ad;
         avg_depth /= (float)v.size();
 
-        if(!m_imagenet_mean.ptr()) {
+        if(!m_input_map_mean.ptr()) {
             cuvnet::tofile(base + "_mean.npy", avg);
             cuvnet::tofile(base + "_mean_depth.npy", avg_depth);
         } else {

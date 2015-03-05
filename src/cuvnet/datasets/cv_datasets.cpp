@@ -132,13 +132,13 @@ namespace datasets
         m_predictions.resize(this->size());
     }
 
-    void rgb_classification_dataset::set_imagenet_mean(std::string filename){
+    void rgb_classification_dataset::set_input_map_mean(std::string filename){
             LOG4CXX_WARN(g_log, "read imagnet mean from `"<< filename<<"'");
             std::ifstream meanifs(filename.c_str());
             cuvAssert(meanifs.is_open());
             cuvAssert(meanifs.good());
-            m_imagenet_mean.resize(cuv::extents[3][m_pattern_size][m_pattern_size]);
-            meanifs.read((char*)m_imagenet_mean.ptr(), m_imagenet_mean.memsize());
+            m_input_map_mean.resize(cuv::extents[3][m_pattern_size][m_pattern_size]);
+            meanifs.read((char*)m_input_map_mean.ptr(), m_input_map_mean.memsize());
     }
 
 
@@ -364,8 +364,8 @@ namespace datasets
             pattern->rgb.resize(cuv::extents[3][m_pattern_size][m_pattern_size]); 
             dstack_mat2tens(pattern->rgb, chans); // TODO RGB/BGR conversion here
 
-            if(m_imagenet_mean.ptr())
-                pattern->rgb -= m_imagenet_mean;
+            if(m_input_map_mean.ptr())
+                pattern->rgb -= m_input_map_mean;
             else
                 pattern->rgb -= 121.f;  // poor man's approximation here...
         
