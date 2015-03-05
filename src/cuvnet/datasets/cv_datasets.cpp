@@ -143,13 +143,15 @@ namespace datasets
 
 
     cv::RotatedRect
-    region_from_depth(const cv::Mat& depth, cv::Point2f center, double scale_fact, double min_dist){
+    region_from_depth(const cv::Mat& depth, cv::Point2f center, double scale_fact, double min_dist, float scale_octave_var = 1.f){
         double d = depth.at<float>(center) / 1000.;  // convert to meters
         double f;
         if(d!=d)
             f = min_dist;
         else
             f = scale_fact / std::max(min_dist, d);
+        float s = std::exp(drand48() * (std::log(1 * scale_octave_var) - std::log(1 / scale_octave_var)) + std::log(1 / scale_octave_var));
+        f *= s;
         //std::cout << "dist: " << d<< " f: " << f <<std::endl;
 #ifdef FIXED_SIZE
         f = 135;

@@ -519,7 +519,7 @@ namespace datasets
             
             std::vector<cv::RotatedRect> regions;
             if (!m_exhaustive)
-                regions = random_regions_from_depth(in->depth, m_n_crops, 300., 1.);
+                regions = random_regions_from_depth(in->depth, m_n_crops, 300., 1., 1.1);
             else
                 regions = covering_regions_from_depth(in->depth, 300., 1., 1.0);
 
