@@ -15,6 +15,8 @@ namespace datasets
         cuvnet::image_queue<rgb_classification_dataset> m_trainqueue, m_valqueue;
         std::list<boost::shared_ptr<rgb_classification_dataset::pattern_t> > m_open_list;
         std::list<cuvnet::cv_mode> m_open_list_mode;
+        int m_n_batch_filled;
+        bool m_is_epoch_end;
 
         rgb_classification_loader(std::string basename, int n_jobs=0)
         : m_pool(n_jobs)
@@ -22,6 +24,8 @@ namespace datasets
         , m_valset(basename + "_val.txt", 224, 5)
         , m_trainqueue(m_pool, m_trainset, 128, 3*128)
         , m_valqueue(m_pool, m_valset, 12, 3*12)
+        , m_n_batch_filled(0)
+        , m_is_epoch_end(false)
         {
         }
         void load_instance(queue_t& q, int i, cuvnet::matrix& rgb, cuvnet::matrix& klass){
@@ -48,9 +52,12 @@ namespace datasets
         }
 
         void save_batch(const cuvnet::matrix& pred){
-            int batch_size = pred.shape(0);
-            for(int i=0; i < batch_size; i++)
+            for(int i=0; i < m_n_batch_filled; i++)
                 save_instance(pred[cuv::indices[i]]);
+            if(m_is_epoch_end){
+                m_is_epoch_end = false;
+                throw cuvnet::epoch_end();
+            }
         }
 
         void load_batch(cuvnet::cv_mode mode, cuvnet::matrix& rgb, cuvnet::matrix& tch){
@@ -61,12 +68,23 @@ namespace datasets
                 mode = drand48() > (m_trainset.size() / ((float)(m_trainset.size() + m_valset.size())))
                     ? cuvnet::CM_VALID
                     : cuvnet::CM_TRAIN;
-            
+
+            m_n_batch_filled = 0;
             for(int i=0; i < batch_size; i++){
-                if(mode == cuvnet::CM_TRAIN)
-                    load_instance(m_trainqueue, i, rgb, tch);
-                else if(mode == cuvnet::CM_VALID || mode == cuvnet::CM_TEST)
-                    load_instance(m_valqueue, i, rgb, tch);
+                try{
+                    if(mode == cuvnet::CM_TRAIN)
+                        load_instance(m_trainqueue, i, rgb, tch);
+                    else if(mode == cuvnet::CM_VALID || mode == cuvnet::CM_TEST)
+                        load_instance(m_valqueue, i, rgb, tch);
+                    m_n_batch_filled ++;
+                }catch(cuvnet::epoch_end){
+                    m_is_epoch_end = true;
+                    // dataset starts over
+                    if(mode == cuvnet::CM_TRAIN)
+                        load_instance(m_trainqueue, i, rgb, tch);
+                    else if(mode == cuvnet::CM_VALID || mode == cuvnet::CM_TEST)
+                        load_instance(m_valqueue, i, rgb, tch);
+                }
                 m_open_list_mode.push_back(mode);
             }
             std::cout << "."<<std::flush;
@@ -80,6 +98,8 @@ namespace datasets
         cuvnet::image_queue<rgb_detection_dataset> m_trainqueue, m_valqueue;
         std::list<boost::shared_ptr<rgb_detection_dataset::pattern_t> > m_open_list;
         std::list<cuvnet::cv_mode> m_open_list_mode;
+        int m_n_batch_filled;
+        bool m_is_epoch_end;
 
         rgb_detection_loader(std::string basename, int n_jobs=0)
         : m_pool(n_jobs)
@@ -87,6 +107,8 @@ namespace datasets
         , m_valset(basename + "_val.txt", 224, 5)
         , m_trainqueue(m_pool, m_trainset, 128, 3*128)
         , m_valqueue(m_pool, m_valset, 12, 3*12)
+        , m_n_batch_filled(0)
+        , m_is_epoch_end(false)
         {
         }
         void load_instance(queue_t& q, int i, cuvnet::matrix& rgb, std::vector<bbox>& tch){
@@ -113,9 +135,12 @@ namespace datasets
         }
 
         void save_batch(const std::vector<std::vector<bbox> >& pred){
-            int batch_size = pred.size();
-            for(int i=0; i < batch_size; i++)
+            for(int i=0; i < m_n_batch_filled; i++)
                 save_instance(pred[i]);
+            if(m_is_epoch_end){
+                m_is_epoch_end = false;
+                throw cuvnet::epoch_end();
+            }
         }
 
         void load_batch(cuvnet::cv_mode mode, cuvnet::matrix& rgb, std::vector<std::vector<bbox> >& tch){
@@ -129,11 +154,22 @@ namespace datasets
 
             tch.resize(batch_size);
 
+            m_n_batch_filled = 0;
             for(int i=0; i < batch_size; i++){
-                if(mode == cuvnet::CM_TRAIN)
-                    load_instance(m_trainqueue, i, rgb, tch[i]);
-                else if(mode == cuvnet::CM_VALID || mode == cuvnet::CM_TEST)
-                    load_instance(m_valqueue, i, rgb, tch[i]);
+                try{
+                    if(mode == cuvnet::CM_TRAIN)
+                        load_instance(m_trainqueue, i, rgb, tch[i]);
+                    else if(mode == cuvnet::CM_VALID || mode == cuvnet::CM_TEST)
+                        load_instance(m_valqueue, i, rgb, tch[i]);
+                    m_n_batch_filled ++;
+                }catch(cuvnet::epoch_end){
+                    m_is_epoch_end = true;
+                    // dataset starts over
+                    if(mode == cuvnet::CM_TRAIN)
+                        load_instance(m_trainqueue, i, rgb, tch[i]);
+                    else if(mode == cuvnet::CM_VALID || mode == cuvnet::CM_TEST)
+                        load_instance(m_valqueue, i, rgb, tch[i]);
+                }
                 m_open_list_mode.push_back(mode);
             }
             std::cout << "."<<std::flush;
@@ -148,6 +184,8 @@ namespace datasets
         cuvnet::image_queue<rgbd_detection_dataset> m_trainqueue, m_valqueue;
         std::list<boost::shared_ptr<rgbd_detection_dataset::pattern_t> > m_open_list;
         std::list<cuvnet::cv_mode> m_open_list_mode;
+        int m_n_batch_filled;
+        bool m_is_epoch_end;
 
         rgbd_detection_loader(std::string basename, int n_jobs=0)
         : m_pool(n_jobs)
@@ -155,6 +193,8 @@ namespace datasets
         , m_valset(basename + "_val.txt", 224, 5)
         , m_trainqueue(m_pool, m_trainset, 128, 3*128)
         , m_valqueue(m_pool, m_valset, 12, 3*12)
+        , m_n_batch_filled(0)
+        , m_is_epoch_end(false)
         {
             m_trainset.m_b_train = true;
             m_valset.m_b_train = false;
@@ -186,9 +226,12 @@ namespace datasets
         }
 
         void save_batch(const std::vector<std::vector<bbox> >& pred){
-            int batch_size = pred.size();
-            for(int i=0; i < batch_size; i++)
+            for(int i=0; i < m_n_batch_filled; i++)
                 save_instance(pred[i]);
+            if(m_is_epoch_end){
+                m_is_epoch_end = false;
+                throw cuvnet::epoch_end();
+            }
         }
 
         void load_batch(cuvnet::cv_mode mode, cuvnet::matrix& rgb, cuvnet::matrix& depth, std::vector<std::vector<bbox> >& tch){
@@ -202,14 +245,22 @@ namespace datasets
 
             tch.resize(batch_size);
 
+            m_n_batch_filled = 0;
             for(int i=0; i < batch_size; i++){
-                if(mode == cuvnet::CM_TRAIN)
-                    load_instance(m_trainqueue, i, rgb, depth, tch[i]);
-                else if(mode == cuvnet::CM_VALID || mode == cuvnet::CM_TEST)
-                    load_instance(m_valqueue, i, rgb, depth, tch[i]);
-                
-                // DEBUG
-                //cuv::fill_rnd_uniform(rgb);
+                try{
+                    if(mode == cuvnet::CM_TRAIN)
+                        load_instance(m_trainqueue, i, rgb, depth, tch[i]);
+                    else if(mode == cuvnet::CM_VALID || mode == cuvnet::CM_TEST)
+                        load_instance(m_valqueue, i, rgb, depth, tch[i]);
+                    m_n_batch_filled ++;
+                }catch(cuvnet::epoch_end){
+                    m_is_epoch_end = true;
+                    // dataset starts over
+                    if(mode == cuvnet::CM_TRAIN)
+                        load_instance(m_trainqueue, i, rgb, depth, tch[i]);
+                    else if(mode == cuvnet::CM_VALID || mode == cuvnet::CM_TEST)
+                        load_instance(m_valqueue, i, rgb, depth, tch[i]);
+                }
                 
                 m_open_list_mode.push_back(mode);
             }
