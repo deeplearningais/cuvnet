@@ -85,12 +85,29 @@ namespace cuvnet
                         ar & boost::serialization::base_object<Op>(*this);
                         ar & m_n_predictions;
                         ar & m_alpha;
-                        ar & m_typical_bboxes; 
+
+                        std::vector<datasets::rotated_rect> tcls;
+                        bool fix = false;
+
+                        if(version > 1)
+                            ar & m_typical_bboxes; 
+                        else{
+                            if(m_typical_bboxes.size() == 0){
+                                // deserialize
+                                cuvAssert(m_n_klasses > 0);
+                                ar & tcls;
+                                fix = true;
+                            }else{
+                                //throw std::runtime_error("No saving of old version supported");
+                            }
+                        }
                         if(version > 0)
                             ar & m_n_klasses;
+                        if(fix)
+                            m_typical_bboxes.resize(m_n_klasses, tcls);
                     }
         };
 }
-BOOST_CLASS_VERSION(cuvnet::BoundingBoxMatching, 1)
+BOOST_CLASS_VERSION(cuvnet::BoundingBoxMatching, 2)
 
 #endif // __BOUNDING_BOX_MATCHING_OP_HPP__
