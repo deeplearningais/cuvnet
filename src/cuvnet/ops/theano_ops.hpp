@@ -1,6 +1,8 @@
 #ifndef __OP_THEANO_OPS_HPP__
 #     define __OP_THEANO_OPS_HPP__
 
+#ifndef NO_THEANO_WRAPPERS
+
 #include <cuv/libs/theano_ops/theano_ops.hpp>
 #      include <cuv/convolution_ops/convolution_ops_theano.hpp>
 #include <cuvnet/op.hpp>
@@ -181,4 +183,5 @@ namespace cuvnet
 
 }
 
+#endif
 #endif /* __OP_THEANO_OPS_HPP__ */

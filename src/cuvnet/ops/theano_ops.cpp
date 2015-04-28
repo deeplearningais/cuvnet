@@ -1,4 +1,4 @@
-
+#ifndef NO_THEANO_WRAPPERS
 #include "theano_ops.hpp"
 
 namespace cuvnet
@@ -8,6 +8,7 @@ namespace cuvnet
         using namespace cuv;
         using namespace cuv::theano_ops;
 #ifdef CUVNET_USE_CPU
+
         throw std::runtime_error("ShuffleDim fprop: not implemented for CPU");
 #else
         param_t::element_type&  p0 = *m_params[0];
@@ -334,3 +335,4 @@ namespace cuvnet
         m_results[0]->shape = dst;
     }
 }
+#endif
