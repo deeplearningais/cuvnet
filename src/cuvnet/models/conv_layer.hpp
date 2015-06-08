@@ -29,7 +29,7 @@ namespace cuvnet { namespace models {
          */
         conv_layer_opts()
             :m_learnrate_factor(1.f)
-            ,m_learnrate_factor_bias(1.f)
+            ,m_learnrate_factor_bias(2.f)  // Caffe does that, mostly
             ,m_random_sparse(false)
             ,m_verbose(false)
             ,m_padding(-1)
