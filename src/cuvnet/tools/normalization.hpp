@@ -11,9 +11,14 @@ namespace cuvnet
      * @param W weight matrix to be adjusted
      * @param axis the axis to be adjusted
      * @param thresh size of the ball
+     * 
+     * @return a tuple where 
+     *         first value is the fraction of entries for which the constraint was violated (only works if not using alex_conv routine for projection),
+     *         second value gives average norm to a hidden unit,
      */
     template<class M>
-    void project_to_unit_ball(cuv::tensor<float, M>& W, int axis, float thresh){
+    std::pair<float,float>
+    project_to_unit_ball(cuv::tensor<float, M>& W, int axis, float thresh){
         cuv::tensor<float, M> C = W;
         if(axis < 0)
             axis = W.ndim()-1;
@@ -22,11 +27,6 @@ namespace cuvnet
         if(axis >= W.ndim())
             throw std::runtime_error("project_to_unit_ball: axis parameter is not in matrix dimensions, of which there are " + boost::lexical_cast<std::string>(W.ndim()));
 
-        if(axis == 1 && (C.ndim() == 3 || C.ndim() == 4) && (C.shape(axis) % 16 == 0))
-        {
-            cuv::alex_conv::project_to_ball(C, thresh);
-            return;
-        }
         unsigned int ax_shape = W.shape(axis);
         if(W.ndim() > 2){
             unsigned int other_shape = W.size() / ax_shape;
@@ -40,6 +40,11 @@ namespace cuvnet
                 throw std::runtime_error("project_to_unit_ball: cannot normalize intermediate (0<axis<ndim-1) axis");
             }
         }
+        //if(axis == 1 && (C.ndim() == 3 || C.ndim() == 4) && (C.shape(axis) % 16 == 0))
+        //{
+        //    cuv::alex_conv::project_to_ball(C, thresh);
+        //    return std::make_pair(-1, 0.f);
+        //}
         //ax_shape = C.shape(1-axis);
         cuv::tensor<float, M> ax(ax_shape);
         cuv::tensor<unsigned char, M> over_thresh(ax_shape);
@@ -50,17 +55,12 @@ namespace cuvnet
             cuv::reduce_to_col(ax, C, cuv::RF_ADD_SQUARED);
         }
 
+        float mean_squared_norm = cuv::mean(ax);
+
         cuv::apply_scalar_functor(over_thresh, ax, cuv::SF_GT, thresh * thresh);
-        {
-            float n_over_thresh = cuv::sum(over_thresh);
-            if(n_over_thresh > 0.f){
-                //std::cout << "n_over_thresh:" << n_over_thresh << std::endl;
-            }else{
-                //std::cout << "cuv::mean(ax):" << cuv::mean(ax) << std::endl;
-            }
-            if(n_over_thresh < 0.1f)
-                return;
-        }
+        float frac_over_thresh = cuv::mean(over_thresh);
+        if(frac_over_thresh == 0.f)
+            return std::make_pair(0, std::sqrt(mean_squared_norm));
         cuv::apply_scalar_functor(ax, cuv::SF_SQRT); // ax[over_thresh] = sqrt(ax[over_thresh])
         cuv::apply_scalar_functor(ax, cuv::SF_MULT, 1.f / thresh);      // ax[over_thresh] *= 1/thresh
         over_thresh = !over_thresh;    // 
@@ -70,6 +70,7 @@ namespace cuvnet
             cuv::matrix_divide_row(C, ax);
         else if(axis == 0)
             cuv::matrix_divide_col(C, ax);
+        return std::make_pair(frac_over_thresh, std::sqrt(mean_squared_norm));
     }
 
 

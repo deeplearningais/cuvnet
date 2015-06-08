@@ -24,6 +24,12 @@
 #include <cuvnet/ops/abs.hpp>
 #include <cuvnet/ops/softmax.hpp>
 #include <cuvnet/ops/convolve.hpp>
+#include <cuvnet/ops/cuda_convnet.hpp>
+#include <cuvnet/ops/cudnn.hpp>
+#include <cuvnet/ops/caffe.hpp>
+#include <cuvnet/ops/theano_ops.hpp>
+#include <cuvnet/ops/weighted_sub_tensor_op.hpp>
+#include <cuvnet/ops/tuplewise.hpp>
 #include <cuvnet/ops/reshape.hpp>
 #include <cuvnet/ops/row_selector.hpp>
 #include <cuvnet/ops/rectified_linear.hpp>
@@ -34,6 +40,8 @@
 #include <cuvnet/ops/sum_out_dim.hpp>
 #include <cuvnet/ops/log_add_exp.hpp>
 #include <cuvnet/ops/upscale.hpp>
+
+#include <cuvnet/ops/bounding_box_matching.hpp>
 
 #ifndef NO_THEANO_WRAPPERS
 #include <cuvnet/ops/theano_ops.hpp>
@@ -244,6 +252,9 @@ namespace cuvnet
     /// construct a ContrastNormalization object
     inline
         Op::op_ptr contrast_normalization(Op::op_ptr img, int patchSize, float addScale, float powScale) { return boost::make_shared<ContrastNormalization>(img->result(), patchSize, addScale, powScale); }
+    /// construct a ResponseNormalizationAcrossMapsCaffe object
+    inline
+        Op::op_ptr response_normalization_cross_maps_caffe(Op::op_ptr img, int group_size=5, float addScale=0.0001f, float powScale=0.75f) { return boost::make_shared<ResponseNormalizationAcrossMapsCaffe>(img->result(), group_size, addScale, powScale); }
     /// construct a ResponseNormalizationCrossMaps object
     inline
         Op::op_ptr response_normalization_cross_maps(Op::op_ptr img, int groups, float addScale=0.0000125f, float powScale=0.75f, bool blocked=false) { return boost::make_shared<ResponseNormalizationCrossMaps>(img->result(), groups, addScale, powScale, blocked); }
@@ -269,7 +280,15 @@ namespace cuvnet
     inline
         Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, (subsx%2==0?0:subsx/-2)); }
         //Op::op_ptr local_pool(Op::op_ptr img, int subsx, int stridex, cuv::alex_conv::pool_type pt) { return boost::make_shared<LocalPooling>(img->result(), subsx, stridex, pt, 0); }
-
+    /// construct a cuDNN Convolve object
+    inline
+        Op::op_ptr convolve_cuDNN(Op::op_ptr img, Op::op_ptr flt, int padding_y=0, int padding_x=0, int stridey=1, int stridex=1) {return boost::make_shared<ConvolvecuDNN>(img->result(),flt->result(), padding_y, padding_x, stridey, stridex);}
+    /// construct a cuDNN Convolve object
+    inline
+        Op::op_ptr convolve_cuDNN(Op::op_ptr img, Op::op_ptr flt, Op::op_ptr bias, int padding_y=0, int padding_x=0, int stridey=1, int stridex=1) {return boost::make_shared<ConvolvecuDNN>(img->result(),flt->result(), bias->result(), padding_y, padding_x, stridey, stridex);}
+    /// construct a cuDNN pooling object
+     inline
+         Op::op_ptr pooling_cuDNN(Op::op_ptr img, cuv::alex_conv::pool_type mode, int window_height, int window_width, int vertical_stride, int horizontal_stride) {return boost::make_shared<PoolingcuDNN>(img->result(), mode, window_height, window_width, vertical_stride, horizontal_stride);}
     /// construct a Reshape object
     template<std::size_t D>
     inline

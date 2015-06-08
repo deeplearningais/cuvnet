@@ -205,7 +205,7 @@ namespace cuvnet { namespace network_communication {
         int queue_len = m_impl->m_con.count(m_impl->m_prefix+".nc", query);
         CHECK_DB_ERR(m_impl->m_con);
         static int warned = 0;
-        static const int warn_step = 200;
+        static const int warn_step = 400;
         if(queue_len < warned)
             warned -= warn_step;
         if(queue_len > warned + warn_step){

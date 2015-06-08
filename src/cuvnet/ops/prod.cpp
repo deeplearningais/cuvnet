@@ -156,14 +156,14 @@ namespace cuvnet
         m_sr.resize(2);
         unsigned int size_p0 = std::accumulate(p0->shape.begin(), p0->shape.end(), 1, std::multiplies<unsigned int>());
         unsigned int size_p1 = std::accumulate(p1->shape.begin(), p1->shape.end(), 1, std::multiplies<unsigned int>());
-        if(m_p0t == 't'){
+        if(1 || m_p0t == 'n'){
            m_sp0[0] = p0->shape[0];
            m_sp0[1] = size_p0 / p0->shape[0];
         }else{
            m_sp0[0] = size_p0 / p0->shape.back();
            m_sp0[1] = p0->shape.back();
         }
-        if(m_p1t == 'n'){
+        if(1 || m_p1t == 'n'){
            m_sp1[0] = p1->shape[0];
            m_sp1[1] = size_p1 / p1->shape[0];
         }else{

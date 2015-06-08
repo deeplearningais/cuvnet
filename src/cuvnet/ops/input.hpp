@@ -177,11 +177,15 @@ namespace cuvnet
                 inline value_type&       data()      { return m_data.data();  }
                 /// @return the contained tensor for read-only access
                 inline const value_type& data() const{ return m_data.cdata(); }
+                /// @return the contained tensor for read-only access
+                inline const value_type& cdata() const{ return m_data.cdata(); }
 
                 /// @return the backpropagated gradient
                 inline       value_type& delta()      { return m_delta.data(); }
                 /// @return the backpropagated gradient (read only)
                 inline const value_type& delta() const{ return m_delta.cdata(); }
+                /// @return the backpropagated gradient (read only)
+                inline const value_type& cdelta() const{ return m_delta.cdata(); }
 
                 /// determine whether the data is saved or not. 
                 /// especially useful if the content is not a weight matrix,

@@ -1,5 +1,5 @@
 #include <cuvnet/tools/monitor.hpp>
-#include "convolve.hpp"
+#include <cuvnet/ops/weighted_sub_tensor_op.hpp>
 
 namespace cuvnet{
 

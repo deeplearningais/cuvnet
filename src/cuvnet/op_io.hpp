@@ -109,11 +109,15 @@ BOOST_CLASS_EXPORT_KEY(cuvnet::F2Measure);
 BOOST_CLASS_EXPORT_KEY(cuvnet::EpsilonInsensitiveLoss);
 BOOST_CLASS_EXPORT_KEY(cuvnet::HingeLoss);
 
+BOOST_CLASS_EXPORT_KEY(cuvnet::BoundingBoxMatching);
+
 // convolutions
 BOOST_CLASS_EXPORT_KEY(cuvnet::Convolve);
+BOOST_CLASS_EXPORT_KEY(cuvnet::ConvolvecuDNN);
 BOOST_CLASS_EXPORT_KEY(cuvnet::ReorderForConv);
 BOOST_CLASS_EXPORT_KEY(cuvnet::ReorderFromConv);
 BOOST_CLASS_EXPORT_KEY(cuvnet::LocalPooling);
+BOOST_CLASS_EXPORT_KEY(cuvnet::PoolingcuDNN);
 BOOST_CLASS_EXPORT_KEY(cuvnet::ResponseNormalization);
 BOOST_CLASS_EXPORT_KEY(cuvnet::ResponseNormalizationCrossMaps);
 BOOST_CLASS_EXPORT_KEY(cuvnet::ContrastNormalization);
@@ -145,4 +149,6 @@ BOOST_CLASS_EXPORT_KEY(cuvnet::Convolve2dTheano);
 
 BOOST_CLASS_EXPORT_KEY(cuvnet::SumOutDim);
 BOOST_CLASS_EXPORT_KEY(cuvnet::Upscale);
+
+BOOST_CLASS_EXPORT_KEY(cuvnet::ResponseNormalizationAcrossMapsCaffe);
 #endif /* __OP_IO_HPP__ */

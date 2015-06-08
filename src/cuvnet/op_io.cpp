@@ -84,8 +84,12 @@ BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::F2Measure);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::EpsilonInsensitiveLoss);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::HingeLoss);
 
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::BoundingBoxMatching);
+
 // convolutions
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::Convolve);
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::ConvolvecuDNN);
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::PoolingcuDNN);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::ReorderForConv);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::ReorderFromConv);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::LocalPooling);
@@ -118,4 +122,5 @@ BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::Convolve2dTheano);
 #endif
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::Upscale);
 BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::SumOutDim);
+BOOST_CLASS_EXPORT_IMPLEMENT(cuvnet::ResponseNormalizationAcrossMapsCaffe);
 //int dummy::bogus::bogus_method() { return 0;}

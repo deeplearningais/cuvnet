@@ -40,6 +40,7 @@ message GradientDescent{
     optional float l2decay = 3 [default=0.0];
     optional int32 verbosity = 4 [default=0];
     optional int32 start_epoch = 5 [default=0];
+    optional int32 update_every = 7;
     optional StoppingCriteria stopping_criteria = 6;
 
     extensions 100 to max;

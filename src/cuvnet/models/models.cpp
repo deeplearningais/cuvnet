@@ -26,6 +26,8 @@ namespace cuvnet { namespace models {
     }
     void model::set_predict_mode(bool b){
     }
+    void model::after_weight_update(){
+    }
 
     void model::set_batchsize(unsigned int bs){
         std::vector<Op*> inputs = get_inputs();
@@ -147,6 +149,13 @@ namespace cuvnet { namespace models {
     metamodel<Base>::set_predict_mode(bool b){
         for(std::vector<model*>::const_reverse_iterator it = m_models.rbegin(); it!=m_models.rend(); it++)
             (*it)->set_predict_mode(b);
+    }
+
+    template<class Base>
+    void
+    metamodel<Base>::after_weight_update(){
+        for(std::vector<model*>::const_reverse_iterator it = m_models.rbegin(); it!=m_models.rend(); it++)
+            (*it)->after_weight_update();
     }
 
     template<class Base>

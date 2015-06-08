@@ -286,7 +286,7 @@ namespace cuvnet { namespace bbtools {
         int new_w = original_img.porig->cols + 2*dw;
         cv::Scalar value;
         cv::copyMakeBorder( dst, dst, dh, dh, dw, dw, cv::BORDER_REFLECT_101, value );
-        cv::resize(dst, dst, cv::Size(new_w, new_h), 0.5, 0.5);
+        cv::resize(dst, dst, cv::Size(new_w, new_h), 0, 0);
 
         //const unsigned char white[] = {255,255,255};
         //const unsigned char red[] = {255,0,0};
@@ -308,7 +308,7 @@ namespace cuvnet { namespace bbtools {
             // blur for better subsampling quality
             cv::blur(*pcut, *pcut, cv::Size(1.f/scale_fact, 1.f/scale_fact), cv::Point(-1,-1), cv::BORDER_REFLECT_101);
         }
-        cv::resize(*pcut, *pcut, cv::Size(size, size), 0.5f, 0.5f);
+        cv::resize(*pcut, *pcut, cv::Size(size, size), 0, 0);
         //pcut->resize(size, size, -100, -100, 3, 2, 0.5f, 0.5f);
         return *this;
     }

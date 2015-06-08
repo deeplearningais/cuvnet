@@ -46,7 +46,7 @@ namespace cuvnet
                     ,m_group_name("mlplayer")
                     ,m_unique_group(true)
                     ,m_learnrate_factor(1.f)
-                    ,m_learnrate_factor_bias(1.f)
+                    ,m_learnrate_factor_bias(2.f)  // caffe uses learnrate factor of 2 for bias
                     ,m_verbose(false)
                     ,m_weight_init_std(-1.f)
                 {
@@ -87,7 +87,7 @@ namespace cuvnet
                  */
                 inline mlp_layer_opts& rectified_linear(bool mem_optimized=false){
                     m_nonlinearity = boost::bind(cuvnet::rectified_linear, _1, mem_optimized);
-                    m_bias_default_value = 1.f;
+                    //m_bias_default_value = 0.f;
                     return *this;
                 }
 

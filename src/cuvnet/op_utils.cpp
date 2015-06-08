@@ -6,6 +6,11 @@
 #include <boost/filesystem.hpp>
 #include "op_utils.hpp"
 #include <cuvnet/ops/output.hpp>
+#include <cuvnet/ops/convolve.hpp>
+#include <cuvnet/ops/cuda_convnet.hpp>
+#include <cuvnet/ops/cudnn.hpp>
+#include <cuvnet/ops/caffe.hpp>
+#include <cuvnet/ops/theano_ops.hpp>
 
 
 using namespace cuvnet;

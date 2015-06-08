@@ -441,7 +441,7 @@ namespace cuvnet
             /**
              * test for early stopping. 
              */
-            void operator()(unsigned int current_epoch, unsigned int wups);
+            void operator()(unsigned int wups);
 
             /**
              * return the best value we got during early_stopping.
@@ -1015,10 +1015,7 @@ namespace cuvnet
                 : BaseGradientDescent(args...)
                 {
                     m_active_ = true;
-
-                    BaseGradientDescent::before_batch.connect(boost::bind(&my_class::run_before_batch, this, _2));
-                    //BaseGradientDescent::after_epoch.connect(boost::bind(&my_class::run_after_epoch, this));
-                    //BaseGradientDescent::before_epoch.connect(boost::bind(&my_class::run_before_epoch, this));
+                    run_before_epoch();
                 }
 
             void set_monitor(monitor& mon, unsigned int every = 1){
@@ -1036,14 +1033,13 @@ namespace cuvnet
              * @overload
              */
             virtual void update_weights(){
-
                 if(m_active_ && (m_current_batch_ % m_every_ == 0) && m_mon_)
                 for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
                     ParameterInput* inp = (ParameterInput*) *it;
                     if(cuv::IsSame<matrix::memory_space_type, detail::wrgd_helper::storage_space>::Result::value){
-                        m_updates_[inp] = inp->data().copy();
+                        m_updates_[inp] = inp->cdata().copy();
                     }else{
-                        m_updates_[inp] = inp->data();
+                        m_updates_[inp] = inp->cdata();
                     }
                 }
 
@@ -1054,8 +1050,7 @@ namespace cuvnet
                 for(paramvec_t::iterator it=this->m_params.begin(); it!=this->m_params.end();it++){
                     ParameterInput* inp = (ParameterInput*) *it;
                     std::map<Op*, storage_t>::iterator upit = m_updates_.find(inp);
-                    upit->second -= (host_matrix) inp->data();
-                    //m_updates[inp] *= -1.f;  // we're recording the negative update for speed
+                    upit->second -= (host_matrix) inp->cdata();
                     
                     m_avgnorm_[inp] += cuv::norm1(upit->second) / upit->second.size();
                     m_vars_[inp] += cuv::var(upit->second);
@@ -1066,10 +1061,8 @@ namespace cuvnet
                     run_after_epoch();
                     run_before_epoch();
                 }
-            }
 
-            void run_before_batch(unsigned int batch){
-                m_current_batch_ = batch;
+                m_current_batch_ += 1;
             }
 
             void run_after_epoch(){
@@ -1079,7 +1072,7 @@ namespace cuvnet
                     //std::map<Op*, storage_t>::iterator upit = m_updates_.find(inp);
                     log(inp->name() + "_dvar", m_vars_[inp] / m_n_rec_);
                     log(inp->name() + "_davgnorm", m_avgnorm_[inp] / m_n_rec_);
-                    log(inp->name() + "_drelavgnorm", m_avgnorm_[inp] / m_n_rec_ / (cuv::norm1(inp->data()) / inp->data().size()));
+                    log(inp->name() + "_drelavgnorm", m_avgnorm_[inp] / m_n_rec_ / (cuv::norm1(inp->cdata()) / inp->cdata().size()));
                 }
             }
 

@@ -79,6 +79,20 @@ namespace cuvnet
             cuv::reduce_to_col(a1, inp0src,cuv::RF_ARGMAX);
             cuv::reduce_to_col(a2, inp1,cuv::RF_ARGMAX);
         }
+#if 0
+            host_matrix a1h = a1;
+            host_matrix a2h = a2;
+            m_confusion.clear();
+            for(unsigned int i=0; i<batch_size; i++){
+                int c1 = a1h(i);
+                int c2 = a2h(i);
+                //if(c1 != c2)
+                if(ignore && a_ign(i) == 0)
+                    continue;
+                m_confusion.push_back(std::make_pair(c1, c2));
+            }
+        }
+#endif
 
         a1 -= a2;
         cuv::apply_scalar_functor(a1, cuv::SF_ABS);

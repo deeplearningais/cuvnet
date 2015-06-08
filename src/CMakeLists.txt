@@ -9,6 +9,7 @@ SET(CMAKE_MODULE_PATH  ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/CMakeModules )
 #SET(Boost_NO_SYSTEM_PATHS TRUE)
 FIND_PACKAGE( Boost 1.46 COMPONENTS date_time filesystem unit_test_framework serialization program_options iostreams signals thread system python regex REQUIRED )
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(/usr/local/cuda/include)
 SET(CUV_BASE_DIRECTORY "/home/local/cuv" CACHE STRING "Checkout directory for cuv")
@@ -47,6 +48,11 @@ CONFIGURE_FILE( ${CMAKE_CURRENT_SOURCE_DIR}/datasets/util/lena.jpg ${CMAKE_BINAR
 INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_SOURCE_DIR}/third_party/libnpy-0.5/include )
 INCLUDE_DIRECTORIES( ${CMAKE_CURRENT_SOURCE_DIR}/third_party/ )
 
+#LINK_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/third_party/cudnn-6.5-linux-R1)
+LINK_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/third_party/cudnn-6.5-linux-x64-v2-rc3)
+
+LINK_DIRECTORIES(/home/stud/sheikhr/cuda-workspace/streamsHelper/Debug)
+
 OPTION(USE_OPENCV "Use OpenCV if available" OFF)
 OPTION(USE_THEANO_WRAPPERS "Use Theano wrappers (requires CUV to be compiled with python support" ON)
 IF(USE_THEANO_WRAPPERS)
@@ -69,6 +75,9 @@ SET(CUVNET_SRC
 	datasets/read_amat.cpp
 	datasets/bounding_box_tools.cpp
     datasets/dataset_reader.cpp
+    
+    cuvnet/datasets/cv_datasets.cpp
+    cuvnet/datasets/detection.cpp
 
     cuvnet/smart_ptr.cpp
     cuvnet/tools/pca.cpp
@@ -122,7 +131,7 @@ endif( PYTHONLIBS_FOUND )
 
 add_library(cuvnet SHARED ${CUVNET_SRC})
 
-TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES}  ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES} ${PROTOBUF_LIBRARIES} messages)
+TARGET_LINK_LIBRARIES( cuvnet zzip mdbq zzip log4cxx ${OpenCV_LIBS} ${TBB_LIBS} ${LAPACK_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES}  ${CUDA_CUBLAS_LIBRARIES} ${CUDA_LIBRARIES} ${PROTOBUF_LIBRARIES} messages cudnn)
 
 #add_subdirectory(cuvnet)
 #add_subdirectory(third_party)

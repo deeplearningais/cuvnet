@@ -80,8 +80,7 @@ namespace cuvnet{ namespace derivative_testing {
             return results;
         }
 
-    void derivative_tester::ensure_no_state(boost::shared_ptr<Op> out_, int result, const std::vector<Op*>& params, bool verbose, int seed){
-        double epsilon = 0.00000001;
+    void derivative_tester::ensure_no_state(boost::shared_ptr<Op> out_, int result, const std::vector<Op*>& params, bool verbose, int seed, double precision){
         param_collector_visitor pcv;
         out_->visit(pcv);
         if(m_verbose)
@@ -120,13 +119,13 @@ namespace cuvnet{ namespace derivative_testing {
             apply_binary_functor(rdiff, r0, r1, BF_SUBTRACT);
             apply_scalar_functor(rdiff, SF_ABS);
             double fprop_error = maximum(rdiff);
-            if(fprop_error > epsilon){
-                LOG4CXX_ERROR(g_enslog, " fprop error greater epsilon: "<< fprop_error << ".  Writing two results to r0.npy and r1.npy.");
+            if(fprop_error != fprop_error || fprop_error > precision){
+                LOG4CXX_ERROR(g_enslog, " fprop error greater precision: "<< fprop_error << ".  Writing two results to r0.npy and r1.npy.");
                 tofile("r0.npy", r0);
                 tofile("r1.npy", r1);
             }
 
-            BOOST_CHECK_LT(fprop_error, epsilon);
+            BOOST_CHECK_LT(fprop_error, precision);
         }
         swiper swp(*out_, result, params);
         Tracer t_bprop(g_enslog, "bprop");
@@ -162,10 +161,14 @@ namespace cuvnet{ namespace derivative_testing {
             apply_binary_functor(rdiff, r0, r1, BF_SUBTRACT);
             apply_scalar_functor(rdiff, SF_ABS);
             double bprop_error = maximum(rdiff);
-            if(bprop_error > epsilon){
-                LOG4CXX_ERROR(g_enslog, " bprop error greater epsilon: "<< bprop_error);
+            if(bprop_error > precision){
+		LOG4CXX_ERROR(g_enslog, " bprop error greater precision: "<< bprop_error);
+                LOG4CXX_ERROR(g_enslog, " saving results to 'r0.npy' and 'r1.npy'");
+                tofile("r0.npy", r0);
+                tofile("r1.npy", r1);
+		
             }
-            BOOST_CHECK_LT(bprop_error, epsilon);
+            BOOST_CHECK_LT(bprop_error, precision);
         }
     }
 
@@ -225,6 +228,7 @@ namespace cuvnet{ namespace derivative_testing {
             ,m_verbose(false)
             ,m_spread(false)
             ,m_prec(0.01)
+            ,m_no_state_prec(1e-8)
             ,m_minv(-1.)
             ,m_maxv(1.)
             ,m_simple_and_fast(true)
@@ -261,6 +265,7 @@ namespace cuvnet{ namespace derivative_testing {
             //unsigned int factor = std::accumulate(shape.begin(), shape.end(), 1u, std::multiplies<unsigned int>());
             //factor = std::min(factor, 10u); // give it some leeway in case we're summing over outputs.
             otherin->set_derivable(false);
+            otherin->data() = 0.01f;
             if(m_variant_filter & 1){
                 TRACE(g_log, "plain");
                 if(!m_simple_and_fast){
@@ -360,7 +365,7 @@ namespace cuvnet{ namespace derivative_testing {
                     if(m_verbose)
                         LOG4CXX_INFO(g_log, "  -ensuring function is stateless");
                     boost::shared_ptr<Op> p = op.shared_from_this();
-                    ensure_no_state(p, result, derivable_params, m_verbose, m_seed);
+                    ensure_no_state(p, result, derivable_params, m_verbose, m_seed, m_no_state_prec);
                 }
             }
 

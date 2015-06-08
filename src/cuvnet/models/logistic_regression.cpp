@@ -8,14 +8,18 @@ namespace cuvnet
     namespace models
     {
         void logistic_regression::reset_params(){
-            //if(m_W)
-                //initialize_dense_glorot_bengio(m_W, false);
-            if(m_W)
+            if(m_W){
                 // might not exist if this is a 'degenerate' logreg
                 m_W->data() = 0.f;
+                cuv::add_rnd_normal(m_W->data(), 0.01);
+            }
+            //if(m_W){
+            //    initialize_dense_glorot_bengio(m_W, false);
+            //}
             if(m_bias) {
                 m_bias->data() = 0.f;
                 m_bias->set_weight_decay_factor(0.f);
+                m_bias->set_learnrate_factor(2.f);  // caffe uses learnrate factor of 2 for bias
             }
         }
         logistic_regression::op_ptr logistic_regression::loss()const{ return m_loss; }

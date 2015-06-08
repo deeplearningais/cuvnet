@@ -43,6 +43,7 @@ namespace cuvnet
                 bool m_spread;
                 std::string m_spread_filter;
                 double m_prec;
+                float m_no_state_prec;
                 float m_minv, m_maxv;
                 std::vector<Op*> m_derivable_params;
                 bool m_simple_and_fast;
@@ -54,6 +55,7 @@ namespace cuvnet
 
                 inline derivative_tester& seed(int seed){m_seed = seed; return *this;}
                 inline derivative_tester& precision(double d){m_prec = d; return *this;}
+                inline derivative_tester& no_state_precision(double d){m_no_state_prec = d; return *this;}
                 inline derivative_tester& epsilon(double d){m_epsilon = d; return *this;}
                 inline derivative_tester& result(int i){m_result = i; return *this;}
                 inline derivative_tester& values(float minv, float maxv){m_minv = minv; m_maxv = maxv; return *this;}
@@ -75,7 +77,7 @@ namespace cuvnet
                  * by executing it twice in succession
                  * and checking whether results are equal.
                  */
-                void ensure_no_state(boost::shared_ptr<Op> out, int result, const std::vector<Op*>& params, bool verbose, int seed);
+                void ensure_no_state(boost::shared_ptr<Op> out, int result, const std::vector<Op*>& params, bool verbose, int seed, double precision);
                 
 
                 // calls derivative_test_wrt

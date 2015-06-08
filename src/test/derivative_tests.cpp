@@ -12,7 +12,10 @@
 #include <cuvnet/tools/matwrite.hpp>
 #include <cuvnet/tools/logging.hpp>
 
+#include <cuv/tools/timing.hpp>
+
 #include <cuvnet/ops.hpp>
+#include <cuvnet/datasets/detection.hpp>
 
 #include <boost/test/unit_test.hpp>
 #ifndef GTEST_INCLUDE_GTEST_GTEST_H_
@@ -35,6 +38,19 @@ struct Fix{
         m_test_trace.reset(new Tracer(g_log, boost::unit_test::framework::current_test_case().p_name));
     }
 };
+
+#define MEASURE_TIME(MSG, OPERATION, ITERS)     \
+	float MSG;                                  \
+	if(1){                                      \
+		Timing tim;                             \
+		for(int i=0;i<ITERS;i++){               \
+			OPERATION ;                         \
+            cuv::safeThreadSync();               \
+		}                                       \
+		tim.update(ITERS);                      \
+		printf("%s [%s] took %4.4f us/pass\n", #MSG, #OPERATION, 1000000.0f*tim.perf()); \
+		MSG = 1000000.0f*tim.perf();            \
+	}
 
 BOOST_FIXTURE_TEST_SUITE( op_test, Fix )
 
@@ -1160,6 +1176,27 @@ BOOST_AUTO_TEST_CASE(derivative_test_sep_conv1d){
  *}
  */
 
+
+BOOST_AUTO_TEST_CASE(response_normalization_cross_maps_caffe){
+	typedef boost::shared_ptr<Op> ptr_t;
+
+    unsigned int nImgChan = 16;
+    unsigned int nImgPixY  = 16;
+    unsigned int nImgPixX  = 16;
+    unsigned int nImg     = 1;
+
+    boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX]);
+
+    float alpha = 0.0000125f;
+    float beta = 0.75f;
+    float size = 3;
+    {
+        ptr_t op = boost::make_shared<ResponseNormalizationAcrossMapsCaffe>(inp0->result(), size, alpha, beta);
+        derivative_tester(*op).test();
+
+    }
+}
+
 BOOST_AUTO_TEST_CASE(derivative_test_response_normalization_cross_maps){
     typedef boost::shared_ptr<Op> ptr_t;
 
@@ -1817,7 +1854,7 @@ BOOST_AUTO_TEST_CASE( Concatenate_first_dim )
             
         //generate all inputs and fill them with rand vals
         for ( unsigned int i = 0; i < n; i++){
-                boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[x][y][z]);
+                boost::shared_ptr<ParameterInput>  inp = boost::make_shared<ParameterInput>(cuv::extents[x][y][z], "x-"+boost::lexical_cast<std::string>(i));
                 fill_rnd_uniform(inp->data());
                 input[i] = inp;
                 if ( i == 0 ) in1 = inp;
@@ -1886,7 +1923,7 @@ BOOST_AUTO_TEST_CASE( Concatenate_first_dim )
                     }
                 }
             }
-            derivative_tester(*op).verbose().test();
+            derivative_tester(*op).epsilon(1.).verbose().test();
             cuv::safeThreadSync();
 }
 
@@ -1954,7 +1991,7 @@ BOOST_AUTO_TEST_CASE( Concatenate_old_interface )
                     }
                 }
             }
-        derivative_tester(*op).verbose().test();
+        derivative_tester(*op).epsilon(1.).verbose().test();
         cuv::safeThreadSync();
 }
 
@@ -2042,8 +2079,70 @@ BOOST_AUTO_TEST_CASE( Concatenate_N_last_dim )
                             float  b = delta->data()[indices[j][k][h]][i*z1 + l];
                             BOOST_CHECK_SMALL(fabs(a - b) , 0.0001);  
                         }        
-            derivative_tester(*op).verbose().test();
+            derivative_tester(*op).epsilon(1.).verbose().test();
 cuv::safeThreadSync();
+}
+
+BOOST_AUTO_TEST_CASE( Concatenate_N_center_dim )
+{  
+            unsigned int n = 3;
+            unsigned int x = 2;
+            unsigned int y = 3;
+            unsigned int z = 2;
+            unsigned int z1 = 5;
+
+            using namespace cuv;
+            using namespace cuvnet;
+            //typedef boost::shared_ptr<cuvnet::Concatenate> ptr_t;
+            typedef boost::shared_ptr<Op> op_ptr;
+            
+            std::vector< op_ptr >  input(n);
+            boost::shared_ptr<ParameterInput> in1 = boost::make_shared<ParameterInput>(cuv::extents[x][y][z][z1]);
+            boost::shared_ptr<ParameterInput> in2 = boost::make_shared<ParameterInput>(cuv::extents[x][y][z][z1]);
+            boost::shared_ptr<ParameterInput> in3 = boost::make_shared<ParameterInput>(cuv::extents[x][y][z][z1]);
+            fill_rnd_uniform(in1->data());
+            fill_rnd_uniform(in2->data());
+            fill_rnd_uniform(in3->data());
+            
+            input[0] = in1;
+            input[1] = in2;
+            input[2] = in3;
+            
+            op_ptr op = concatenate(input, 1);
+            // assumption: op has only one result
+        boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op->result());
+
+        // tell that we want derivative w.r.t. all params
+        param_collector_visitor pcv;
+        op->visit(pcv);
+        BOOST_CHECK(pcv.plist.size()>0);
+
+        std::vector<Op*> params(3);
+        params[0] = in1.get();
+        params[1] = in2.get();
+        params[2] = in3.get();
+        
+        swiper swipe(*op, 0, params);
+        swipe.fprop();
+        cuvAssert(!cuv::has_nan(out_op->cdata()));
+        cuvAssert(!cuv::has_inf(out_op->cdata())); 
+
+        std::vector<unsigned int> desired_shape = {x, n*y, z, z1};
+        cuvAssert(out_op->cdata().shape() == desired_shape);        
+        
+        for ( unsigned int j = 0; j < x; j++)
+            for ( unsigned int k = 0; k < y; k++)
+                for ( unsigned int h = 0; h < z; h++)
+                    for (unsigned int l = 0; l < z1; l++)
+
+                        for ( unsigned int i = 0; i < n; i++){
+                            float  a = boost::dynamic_pointer_cast<ParameterInput>(input[i])->data()(j,k,h,l);
+                            float  b = out_op->cdata()(j,i*n+k,h,l);
+                            BOOST_CHECK_SMALL(fabs(a - b) , 0.0001);  
+                        }
+                            
+        derivative_tester(*op).epsilon(1.).verbose().test();
+        cuv::safeThreadSync();
 }
 
 
@@ -2361,6 +2460,264 @@ BOOST_AUTO_TEST_CASE(upscale){
 
 #endif
 
+BOOST_AUTO_TEST_CASE(cuDNN_convolve){
+    typedef boost::shared_ptr<Op> ptr_t;
+
+        {
+            unsigned int nImgChan = 3;
+            unsigned int nImgPixX = 9;
+            unsigned int nImgPixY = 9;
+            unsigned int nImg     = 2;
+
+            unsigned int nFiltChan = nImgChan;
+            unsigned int nFiltPixX  = 3;
+            unsigned int nFiltPixY  = 3;
+            unsigned int nFilt     = 1;
+
+            unsigned int padding_x = 1;
+            unsigned int padding_y = 1;
+
+            unsigned int hor_stride = 2;
+            unsigned int ver_stride = 2;
+
+            {
+               boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
+               boost::shared_ptr<ParameterInput>  inp1 = boost::make_shared<ParameterInput>(cuv::extents[nFilt][nFiltChan][nFiltPixY][nFiltPixX], "weights");
+
+          /*     {
+                 ptr_t func                       = boost::make_shared<ConvolvecuDNN>(inp0->result(), inp1->result());
+                 derivative_tester(*func).test();
+               }*/
+               {
+                  ptr_t func                       = boost::make_shared<ConvolvecuDNN>(inp0->result(), inp1->result(), padding_y, padding_x, ver_stride, hor_stride);
+                  derivative_tester(*func).epsilon(1.).full_jacobian().no_state_precision(1e-6).test();
+                }
+            }
+        }
+}
+
+BOOST_AUTO_TEST_CASE(cuDNN_speed){
+    typedef boost::shared_ptr<Op> ptr_t;
+
+        {
+            unsigned int nImgChan = 3;
+            unsigned int nImgPixX = 224;
+            unsigned int nImgPixY = 224;
+            unsigned int nImg     = 64;
+
+            unsigned int nFiltChan = nImgChan;
+            unsigned int nFiltPixX  = 11;
+            unsigned int nFiltPixY  = 11;
+            unsigned int nFilt     = 32;
+
+            {
+               boost::shared_ptr<ParameterInput>  inp0a = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
+               boost::shared_ptr<ParameterInput>  inp0b = boost::make_shared<ParameterInput>(cuv::extents[nImgChan][nImgPixY][nImgPixX][nImg], "inputs");
+               boost::shared_ptr<ParameterInput>  inp1a = boost::make_shared<ParameterInput>(cuv::extents[nFilt][nFiltChan][nFiltPixY][nFiltPixX], "weights");
+               boost::shared_ptr<ParameterInput>  inp1b = boost::make_shared<ParameterInput>(cuv::extents[nFiltChan][nFiltPixY*nFiltPixX][nFilt], "weights");
+
+               for(unsigned int dinput = 0; dinput < 2; dinput ++){
+            	   std::cout << "derivative w.r.t. param: " << dinput << std::endl;
+            	   int padding = 0;
+
+            	   ptr_t op0 = boost::make_shared<ConvolvecuDNN>(inp0a->result(), inp1a->result(),padding, padding);
+            	   ptr_t op1 = boost::make_shared<Convolve>(inp0b->result(), inp1b->result(), true, padding, 1, 1, 0);
+
+            	   cuvnet::function func0f(op0);
+            	   MEASURE_TIME(cudnn_f, func0f.evaluate(), 10);
+            	   cuvnet::function func1f(op1);
+            	   MEASURE_TIME(alex_f, func1f.evaluate(), 10);
+
+            	   cuvnet::delta_function func0(op0, op0, 0, dinput);
+            	   MEASURE_TIME(cudnn_fb, func0.evaluate(), 10);
+
+            	   cuvnet::delta_function func1(op1, op1, 0, dinput);
+            	   MEASURE_TIME(alex_fb, func1.evaluate(), 10);
+
+            	   std::cout << "fprop speedup alex/cudnn: " << (alex_f) / (cudnn_f) << std::endl;
+            	   std::cout << "bprop speedup alex/cudnn: " << (alex_fb-alex_f) / (cudnn_fb-cudnn_f) << std::endl;
+               }
+            }
+        }
+}
+
+BOOST_AUTO_TEST_CASE(cuDNN_streams_speed)
+{
+	using namespace std;
+
+    typedef boost::shared_ptr<Op> ptr_t;
+
+    unsigned int nImgChan = 3;
+    unsigned int nImgPixX = 1000;
+    unsigned int nImgPixY = 1000;
+    unsigned int nImg     = 5;
+
+    unsigned int nFiltChan = nImgChan;
+    unsigned int nFiltPixX  = 10;
+    unsigned int nFiltPixY  = 10;
+    unsigned int nFilt     = 1;
+
+    unsigned int bias1 = 1;
+    unsigned int bias2 = nFilt;
+    unsigned int bias3 = 1;
+    unsigned int bias4 = 1;
+
+    boost::shared_ptr<ParameterInput>  in1 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX], "inputs");
+    boost::shared_ptr<ParameterInput>  in2 = boost::make_shared<ParameterInput>(cuv::extents[nFilt][nFiltChan][nFiltPixY][nFiltPixX], "weights");
+    boost::shared_ptr<ParameterInput>  in3 = boost::make_shared<ParameterInput>(cuv::extents[bias1][bias2][bias3][bias4], "bias");
+
+    fill_rnd_uniform(in1->data());
+    fill_rnd_uniform(in2->data());
+    fill_rnd_uniform(in3->data());
+
+	int padding = 0;
+ 	ptr_t op = boost::make_shared<ConvolvecuDNN>(in1->result(), in2->result(),in3->result(),padding, padding);
+
+    // assumption: op has only one result
+	boost::shared_ptr<Sink> out_op = boost::make_shared<Sink>(op->result());
+
+	// tell that we want derivative w.r.t. all params
+
+	std::vector<Op*> params(3);
+	params[0] = in1.get();
+	params[1] = in2.get();
+	params[2] = in3.get();
+
+	swiper swipe(*op, 0, params);
+
+	swipe.fprop();
+	cuvAssert(!cuv::has_nan(out_op->cdata()));
+	cuvAssert(!cuv::has_inf(out_op->cdata()));
+
+	MEASURE_TIME(cudnn_b, swipe.bprop(), 10);
+	std::cout << "bprop cudnn: " << cudnn_b << std::endl;
+
+	//speeds one vs multiple streams: 419494 vs 343819 -> speedup: 1.22
+
+}
+
+
+BOOST_AUTO_TEST_CASE(cuDNN_pooling){
+    typedef boost::shared_ptr<Op> ptr_t;
+
+    unsigned int nImgChan = 1;
+    unsigned int nImgPixX  = 6;
+    unsigned int nImgPixY  = 6;
+    unsigned int nImg     = 1;
+
+    unsigned int window_height = 4;
+    unsigned int window_width = 4;
+
+    unsigned int vertical_stride = 2;
+    unsigned int horizontal_stride = 2;
+
+    unsigned int vertical_padding = 0;
+    unsigned int horizontal_padding = 0;
+
+    {
+        boost::shared_ptr<ParameterInput>  inp0 = boost::make_shared<ParameterInput>(cuv::extents[nImg][nImgChan][nImgPixY][nImgPixX]);
+        ptr_t func = boost::make_shared<PoolingcuDNN>(inp0->result(), cuv::alex_conv::PT_MAX, window_height, window_width, vertical_stride, horizontal_stride, vertical_padding, horizontal_padding);
+/*
+	double s = inp0->data().size();
+	double epsilon = 0.01;
+    derivative_tester(*func).values(-s/2,s/2).spread_values().epsilon(epsilon).full_jacobian().only_variant(4).test();
+*/
+	 derivative_tester(*func).test();
+
+    }
+}
+
+
+BOOST_AUTO_TEST_CASE(szegedy_op){
+    //typedef boost::shared_ptr<Op> ptr_t;
+
+    unsigned int bs =  10; // batch size
+    unsigned int  K =   4; // number of predictions per image
+    unsigned int  C =   2; // number of classes
+    unsigned int  T =   2; // teacher bboxes
+    float     alpha = 1.0; // scales bounding box distance loss
+
+    boost::shared_ptr<ParameterInput> inp0 = boost::make_shared<ParameterInput>(cuv::extents[bs][C*K*5]);
+
+    std::vector<std::vector<datasets::rotated_rect> > kmeans(K);
+    for (unsigned int c = 0; c < C; c++) {
+        kmeans[c].resize(K);
+        for (unsigned int k = 0; k < K; k++) {
+            kmeans[c][k].x = drand48() * 1;
+            kmeans[c][k].y = drand48() * 1;
+            kmeans[c][k].h = drand48() * 1;
+            kmeans[c][k].w = drand48() * 1;
+        }
+    }
+    std::vector<std::vector<datasets::bbox> > teach(bs);
+    for (unsigned int b = 0; b < bs; b++) {
+        teach[b].resize(T);
+        for (unsigned int t = 0; t < T; t++) {
+            teach[b][t].rect.x = drand48();
+            teach[b][t].rect.y = drand48();
+            teach[b][t].rect.h = drand48();
+            teach[b][t].rect.w = drand48();
+            teach[b][t].klass = drand48() * C;
+        }
+    }
+
+    cuv::fill_rnd_uniform(inp0->data());
+    inp0->data() *= 2.f;
+    inp0->data() -= 1.f;
+
+    // first teacher is exactly the mean
+    teach[0][0].rect = kmeans[0][0];
+    // accordingly, the input should be very confident and have zero offsets
+    inp0->data()(0, 0) = 0.f;
+    inp0->data()(0, 1) = 0.f;
+    inp0->data()(0, 2) = 0.f;
+    inp0->data()(0, 3) = 0.f;
+    inp0->data()(0, 4) = 5.f;
+
+    boost::shared_ptr<BoundingBoxMatching> func = 
+        boost::make_shared<BoundingBoxMatching>(inp0->result(), kmeans, alpha, C); 
+    
+    // set teacher
+    //func->set_teacher_bbox(teach);
+    func->m_teach = teach;
+
+    function f(func);
+    matrix res = f.evaluate();
+   
+    BOOST_CHECK_EQUAL(res[0], func->get_f_match() / bs + func->get_f_conf() / bs / alpha);
+
+    std::vector<std::vector<unsigned int> > n_matched;
+    n_matched.resize(bs);
+    for (unsigned int b = 0; b < bs; b++) {
+        n_matched[b].resize(T, 0);
+        for (unsigned int c = 0; c < C; c++) {
+        for (unsigned int k = 0; k < K; k++) {
+            int i_m = func->m_matching[b][K*c + k]; 
+            if(i_m >= 0) {
+                n_matched[b][i_m]++;
+                BOOST_CHECK_EQUAL(teach[b][i_m].klass, c); // teacher matched wrt to class
+            }
+        }
+        }
+    }
+
+    for(auto mv : n_matched)
+       for (auto m : mv)
+           BOOST_CHECK_EQUAL(m, 1); // each output matched once
+
+    //std::vector<std::vector<datasets::bbox> > output_bbox = func->get_output_bbox(); 
+    //for (unsigned int b = 0; b < bs; b++) {
+    //    for (unsigned int k = 0; k < K; k++) {
+    //        BOOST_CHECK_EQUAL(output_bbox[b][k].rect.x, inp0->data()(b, k * 5 + 0) + kmeans[k].x);
+    //        BOOST_CHECK_EQUAL(output_bbox[b][k].rect.y, inp0->data()(b, k * 5 + 1) + kmeans[k].y);
+    //        BOOST_CHECK_EQUAL(output_bbox[b][k].rect.h, inp0->data()(b, k * 5 + 2) + kmeans[k].h);
+    //        BOOST_CHECK_EQUAL(output_bbox[b][k].rect.w, inp0->data()(b, k * 5 + 3) + kmeans[k].w);
+    //    }
+    //}
+    //std::cout << "loss: " << func->get_f_match() << " " << func->get_f_conf() << std::endl;
+   
+    derivative_tester (*func).values(1,-1).test();
+}
 
 BOOST_AUTO_TEST_SUITE_END()
 
