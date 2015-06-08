@@ -1,3 +1,4 @@
+#ifndef NO_THEANO_WRAPPERS
 
 #include "theano_ops.hpp"
 
@@ -120,3 +121,4 @@ namespace cuvnet
        m_results[0]->shape = m_params[0]->shape;
     }
 }
+#endif /* NO_THEANO_WRAPPERS */

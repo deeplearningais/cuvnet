@@ -19,7 +19,7 @@ SET(CUV_LIB_DIR "${CUV_BASE_DIRECTORY}/${CUV_BUILD_TYPE}/src/cuv"
                 "${CUV_BASE_DIRECTORY}/${CUV_BUILD_TYPE}/src/cuv_python"
                 "/usr/lib/python2.7/dist-packages/cuv_python"
                 )
-SET(CUV_LIBRARY cuv tp_theano)
+SET(CUV_LIBRARY cuv )
 SET(CUV_PYTHON_LIBRARY _cuv_python.so)
 
 INCLUDE_DIRECTORIES(${CUV_INCLUDE_DIR})
